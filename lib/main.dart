@@ -1,34 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/bdd/data_acces.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/keepAlive.dart';
 import 'package:jsonschema/widget_model_editor.dart';
 import 'package:jsonschema/widget_model_selector.dart';
 import 'package:jsonschema/widget_rail.dart';
 import 'package:jsonschema/widget_tab.dart';
-import 'package:localstorage/localstorage.dart';
-import 'package:yaml/yaml.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initLocalStorage();
-  currentCompany.listModel = ModelSchemaDetail(name: 'Business model', id: 'model');
 
-  var listModel = localStorage.getItem('model');
-  if (listModel != null) {
-    currentCompany.listModelYaml = listModel;
-    try {
-      currentCompany.mapListModelYaml = loadYaml(
-        currentCompany.listModelYaml,
-        recover: true,
-      );
-    } catch (e) {}
-  }
+  const isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
+  print('isRunningWithWasm $isRunningWithWasm');
+
+  await localStorage.init();
+
+  currentCompany.listModel = ModelSchemaDetail(
+    name: 'Business model',
+    id: 'model',
+  );
+
+  await currentCompany.listModel!.loadYamlAndProperties(cache: false);
 
   runApp(CodeEditor());
 }
 
 const constMasterID = '\$\$__id__';
-const constTypeOneof = '\$\$__oneof__';
+const constTypeAnyof = '\$\$__anyof__';
 const constRefOn = '\$\$__ref__';
 
 GlobalKey keyListModel = GlobalKey();
@@ -105,11 +103,4 @@ class CodeEditor extends StatelessWidget {
       heightTab: 40,
     );
   }
-
-
-
-
-
-
-
 }

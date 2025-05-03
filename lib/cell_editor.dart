@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/json_tree.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/export/json_browser.dart';
 
 class CellEditor extends StatefulWidget {
-  const CellEditor({super.key, required this.propName, required this.info, required this.schema});
+  const CellEditor({
+    super.key,
+    required this.propName,
+    required this.info,
+    required this.schema,
+  });
   final AttributInfo info;
   final ModelSchemaDetail schema;
   final String propName;
@@ -58,7 +62,9 @@ class CellCheckEditor extends StatefulWidget {
     super.key,
     required this.propName,
     required this.info,
+    required this.schema,
   });
+  final ModelSchemaDetail schema;
   final AttributInfo info;
   final String propName;
   @override
@@ -81,7 +87,7 @@ class _CellCheckEditorState extends State<CellCheckEditor> {
             // This is called when the user toggles the switch.
             setState(() {
               widget.info.properties?[widget.propName] = value;
-              currentCompany.currentModel!.saveProperties();
+              widget.schema.saveProperties();
             });
           },
         ),

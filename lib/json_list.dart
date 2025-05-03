@@ -2,6 +2,7 @@ import 'package:animated_tree_view/node/node.dart';
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/export/json_browser.dart';
 import 'package:jsonschema/json_tree.dart';
 
 class JsonList extends StatefulWidget {
@@ -61,6 +62,24 @@ class _JsonListState extends State<JsonList> {
   }
 
   Widget getListView() {
+    var modelSchemaDetail =
+        (widget.modelInfo.config.getModel() as ModelSchemaDetail);
+    Future prop = modelSchemaDetail.getProperties();
+
+    return FutureBuilder(
+      future: prop,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return Text('loading');
+        Map properties = snapshot.data;
+        return getSyncWidget(modelSchemaDetail, properties);
+      },
+    );
+  }
+
+  SingleChildScrollView getSyncWidget(
+    ModelSchemaDetail modelSchemaDetail,
+    Map<dynamic, dynamic> properties,
+  ) {
     List<TreeNode<NodeAttribut>> result = [];
     List<TreeNode<NodeAttribut>> all = [];
     var tree2 =
@@ -68,15 +87,15 @@ class _JsonListState extends State<JsonList> {
     if (tree2 != null) {
       result.add(tree2);
       getVisibleNode(true, tree2, result, all);
-      var modelSchemaDetail =
-          (widget.modelInfo.config.getModel() as ModelSchemaDetail);
-      var properties = modelSchemaDetail.getProperties();
       if (all.isEmpty && modelSchemaDetail.modelYaml.isNotEmpty) {
         print("************* not change on error ****************");
       } else {
-        properties.clear();
-        for (var element in all) {
-          properties[element.data!.info.path] = element.data!.info.properties;
+        if (!modelSchemaDetail.first) {
+          print("************* reorg & purge properties ****************");
+          properties.clear();
+          for (var element in all) {
+            properties[element.data!.info.path] = element.data!.info.properties;
+          }
         }
         print('nb list rows = ${result.length} prop = ${properties.length}');
       }
@@ -140,10 +159,10 @@ class _JsonListState extends State<JsonList> {
         initialItemCount: _list.length,
         itemBuilder: (context, index, Animation<double> animation) {
           var dataAttr = _list[index];
-          if (dataAttr.cache != null) {
+          if (dataAttr.info.cache != null) {
             return SizeTransition(
               sizeFactor: animation,
-              child: dataAttr.cache!,
+              child: dataAttr.info.cache!,
             );
           }
           return SizeTransition(
@@ -226,7 +245,7 @@ class ListModel<E> {
 
   void insert(int index, E item) {
     _items.insert(index, item);
-    _animatedList!.insertItem(index, duration: Duration(milliseconds: 150));
+    _animatedList?.insertItem(index, duration: Duration(milliseconds: 150));
   }
 
   E removeAt(int index) {

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/attributProperties.dart';
+import 'package:jsonschema/bdd/data_acces.dart';
 import 'package:jsonschema/cell_editor.dart';
 import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/export/json_browser.dart';
 import 'package:jsonschema/json_tree.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget_model_helper.dart';
 import 'package:jsonschema/widget_tab.dart';
 import 'package:jsonschema/yaml_editor.dart';
-import 'package:localstorage/localstorage.dart';
 import 'package:yaml/yaml.dart';
 
 class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
@@ -40,7 +41,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
                   config:
                       JsonTreeConfig(
                           getModel: () {
-                            return currentCompany.currentModel!;
+                            return currentCompany.currentModel;
                           },
                         )
                         ..getJson = getJsonYaml
@@ -57,6 +58,8 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
 
   Widget _getEditorLeftTab() {
     void onYamlChange(String yaml, YamlConfig config) {
+      if (currentCompany.currentModel == null) return;
+
       var modelSchemaDetail = currentCompany.currentModel!;
       if (modelSchemaDetail.modelYaml != yaml) {
         modelSchemaDetail.modelYaml = yaml;
@@ -69,8 +72,8 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
           parseOk = true;
           config.notifError.value = '';
         } catch (e) {
-          config.notifError.value = e.toString();
-          print(e);
+          config.notifError.value = '$e';
+          //print(e);
         }
 
         if (parseOk) {
@@ -81,11 +84,15 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     }
 
     getYaml() {
-      return currentCompany.currentModel!.modelYaml;
+      return currentCompany.currentModel?.modelYaml;
     }
 
     return WidgetTab(
-      listTab: [Tab(text: 'Structure'), Tab(text: 'Info'), Tab(text: 'Version')],
+      listTab: [
+        Tab(text: 'Structure'),
+        Tab(text: 'Info'),
+        Tab(text: 'Version'),
+      ],
       listTabCont: [
         Container(
           color: Colors.black,
@@ -121,6 +128,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     );
     row.add(
       CellCheckEditor(
+        schema: schema,
         key: ValueKey('${attr.hashCode}#required'),
         info: attr.info,
         propName: 'required',
@@ -132,14 +140,18 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
 
     addWidgetMasterId(attr, row);
 
-    attr.cache = SizedBox(
+
+    attr.info.cache = SizedBox( 
       height: rowHeight,
-      child: Card(
-        key: ObjectKey(attr),
-        margin: EdgeInsets.all(1),
-        child: Row(children: row),
+      child: InkWell(
+        onTap: () {},
+        child: Card(
+          key: ObjectKey(attr),
+          margin: EdgeInsets.all(1),
+          child: Row(children: row),
+        ),
       ),
     );
-    return attr.cache!;
+    return attr.info.cache!;
   }
 }

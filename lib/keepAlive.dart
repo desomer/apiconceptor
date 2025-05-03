@@ -10,10 +10,6 @@ class KeepAliveWidget extends StatefulWidget {
 
 class _KeepAliveState extends State<KeepAliveWidget>
     with AutomaticKeepAliveClientMixin {
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {

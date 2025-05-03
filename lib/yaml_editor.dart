@@ -39,6 +39,10 @@ class _YamlEditorState extends State<YamlEditor> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.config.getYaml() == null) {
+      return Text('select model first');
+    }
+
     // dispatch = false;
     // controller.text = widget.config.getYaml();
     // dispatch = true;

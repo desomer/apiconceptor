@@ -1,13 +1,10 @@
 import 'dart:convert' show jsonDecode, jsonEncode;
 
-import 'package:jsonschema/json_tree.dart';
-import 'package:localstorage/localstorage.dart';
+import 'package:jsonschema/bdd/data_acces.dart';
+import 'package:jsonschema/export/json_browser.dart';
 import 'package:yaml/yaml.dart';
 
 class ModelSchema {
-  String listModelYaml = '';
-  Map mapListModelYaml = {};
-
   ModelSchemaDetail? listModel;
   ModelSchemaDetail? currentModel;
 }
@@ -32,8 +29,40 @@ class ModelSchemaDetail {
   int lastNbNode = 0;
   bool first = true;
 
-  void load() {
-    var saveModel = localStorage.getItem(id);
+  dynamic getItemSync(int delay) {
+    return localStorage.getItemSync(id, delay);
+  }
+
+  loadYamlAndProperties({required bool cache}) async {
+    dynamic saveModel = localStorage.getItem(id, cache ? -1 : 0);
+    if (saveModel is Future) {
+      saveModel = await saveModel;
+    } else if (mapModelYaml.isNotEmpty) {
+      return;
+    }
+
+    if (saveModel != null) {
+      modelYaml = saveModel;
+      try {
+        mapModelYaml = loadYaml(modelYaml, recover: true);
+        print("load yaml model = $id");
+      } catch (e) {
+        print(e);
+      }
+    } else {
+      modelYaml = '';
+      mapModelYaml = {};
+    }
+
+    await _loadProperties();
+  }
+
+  dynamic loadYamlAndPropertiesSyncOrNot({required bool cache}) {
+    dynamic saveModel = localStorage.getItem(id, cache ? -1 : 0);
+    if (saveModel is Future) {
+      return loadYamlAndProperties(cache: cache);
+    }
+
     if (saveModel != null) {
       modelYaml = saveModel;
       try {
@@ -45,28 +74,30 @@ class ModelSchemaDetail {
       modelYaml = '';
       mapModelYaml = {};
     }
-    _loadProperties();
+    return saveModel;
   }
 
-  Map<String, dynamic> getProperties() {
-    _loadProperties();
+  Future<Map<String, dynamic>> getProperties() async {
+    await _loadProperties();
     return modelProperties;
   }
 
-  void _loadProperties() {
+  Future _loadProperties() async {
     if (!isLoadProp) {
-      var l = localStorage.getItem('json/$id');
+      var l = await localStorage.getItem('json/$id', 0);
       if (l != null) {
         modelProperties = jsonDecode(l);
       } else {
         modelProperties = {};
       }
-      print("set properties model = $id");
+      print("load properties model = $id");
       isLoadProp = true;
     }
   }
 
   void saveProperties() {
-    localStorage.setItem('json/$id', jsonEncode(modelProperties));
+    var jsonEncode2 = jsonEncode(modelProperties);
+    print(jsonEncode2);
+    localStorage.setItem('json/$id', jsonEncode2);
   }
 }
