@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:highlight/languages/yaml.dart' show yaml;
 import 'package:jsonschema/bdd/data_acces.dart';
-import 'package:jsonschema/cell_editor.dart';
+import 'package:jsonschema/editor/cell_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/export/export2json_schema.dart';
 import 'package:jsonschema/export/json_browser.dart';
 import 'package:jsonschema/json_tree.dart';
 import 'package:jsonschema/keepAlive.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/editor/text_editor.dart';
 import 'package:jsonschema/widget_model_helper.dart';
 import 'package:jsonschema/widget_tab.dart';
-import 'package:jsonschema/yaml_editor.dart';
 import 'package:yaml/yaml.dart';
 
 class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
@@ -60,9 +61,10 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     List<Widget> row = [SizedBox(width: 10)];
     row.add(
       CellEditor(
-        key: ValueKey('${attr.hashCode}#description'),
+        inArray: true,
+        key: ValueKey('${attr.hashCode}#title'),
         info: attr.info,
-        propName: 'description',
+        propName: 'title',
         schema: schema,
       ),
     );
@@ -86,7 +88,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
               var key = attr.info.properties![constMasterID];
               var model = ModelSchemaDetail(name: attr.info.name, id: key);
               await model.loadYamlAndProperties(cache: false);
-              await ExportToJsonSchema().doExport(model);
+              await ExportJsonSchema2clipboard().doExport(model);
             }
           },
           label: Text('Json schemas'),
@@ -124,7 +126,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
   }
 
   Widget getStructureModel() {
-    void onYamlChange(String yaml, YamlConfig config) {
+    void onYamlChange(String yaml, TextConfig config) {
       if (currentCompany.listModel!.modelYaml != yaml) {
         currentCompany.listModel!.modelYaml = yaml;
         localStorage.setItem('model', currentCompany.listModel!.modelYaml);
@@ -134,8 +136,9 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
             currentCompany.listModel!.modelYaml,
           );
           parseOk = true;
+          config.notifError.value = '';
         } catch (e) {
-          //print(e);
+          config.notifError.value = '$e';
         }
 
         if (parseOk) {
@@ -152,13 +155,15 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     //currentCompany.currentModel = ModelSchemaDetail(name: attr.info.name, id: 'model');
     return Container(
       color: Colors.black,
-      child: YamlEditor(
+      child: TextEditor(
+        header: "Business models", 
         key: keyListModel,
-        config:
-            YamlConfig()
-              ..notifError = notifierModelErrorYaml
-              ..onChange = onYamlChange
-              ..getYaml = getYaml,
+        config: TextConfig(
+          mode: yaml,
+          notifError: notifierModelErrorYaml,
+          onChange: onYamlChange,
+          getText: getYaml,
+        ),
       ),
     );
   }

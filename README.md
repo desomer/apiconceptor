@@ -4,13 +4,13 @@ A new Flutter project.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Roadmap Business Model 
+- gestion du changement de type => retrait des prob
+- sauvegarde différé
+- sauvegarde par delta
+- gestion des version
+- gestion des tag
+- gestion de verification de mot anglais
+- gestion de glossary pour eviter de nommer x fois la même notion
+- améliorer les fakes
+- pouvoir paramétres des exemple de json

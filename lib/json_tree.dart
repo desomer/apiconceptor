@@ -36,7 +36,6 @@ class JsonBrowserWidget extends JsonBrowser {
   }
 }
 
-
 class JsonEditor extends StatefulWidget {
   const JsonEditor({super.key, required this.config});
   final JsonTreeConfig config;
@@ -70,19 +69,28 @@ class JsonEditorState extends State<JsonEditor>
     if (model == null) return Text('Select model first');
 
     var jsonBrowserWidget = JsonBrowserWidget()..state = this;
-    jsonBrowserWidget.browse(model, true);
-    return getWidget(model, jsonBrowserWidget);
+    ModelBrower browser = jsonBrowserWidget.browse(model, true);
+    return getWidget(model, browser, jsonBrowserWidget);
   }
 
-  Row getWidget(ModelSchemaDetail model, JsonBrowserWidget browser) {
+  Row getWidget(
+    ModelSchemaDetail model,
+    ModelBrower browser,
+    JsonBrowserWidget jsonBrowserWidget,
+  ) {
     print(
       "nb name = ${model.mapInfoByName.length} nb path = ${model.mapInfoByJsonPath.length}  all info = ${model.allAttributInfo.length}",
     );
 
+    print(browser.nbLevelMax);
+
     modelInfo.config = widget.config;
     return Row(
       children: [
-        SizedBox(width: 400, child: getTree(browser.rootTree)),
+        SizedBox(
+          width: 350 + (browser.nbLevelMax * 20),
+          child: getTree(jsonBrowserWidget.rootTree),
+        ),
         Expanded(
           child: Align(
             alignment: Alignment.topCenter,
@@ -181,7 +189,7 @@ class JsonEditorState extends State<JsonEditor>
     }
 
     return SizedBox(
-      width: 200,
+      width: 150,
       child: Padding(
         padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
         child: Row(
@@ -213,7 +221,7 @@ class JsonEditorState extends State<JsonEditor>
       }
     }
     Future.delayed(Duration(milliseconds: delay * 5)).then((_) {
-      modelInfo.treeController!.toggleExpansion(node);
+      if (mounted) modelInfo.treeController!.toggleExpansion(node);
     });
     return levelFormTop;
   }
@@ -231,7 +239,6 @@ class JsonEditorState extends State<JsonEditor>
       label: content,
     );
   }
-
 }
 
 class JsonTreeConfig {

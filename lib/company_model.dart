@@ -29,6 +29,8 @@ class ModelSchemaDetail {
   int lastNbNode = 0;
   bool first = true;
 
+  AttributInfo? currentAttr;
+
   dynamic getItemSync(int delay) {
     return localStorage.getItemSync(id, delay);
   }

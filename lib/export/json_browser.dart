@@ -6,7 +6,10 @@ import 'package:nanoid/async.dart';
 class JsonBrowser<T> {
   bool ready = false;
 
-  browse(ModelSchemaDetail model, bool unknowedMode) {
+  void onInit(ModelSchemaDetail model) {}
+  void onReady(ModelSchemaDetail model) {}
+
+  ModelBrower browse(ModelSchemaDetail model, bool unknowedMode) {
     int time = DateTime.now().millisecondsSinceEpoch;
     ModelBrower browser = ModelBrower()..time = time;
 
@@ -25,6 +28,7 @@ class JsonBrowser<T> {
       yamlPathAttr: 'root',
       browser: browser,
       nodeAttribut: rootNodeAttribut,
+      level: 0,
     );
 
     _browseNode(model, browseAttrInfo, model.mapModelYaml);
@@ -70,12 +74,15 @@ class JsonBrowser<T> {
       model.saveProperties();
     }
 
+    onInit(model);
     T? r = getRoot(rootNodeAttribut);
     if (r != null) {
       doTree(rootNodeAttribut, r);
     }
+    onReady(model);
 
     ready = true;
+    return browser;
   }
 
   void doTree(NodeAttribut rootNodeAttribut, dynamic r) {
@@ -141,6 +148,10 @@ class JsonBrowser<T> {
   void doNode(NodeAttribut nodeAttribut) {}
 
   void _browseNode(ModelSchemaDetail model, BrowserAttrInfo attr, Map node) {
+    if (attr.level > attr.browser.nbLevelMax) {
+      attr.browser.nbLevelMax = attr.level;
+    }
+
     var entries = node.entries;
     int i = 0;
     for (var mapChild in entries) {
@@ -168,6 +179,7 @@ class JsonBrowser<T> {
         browser: attr.browser,
         nodeAttribut: childNodeAttribut,
         yamlPathAttr: yamlPathAttr,
+        level: attr.level + 1,
       );
 
       if (!attr.browser.unknowedMode) {
@@ -286,9 +298,7 @@ class JsonBrowser<T> {
       nodeAttribut.info.type,
     )) {
       nodeAttribut.info.error?.remove(EnumErrorType.errorType);
-    }
-    else
-    {
+    } else {
       nodeAttribut.info.error ??= {};
       nodeAttribut.info.error![EnumErrorType.errorType] = AttributError(
         type: EnumErrorType.errorType,
@@ -334,7 +344,15 @@ class JsonBrowser<T> {
     String typeTitle,
   ) {
     var type = typeTitle.toLowerCase();
-    return ['model','string', 'number', 'object', 'array', '\$ref', '\$anyof'].contains(type);
+    return [
+      'model',
+      'string',
+      'number',
+      'object',
+      'array',
+      '\$ref',
+      '\$anyof',
+    ].contains(type);
   }
 
   AttributInfo? _getNearestAttributNotUsed(
@@ -408,6 +426,7 @@ class ModelBrower {
   bool propertiesChanged = false;
   int nbNode = 0;
   bool unknowedMode = true;
+  int nbLevelMax = 0;
 
   List<BrowserAttrInfo> unknownAttribut = [];
   List<BrowserAttrInfo> asyncRef = [];
@@ -420,7 +439,7 @@ class NodeAttribut {
   AttributInfo info;
   List<NodeAttribut> child = [];
   String? addChildOn;
-  String addInAttr = "properties";
+  String addInAttr = "";
 }
 
 class AttributInfo {
@@ -442,11 +461,13 @@ class BrowserAttrInfo {
     required this.nodeAttribut,
     required this.aJsonPath,
     required this.browser,
+    required this.level,
   });
   String yamlPathAttr;
   NodeAttribut nodeAttribut;
   String aJsonPath;
   ModelBrower browser;
+  int level = 0;
 
   bool unkwown = false;
   ModelSchemaDetail? ref;

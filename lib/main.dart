@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/bdd/data_acces.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/keepAlive.dart';
+import 'package:jsonschema/widget_json_validator.dart';
 import 'package:jsonschema/widget_model_editor.dart';
 import 'package:jsonschema/widget_model_selector.dart';
 import 'package:jsonschema/widget_rail.dart';
@@ -76,8 +77,12 @@ class CodeEditor extends StatelessWidget {
                 icon: Icon(Icons.electric_bolt),
                 label: Text('Event'),
               ),
+              NavigationRailDestination(
+                icon: Icon(Icons.code),
+                label: Text('Code'),
+              ),              
             ],
-            listTabCont: [getModelTab(), Container(), Container()],
+            listTabCont: [getModelTab(), Container(), Container(), Container()],
             heightTab: 20,
           ),
         ),
@@ -93,11 +98,13 @@ class CodeEditor extends StatelessWidget {
       listTab: [
         Tab(text: 'Models Browser'),
         Tab(text: 'Model Editor'),
+        Tab(text: 'Json schema'),
         Tab(text: 'Glossary'),
       ],
       listTabCont: [
         KeepAliveWidget(child: WidgetModelSelector()),
         WidgetModelEditor(),
+        WidgetJsonValidator(),
         Container(),
       ],
       heightTab: 40,

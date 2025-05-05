@@ -1,22 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:highlight/languages/yaml.dart';
 import 'package:jsonschema/attributProperties.dart';
 import 'package:jsonschema/bdd/data_acces.dart';
-import 'package:jsonschema/cell_editor.dart';
+import 'package:jsonschema/editor/cell_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/export/json_browser.dart';
 import 'package:jsonschema/json_tree.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/editor/text_editor.dart';
+import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget_model_helper.dart';
 import 'package:jsonschema/widget_tab.dart';
-import 'package:jsonschema/yaml_editor.dart';
 import 'package:yaml/yaml.dart';
 
 class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
-  const WidgetModelEditor({super.key});
+  WidgetModelEditor({super.key});
+  final GlobalKey keyAttrEditor = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
-    return _getModelEditor();
+    return Column(
+      children: [
+        SizedBox(
+          height: 35,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: BreadCrumbNavigator(),
+          ),
+        ),
+        Expanded(child: _getModelEditor()),
+      ],
+    );
   }
 
   Row _getModelEditor() {
@@ -48,7 +62,10 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
                         ..getRow = _getWidgetAttrInfo,
                 ),
               ),
-              SizedBox(width: 400, child: AttributProperties()),
+              SizedBox(
+                width: 300,
+                child: AttributProperties(key: keyAttrEditor),
+              ),
             ],
           ),
         ),
@@ -57,7 +74,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
   }
 
   Widget _getEditorLeftTab() {
-    void onYamlChange(String yaml, YamlConfig config) {
+    void onYamlChange(String yaml, TextConfig config) {
       if (currentCompany.currentModel == null) return;
 
       var modelSchemaDetail = currentCompany.currentModel!;
@@ -73,7 +90,6 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
           config.notifError.value = '';
         } catch (e) {
           config.notifError.value = '$e';
-          //print(e);
         }
 
         if (parseOk) {
@@ -96,13 +112,15 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
       listTabCont: [
         Container(
           color: Colors.black,
-          child: YamlEditor(
+          child: TextEditor(
+            header: "Model attributs",
             key: keyModelEditor,
-            config:
-                YamlConfig()
-                  ..notifError = notifierErrorYaml
-                  ..onChange = onYamlChange
-                  ..getYaml = getYaml,
+            config: TextConfig(
+              mode: yaml,
+              notifError: notifierErrorYaml,
+              onChange: onYamlChange,
+              getText: getYaml,
+            ),
           ),
         ),
         Container(),
@@ -121,30 +139,46 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     row.add(
       CellEditor(
         schema: schema,
-        key: ValueKey('${attr.hashCode}#description'),
+        key: ValueKey('${attr.hashCode}#title'),
         info: attr.info,
-        propName: 'description',
+        propName: 'title',
+        inArray: true,
       ),
     );
+
+    bool minmax =
+        (attr.info.properties?['minimum'] != null) ||
+        (attr.info.properties?['maximun'] != null) ||
+        (attr.info.properties?['minLength'] != null) ||
+        (attr.info.properties?['maxLength'] != null);
+
     row.add(
-      CellCheckEditor(
-        schema: schema,
-        key: ValueKey('${attr.hashCode}#required'),
-        info: attr.info,
-        propName: 'required',
+      Row(
+        spacing: 5,
+        children: [
+          SizedBox(width: 10),
+          if (attr.info.properties?['required'] != null)
+            Icon(Icons.check_circle_outline),
+          if (attr.info.properties?['enum'] != null) Icon(Icons.checklist),
+          if (attr.info.properties?['pattern'] != null)
+            Icon(Icons.pin_outlined),
+          if (minmax) Icon(Icons.tune),
+        ],
       ),
     );
 
-    row.add(getChip(Text(attr.info.treePosition ?? ''), color: null));
-    row.add(getChip(Text(attr.info.path), color: null));
+    // row.add(getChip(Text(attr.info.treePosition ?? ''), color: null));
+    // row.add(getChip(Text(attr.info.path), color: null));
+    // addWidgetMasterId(attr, row);
 
-    addWidgetMasterId(attr, row);
-
-
-    attr.info.cache = SizedBox( 
+    attr.info.cache = SizedBox(
       height: rowHeight,
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          schema.currentAttr = attr.info;
+          // ignore: invalid_use_of_protected_member
+          keyAttrEditor.currentState?.setState(() {});
+        },
         child: Card(
           key: ObjectKey(attr),
           margin: EdgeInsets.all(1),
