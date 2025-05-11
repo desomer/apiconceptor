@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/yaml.dart' show yaml;
-import 'package:jsonschema/bdd/data_acces.dart';
-import 'package:jsonschema/editor/cell_editor.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/export/export2json_schema.dart';
-import 'package:jsonschema/export/json_browser.dart';
-import 'package:jsonschema/json_tree.dart';
-import 'package:jsonschema/keepAlive.dart';
+import 'package:jsonschema/json_browser/browse_api.dart';
+import 'package:jsonschema/json_browser/export2json_schema.dart';
+import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
+import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/main.dart';
-import 'package:jsonschema/editor/text_editor.dart';
-import 'package:jsonschema/widget_model_helper.dart';
-import 'package:jsonschema/widget_tab.dart';
+import 'package:jsonschema/editor/code_editor.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
+import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:yaml/yaml.dart';
 
-class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
-  const WidgetModelSelector({super.key});
+class PanAPISelector extends StatelessWidget with WidgetModelHelper {
+  const PanAPISelector({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -23,22 +24,23 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
 
   Widget getBrowser(BuildContext context) {
     getJsonYaml() {
-      return currentCompany.listModel!.modelYaml;
+      return currentCompany.listAPI!.modelYaml;
     }
 
     var model = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 300,
+          width: 500,
           height: double.infinity,
           child: getStructureModel(),
         ),
         Expanded(
           child: JsonEditor(
-            key: keyListModelInfo,
+            key: keyListAPIInfo,
             config:
-                JsonTreeConfig(getModel: () => currentCompany.listModel!)
+                JsonTreeConfig(getModel: () => currentCompany.listAPI!)
+                  ..widthTree = 500
                   ..getJson = getJsonYaml
                   ..getRow = getWidgetModelInfo,
           ),
@@ -47,8 +49,12 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     );
 
     return WidgetTab(
-      listTab: [Tab(text: 'Business Model'), Tab(text: 'Component')],
-      listTabCont: [KeepAliveWidget(child: model), Container()],
+      listTab: [
+        Tab(text: 'API'),
+        Tab(text: 'Proxy Mock'),
+        Tab(text: 'Proxy random error'),
+      ],
+      listTabCont: [KeepAliveWidget(child: model), Container(), Container()],
       heightTab: 40,
     );
   }
@@ -63,19 +69,21 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       CellEditor(
         inArray: true,
         key: ValueKey('${attr.hashCode}#title'),
-        info: attr.info,
-        propName: 'title',
-        schema: schema,
+        acces: ModelAccessorAttr(
+          info: attr.info,
+          schema: currentCompany.listAPI!,
+          propName: 'title',
+        ),
       ),
     );
 
-    addWidgetMasterId(attr, row);
+    //addWidgetMasterId(attr, row);
 
-    if (attr.info.type == 'model') {
+    if (attr.info.type == 'api') {
       row.add(
         TextButton.icon(
           onPressed: () async {
-            await goToModel(attr);
+            await goToAPI(attr);
           },
           label: Icon(Icons.remove_red_eye),
         ),
@@ -84,9 +92,13 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
         TextButton.icon(
           icon: Icon(Icons.import_export),
           onPressed: () async {
-            if (attr.info.type == 'model') {
+            if (attr.info.type == 'api') {
               var key = attr.info.properties![constMasterID];
-              var model = ModelSchemaDetail(name: attr.info.name, id: key);
+              var model = ModelSchemaDetail(
+                name: attr.info.name,
+                id: key,
+                infoManager: InfoManagerAPI(),
+              );
               await model.loadYamlAndProperties(cache: false);
               await ExportJsonSchema2clipboard().doExport(model);
             }
@@ -100,7 +112,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       height: rowHeight,
       child: InkWell(
         onDoubleTap: () async {
-          await goToModel(attr);
+          await goToAPI(attr);
         },
         child: Card(
           key: ObjectKey(attr),
@@ -113,27 +125,29 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     return ret;
   }
 
-  Future<void> goToModel(NodeAttribut attr) async {
-    if (attr.info.type == 'model') {
+  Future<void> goToAPI(NodeAttribut attr) async {
+    if (attr.info.type == 'api') {
       var key = attr.info.properties![constMasterID];
       currentCompany.currentModel = ModelSchemaDetail(
+        infoManager: InfoManagerAPI(),
         name: attr.info.name,
         id: key,
       );
-      await currentCompany.currentModel!.loadYamlAndProperties(cache: false);
-      tabModel.animateTo(1);
+      currentCompany.listAPI!.currentAttr = attr.info;
+      //await currentCompany.currentModel!.loadYamlAndProperties(cache: false);
+      tabAPI.animateTo(1);
     }
   }
 
   Widget getStructureModel() {
     void onYamlChange(String yaml, TextConfig config) {
-      if (currentCompany.listModel!.modelYaml != yaml) {
-        currentCompany.listModel!.modelYaml = yaml;
-        localStorage.setItem('model', currentCompany.listModel!.modelYaml);
+      if (currentCompany.listAPI!.modelYaml != yaml) {
+        currentCompany.listAPI!.modelYaml = yaml;
+        bddStorage.setItem('api', currentCompany.listAPI!.modelYaml);
         bool parseOk = false;
         try {
-          currentCompany.listModel!.mapModelYaml = loadYaml(
-            currentCompany.listModel!.modelYaml,
+          currentCompany.listAPI!.mapModelYaml = loadYaml(
+            currentCompany.listAPI!.modelYaml,
           );
           parseOk = true;
           config.notifError.value = '';
@@ -143,21 +157,20 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
 
         if (parseOk) {
           // ignore: invalid_use_of_protected_member
-          keyListModelInfo.currentState?.setState(() {});
+          keyListAPIInfo.currentState?.setState(() {});
         }
       }
     }
 
     getYaml() {
-      return currentCompany.listModel!.modelYaml;
+      return currentCompany.listAPI!.modelYaml;
     }
 
-    //currentCompany.currentModel = ModelSchemaDetail(name: attr.info.name, id: 'model');
     return Container(
       color: Colors.black,
       child: TextEditor(
-        header: "Business models", 
-        key: keyListModel,
+        header: "API routes",
+        key: keyListAPI,
         config: TextConfig(
           mode: yaml,
           notifError: notifierModelErrorYaml,

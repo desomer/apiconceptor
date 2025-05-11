@@ -19,8 +19,8 @@ class _TextEditorState extends State<TextEditor> {
 
   @override
   void initState() {
+    widget.config.state = this;
     controller = CodeController(
-      text: widget.config.getText(),
       language: widget.config.mode,
     );
     c = ScrollController();
@@ -43,8 +43,12 @@ class _TextEditorState extends State<TextEditor> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.config.getText() == null) {
+    var aText = widget.config.getText();
+    if (aText == null) {
       return Text('select model first');
+    }
+    if (aText != controller.fullText) {
+      controller.fullText = aText;
     }
 
     // dispatch = false;
@@ -103,4 +107,10 @@ class TextConfig {
   late Function getText;
   late ValueNotifier<String> notifError;
   bool readOnly;
+  late State state;
+
+  doRebind() {
+    // ignore: invalid_use_of_protected_member
+    state.setState(() {});
+  }
 }

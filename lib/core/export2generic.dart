@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:jsonschema/export/json_browser.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 
 abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
@@ -83,7 +83,7 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     super.doNode(nodeAttribut);
   }
 
-  String prettyPrintJson(Map input) {
+  String prettyPrintJson(dynamic input) {
     //const JsonDecoder decoder = JsonDecoder();
     const JsonEncoder encoder = JsonEncoder.withIndent('  ');
     return encoder.convert(input);

@@ -2,8 +2,8 @@ import 'package:animated_tree_view/node/node.dart';
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/export/json_browser.dart';
-import 'package:jsonschema/json_tree.dart';
+import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 
 class JsonList extends StatefulWidget {
   const JsonList({super.key, required this.modelInfo});
@@ -28,19 +28,16 @@ class _JsonListState extends State<JsonList> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        var maxWidth = constraints.maxWidth;
-        if (maxWidth < 600) {
-          maxWidth = 600;
-        }
-        return Align(
-          alignment: Alignment.topLeft,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(width: maxWidth, child: getListView()),
-          ),
-        );
+    var modelSchemaDetail =
+        (widget.modelInfo.config.getModel() as ModelSchemaDetail);
+    Future prop = modelSchemaDetail.getProperties();
+
+    return FutureBuilder(
+      future: prop,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return Text('loading');
+        //Map properties = snapshot.data;
+        return _getSyncWidget(modelSchemaDetail);
       },
     );
   }
@@ -61,25 +58,83 @@ class _JsonListState extends State<JsonList> {
     return -1;
   }
 
-  Widget getListView() {
-    var modelSchemaDetail =
-        (widget.modelInfo.config.getModel() as ModelSchemaDetail);
-    Future prop = modelSchemaDetail.getProperties();
+  Widget _getSyncWidget(ModelSchemaDetail modelSchemaDetail) {
+    _generateModel(modelSchemaDetail);
 
-    return FutureBuilder(
-      future: prop,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return Text('loading');
-        Map properties = snapshot.data;
-        return getSyncWidget(modelSchemaDetail, properties);
+    return SingleChildScrollView(
+      // scroll vertical
+      controller: widget.modelInfo.scrollController,
+      child: getHorizontal(getList),
+    );
+  }
+
+  Widget getList(double width) {
+    return AnimatedList(
+      key: _listKey,
+      primary: false,
+      shrinkWrap: true,
+      initialItemCount: _list.length,
+      itemBuilder: (context, index, Animation<double> animation) {
+        var dataAttr = _list[index];
+        if (dataAttr.info.cache != null) {
+          return SizeTransition(
+            fixedCrossAxisSizeFactor: 1,
+            sizeFactor: animation,
+            child: SizedBox(width: width - 10, child: dataAttr.info.cache!),
+          );
+        }
+        return SizeTransition(
+          sizeFactor: animation,
+          child: SizedBox(
+            width: width - 10,
+            child: widget.modelInfo.config.getRow(
+              dataAttr,
+              widget.modelInfo.config.getModel(),
+            ),
+          ),
+        );
       },
     );
   }
 
-  SingleChildScrollView getSyncWidget(
-    ModelSchemaDetail modelSchemaDetail,
-    Map<dynamic, dynamic> properties,
+  Widget getHorizontal(Function fctChild) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        var maxWidth = constraints.maxWidth;
+        if (maxWidth < 600) {
+          maxWidth = 600;
+        }
+        return Align(
+          alignment: Alignment.topLeft,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(width: maxWidth, child: fctChild(maxWidth)),
+          ),
+        );
+      },
+    );
+  }
+
+  void getVisibleNode(
+    bool visible,
+    TreeNode node,
+    List<TreeNode> result,
+    List<TreeNode> all,
   ) {
+    Map<String, Node>? a = node.children as Map<String, Node>?;
+    if (a != null) {
+      for (var element in a.entries) {
+        TreeNode tn = element.value as TreeNode;
+        if (visible && node.isExpanded) {
+          result.add(tn);
+        }
+        all.add(tn);
+        getVisibleNode(visible, tn, result, all);
+      }
+    }
+  }
+
+  void _generateModel(ModelSchemaDetail modelSchemaDetail) {
     List<TreeNode<NodeAttribut>> result = [];
     List<TreeNode<NodeAttribut>> all = [];
     var tree2 =
@@ -87,17 +142,14 @@ class _JsonListState extends State<JsonList> {
     if (tree2 != null) {
       result.add(tree2);
       getVisibleNode(true, tree2, result, all);
+
       if (all.isEmpty && modelSchemaDetail.modelYaml.isNotEmpty) {
         print("************* not change on error ****************");
       } else {
-        if (!modelSchemaDetail.first) {
-          print("************* reorg & purge properties ****************");
-          properties.clear();
-          for (var element in all) {
-            properties[element.data!.info.path] = element.data!.info.properties;
-          }
-        }
-        print('nb list rows = ${result.length} prop = ${properties.length}');
+        modelSchemaDetail.reorgProperties(all);
+        print(
+          'nb list rows = ${result.length} prop = ${modelSchemaDetail.modelProperties.length}',
+        );
       }
     }
 
@@ -148,51 +200,6 @@ class _JsonListState extends State<JsonList> {
 
     for (var i = 0; i < insert.length; i++) {
       _insert(insert[i], insertIdx[i]);
-    }
-
-    return SingleChildScrollView(
-      controller: widget.modelInfo.scrollController,
-      child: AnimatedList(
-        key: _listKey,
-        primary: false,
-        shrinkWrap: true,
-        initialItemCount: _list.length,
-        itemBuilder: (context, index, Animation<double> animation) {
-          var dataAttr = _list[index];
-          if (dataAttr.info.cache != null) {
-            return SizeTransition(
-              sizeFactor: animation,
-              child: dataAttr.info.cache!,
-            );
-          }
-          return SizeTransition(
-            sizeFactor: animation,
-            child: widget.modelInfo.config.getRow(
-              dataAttr,
-              widget.modelInfo.config.getModel(),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void getVisibleNode(
-    bool visible,
-    TreeNode node,
-    List<TreeNode> result,
-    List<TreeNode> all,
-  ) {
-    Map<String, Node>? a = node.children as Map<String, Node>?;
-    if (a != null) {
-      for (var element in a.entries) {
-        TreeNode tn = element.value as TreeNode;
-        if (visible && node.isExpanded) {
-          result.add(tn);
-        }
-        all.add(tn);
-        getVisibleNode(visible, tn, result, all);
-      }
     }
   }
 

@@ -2,7 +2,7 @@ import 'dart:core';
 
 import 'package:supabase/supabase.dart';
 
-DataAcces localStorage = DataAcces();
+DataAcces bddStorage = DataAcces();
 
 class DataAcces {
   late SupabaseClient supabase;

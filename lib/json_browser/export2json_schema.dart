@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/export/export2generic.dart';
-import 'package:jsonschema/export/json_browser.dart';
+import 'package:jsonschema/core/export2generic.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 
 class Export2JsonSchema<T extends Map<String, dynamic>>
@@ -16,7 +16,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       "\$schema": "https://json-schema.org/draft/2020-12/schema",
       "\$id": model.name,
       "title": model.name,
-      "description": model.name,
+      "description": currentCompany.listModel!.currentAttr!.properties!['description']??'',
       "type": "object",
       "properties": {},
       "additionalProperties": false,

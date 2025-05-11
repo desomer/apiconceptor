@@ -1,8 +1,8 @@
 import 'package:animated_tree_view/animated_tree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/export/json_browser.dart';
-import 'package:jsonschema/json_list.dart';
+import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/widget/json_editor/widget_json_list.dart';
 import 'package:jsonschema/main.dart';
 
 class JsonBrowserWidget extends JsonBrowser {
@@ -88,7 +88,7 @@ class JsonEditorState extends State<JsonEditor>
     return Row(
       children: [
         SizedBox(
-          width: 350 + (browser.nbLevelMax * 20),
+          width: widget.config.widthTree + (browser.nbLevelMax * 20),
           child: getTree(jsonBrowserWidget.rootTree),
         ),
         Expanded(
@@ -129,11 +129,6 @@ class JsonEditorState extends State<JsonEditor>
         });
       },
       builder: (context, node) {
-        // node.data!.info.type = getTypeStr(
-        //   node.data!.info.name,
-        //   node.data!.yamlNode.value,
-        // );
-
         return InkWell(
           key: ObjectKey(node),
           onTap: () {},
@@ -180,7 +175,7 @@ class JsonEditorState extends State<JsonEditor>
       icon = Icon(Icons.data_object);
     } else if (isRef) {
       icon = Icon(Icons.link);
-      name = '\$ref';
+      name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
     } else if (isOneOf) {
       name = '\$anyOf';
       icon = Icon(Icons.looks_one_rounded);
@@ -188,8 +183,8 @@ class JsonEditorState extends State<JsonEditor>
       icon = Icon(Icons.data_array);
     }
 
-    return SizedBox(
-      width: 150,
+    return IntrinsicWidth(
+      //width: 180,
       child: Padding(
         padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
         child: Row(
@@ -246,6 +241,7 @@ class JsonTreeConfig {
   Function getModel;
   late Function getJson;
   late Function getRow;
+  int widthTree = 350;
 }
 //-------------------------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
-
 import 'package:faker/faker.dart';
-import 'package:jsonschema/export/export2generic.dart';
-import 'package:jsonschema/export/json_browser.dart';
+import 'package:jsonschema/core/randexp.dart';
+import 'package:jsonschema/core/export2generic.dart';
+import 'package:jsonschema/core/json_browser.dart';
 
 class Export2Json<T extends Map<String, dynamic>>
     extends JsonBrowser2generic<T> {
@@ -53,11 +53,22 @@ class Export2Json<T extends Map<String, dynamic>>
   }
 
   getValue(String name, String type, NodeAttribut node) {
+    if (node.info.properties?['const'] != null) {
+      var vString = node.info.properties?['const'];
+      return getValueTyped(type, vString);
+    }
     if (node.info.properties?['enum'] != null) {
       List<String> enumer = node.info.properties!['enum'].toString().split(
         '\n',
       );
-      return enumer[faker.randomGenerator.integer(enumer.length)];
+      var vString = enumer[faker.randomGenerator.integer(enumer.length)];
+      return getValueTyped(type, vString);
+    }
+
+    var pattern = node.info.properties?['pattern'];
+    if (pattern != null) {
+      String vString = RandExp(RegExp(pattern)).gen();
+      return getValueTyped(type, vString);
     }
 
     var lowerCase = name.toLowerCase();
@@ -82,5 +93,15 @@ class Export2Json<T extends Map<String, dynamic>>
       }
       return faker.lorem.word();
     }
+  }
+
+  Object getValueTyped(String type, String vString) {
+    if (type == "number") {
+      int? vint = int.tryParse(vString);
+      if (vint != null) return vint;
+      double? vdouble = double.tryParse(vString);
+      if (vdouble != null) return vdouble;
+    }
+    return vString;
   }
 }

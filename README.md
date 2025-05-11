@@ -13,4 +13,10 @@ Roadmap Business Model
 - gestion de verification de mot anglais
 - gestion de glossary pour eviter de nommer x fois la même notion
 - améliorer les fakes
-- pouvoir paramétres des exemple de json
+- pouvoir choisir les bloc a faire apparaitre des exemple de json / API
+- faire un ticket de modification
+
+API
+- mettre en internal
+
+API Fake et Error monkey

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/export/json_browser.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 
 mixin class WidgetModelHelper {
