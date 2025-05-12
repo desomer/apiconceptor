@@ -10,17 +10,21 @@ class ModelSchema {
   ModelSchemaDetail? currentModel;
 
   ModelSchemaDetail? listAPI;
+  ModelSchemaDetail? currentAPI;
 }
 
 enum ChangeOpe { change, rename, path, move, add, remove }
+enum YamlType { allModel, model, allApi, api }
 
 class ModelSchemaDetail {
   ModelSchemaDetail({
+    required this.type,
     required this.name,
     required this.id,
     required this.infoManager,
   });
 
+  final YamlType type;
   final String id;
   final String name;
   bool isLoadProp = false;
@@ -41,7 +45,7 @@ class ModelSchemaDetail {
   int lastNbNode = 0;
   bool first = true;
 
-  AttributInfo? currentAttr;
+  NodeAttribut? currentAttr;
 
   void addHistory(
     String path,

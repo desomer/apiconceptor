@@ -4,6 +4,7 @@ import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/widget_state/state_model.dart';
 
 class Export2JsonSchema<T extends Map<String, dynamic>>
     extends JsonBrowser2generic<T> {
@@ -16,7 +17,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       "\$schema": "https://json-schema.org/draft/2020-12/schema",
       "\$id": model.name,
       "title": model.name,
-      "description": currentCompany.listModel!.currentAttr!.properties!['description']??'',
+      "description": currentCompany.listModel!.currentAttr!.info.properties!['description']??'',
       "type": "object",
       "properties": {},
       "additionalProperties": false,
@@ -134,8 +135,8 @@ class ExportJsonSchema2clipboard {
     Clipboard.setData(
       ClipboardData(text: export.prettyPrintJson(export.json)),
     ).then((_) {
-      if (keyListModel.currentContext?.mounted ?? false) {
-        ScaffoldMessenger.of(keyListModel.currentContext!).showSnackBar(
+      if (stateModel.keyListModel.currentContext?.mounted ?? false) {
+        ScaffoldMessenger.of(stateModel.keyListModel.currentContext!).showSnackBar(
           const SnackBar(content: Text('Copied to your clipboard !')),
         );
       }

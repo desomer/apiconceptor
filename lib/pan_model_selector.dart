@@ -12,6 +12,7 @@ import 'package:jsonschema/main.dart';
 import 'package:jsonschema/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
+import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:yaml/yaml.dart';
 
 class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
@@ -37,9 +38,14 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
         ),
         Expanded(
           child: JsonEditor(
-            key: keyListModelInfo,
+            key: stateModel.keyListModelInfo,
             config:
-                JsonTreeConfig(getModel: () => currentCompany.listModel!)
+                JsonTreeConfig(
+                    getModel: () => currentCompany.listModel!,
+                    onTap: (NodeAttribut node) {
+                      goToModel(node);
+                    },
+                  )
                   ..getJson = getJsonYaml
                   ..getRow = getWidgetModelInfo,
           ),
@@ -90,6 +96,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
             if (attr.info.type == 'model') {
               var key = attr.info.properties![constMasterID];
               var model = ModelSchemaDetail(
+                type: YamlType.model,
                 name: attr.info.name,
                 id: key,
                 infoManager: InfoManagerModel(),
@@ -122,15 +129,33 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
 
   Future<void> goToModel(NodeAttribut attr) async {
     if (attr.info.type == 'model') {
+      stateModel.tabDisable.clear();
+      // ignore: invalid_use_of_protected_member
+      stateModel.keyTab.currentState?.setState(() {});
+
+      NodeAttribut? n = attr;
+      var modelPath = [];
+      while (n != null) {
+        if (n.parent != null) {
+          modelPath.insert(0, n.info.name);
+        }
+        n = n.parent;
+      }
+
+      stateModel.path = ["Business Model", ...modelPath, "0.0.1", "draft"];
+      // ignore: invalid_use_of_protected_member
+      stateModel.keyBreadcrumb.currentState?.setState(() {});
+
       var key = attr.info.properties![constMasterID];
       currentCompany.currentModel = ModelSchemaDetail(
+        type: YamlType.model,
         infoManager: InfoManagerModel(),
         name: attr.info.name,
         id: key,
       );
-      currentCompany.listModel!.currentAttr = attr.info;
+      currentCompany.listModel!.currentAttr = attr;
       await currentCompany.currentModel!.loadYamlAndProperties(cache: false);
-      tabModel.animateTo(1);
+      stateModel.tabModel.animateTo(1);
     }
   }
 
@@ -152,7 +177,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
 
         if (parseOk) {
           // ignore: invalid_use_of_protected_member
-          keyListModelInfo.currentState?.setState(() {});
+          stateModel.keyListModelInfo.currentState?.setState(() {});
         }
       }
     }
@@ -165,7 +190,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       color: Colors.black,
       child: TextEditor(
         header: "Business models",
-        key: keyListModel,
+        key: stateModel.keyListModel,
         config: TextConfig(
           mode: yaml,
           notifError: notifierModelErrorYaml,

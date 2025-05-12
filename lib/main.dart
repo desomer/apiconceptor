@@ -5,12 +5,16 @@ import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pan_api_editor.dart';
 import 'package:jsonschema/widget/hexagon/hexagon_widget.dart';
+import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/pan_json_validator.dart';
 import 'package:jsonschema/pan_model_editor.dart';
 import 'package:jsonschema/pan_model_selector.dart';
 import 'package:jsonschema/widget/widget_rail.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
+import 'package:jsonschema/widget/widget_zoom_selector.dart';
+import 'package:jsonschema/widget_state/state_api.dart';
+import 'package:jsonschema/widget_state/state_model.dart';
 
 import 'pan_api_selector.dart';
 
@@ -23,6 +27,7 @@ void main() async {
   await bddStorage.init();
 
   currentCompany.listModel = ModelSchemaDetail(
+    type: YamlType.allModel,
     name: 'Business model',
     id: 'model',
     infoManager: InfoManagerModel(),
@@ -31,7 +36,8 @@ void main() async {
   BrowseModel().browse(currentCompany.listModel!, false);
 
   currentCompany.listAPI = ModelSchemaDetail(
-    name: 'API',
+    type: YamlType.allApi,
+    name: 'All servers',
     id: 'api',
     infoManager: InfoManagerAPI(),
   );
@@ -45,15 +51,6 @@ const constMasterID = '\$\$__id__';
 const constTypeAnyof = '\$\$__anyof__';
 const constRefOn = '\$\$__ref__';
 
-GlobalKey keyListModel = GlobalKey();
-GlobalKey keyListModelInfo = GlobalKey();
-GlobalKey keyModelEditor = GlobalKey();
-GlobalKey keyModelInfo = GlobalKey();
-late TabController tabModel;
-late TabController tabAPI;
-
-GlobalKey keyListAPI = GlobalKey();
-GlobalKey keyListAPIInfo = GlobalKey();
 
 final ModelSchema currentCompany = ModelSchema();
 
@@ -61,6 +58,8 @@ const double rowHeight = 30;
 
 ValueNotifier<String> notifierErrorYaml = ValueNotifier<String>('');
 ValueNotifier<String> notifierModelErrorYaml = ValueNotifier<String>('');
+
+final ValueNotifier<double> zoom = ValueNotifier(0);
 
 // ignore: must_be_immutable
 class CodeEditor extends StatelessWidget {
@@ -116,8 +115,15 @@ class CodeEditor extends StatelessWidget {
             listTabCont: [
               // child: NeumorphismBtn() // Stack(children: [Positioned(top: 100, left: 100, child: NeumorphismBtn())]),
               getServiceTab(),
-              getModelTab(),
-              getApiTab(),
+              Column(
+                children: [
+                  getBreadcrumbModel(),
+                  Expanded(child: getModelTab()),
+                ],
+              ),
+              Column(
+                children: [getBreadcrumbAPI(), Expanded(child: getApiTab())],
+              ),
               Container(),
               Container(),
               getCodeTab(),
@@ -129,17 +135,64 @@ class CodeEditor extends StatelessWidget {
     );
   }
 
+  Widget getBreadcrumbModel() {
+    return SizedBox(
+      height: 40,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Row(
+          children: [
+            BreadCrumbNavigator(
+              key: stateModel.keyBreadcrumb,
+              getList: () {
+                //currentCompany.currentModel.name;
+                return stateModel
+                    .path; // ["Business Model", "Model", "0.0.1", "draft"];
+              },
+            ),
+            Spacer(),
+            WidgetZoomSelector(zoom: zoom),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget getBreadcrumbAPI() {
+    return SizedBox(
+      height: 40,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Row(
+          children: [
+            BreadCrumbNavigator(
+              key : stateApi.keyBreadcrumb,
+              getList: () {
+                return stateApi.path;
+              },
+            ),
+            Spacer(),
+            WidgetZoomSelector(zoom: zoom),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget getApiTab() {
     return WidgetTab(
+      key: stateApi.keyTab,
+      tabDisable: stateApi.tabDisable,
       onInitController: (TabController tab) {
-        tabAPI = tab;
+        stateApi.tabApi = tab;
       },
       listTab: [
         Tab(text: 'Browse API'),
         Tab(text: 'Edit route API'),
         Tab(text: 'API Servers'),
+        Tab(text: 'Validation workflow'),
       ],
-      listTabCont: [PanAPISelector(), PanApiEditor(), Container()],
+      listTabCont: [PanAPISelector(), PanApiEditor(), Container(), Container()],
       heightTab: 40,
     );
   }
@@ -153,66 +206,142 @@ class CodeEditor extends StatelessWidget {
   }
 
   Widget getServiceTab() {
-    return Container(
-      child: Stack(
-        children: [
-          Positioned(
-            top: 100,
-            left: 100,
-            child: HexagonWidget.pointy(
-              width: 200,
-              color: Colors.lightBlue,
-              elevation: 8,
-              child: Text('Business Domain'),
-            ),
+    return Stack(
+      children: [
+        Positioned(
+          top: 100,
+          left: 150,
+          child: HexagonWidget.pointy(
+            width: 200,
+            color: Colors.lightBlue,
+            elevation: 8,
+            child: Text('Business Domain'),
           ),
+        ),
 
-          Positioned(
-            top: 70,
-            left: 70,
-            child: Card(
-              elevation: 8,
-              color: Colors.blue,
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('Application'),
-              ),
+        Positioned(
+          top: 100,
+          left: 100,
+          child: Card(
+            elevation: 8,
+            color: Colors.blue,
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('Application'),
             ),
           ),
+        ),
 
-          Positioned(
-            top: 290,
-            left: 220,
-            child: Card(
-              elevation: 8,
-              color: Colors.blue,
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('Infrastructure'),
-              ),
+        Positioned(
+          top: 50,
+          left: 50,
+          child: Card(
+            elevation: 8,
+            color: Colors.grey,
+            child: Padding(padding: EdgeInsets.all(20), child: Text('API')),
+          ),
+        ),
+
+        Positioned(
+          top: 55,
+          left: 150,
+          child: Card(
+            elevation: 8,
+            color: Colors.yellow,
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('DTO', style: TextStyle(color: Colors.black)),
             ),
           ),
-        ],
-      ),
+        ),
+
+        Positioned(
+          top: 150,
+          left: 30,
+          child: Card(
+            elevation: 8,
+            color: Colors.grey,
+            child: Padding(padding: EdgeInsets.all(20), child: Text('EVENTS')),
+          ),
+        ),
+
+        Positioned(
+          top: 130,
+          left: 320,
+          child: Card(
+            elevation: 8,
+            color: Colors.orange,
+            child: Padding(padding: EdgeInsets.all(20), child: Text('MODELS')),
+          ),
+        ),
+
+        Positioned(
+          top: 290,
+          left: 260,
+          child: Card(
+            elevation: 8,
+            color: Colors.blue,
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('Infrastructure'),
+            ),
+          ),
+        ),
+
+        Positioned(
+          top: 340,
+          left: 350,
+          child: Card(
+            elevation: 8,
+            color: Colors.grey,
+            child: Padding(padding: EdgeInsets.all(20), child: Text('EVENTS')),
+          ),
+        ),
+        Positioned(
+          top: 340,
+          left: 200,
+          child: Card(
+            elevation: 8,
+            color: Colors.yellow,
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('ENTITIES', style: TextStyle(color: Colors.black)),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 400,
+          left: 200,
+          child: Card(
+            elevation: 8,
+            color: Colors.grey,
+            child: Padding(padding: EdgeInsets.all(20), child: Text('BDD')),
+          ),
+        ),
+      ],
     );
   }
 
   Widget getModelTab() {
     return WidgetTab(
+      key: stateModel.keyTab,
       onInitController: (TabController tab) {
-        tabModel = tab;
+        stateModel.tabModel = tab;
       },
+      tabDisable: stateModel.tabDisable,
       listTab: [
         Tab(text: 'Models Browser'),
         Tab(text: 'Model Editor'),
         Tab(text: 'Json schema'),
         Tab(text: 'Glossary'),
         Tab(text: 'Naming rules'),
+        Tab(text: 'Validation workflow'),
       ],
       listTabCont: [
         KeepAliveWidget(child: WidgetModelSelector()),
         WidgetModelEditor(),
         WidgetJsonValidator(),
+        Container(),
         Container(),
         Container(),
       ],

@@ -36,6 +36,7 @@ class JsonBrowserWidget extends JsonBrowser {
   }
 }
 
+//******************************************************************************/
 class JsonEditor extends StatefulWidget {
   const JsonEditor({super.key, required this.config});
   final JsonTreeConfig config;
@@ -89,7 +90,7 @@ class JsonEditorState extends State<JsonEditor>
       children: [
         SizedBox(
           width: widget.config.widthTree + (browser.nbLevelMax * 20),
-          child: getTree(jsonBrowserWidget.rootTree),
+          child: getTree(model, jsonBrowserWidget.rootTree),
         ),
         Expanded(
           child: Align(
@@ -103,7 +104,7 @@ class JsonEditorState extends State<JsonEditor>
 
   GlobalKey keyTree = GlobalKey();
 
-  Widget getTree(TreeNode<NodeAttribut> tree) {
+  Widget getTree(ModelSchemaDetail aModel, TreeNode<NodeAttribut> tree) {
     return TreeView.simple(
       key: keyTree,
       // animation: AlwaysStoppedAnimation(1),
@@ -131,7 +132,11 @@ class JsonEditorState extends State<JsonEditor>
       builder: (context, node) {
         return InkWell(
           key: ObjectKey(node),
-          onTap: () {},
+          onTap: () {
+            if (widget.config.onTap!=null) {
+              widget.config.onTap!(node.data);
+            }
+          },
           onDoubleTap: () {
             var delay = doToogleNode(0, node);
             repaintListView(delay);
@@ -140,7 +145,7 @@ class JsonEditorState extends State<JsonEditor>
             height: rowHeight,
             child: Row(
               children: [
-                getAttributHeader(node),
+                aModel.infoManager.getAttributHeader(node),
                 Spacer(),
                 getWidgetType(node.data!),
                 SizedBox(width: 40),
@@ -156,48 +161,6 @@ class JsonEditorState extends State<JsonEditor>
     Future.delayed(Duration(milliseconds: 100)).then((_) {
       keyJsonList.currentState?.setState(() {});
     });
-  }
-
-  Widget getAttributHeader(TreeNode<NodeAttribut> node) {
-    Widget icon = Container();
-    var isRoot = node.isRoot;
-    var isObject = node.data!.info.type == 'Object';
-    var isOneOf = node.data!.info.type == '\$anyOf';
-    var isRef = node.data!.info.type == '\$ref';
-    var isArray = node.data!.info.type == 'Array';
-    String name = node.data?.yamlNode.key;
-
-    if (isRoot && name == 'Business model') {
-      icon = Icon(Icons.business);
-    } else if (isRoot) {
-      icon = Icon(Icons.lan_outlined);
-    } else if (isObject) {
-      icon = Icon(Icons.data_object);
-    } else if (isRef) {
-      icon = Icon(Icons.link);
-      name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
-    } else if (isOneOf) {
-      name = '\$anyOf';
-      icon = Icon(Icons.looks_one_rounded);
-    } else if (isArray) {
-      icon = Icon(Icons.data_array);
-    }
-
-    return IntrinsicWidth(
-      //width: 180,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
-        child: Row(
-          children: [
-            Padding(padding: EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
-            Text(
-              name,
-              style: isObject ? TextStyle(fontWeight: FontWeight.bold) : null,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   int doToogleNode(int levelFormTop, TreeNode<NodeAttribut> node) {
@@ -237,11 +200,12 @@ class JsonEditorState extends State<JsonEditor>
 }
 
 class JsonTreeConfig {
-  JsonTreeConfig({required this.getModel});
+  JsonTreeConfig({required this.getModel, required this.onTap});
   Function getModel;
   late Function getJson;
   late Function getRow;
   int widthTree = 350;
+  Function? onTap;
 }
 //-------------------------------------------------------------------------------------------
 

@@ -3,15 +3,16 @@ import 'package:highlight/languages/yaml.dart' show yaml;
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/pan_api_editor.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
+import 'package:jsonschema/widget_state/state_api.dart';
 import 'package:yaml/yaml.dart';
 
 class PanAPISelector extends StatelessWidget with WidgetModelHelper {
@@ -37,9 +38,14 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         ),
         Expanded(
           child: JsonEditor(
-            key: keyListAPIInfo,
+            key: stateApi.keyListAPIInfo,
             config:
-                JsonTreeConfig(getModel: () => currentCompany.listAPI!)
+                JsonTreeConfig(
+                    getModel: () => currentCompany.listAPI!,
+                    onTap: (NodeAttribut node) {
+                      goToAPI(node);
+                    },
+                  )
                   ..widthTree = 500
                   ..getJson = getJsonYaml
                   ..getRow = getWidgetModelInfo,
@@ -68,11 +74,11 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey('${attr.hashCode}#title'),
+        key: ValueKey('${attr.hashCode}#summary'),
         acces: ModelAccessorAttr(
           info: attr.info,
           schema: currentCompany.listAPI!,
-          propName: 'title',
+          propName: 'summary',
         ),
       ),
     );
@@ -95,9 +101,10 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
             if (attr.info.type == 'api') {
               var key = attr.info.properties![constMasterID];
               var model = ModelSchemaDetail(
+                type: YamlType.api,
                 name: attr.info.name,
                 id: key,
-                infoManager: InfoManagerAPI(),
+                infoManager: InfoManagerAPIParam(),
               );
               await model.loadYamlAndProperties(cache: false);
               await ExportJsonSchema2clipboard().doExport(model);
@@ -127,15 +134,34 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
 
   Future<void> goToAPI(NodeAttribut attr) async {
     if (attr.info.type == 'api') {
+      stateApi.tabDisable.clear();
+      // ignore: invalid_use_of_protected_member
+      stateApi.keyTab.currentState?.setState(() {});
+
+      NodeAttribut? n = attr.parent;
+      var modelPath = [];
+      while (n != null) {
+        if (n.parent != null) {
+          modelPath.insert(0, n.info.name);
+        }
+
+        n = n.parent;
+      }
+
+      stateApi.path = ["API", ...modelPath, "0.0.1", "draft"];
+      // ignore: invalid_use_of_protected_member
+      stateApi.keyBreadcrumb.currentState?.setState(() {});
+
       var key = attr.info.properties![constMasterID];
-      currentCompany.currentModel = ModelSchemaDetail(
-        infoManager: InfoManagerAPI(),
+      currentCompany.currentAPI = ModelSchemaDetail(
+        type: YamlType.api,
+        infoManager: InfoManagerAPIParam(),
         name: attr.info.name,
         id: key,
       );
-      currentCompany.listAPI!.currentAttr = attr.info;
-      //await currentCompany.currentModel!.loadYamlAndProperties(cache: false);
-      tabAPI.animateTo(1);
+      currentCompany.listAPI!.currentAttr = attr;
+      await currentCompany.currentAPI!.loadYamlAndProperties(cache: false);
+      stateApi.tabApi.animateTo(1);
     }
   }
 
@@ -157,7 +183,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
 
         if (parseOk) {
           // ignore: invalid_use_of_protected_member
-          keyListAPIInfo.currentState?.setState(() {});
+          stateApi.keyListAPIInfo.currentState?.setState(() {});
         }
       }
     }
@@ -170,7 +196,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
       color: Colors.black,
       child: TextEditor(
         header: "API routes",
-        key: keyListAPI,
+        key: stateApi.keyListAPI,
         config: TextConfig(
           mode: yaml,
           notifError: notifierModelErrorYaml,

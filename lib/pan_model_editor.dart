@@ -9,12 +9,11 @@ import 'package:jsonschema/pan_model_change_viewer.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/editor/code_editor.dart';
-import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget/widget_zoom_selector.dart';
+import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:yaml/yaml.dart';
 
 // ignore: must_be_immutable
@@ -24,28 +23,10 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
   State? rowSelected;
   final GlobalKey keyChangeViewer = GlobalKey();
-  final ValueNotifier<double> zoom = ValueNotifier(0);
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 35,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Row(
-              children: [
-                BreadCrumbNavigator(),
-                Spacer(),
-                WidgetZoomSelector(zoom: zoom),
-              ],
-            ),
-          ),
-        ),
-        Expanded(child: _getModelEditor()),
-      ],
-    );
+    return _getModelEditor();
   }
 
   Row _getModelEditor() {
@@ -71,11 +52,20 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
       children: [
         Expanded(
           child: JsonEditor(
-            key: keyModelInfo,
+            key: stateModel.keyTreeModelInfo,
             config:
                 JsonTreeConfig(
                     getModel: () {
                       return currentCompany.currentModel;
+                    },
+                    onTap: (NodeAttribut node) {
+                      doShowAttrEditor(currentCompany.currentModel!, node);
+                      if (rowSelected?.mounted == true) {
+                        // ignore: invalid_use_of_protected_member
+                        rowSelected?.setState(() {});
+                      }
+                      // ignore: invalid_use_of_protected_member
+                      node.widgetState?.setState(() {});
                     },
                   )
                   ..getJson = getJsonYaml
@@ -140,7 +130,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
 
           if (parseOk) {
             // ignore: invalid_use_of_protected_member
-            keyModelInfo.currentState?.setState(() {});
+            stateModel.keyTreeModelInfo.currentState?.setState(() {});
           }
         });
       }
@@ -161,7 +151,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
           color: Colors.black,
           child: TextEditor(
             header: "Model attributs",
-            key: keyModelEditor,
+            key: stateModel.keyModelYamlEditor,
             config: TextConfig(
               mode: yaml,
               notifError: notifierErrorYaml,
@@ -194,7 +184,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
           CellEditor(
             key: ValueKey('description#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              info: info.info,
               schema: currentCompany.listModel!,
               propName: 'description',
             ),
@@ -264,13 +254,9 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         },
         child: HoverableCard(
           isSelected: (State state) {
-            bool isSelected = schema.currentAttr == attr.info;
+            attr.widgetState = state;
+            bool isSelected = schema.currentAttr == attr;
             if (isSelected) {
-              //   var repaint = rowSelected;
-              //   WidgetsBinding.instance.addPostFrameCallback((_) {
-              //     // ignore: invalid_use_of_protected_member
-              //     repaint?.setState(() {});
-              //   });
               rowSelected = state;
             }
             return isSelected;
@@ -285,7 +271,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
   }
 
   void doShowAttrEditor(ModelSchemaDetail schema, NodeAttribut attr) {
-    schema.currentAttr = attr.info;
+    schema.currentAttr = attr;
     // ignore: invalid_use_of_protected_member
     keyAttrEditor.currentState?.setState(() {});
     showAttrEditor.value = 300;

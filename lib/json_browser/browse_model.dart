@@ -1,3 +1,4 @@
+import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
@@ -82,5 +83,48 @@ class InfoManagerModel extends InfoManager {
     }
     return null;
   }
+
+  @override
+  Widget getAttributHeader(TreeNode<NodeAttribut> node) {
+    Widget icon = Container();
+    var isRoot = node.isRoot;
+    var isObject = node.data!.info.type == 'Object';
+    var isOneOf = node.data!.info.type == '\$anyOf';
+    var isRef = node.data!.info.type == '\$ref';
+    var isArray = node.data!.info.type == 'Array';
+    String name = node.data?.yamlNode.key;
+
+    if (isRoot && name == 'Business model') {
+      icon = Icon(Icons.business);
+    } else if (isRoot) {
+      icon = Icon(Icons.lan_outlined);
+    } else if (isObject) {
+      icon = Icon(Icons.data_object);
+    } else if (isRef) {
+      icon = Icon(Icons.link);
+      name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
+    } else if (isOneOf) {
+      name = '\$anyOf';
+      icon = Icon(Icons.looks_one_rounded);
+    } else if (isArray) {
+      icon = Icon(Icons.data_array);
+    }
+
+    return IntrinsicWidth(
+      //width: 180,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
+        child: Row(
+          children: [
+            Padding(padding: EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
+            Text(
+              name,
+              style: isObject ? TextStyle(fontWeight: FontWeight.bold) : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }  
 }
 

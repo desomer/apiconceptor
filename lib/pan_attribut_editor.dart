@@ -37,7 +37,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
       return Container();
     }
 
-    String type = currentCompany.currentModel!.currentAttr!.type.toLowerCase();
+    String type = currentCompany.currentModel!.currentAttr!.info.type.toLowerCase();
 
     if (type == 'string') {
       return getValidatorStringForm();
@@ -49,7 +49,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
   }
 
   Widget getValidatorNumberForm() {
-    var info = currentCompany.currentModel!.currentAttr!;
+    var info = currentCompany.currentModel!.currentAttr!.info;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -157,7 +157,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
   }
 
   Widget getValidatorStringForm() {
-    var info = currentCompany.currentModel!.currentAttr!;
+    var info = currentCompany.currentModel!.currentAttr!.info;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -271,7 +271,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
       return Container();
     }
 
-    var info = currentCompany.currentModel!.currentAttr!;
+    var info = currentCompany.currentModel!.currentAttr!.info;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(

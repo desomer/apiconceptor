@@ -1,3 +1,4 @@
+import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/main.dart';
@@ -16,6 +17,7 @@ class JsonBrowser<T> {
     browser.unknowedMode = unknowedMode;
 
     var rootNodeAttribut = NodeAttribut(
+      parent: null,
       yamlNode: MapEntry(model.name, 'root'),
       info:
           AttributInfo()
@@ -183,6 +185,7 @@ class JsonBrowser<T> {
       var masterID = model.modelProperties[aJsonPath]?[constMasterID];
 
       var childNodeAttribut = NodeAttribut(
+        parent: attr.nodeAttribut,
         yamlNode: mapChild,
         info:
             info ??
@@ -260,14 +263,17 @@ class JsonBrowser<T> {
       browserAttrInfo.nodeAttribut.info.isRef = refName;
       String masterIdRef = listModel.first.properties?[constMasterID];
       var modelRef = ModelSchemaDetail(
+        type: model.type,
         name: refName,
         id: masterIdRef,
         infoManager: model.infoManager,
       );
-      browserAttrInfo.ref = modelRef;
       var ret = modelRef.getItemSync(-1);
       if (ret == null) {
-        browserAttrInfo.browser.asyncRef.add(browserAttrInfo);
+        if (browserAttrInfo.ref == null) {
+          browserAttrInfo.browser.asyncRef.add(browserAttrInfo);
+        }
+        browserAttrInfo.ref = modelRef;
       } else {
         // cas existe en cache
         modelRef.loadYamlAndPropertiesSyncOrNot(cache: true);
@@ -380,6 +386,7 @@ class JsonBrowser<T> {
         invalidInfo: typeValid,
       );
     }
+    model.infoManager.onNode(nodeAttribut.parent, nodeAttribut);
   }
 
   void _doPathChangeHistory(
@@ -501,12 +508,18 @@ class ModelBrower {
 }
 
 class NodeAttribut {
-  NodeAttribut({required this.yamlNode, required this.info});
+  NodeAttribut({
+    required this.yamlNode,
+    required this.info,
+    required this.parent,
+  });
   MapEntry<dynamic, dynamic> yamlNode;
   AttributInfo info;
+  NodeAttribut? parent;
   List<NodeAttribut> child = [];
   String? addChildOn;
   String addInAttr = "";
+  State? widgetState;
 }
 
 class AttributInfo {
@@ -561,6 +574,9 @@ abstract class InfoManager {
     dynamic type,
     String typeTitle,
   );
+
+  Widget getAttributHeader(TreeNode<NodeAttribut> node);
+  void onNode(NodeAttribut? parent, NodeAttribut child) {}
 }
 
 class InvalidInfo {
