@@ -25,7 +25,7 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
       toAdd = doAnyOf(name, node);
     } else if (type == '\$ref') {
       toAdd = doRefOf(name, node);
-    }else if (type == 'object') {
+    } else if (type == 'object') {
       if (node.info.isRef != null) {
         toAdd = doRef(name, node);
       } else {
@@ -55,7 +55,7 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
         parent[name] = value;
       }
     }
-    return toAdd.treeOfChild ?? value;
+    return toAdd.parentOfChild ?? value;
   }
 
   NodeJson doArrayOfObject(String name, NodeAttribut node);
@@ -94,7 +94,7 @@ class NodeJson {
   NodeJson({required this.name, required this.value});
   String name;
   dynamic value;
-  dynamic treeOfChild;
+  dynamic parentOfChild;
   bool add = true;
 }
 

@@ -1,20 +1,28 @@
-import 'dart:convert' show jsonDecode, jsonEncode;
-
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/editor/code_editor.dart';
 import 'package:yaml/yaml.dart';
 
-class ModelSchema {
-  ModelSchemaDetail? listModel;
-  ModelSchemaDetail? currentModel;
+class CompanyModelSchema {
+  late ModelSchemaDetail listModel;
+  late ModelSchemaDetail listComponent;
+  late ModelSchemaDetail listRequest;
 
-  ModelSchemaDetail? listAPI;
+  ModelSchemaDetail? currentModel;
+  NodeAttribut? currentModelSel;
+  String? currentType;
+
+  late ModelSchemaDetail listAPI;
   ModelSchemaDetail? currentAPI;
 }
 
+///////////////////////////////////////////////////////////////////
+///
 enum ChangeOpe { change, rename, path, move, add, remove }
-enum YamlType { allModel, model, allApi, api }
+
+enum YamlType { allModel, model, selector, allApi, api }
 
 class ModelSchemaDetail {
   ModelSchemaDetail({
@@ -28,15 +36,19 @@ class ModelSchemaDetail {
   final String id;
   final String name;
   bool isLoadProp = false;
+
   String modelYaml = '';
   Map mapModelYaml = {};
-  final InfoManager infoManager;
-
   Map<String, dynamic> modelProperties = {};
+
+  final InfoManager infoManager;
+  List<ModelSchemaDetail> dependency = [];
+
   List histories = [];
 
-  Map<String, AttributInfo> mapInfoByJsonPath = {};
   Map<String, AttributInfo> mapInfoByTreePath = {};
+
+  Map<String, AttributInfo> mapInfoByJsonPath = {};
   Map<String, List<AttributInfo>> mapInfoByName = {};
   Map<int, AttributInfo> allAttributInfo = {};
 
@@ -44,16 +56,53 @@ class ModelSchemaDetail {
   List<AttributInfo> useAttributInfo = [];
   int lastNbNode = 0;
   bool first = true;
+  bool isEmpty = false;
+  bool autoSave = true;
 
   NodeAttribut? currentAttr;
+  ModelBrower? lastBrowser;
+  JsonBrowser? lastJsonBrowser;
+
+  void initEventListener(TextConfig textConfig) {
+    bddStorage.doEventListner[id] = OnEvent(
+      id: id,
+      onPatch: (patch) {
+        if (patch['type'] == 'PROP') {
+
+        } else if (patch['type'] == 'YAML') {
+          var ret = bddStorage.dispatchSaveYAML(
+            id: id,
+            patch: patch,
+            value: modelYaml,
+          );
+          if (ret != null) modelYaml = ret;
+          doChangeYaml(textConfig, false, 'event');
+        }
+      },
+    );
+  }
+
+  void changeSelected(NodeAttribut attr) {
+    var path = attr.info.path;
+    if (lastBrowser?.selectedPath == null ||
+        !lastBrowser!.selectedPath!.contains(path)) {
+      lastBrowser?.selectedPath ??= {};
+      lastBrowser?.selectedPath!.add(path);
+    } else if (lastBrowser?.selectedPath != null) {
+      lastBrowser?.selectedPath!.remove(path);
+    }
+  }
 
   void addHistory(
+    AttributInfo info,
     String path,
     ChangeOpe ope,
     dynamic propChangeValue,
     dynamic value, {
     String? master,
   }) {
+    info.action = 'U';
+
     if (histories.isNotEmpty) {
       var last = histories.last;
       if (last?['ope'] == ope.name && last?['path'] == path) {
@@ -155,7 +204,7 @@ class ModelSchemaDetail {
   }
 
   loadYamlAndProperties({required bool cache}) async {
-    dynamic savedYamlModel = bddStorage.getItem(id, cache ? -1 : 0);
+    dynamic savedYamlModel = bddStorage.getItem(this, id, cache ? -1 : 0);
     if (savedYamlModel is Future) {
       savedYamlModel = await savedYamlModel;
     } else if (mapModelYaml.isNotEmpty) {
@@ -179,7 +228,7 @@ class ModelSchemaDetail {
   }
 
   dynamic loadYamlAndPropertiesSyncOrNot({required bool cache}) {
-    dynamic saveModel = bddStorage.getItem(id, cache ? -1 : 0);
+    dynamic saveModel = bddStorage.getItem(this, id, cache ? -1 : 0);
     if (saveModel is Future) {
       return loadYamlAndProperties(cache: cache);
     } else {}
@@ -206,10 +255,8 @@ class ModelSchemaDetail {
 
   Future _loadProperties() async {
     if (!isLoadProp) {
-      var l = await bddStorage.getItem('json/$id', 0);
-      if (l != null) {
-        modelProperties = jsonDecode(l);
-      } else {
+      var l = await bddStorage.getItem(this, 'json/$id', 0);
+      if (l == null) {
         modelProperties = {};
       }
 
@@ -220,11 +267,9 @@ class ModelSchemaDetail {
 
   dynamic _loadPropertiesSync() {
     if (!isLoadProp) {
-      var l = bddStorage.getItem('json/$id', -1);
+      var l = bddStorage.getItem(this, 'json/$id', -1);
       if (l is! Future) {
-        if (l != null) {
-          modelProperties = jsonDecode(l);
-        } else {
+        if (l == null) {
           modelProperties = {};
         }
         print("load properties model = $id");
@@ -234,8 +279,46 @@ class ModelSchemaDetail {
   }
 
   void saveProperties() {
-    var jsonEncode2 = jsonEncode(modelProperties);
-    print(jsonEncode2);
-    bddStorage.setItem('json/$id', jsonEncode2);
+    bddStorage.prepareSaveModel(this);
+  }
+
+  void doChangeYaml(TextConfig? config, bool save, String action) {
+    var parser = ParseYamlManager();
+    bool parseOk = parser.doParseYaml(modelYaml, config);
+
+    if (parseOk) {
+      mapModelYaml = parser.mapYaml!;
+      if (save) {
+        bddStorage.saveYAML(model: this, type: 'YAML', value: modelYaml);
+      }
+      // ignore: invalid_use_of_protected_member
+      config?.treeJsonState.setState(() {});
+      if (action == 'event') {
+        // ignore: invalid_use_of_protected_member
+        config?.textYamlState.setState(() {});
+      }
+      //stateModel.keyTreeModelInfo.currentState?.setState(() {});
+    }
+  }
+}
+
+class ParseYamlManager {
+  Map? mapYaml;
+
+  bool doParseYaml(String yaml, TextConfig? config) {
+    bool parseOk = false;
+    try {
+      var r = loadYaml(yaml);
+      if (r is Map) {
+        mapYaml = r;
+        parseOk = true;
+        config?.notifError.value = '';
+      } else {
+        config?.notifError.value = 'no valid';
+      }
+    } catch (e) {
+      config?.notifError.value = '$e';
+    }
+    return parseOk;
   }
 }

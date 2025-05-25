@@ -4,17 +4,18 @@ import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pan_api_editor.dart';
+import 'package:jsonschema/pan_model_main.dart';
 import 'package:jsonschema/widget/hexagon/hexagon_widget.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/pan_json_validator.dart';
 import 'package:jsonschema/pan_model_editor.dart';
-import 'package:jsonschema/pan_model_selector.dart';
 import 'package:jsonschema/widget/widget_rail.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
+import 'package:jsonschema/widget_state/widget_md_doc.dart';
 
 import 'pan_api_selector.dart';
 
@@ -26,14 +27,24 @@ void main() async {
 
   await bddStorage.init();
 
-  currentCompany.listModel = ModelSchemaDetail(
-    type: YamlType.allModel,
-    name: 'Business model',
-    id: 'model',
-    infoManager: InfoManagerModel(),
+  currentCompany.listModel = await loadSchema(
+    TypeMD.listmodel,
+    'model',
+    'Business model',
   );
-  await currentCompany.listModel!.loadYamlAndProperties(cache: false);
-  BrowseModel().browse(currentCompany.listModel!, false);
+  currentCompany.listComponent = await loadSchema(
+    TypeMD.listmodel,
+    'component',
+    'Business component',
+  );
+  currentCompany.listModel.dependency = [currentCompany.listComponent];
+  currentCompany.listComponent.dependency = [currentCompany.listModel];
+
+  currentCompany.listRequest = await loadSchema(
+    TypeMD.listmodel,
+    'request',
+    'Request',
+  );
 
   currentCompany.listAPI = ModelSchemaDetail(
     type: YamlType.allApi,
@@ -41,23 +52,37 @@ void main() async {
     id: 'api',
     infoManager: InfoManagerAPI(),
   );
-  await currentCompany.listAPI!.loadYamlAndProperties(cache: false);
-  BrowseAPI().browse(currentCompany.listAPI!, false);
+  await currentCompany.listAPI.loadYamlAndProperties(cache: false);
+  BrowseAPI().browse(currentCompany.listAPI, false);
 
   runApp(CodeEditor());
+}
+
+Future<ModelSchemaDetail> loadSchema(
+  TypeMD type,
+  String id,
+  String name,
+) async {
+  var m = ModelSchemaDetail(
+    type: YamlType.allModel,
+    name: name,
+    id: id,
+    infoManager: InfoManagerModel(typeMD: type),
+  );
+  await m.loadYamlAndProperties(cache: false);
+  BrowseModel().browse(m, false);
+  return m;
 }
 
 const constMasterID = '\$\$__id__';
 const constTypeAnyof = '\$\$__anyof__';
 const constRefOn = '\$\$__ref__';
 
-
-final ModelSchema currentCompany = ModelSchema();
+final CompanyModelSchema currentCompany = CompanyModelSchema();
 
 const double rowHeight = 30;
 
 ValueNotifier<String> notifierErrorYaml = ValueNotifier<String>('');
-ValueNotifier<String> notifierModelErrorYaml = ValueNotifier<String>('');
 
 final ValueNotifier<double> zoom = ValueNotifier(0);
 
@@ -82,7 +107,14 @@ class CodeEditor extends StatelessWidget {
 
       home: Scaffold(
         bottomNavigationBar: Row(
-          children: [Spacer(), Text('API Architect by Desomer G. V0.0.2')],
+          children: [
+            SizedBox(width: 10),
+            InkWell(child: Icon(Icons.undo)),
+            SizedBox(width: 5),
+            InkWell(child: Icon(Icons.redo)),
+            Spacer(),
+            Text('API Architect by Desomer G. V0.0.4'),
+          ],
         ),
         body: SafeArea(
           child: WidgetRail(
@@ -124,7 +156,7 @@ class CodeEditor extends StatelessWidget {
               Column(
                 children: [getBreadcrumbAPI(), Expanded(child: getApiTab())],
               ),
-              Container(),
+              getEventTab(),
               Container(),
               getCodeTab(),
             ],
@@ -166,7 +198,7 @@ class CodeEditor extends StatelessWidget {
         child: Row(
           children: [
             BreadCrumbNavigator(
-              key : stateApi.keyBreadcrumb,
+              key: stateApi.keyBreadcrumb,
               getList: () {
                 return stateApi.path;
               },
@@ -188,11 +220,19 @@ class CodeEditor extends StatelessWidget {
       },
       listTab: [
         Tab(text: 'Browse API'),
-        Tab(text: 'Edit route API'),
+        Tab(text: 'API Detail'),
         Tab(text: 'API Servers'),
         Tab(text: 'Validation workflow'),
       ],
       listTabCont: [PanAPISelector(), PanApiEditor(), Container(), Container()],
+      heightTab: 40,
+    );
+  }
+
+  Widget getEventTab() {
+    return WidgetTab(
+      listTab: [Tab(text: 'Avro'), Tab(text: 'Protobuf')],
+      listTabCont: [Container(), Container()],
       heightTab: 40,
     );
   }
@@ -330,7 +370,7 @@ class CodeEditor extends StatelessWidget {
       },
       tabDisable: stateModel.tabDisable,
       listTab: [
-        Tab(text: 'Models Browser'),
+        Tab(text: 'Browse Models'),
         Tab(text: 'Model Editor'),
         Tab(text: 'Json schema'),
         Tab(text: 'Glossary'),
@@ -338,7 +378,7 @@ class CodeEditor extends StatelessWidget {
         Tab(text: 'Validation workflow'),
       ],
       listTabCont: [
-        KeepAliveWidget(child: WidgetModelSelector()),
+        KeepAliveWidget(child: WidgetModelMain()),
         WidgetModelEditor(),
         WidgetJsonValidator(),
         Container(),

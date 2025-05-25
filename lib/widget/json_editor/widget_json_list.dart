@@ -7,7 +7,7 @@ import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 
 class JsonList extends StatefulWidget {
   const JsonList({super.key, required this.modelInfo});
-  final ModelInfo modelInfo;
+  final TreeListLink modelInfo;
   @override
   State<JsonList> createState() => _JsonListState();
 }
@@ -36,13 +36,12 @@ class _JsonListState extends State<JsonList> {
       future: prop,
       builder: (context, snapshot) {
         if (!snapshot.hasData) return Text('loading');
-        //Map properties = snapshot.data;
         return _getSyncWidget(modelSchemaDetail);
       },
     );
   }
 
-  int findInfo(List<dynamic> result, NodeAttribut? attr) {
+  int findInfoOnTree(List<dynamic> result, NodeAttribut? attr) {
     if (attr == null) return -1;
     for (var i = 0; i < result.length; i++) {
       AttributInfo? a;
@@ -80,12 +79,17 @@ class _JsonListState extends State<JsonList> {
           return SizeTransition(
             fixedCrossAxisSizeFactor: 1,
             sizeFactor: animation,
-            child: SizedBox(width: width - 10, child: dataAttr.info.cache!),
+            child: Container(
+              color: dataAttr.bgcolor,
+              width: width - 10,
+              child: dataAttr.info.cache!,
+            ),
           );
         }
         return SizeTransition(
           sizeFactor: animation,
-          child: SizedBox(
+          child: Container(
+            color: dataAttr.bgcolor,
             width: width - 10,
             child: widget.modelInfo.config.getRow(
               dataAttr,
@@ -148,7 +152,7 @@ class _JsonListState extends State<JsonList> {
       } else {
         modelSchemaDetail.reorgProperties(all);
         print(
-          'nb list rows = ${result.length} prop = ${modelSchemaDetail.modelProperties.length}',
+          'nb list rows = ${result.length} prop = ${modelSchemaDetail.useAttributInfo.length}',
         );
       }
     }
@@ -161,7 +165,7 @@ class _JsonListState extends State<JsonList> {
       if (r.info == rc?.data?.info) {
         ci++;
       } else {
-        int idx = findInfo(_list._items, rc?.data);
+        int idx = findInfoOnTree(_list._items, rc?.data);
         if (idx > -1) {
           for (var j = i; j < idx; j++) {
             remove.add(_list[j]);
@@ -169,11 +173,10 @@ class _JsonListState extends State<JsonList> {
           i = idx;
           ci++;
         } else {
-          int idx = findInfo(result, _list._items[i]);
+          int idx = findInfoOnTree(result, _list._items[i]);
           if (idx > -1) {
             ci = idx + 1;
           } else {
-            //_remove(r);
             remove.add(_list[i]);
           }
         }

@@ -13,19 +13,61 @@ import 'package:jsonschema/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
-import 'package:yaml/yaml.dart';
 
 class PanAPISelector extends StatelessWidget with WidgetModelHelper {
-  const PanAPISelector({super.key});
+  PanAPISelector({super.key});
+  late final TextConfig textConfig;
 
   @override
   Widget build(BuildContext context) {
-    return getBrowser(context);
-  }
+    void onYamlChange(String yaml, TextConfig config) {
+      if (currentCompany.listAPI.modelYaml != yaml) {
+        currentCompany.listAPI.modelYaml = yaml;
+        var parser = ParseYamlManager();
+        bool parseOk = parser.doParseYaml(
+          currentCompany.listAPI.modelYaml,
+          config,
+        );
 
-  Widget getBrowser(BuildContext context) {
+        //bool parseOk = doParseYaml(currentCompany.listAPI.modelYaml, config);
+        // bddStorage.setItem('api', currentCompany.listAPI.modelYaml);
+        // bool parseOk = false;
+        // try {
+        //   currentCompany.listAPI.mapModelYaml = loadYaml(
+        //     currentCompany.listAPI.modelYaml,
+        //   );
+        //   parseOk = true;
+        //   config.notifError.value = '';
+        // } catch (e) {
+        //   config.notifError.value = '$e';
+        // }
+
+        if (parseOk) {
+          currentCompany.listAPI.mapModelYaml = parser.mapYaml!;
+          // bddStorage.savePath(type: 'YAML', id: id, value: yaml);
+          bddStorage.setYaml(
+            currentCompany.listAPI,
+            currentCompany.listAPI.modelYaml,
+          );
+          // ignore: invalid_use_of_protected_member
+          stateApi.keyListAPIInfo.currentState?.setState(() {});
+        }
+      }
+    }
+
+    getYaml() {
+      return currentCompany.listAPI.modelYaml;
+    }
+
+    textConfig = TextConfig(
+      mode: yaml,
+      notifError: ValueNotifier<String>(''),
+      onChange: onYamlChange,
+      getText: getYaml,
+    );
+
     getJsonYaml() {
-      return currentCompany.listAPI!.modelYaml;
+      return currentCompany.listAPI.modelYaml;
     }
 
     var model = Row(
@@ -41,7 +83,8 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
             key: stateApi.keyListAPIInfo,
             config:
                 JsonTreeConfig(
-                    getModel: () => currentCompany.listAPI!,
+                    textConfig: textConfig,
+                    getModel: () => currentCompany.listAPI,
                     onTap: (NodeAttribut node) {
                       goToAPI(node);
                     },
@@ -76,8 +119,8 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         inArray: true,
         key: ValueKey('${attr.hashCode}#summary'),
         acces: ModelAccessorAttr(
-          info: attr.info,
-          schema: currentCompany.listAPI!,
+          node: attr,
+          schema: currentCompany.listAPI,
           propName: 'summary',
         ),
       ),
@@ -159,50 +202,19 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         name: attr.info.name,
         id: key,
       );
-      currentCompany.listAPI!.currentAttr = attr;
+      currentCompany.listAPI.currentAttr = attr;
       await currentCompany.currentAPI!.loadYamlAndProperties(cache: false);
       stateApi.tabApi.animateTo(1);
     }
   }
 
   Widget getStructureModel() {
-    void onYamlChange(String yaml, TextConfig config) {
-      if (currentCompany.listAPI!.modelYaml != yaml) {
-        currentCompany.listAPI!.modelYaml = yaml;
-        bddStorage.setItem('api', currentCompany.listAPI!.modelYaml);
-        bool parseOk = false;
-        try {
-          currentCompany.listAPI!.mapModelYaml = loadYaml(
-            currentCompany.listAPI!.modelYaml,
-          );
-          parseOk = true;
-          config.notifError.value = '';
-        } catch (e) {
-          config.notifError.value = '$e';
-        }
-
-        if (parseOk) {
-          // ignore: invalid_use_of_protected_member
-          stateApi.keyListAPIInfo.currentState?.setState(() {});
-        }
-      }
-    }
-
-    getYaml() {
-      return currentCompany.listAPI!.modelYaml;
-    }
-
     return Container(
       color: Colors.black,
       child: TextEditor(
         header: "API routes",
         key: stateApi.keyListAPI,
-        config: TextConfig(
-          mode: yaml,
-          notifError: notifierModelErrorYaml,
-          onChange: onYamlChange,
-          getText: getYaml,
-        ),
+        config: textConfig,
       ),
     );
   }

@@ -37,19 +37,24 @@ class _AttributPropertiesState extends State<AttributProperties> {
       return Container();
     }
 
-    String type = currentCompany.currentModel!.currentAttr!.info.type.toLowerCase();
+    String type =
+        currentCompany.currentModel!.currentAttr!.info.type.toLowerCase();
 
     if (type == 'string') {
       return getValidatorStringForm();
     } else if (type == 'number') {
-      return getValidatorNumberForm(); //getValidatorNumberForm();
+      return getValidatorNumberForm();
+    } else if (type == 'boolean') {
+      return getValidatorBoolForm();
+    } else if (type == 'array') {
+      return getValidatorArrayForm();
     }
 
     return Container();
   }
 
-  Widget getValidatorNumberForm() {
-    var info = currentCompany.currentModel!.currentAttr!.info;
+  Widget getValidatorArrayForm() {
+    var info = currentCompany.currentModel!.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -57,13 +62,89 @@ class _AttributPropertiesState extends State<AttributProperties> {
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (info.isInitByRef)
+          if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
-
+          CellCheckEditor(
+            key: ValueKey('required#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: currentCompany.currentModel!,
+              propName: 'required',
+            ),
+            inArray: false,
+          ),
           CellEditor(
             key: ValueKey('dependentRequired#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
+              schema: currentCompany.currentModel!,
+              propName: 'dependentRequired',
+            ),
+            line: 5,
+            inArray: false,
+          ),
+
+          CellEditor(
+            key: ValueKey('minItems#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: currentCompany.currentModel!,
+              propName: 'minItems',
+            ),
+            inArray: false,
+            isNumber: true,
+          ),
+
+          CellEditor(
+            key: ValueKey('maxItems#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: currentCompany.currentModel!,
+              propName: 'maxItems',
+            ),
+            inArray: false,
+            isNumber: true,
+          ),
+
+          CellCheckEditor(
+            key: ValueKey('uniqueItems#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: currentCompany.currentModel!,
+              propName: 'uniqueItems ',
+            ),
+            inArray: false,
+          ),          
+        ],
+      ),
+    );
+  }
+
+
+  Widget getValidatorNumberForm() {
+    var info = currentCompany.currentModel!.currentAttr!;
+    return Padding(
+      padding: EdgeInsets.all(10),
+      child: Column(
+        spacing: 10,
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (info.info.isInitByRef)
+            TextButton(onPressed: () {}, child: Text("Go to definition")),
+          CellCheckEditor(
+            key: ValueKey('required#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: currentCompany.currentModel!,
+              propName: 'required',
+            ),
+            inArray: false,
+          ),
+          CellEditor(
+            key: ValueKey('dependentRequired#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'dependentRequired',
             ),
@@ -74,7 +155,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('pattern#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'pattern',
             ),
@@ -84,7 +165,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('format#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'format',
             ),
@@ -94,7 +175,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('enum#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'enum',
             ),
@@ -105,7 +186,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('multipleOf#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'multipleOf',
             ),
@@ -115,7 +196,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('minimum#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'minimum',
             ),
@@ -125,7 +206,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellCheckEditor(
             key: ValueKey('exclusiveMinimum#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'exclusiveMinimum',
             ),
@@ -135,7 +216,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('maximum#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'maximum',
             ),
@@ -145,7 +226,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellCheckEditor(
             key: ValueKey('exclusiveMaximum#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'exclusiveMaximum',
             ),
@@ -157,7 +238,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
   }
 
   Widget getValidatorStringForm() {
-    var info = currentCompany.currentModel!.currentAttr!.info;
+    var info = currentCompany.currentModel!.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -165,12 +246,12 @@ class _AttributPropertiesState extends State<AttributProperties> {
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (info.isInitByRef)
+          if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
           CellCheckEditor(
             key: ValueKey('required#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'required',
             ),
@@ -179,7 +260,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('dependentRequired#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'dependentRequired',
             ),
@@ -190,7 +271,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('pattern#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'pattern',
             ),
@@ -200,7 +281,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('format#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'format',
             ),
@@ -210,7 +291,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('enum#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'enum',
             ),
@@ -221,7 +302,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('minLength#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'minLength',
             ),
@@ -231,7 +312,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('maxLength#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'maxLength',
             ),
@@ -242,7 +323,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('contentEncoding#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'contentEncoding',
             ),
@@ -252,10 +333,48 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('contentMediaType#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'contentMediaType',
             ),
+            inArray: false,
+          ),
+
+          // "contentEncoding": "base64",
+          // "contentMediaType": "image/png"
+        ],
+      ),
+    );
+  }
+
+  Widget getValidatorBoolForm() {
+    var info = currentCompany.currentModel!.currentAttr!;
+    return Padding(
+      padding: EdgeInsets.all(10),
+      child: Column(
+        spacing: 10,
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (info.info.isInitByRef)
+            TextButton(onPressed: () {}, child: Text("Go to definition")),
+          CellCheckEditor(
+            key: ValueKey('required#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: currentCompany.currentModel!,
+              propName: 'required',
+            ),
+            inArray: false,
+          ),
+          CellEditor(
+            key: ValueKey('dependentRequired#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: currentCompany.currentModel!,
+              propName: 'dependentRequired',
+            ),
+            line: 5,
             inArray: false,
           ),
 
@@ -271,7 +390,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
       return Container();
     }
 
-    var info = currentCompany.currentModel!.currentAttr!.info;
+    var info = currentCompany.currentModel!.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -279,12 +398,12 @@ class _AttributPropertiesState extends State<AttributProperties> {
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (info.isInitByRef)
+          if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
           CellEditor(
             key: ValueKey('description#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'description',
             ),
@@ -294,7 +413,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('example#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'example',
             ),
@@ -304,7 +423,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('const#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'const',
             ),
@@ -313,7 +432,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellCheckEditor(
             key: ValueKey('readOnly#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'readOnly',
             ),
@@ -322,7 +441,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellCheckEditor(
             key: ValueKey('writeOnly#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'writeOnly',
             ),
@@ -331,7 +450,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellCheckEditor(
             key: ValueKey('deprecated#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: 'deprecated',
             ),
@@ -340,7 +459,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           CellEditor(
             key: ValueKey('comment#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info,
+              node: info,
               schema: currentCompany.currentModel!,
               propName: '\$comment',
             ),

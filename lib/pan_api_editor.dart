@@ -28,11 +28,31 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
   final GlobalKey keyApiTreeEditor = GlobalKey();
   final GlobalKey keyAttrEditor = GlobalKey();
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
+  late final TextConfig textConfig;
 
   @override
   Widget build(BuildContext context) {
-    if (currentCompany.listAPI!.currentAttr == null) return Container();
-    return getTab();
+    if (currentCompany.listAPI.currentAttr == null) return Container();
+
+    return WidgetTab(
+      listTab: [
+        Tab(text: 'Documentation'),
+        Tab(text: 'Example'),
+        Tab(text: 'Execute call api'),
+      ],
+      listTabCont: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            getPath(currentCompany.listAPI.currentAttr!),
+            Expanded(child: getApiTab()),
+          ],
+        ),
+        Container(),
+        Container(),
+      ],
+      heightTab: 40,
+    );
   }
 
   Widget getPath(NodeAttribut attr) {
@@ -116,28 +136,6 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
     return wpath;
   }
 
-  Widget getTab() {
-    return WidgetTab(
-      listTab: [
-        Tab(text: 'Designer'),
-        Tab(text: 'Example'),
-        Tab(text: 'Execute'),
-      ],
-      listTabCont: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            getPath(currentCompany.listAPI!.currentAttr!),
-            Expanded(child: getApiTab()),
-          ],
-        ),
-        Container(),
-        Container(),
-      ],
-      heightTab: 40,
-    );
-  }
-
   Widget getApiTab() {
     return WidgetTab(
       listTab: [Tab(text: 'Request'), Tab(text: 'Responses')],
@@ -149,6 +147,54 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
   late TabController tabEditor;
 
   Widget _getEditorLeftTab() {
+    void onYamlChange(String yaml, TextConfig config) {
+      if (currentCompany.currentAPI == null) return;
+
+      var modelSchemaDetail = currentCompany.currentAPI!;
+      if (modelSchemaDetail.modelYaml != yaml) {
+        modelSchemaDetail.modelYaml = yaml;
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          //tabEditor.index = 0;
+
+          var parser = ParseYamlManager();
+          bool parseOk = parser.doParseYaml(
+            modelSchemaDetail.modelYaml,
+            config,
+          );
+          // bool parseOk = false;
+          // try {
+          //   modelSchemaDetail.mapModelYaml = loadYaml(
+          //     modelSchemaDetail.modelYaml,
+          //   );
+          //   parseOk = true;
+          //   config.notifError.value = '';
+          // } catch (e) {
+          //   config.notifError.value = '$e';
+          //}
+
+          if (parseOk) {
+            modelSchemaDetail.mapModelYaml = parser.mapYaml!;
+            //bddStorage.setItem(modelSchemaDetail.id, modelSchemaDetail.modelYaml);
+            // ignore: invalid_use_of_protected_member
+            keyApiTreeEditor.currentState?.setState(() {});
+          }
+        });
+      }
+    }
+
+    getYaml() {
+      initNewApi();
+      return currentCompany.currentAPI!.modelYaml;
+    }
+
+    textConfig = TextConfig(
+      mode: yaml,
+      notifError: notifierErrorYaml,
+      onChange: onYamlChange,
+      getText: getYaml,
+    );
+
     return WidgetTab(
       listTab: [
         Tab(text: 'Parameters'),
@@ -187,12 +233,13 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
             key: keyApiTreeEditor,
             config:
                 JsonTreeConfig(
+                    textConfig: textConfig,
                     getModel: () {
                       return currentCompany.currentAPI;
                     },
                     onTap: (NodeAttribut node) {
-                     // doShowAttrEditor(currentCompany.currentModel!, node);
-                    },                    
+                      // doShowAttrEditor(currentCompany.currentModel!, node);
+                    },
                   )
                   ..getJson = getJsonYaml
                   ..getRow = _getRowsAttrInfo,
@@ -216,7 +263,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
       CellEditor(
         key: ValueKey('${attr.hashCode}#title'),
         acces: ModelAccessorAttr(
-          info: attr.info,
+          node: attr,
           schema: currentCompany.currentAPI!,
           propName: 'title',
         ),
@@ -285,52 +332,12 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
   }
 
   Widget getYamlParam() {
-    void onYamlChange(String yaml, TextConfig config) {
-      if (currentCompany.currentAPI == null) return;
-
-      var modelSchemaDetail = currentCompany.currentAPI!;
-      if (modelSchemaDetail.modelYaml != yaml) {
-        modelSchemaDetail.modelYaml = yaml;
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          //tabEditor.index = 0;
-
-          //bddStorage.setItem(modelSchemaDetail.id, modelSchemaDetail.modelYaml);
-          bool parseOk = false;
-          try {
-            modelSchemaDetail.mapModelYaml = loadYaml(
-              modelSchemaDetail.modelYaml,
-            );
-            parseOk = true;
-            config.notifError.value = '';
-          } catch (e) {
-            config.notifError.value = '$e';
-          }
-
-          if (parseOk) {
-            // ignore: invalid_use_of_protected_member
-            keyApiTreeEditor.currentState?.setState(() {});
-          }
-        });
-      }
-    }
-
-    getYaml() {
-      initNewApi();
-      return currentCompany.currentAPI!.modelYaml;
-    }
-
     return Container(
       color: Colors.black,
       child: TextEditor(
         header: "Parameters query, header, cookies, body",
         key: keyApiYamlEditor,
-        config: TextConfig(
-          mode: yaml,
-          notifError: notifierErrorYaml,
-          onChange: onYamlChange,
-          getText: getYaml,
-        ),
+        config: textConfig,
       ),
     );
   }
@@ -361,7 +368,7 @@ body :
 //////////////////////////////////////////////////////////////////////////////
 class InfoManagerAPIParam extends InfoManager with WidgetModelHelper {
   @override
-  String getTypeTitle(String name, dynamic type) {
+  String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
       typeStr = 'Param';

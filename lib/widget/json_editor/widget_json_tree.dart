@@ -2,12 +2,29 @@ import 'package:animated_tree_view/animated_tree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/editor/code_editor.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_list.dart';
 import 'package:jsonschema/main.dart';
 
 class JsonBrowserWidget extends JsonBrowser {
   late JsonEditorState state;
   late TreeNode<NodeAttribut> rootTree;
+
+  double maxSize = 300;
+
+  reloadAll(NodeAttribut node) {
+    // ignore: invalid_use_of_protected_member
+    node.widgetRowState?.setState(() {});
+    // ignore: invalid_use_of_protected_member
+    state.setState(() {});
+    // ignore: invalid_use_of_protected_member
+    //state.keyTree.currentState?.setState(() {});
+    // ignore: invalid_use_of_protected_member
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ignore: invalid_use_of_protected_member
+      state.keyJsonList.currentState?.setState(() {});
+    });
+  }
 
   @override
   void onPropertiesChanged() {
@@ -30,9 +47,63 @@ class JsonBrowserWidget extends JsonBrowser {
 
   @override
   dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+    double size = (node.info.name.length * 10) + (node.level * 30) + 75;
+    if (maxSize < size) {
+      maxSize = size;
+    }
+
     var treeNode = TreeNode(key: node.info.treePosition, data: node);
-    (parent as TreeNode).add(treeNode);
+    if (!parentNode.addChildAsync) {
+      (parent as TreeNode).add(treeNode);
+    } else {
+      parentNode.addChildAsync = false;
+      (parent as TreeNode).add(treeNode);
+
+      // gestion du chargemnt différé des enfants
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Node? n = findNode(parentNode.info);
+        n as TreeNode;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (n.isExpanded) {
+            state.modelInfo.treeController!.collapseNode(n);
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            state.modelInfo.treeController!.expandAllChildren(n);
+            // ignore: invalid_use_of_protected_member
+            state.keyJsonList.currentState?.setState(() {});
+          });
+        });
+
+        //n?.add(treeNode);
+        //state.setState(() {});
+        // print("later");
+        // if (parent.isExpanded) {
+        //   state.modelInfo.treeController!.toggleExpansion(parent);
+        // }
+      });
+    }
     return treeNode;
+  }
+
+  TreeNode<NodeAttribut>? findNode(AttributInfo info) {
+    var tree2 = state.modelInfo.treeController?.tree as TreeNode<NodeAttribut>?;
+    Map<String, Node>? a = tree2!.children as Map<String, Node>?;
+    var n = _find(a, info);
+    return n;
+  }
+
+  TreeNode<NodeAttribut>? _find(Map<String, Node>? child, AttributInfo info) {
+    if (child == null) return null;
+    for (var element in child.entries) {
+      var v = element.value as TreeNode<NodeAttribut>;
+      if (v.data!.info == info) {
+        return v;
+      }
+      var ret = _find(v.children, info);
+      if (ret != null) return ret;
+    }
+    return null;
   }
 }
 
@@ -48,8 +119,10 @@ class JsonEditor extends StatefulWidget {
 class JsonEditorState extends State<JsonEditor>
     with SingleTickerProviderStateMixin {
   late AutoScrollController _scrollController;
-  ModelInfo modelInfo = ModelInfo();
+
+  TreeListLink modelInfo = TreeListLink();
   GlobalKey keyJsonList = GlobalKey();
+  GlobalKey keyTree = GlobalKey();
 
   @override
   initState() {
@@ -65,12 +138,25 @@ class JsonEditorState extends State<JsonEditor>
   }
 
   @override
+  void dispose() {
+    _scrollController.dispose();
+    modelInfo.scrollController?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     ModelSchemaDetail? model = (widget.config.getModel() as ModelSchemaDetail?);
     if (model == null) return Text('Select model first');
 
+    widget.config.textConfig?.treeJsonState = this;
+
     var jsonBrowserWidget = JsonBrowserWidget()..state = this;
+
     ModelBrower browser = jsonBrowserWidget.browse(model, true);
+    model.lastBrowser = browser;
+    model.lastJsonBrowser = jsonBrowserWidget;
+    repaintListView(0);
     return getWidget(model, browser, jsonBrowserWidget);
   }
 
@@ -89,7 +175,9 @@ class JsonEditorState extends State<JsonEditor>
     return Row(
       children: [
         SizedBox(
-          width: widget.config.widthTree + (browser.nbLevelMax * 20),
+          width:
+              jsonBrowserWidget
+                  .maxSize, //widget.config.widthTree + (browser.nbLevelMax * 20),
           child: getTree(model, jsonBrowserWidget.rootTree),
         ),
         Expanded(
@@ -102,10 +190,9 @@ class JsonEditorState extends State<JsonEditor>
     );
   }
 
-  GlobalKey keyTree = GlobalKey();
-
   Widget getTree(ModelSchemaDetail aModel, TreeNode<NodeAttribut> tree) {
     return TreeView.simple(
+      expansionBehavior: ExpansionBehavior.none,
       key: keyTree,
       // animation: AlwaysStoppedAnimation(1),
       tree: tree,
@@ -131,17 +218,26 @@ class JsonEditorState extends State<JsonEditor>
       },
       builder: (context, node) {
         return InkWell(
-          key: ObjectKey(node),
+          key: ObjectKey(node.data),
           onTap: () {
-            if (widget.config.onTap!=null) {
-              widget.config.onTap!(node.data);
+            if (widget.config.onTap != null) {
+              var ret = widget.config.onTap!(node.data);
+              if (ret == true) {
+                repaintListView(0);
+              }
             }
           },
           onDoubleTap: () {
+            if (node.isLeaf) {
+              if (widget.config.onDoubleTap != null) {
+                widget.config.onDoubleTap!(node.data);
+              }
+            }
             var delay = doToogleNode(0, node);
             repaintListView(delay);
           },
-          child: SizedBox(
+          child: Container(
+            color: node.data?.bgcolor,
             height: rowHeight,
             child: Row(
               children: [
@@ -158,8 +254,10 @@ class JsonEditorState extends State<JsonEditor>
   }
 
   void repaintListView(int delay) {
-    Future.delayed(Duration(milliseconds: 100)).then((_) {
-      keyJsonList.currentState?.setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(Duration(milliseconds: 100 + delay)).then((_) {
+        keyJsonList.currentState?.setState(() {});
+      });
     });
   }
 
@@ -187,7 +285,12 @@ class JsonEditorState extends State<JsonEditor>
   Widget getWidgetType(NodeAttribut attr) {
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
     hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
-    return getChip(Text(attr.info.type), hasError ? Colors.redAccent : null);
+    String msg = hasError ? 'string\nnumber\nboolean\n\$type' : '';
+
+    return Tooltip(
+      message: msg,
+      child: getChip(Text(attr.info.type), hasError ? Colors.redAccent : null),
+    );
   }
 
   Widget getChip(Widget content, Color? color) {
@@ -200,16 +303,23 @@ class JsonEditorState extends State<JsonEditor>
 }
 
 class JsonTreeConfig {
-  JsonTreeConfig({required this.getModel, required this.onTap});
+  JsonTreeConfig({
+    required this.textConfig,
+    required this.getModel,
+    required this.onTap,
+    this.onDoubleTap,
+  });
   Function getModel;
   late Function getJson;
   late Function getRow;
   int widthTree = 350;
   Function? onTap;
+  Function? onDoubleTap;
+  TextConfig? textConfig;
 }
 //-------------------------------------------------------------------------------------------
 
-class ModelInfo {
+class TreeListLink {
   ScrollController? scrollController;
   TreeViewController? treeController;
   late JsonTreeConfig config;

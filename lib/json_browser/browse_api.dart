@@ -1,15 +1,16 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
 class BrowseAPI<T extends Map> extends JsonBrowser<T> {
   @override
-  void doTree(NodeAttribut aNodeAttribut, r) {
+  void doTree(ModelSchemaDetail model, NodeAttribut aNodeAttribut, r) {
     if (aNodeAttribut.info.type == 'api') {
       initVersion(aNodeAttribut, r);
     }
-    super.doTree(aNodeAttribut, r);
+    super.doTree(model, aNodeAttribut, r);
   }
 
   @override
@@ -30,7 +31,7 @@ class BrowseAPI<T extends Map> extends JsonBrowser<T> {
 //************************************************************************* */
 class InfoManagerAPI extends InfoManager with WidgetModelHelper {
   @override
-  String getTypeTitle(String name, dynamic type) {
+  String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
       typeStr = 'Path';

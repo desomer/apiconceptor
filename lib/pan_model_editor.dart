@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/yaml.dart';
 import 'package:jsonschema/pan_attribut_editor.dart';
-import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/pan_model_change_viewer.dart';
+import 'package:jsonschema/pan_model_import.dart';
+import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
+import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
-import 'package:yaml/yaml.dart';
+import 'package:jsonschema/widget_state/widget_MD_doc.dart';
 
 // ignore: must_be_immutable
 class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
@@ -23,24 +25,53 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
   State? rowSelected;
   final GlobalKey keyChangeViewer = GlobalKey();
+  late TextConfig textConfig;
 
   @override
   Widget build(BuildContext context) {
-    return _getModelEditor();
-  }
+    void onYamlChange(String yaml, TextConfig config) {
+      if (currentCompany.currentModel == null) return;
 
-  Row _getModelEditor() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 300,
-          height: double.infinity,
-          child: _getEditorLeftTab(),
-        ),
-        Expanded(child: _getEditorMainTab()),
-      ],
+      var modelSchemaDetail = currentCompany.currentModel!;
+      if (modelSchemaDetail.modelYaml != yaml) {
+        modelSchemaDetail.modelYaml = yaml;
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          tabEditor.index = 0;
+
+          modelSchemaDetail.doChangeYaml(config, true, 'change');
+        });
+      }
+    }
+
+    getYaml() {
+      return currentCompany.currentModel?.modelYaml;
+    }
+
+    textConfig = TextConfig(
+      mode: yaml,
+      notifError: notifierErrorYaml,
+      onChange: onYamlChange,
+      getText: getYaml,
     );
+
+    currentCompany.currentModel?.initEventListener(textConfig);
+
+    return SplitView(
+      childs: [_getEditorLeftTab(context), _getEditorMainTab(context)],
+    );
+
+    // return Row(
+    //   crossAxisAlignment: CrossAxisAlignment.start,
+    //   children: [
+    //     SizedBox(
+    //       width: 300,
+    //       height: double.infinity,
+    //       child: _getEditorLeftTab(context),
+    //     ),
+    //     Expanded(child: _getEditorMainTab(context)),
+    //   ],
+    // );
   }
 
   Widget _getEditor() {
@@ -55,6 +86,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
             key: stateModel.keyTreeModelInfo,
             config:
                 JsonTreeConfig(
+                    textConfig: textConfig,
                     getModel: () {
                       return currentCompany.currentModel;
                     },
@@ -65,11 +97,11 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
                         rowSelected?.setState(() {});
                       }
                       // ignore: invalid_use_of_protected_member
-                      node.widgetState?.setState(() {});
+                      node.widgetSelectState?.setState(() {});
                     },
                   )
                   ..getJson = getJsonYaml
-                  ..getRow = _getRowsAttrInfo,
+                  ..getRow = _getJsonRow,
           ),
         ),
         WidgetHiddenBox(
@@ -82,7 +114,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
 
   late TabController tabEditor;
 
-  Widget _getEditorMainTab() {
+  Widget _getEditorMainTab(BuildContext ctx) {
     return WidgetTab(
       onInitController: (TabController tab) {
         tabEditor = tab;
@@ -105,41 +137,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     return PanModelChangeViewer(key: keyChangeViewer);
   }
 
-  Widget _getEditorLeftTab() {
-    void onYamlChange(String yaml, TextConfig config) {
-      if (currentCompany.currentModel == null) return;
-
-      var modelSchemaDetail = currentCompany.currentModel!;
-      if (modelSchemaDetail.modelYaml != yaml) {
-        modelSchemaDetail.modelYaml = yaml;
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          tabEditor.index = 0;
-
-          bddStorage.setItem(modelSchemaDetail.id, modelSchemaDetail.modelYaml);
-          bool parseOk = false;
-          try {
-            modelSchemaDetail.mapModelYaml = loadYaml(
-              modelSchemaDetail.modelYaml,
-            );
-            parseOk = true;
-            config.notifError.value = '';
-          } catch (e) {
-            config.notifError.value = '$e';
-          }
-
-          if (parseOk) {
-            // ignore: invalid_use_of_protected_member
-            stateModel.keyTreeModelInfo.currentState?.setState(() {});
-          }
-        });
-      }
-    }
-
-    getYaml() {
-      return currentCompany.currentModel?.modelYaml;
-    }
-
+  Widget _getEditorLeftTab(BuildContext ctx) {
     return WidgetTab(
       listTab: [
         Tab(text: 'Structure'),
@@ -152,12 +150,24 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
           child: TextEditor(
             header: "Model attributs",
             key: stateModel.keyModelYamlEditor,
-            config: TextConfig(
-              mode: yaml,
-              notifError: notifierErrorYaml,
-              onChange: onYamlChange,
-              getText: getYaml,
-            ),
+            onHelp: (BuildContext ctx) {
+              showDialog(
+                context: ctx,
+                barrierDismissible: true,
+                builder: (BuildContext context) {
+                  return WidgetMdDoc(type: TypeMD.model);
+                },
+              );
+            },
+            actions: <Widget>[
+              InkWell(
+                onTap: () {
+                  _showMyDialog(ctx);
+                },
+                child: Icon(Icons.auto_fix_high, size: 18),
+              ),
+            ],
+            config: textConfig,
           ),
         ),
         getInfoForm(),
@@ -167,12 +177,22 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     );
   }
 
+  Future<void> _showMyDialog(BuildContext ctx) async {
+    return showDialog<void>(
+      context: ctx,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return PanModelImport();
+      },
+    );
+  }
+
   Widget getInfoForm() {
-    if (currentCompany.listModel?.currentAttr == null) {
+    if (currentCompany.listModel.currentAttr == null) {
       return Container();
     }
 
-    var info = currentCompany.listModel!.currentAttr!;
+    var info = currentCompany.listModel.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -184,8 +204,8 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
           CellEditor(
             key: ValueKey('description#${info.hashCode}'),
             acces: ModelAccessorAttr(
-              info: info.info,
-              schema: currentCompany.listModel!,
+              node: info,
+              schema: currentCompany.listModel,
               propName: 'description',
             ),
             line: 5,
@@ -194,6 +214,15 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         ],
       ),
     );
+  }
+
+  Widget _getJsonRow(NodeAttribut attr, ModelSchemaDetail schema) {
+    attr.info.cache = WidgetJsonRow(
+      node: attr,
+      schema: schema,
+      fctGetRow: _getRowsAttrInfo,
+    );
+    return attr.info.cache!;
   }
 
   Widget _getRowsAttrInfo(NodeAttribut attr, ModelSchemaDetail schema) {
@@ -206,7 +235,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
       CellEditor(
         key: ValueKey('${attr.hashCode}#title'),
         acces: ModelAccessorAttr(
-          info: attr.info,
+          node: attr,
           schema: currentCompany.currentModel!,
           propName: 'title',
         ),
@@ -218,11 +247,13 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         (attr.info.properties?['minimum'] != null) ||
         (attr.info.properties?['maximun'] != null) ||
         (attr.info.properties?['minLength'] != null) ||
-        (attr.info.properties?['maxLength'] != null);
+        (attr.info.properties?['maxLength'] != null) ||
+        (attr.info.properties?['minItems'] != null) ||
+        (attr.info.properties?['maxItems'] != null);
 
     rowWidget.addAll(<Widget>[
       SizedBox(width: 10),
-      if (attr.info.properties?['required'] != null)
+      if (attr.info.properties?['required'] == true)
         Icon(Icons.check_circle_outline),
       if (attr.info.properties?['const'] != null)
         getChip(Text('const'), color: null),
@@ -241,7 +272,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     // row.add(getChip(Text(attr.info.path), color: null));
     // addWidgetMasterId(attr, row);
 
-    attr.info.cache = SizedBox(
+    return SizedBox(
       height: rowHeight,
       child: InkWell(
         onTap: () {
@@ -254,7 +285,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         },
         child: HoverableCard(
           isSelected: (State state) {
-            attr.widgetState = state;
+            attr.widgetSelectState = state;
             bool isSelected = schema.currentAttr == attr;
             if (isSelected) {
               rowSelected = state;
@@ -267,7 +298,6 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         ),
       ),
     );
-    return attr.info.cache!;
   }
 
   void doShowAttrEditor(ModelSchemaDetail schema, NodeAttribut attr) {

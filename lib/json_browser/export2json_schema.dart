@@ -1,10 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
-import 'package:jsonschema/widget_state/state_model.dart';
 
 class Export2JsonSchema<T extends Map<String, dynamic>>
     extends JsonBrowser2generic<T> {
@@ -17,7 +14,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       "\$schema": "https://json-schema.org/draft/2020-12/schema",
       "\$id": model.name,
       "title": model.name,
-      "description": currentCompany.listModel!.currentAttr!.info.properties!['description']??'',
+      "description":
+          currentCompany.currentModelSel!.info.properties!['description'] ?? '',
       "type": "object",
       "properties": {},
       "additionalProperties": false,
@@ -42,7 +40,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
 
   @override
   NodeJson doArrayOfObject(String name, NodeAttribut node) {
-    Map<String, dynamic> child = {'type': 'array'};
+    var prop = {...node.info.properties ?? {}};
+    prop.remove(constMasterID);
+    prop.remove('required');   
+    Map<String, dynamic> child = {'type': 'array', ...prop};
     Map<String, dynamic> items = {'type': 'object'};
     child['items'] = items;
     node.addChildOn = "items";
@@ -52,7 +53,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
 
   @override
   NodeJson doArrayWithAnyOf(String name, NodeAttribut node) {
-    Map<String, dynamic> child = {'type': 'array'};
+    var prop = {...node.info.properties ?? {}};    
+    prop.remove(constMasterID);
+    prop.remove('required');       
+    Map<String, dynamic> child = {'type': 'array', ...prop};
     child['items'] = {};
     node.addInAttr = ''; // ajoute le anyOf à la racine
     node.addChildOn = "items";
@@ -86,7 +90,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       },
     );
     return NodeJson(name: name, value: child)
-      ..treeOfChild = ref[refName]!.value;
+      ..parentOfChild = ref[refName]!.value;
   }
 
   @override
@@ -103,7 +107,9 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     List<String> aRequired = [];
     for (var child in node.child) {
       if (child.info.properties?['required'] ?? false) {
-        aRequired.add(child.info.name);
+        var name2 = child.info.name;
+        if (name2.endsWith('[]')) name2 = name2.substring(0, name2.length - 2);
+        aRequired.add(name2);
       }
     }
     if (aRequired.isNotEmpty) {
@@ -130,18 +136,20 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
 
 class ExportJsonSchema2clipboard {
   doExport(ModelSchemaDetail model) async {
-    var export = Export2JsonSchema()..browse(model, false);
+    // var export = Export2JsonSchema()..browse(model, false);
 
-    Clipboard.setData(
-      ClipboardData(text: export.prettyPrintJson(export.json)),
-    ).then((_) {
-      if (stateModel.keyListModel.currentContext?.mounted ?? false) {
-        ScaffoldMessenger.of(stateModel.keyListModel.currentContext!).showSnackBar(
-          const SnackBar(content: Text('Copied to your clipboard !')),
-        );
-      }
-    });
+    // Clipboard.setData(
+    //   ClipboardData(text: export.prettyPrintJson(export.json)),
+    // ).then((_) {
+    //   if (stateModel.keyYamlListModel.currentContext?.mounted ?? false) {
+    //     ScaffoldMessenger.of(
+    //       stateModel.keyYamlListModel.currentContext!,
+    //     ).showSnackBar(
+    //       const SnackBar(content: Text('Copied to your clipboard !')),
+    //     );
+    //   }
+    // });
 
-    print(export.json);
+    //print(export.json);
   }
 }

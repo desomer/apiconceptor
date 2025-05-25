@@ -219,33 +219,37 @@ abstract class ModelAccessor {
 
 class ModelAccessorAttr extends ModelAccessor {
   ModelAccessorAttr({
-    required this.info,
+    required this.node,
     required this.schema,
     required this.propName,
   });
 
-  final AttributInfo info;
+  final NodeAttribut node;
   final ModelSchemaDetail schema;
   final String propName;
 
   @override
   get() {
-    return info.properties?[propName];
+    return node.info.properties?[propName];
   }
 
   @override
   void set(dynamic value) {
-    var path = '${info.path}.prop.$propName';
-    var propChangeValue = info.properties?[propName];
-    schema.addHistory(path, ChangeOpe.change, propChangeValue, value);
-    info.properties?[propName] = value;
+    var path = '${node.info.path}.prop.$propName';
+    var propChangeValue = node.info.properties?[propName];
+    schema.addHistory(node.info, path, ChangeOpe.change, propChangeValue, value);
+    node.info.properties?[propName] = value;
     schema.saveProperties();
+    // ignore: invalid_use_of_protected_member
+    node.widgetRowState?.setState(() {});
   }
 
   @override
   void remove() {
-    info.properties?.remove(propName);
+    node.info.properties?.remove(propName);
     schema.saveProperties();
+    // ignore: invalid_use_of_protected_member
+    node.widgetRowState?.setState(() {});
   }
 
   @override
@@ -255,7 +259,7 @@ class ModelAccessorAttr extends ModelAccessor {
 
   @override
   bool isEditable() {
-    if (info.isInitByRef) return false;
+    if (node.info.isInitByRef) return false;
     return true;
   }
 }

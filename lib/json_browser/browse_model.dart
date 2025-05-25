@@ -1,15 +1,18 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 
+import '../widget_state/widget_md_doc.dart';
+
 class BrowseModel<T extends Map> extends JsonBrowser<T> {
   @override
-  void doTree(NodeAttribut aNodeAttribut, r) {
+  void doTree(ModelSchemaDetail model, NodeAttribut aNodeAttribut, r) {
     if (aNodeAttribut.info.type == 'model') {
       initVersion(aNodeAttribut, r);
     }
-    super.doTree(aNodeAttribut, r);
+    super.doTree(model, aNodeAttribut, r);
   }
 
   @override
@@ -29,8 +32,12 @@ class BrowseModel<T extends Map> extends JsonBrowser<T> {
 
 //************************************************************************* */
 class InfoManagerModel extends InfoManager {
+  InfoManagerModel({required this.typeMD});
+
+  final TypeMD typeMD;
+
   @override
-  String getTypeTitle(String name, dynamic type) {
+  String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
       if (name.startsWith(constRefOn)) {
@@ -38,13 +45,16 @@ class InfoManagerModel extends InfoManager {
       } else if (name.startsWith(constTypeAnyof)) {
         typeStr = '\$anyOf';
       } else if (name.endsWith('[]')) {
+        node.bgcolor = Colors.blue.withAlpha(50);
         typeStr = 'Array';
       } else {
-        typeStr = 'Object';
+        node.bgcolor = Colors.blueGrey.withAlpha(50);
+        typeStr = typeMD == TypeMD.listmodel ? 'folder' : 'Object';
       }
     } else if (type is List) {
       if (name.endsWith('[]')) {
         typeStr = 'Array';
+        node.bgcolor = Colors.blue.withAlpha(50);
       } else {
         typeStr = 'Object';
       }
@@ -70,11 +80,13 @@ class InfoManagerModel extends InfoManager {
   ) {
     var type = typeTitle.toLowerCase();
     bool valid = [
+      'folder',
       'model',
       'string',
       'number',
       'object',
       'array',
+      'boolean',
       '\$ref',
       '\$anyof',
     ].contains(type);
@@ -119,12 +131,14 @@ class InfoManagerModel extends InfoManager {
             Padding(padding: EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
             Text(
               name,
-              style: isObject ? TextStyle(fontWeight: FontWeight.bold) : null,
+              style:
+                  (isObject || isArray)
+                      ? TextStyle(fontWeight: FontWeight.bold)
+                      : null,
             ),
           ],
         ),
       ),
     );
-  }  
+  }
 }
-

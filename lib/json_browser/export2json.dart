@@ -15,8 +15,9 @@ class Export2Json<T extends Map<String, dynamic>>
 
   @override
   NodeJson doArrayOfObject(String name, NodeAttribut node) {
-    var child = [];
-    return NodeJson(name: name, value: child);
+    var obj = {};
+    var child = [obj];
+    return NodeJson(name: name, value: child)..parentOfChild = obj;
   }
 
   @override
@@ -75,6 +76,8 @@ class Export2Json<T extends Map<String, dynamic>>
 
     if (type == "number") {
       return faker.randomGenerator.integer(100);
+    } else if (type == "boolean") {
+      return faker.randomGenerator.boolean();
     } else {
       if (lowerCase.contains('firstname')) {
         return faker.person.firstName();
