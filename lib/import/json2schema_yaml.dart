@@ -17,9 +17,7 @@ class JsonToSchemaYaml {
 
   void doAttr(String? name, dynamic value, ImportData data) {
     if (value is List) {
-      for (var i = 0; i < data.level; i++) {
-        data.yaml.write(' ');
-      }
+      data.addTab();
       if (name != null) {
         data.yaml.write(name);
         data.yaml.write('[]');
@@ -33,9 +31,7 @@ class JsonToSchemaYaml {
       data.level--;
     } else if (value is Map) {
       if (name != null) {
-        for (var i = 0; i < data.level; i++) {
-          data.yaml.write('   ');
-        }
+        data.addTab();
         data.yaml.write(name);
         data.yaml.writeln(' : ');
         data.level++;
@@ -48,9 +44,7 @@ class JsonToSchemaYaml {
       }
     } else {
       // si attribut
-      for (var i = 0; i < data.level; i++) {
-        data.yaml.write('   ');
-      }
+      data.addTab();
       data.yaml.write(name);
       data.yaml.write(' : ');
       data.yaml.writeln(getType(value));
@@ -70,4 +64,19 @@ class JsonToSchemaYaml {
 class ImportData {
   final StringBuffer yaml = StringBuffer();
   int level = 0;
+  List<String> path = [];
+
+  void addObj(String name) {
+    yaml.writeln('$name :');
+  }
+
+  void addAttr(String name, dynamic value) {
+    yaml.writeln('$name : $value');
+  }  
+
+  void addTab() {
+    for (var i = 0; i < level; i++) {
+      yaml.write('   ');
+    }
+  }
 }

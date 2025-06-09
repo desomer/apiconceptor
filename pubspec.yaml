@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.1+1
 
 environment:
   sdk: ^3.7.2
@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter_code_editor: ^0.3.3
   animated_tree_view: ^2.3.0
-  nanoid: ^1.0.0
+  uuid: ^4.5.1
   flutter_highlight: ^0.7.0
   highlight: ^0.7.0
   yaml: ^3.1.3
@@ -41,16 +41,26 @@ dependencies:
   json_patch: ^3.0.0
   multi_split_view: ^3.6.0
   diff_match_patch: ^0.4.1
-  
+  msix: ^3.16.9
+  dio: ^5.8.0+1
+  fleather: ^1.23.0
+  flex_color_picker: ^3.7.1
+  path: ^1.9.1
+  assorted_layout_widgets: ^11.0.0
+  cart_stepper: ^4.3.0
+
   flutter:
     sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  assorted_layout_widgets: ^11.0.0
+
   discontinuous_range: ^0.0.2
   ret: ^0.0.2
+  flutter_localizations:
+    sdk: flutter
+
 
 
 dev_dependencies:
@@ -62,7 +72,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -105,3 +115,13 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+
+msix_config:
+  display_name: Flutter App
+  publisher_display_name: ApiArchitect
+  identity_name: apiarchitect
+  msix_version: 1.0.0.0
+  logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
+  capabilities: internetClient
+  sign_msix: true

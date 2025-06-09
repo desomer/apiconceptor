@@ -2,12 +2,13 @@ import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
 class BrowseAPI<T extends Map> extends JsonBrowser<T> {
   @override
   void doTree(ModelSchemaDetail model, NodeAttribut aNodeAttribut, r) {
-    if (aNodeAttribut.info.type == 'api') {
+    if (aNodeAttribut.info.type == 'ope') {
       initVersion(aNodeAttribut, r);
     }
     super.doTree(model, aNodeAttribut, r);
@@ -34,7 +35,7 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
-      typeStr = 'Path';
+      typeStr = node.level==1 ? 'Service' :  'Path';
     } else if (type is List) {
       // if (name.endsWith('[]')) {
       //   typeStr = 'Array';
@@ -56,9 +57,9 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
 
   @override
   void onNode(NodeAttribut? parent, NodeAttribut child) {
-    if (child.info.name == '\$url') {
+    if (child.info.name == '\$server') {
       // affecte l'url sur le parent
-      parent!.info.properties!['\$url'] = child.info.type;
+      parent!.info.properties!['\$server'] = child.info.type;
     }
   }
 
@@ -69,8 +70,19 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
     dynamic type,
     String typeTitle,
   ) {
-    var type = typeTitle.toLowerCase();
-    bool valid = ['path', 'server', 'api'].contains(type);
+    if (name == '\$server') {
+      if (nodeAttribut.yamlNode.value.toString().startsWith('\$')) {
+        return null;
+      } else {
+        if (!UtilDart().isURL(typeTitle)) {
+          return InvalidInfo(color: Colors.red);
+        } else {
+          return null;
+        }
+      }
+    }
+    var typel = typeTitle.toLowerCase();
+    bool valid = ['service', 'path', 'server', 'ope', 'graph'].contains(typel);
     if (!valid) {
       return InvalidInfo(color: Colors.red);
     }
@@ -88,17 +100,17 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
     if (isRoot && name == 'api') {
       icon = Icon(Icons.business);
     } else if (isPath) {
-      if (node.data!.info.properties!['\$url'] != null) {
+      if (node.data!.info.properties!['\$server'] != null) {
         icon = Icon(Icons.dns_outlined);
       } else {
         icon = Icon(Icons.lan_outlined);
       }
-    } else if (name == ('\$url')) {
+    } else if (name == ('\$server')) {
       icon = Icon(Icons.http_outlined);
-      name = 'URL';
+      name = 'Server';
     }
 
-    bool isAPI = node.data!.info.type == 'api';
+    bool isAPI = node.data!.info.type == 'ope';
     late Widget w;
     if (name == 'get') {
       w = getChip(Text('GET'), color: Colors.green, height: 27);
@@ -145,13 +157,13 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
     while (nd != null) {
       var sep = '';
       var n = nd.yamlNode.key.toString().toLowerCase();
-      var isServer = nd.info.properties?['\$url'];
+      var isServer = nd.info.properties?['\$server'];
       if (isServer != null) {
-        n = '<$isServer>';
+        n = '$isServer';
       }
       if (!n.endsWith('/') && !bufPath.startsWith('/')) sep = '/';
       bufPath = n + sep + bufPath;
-      if (nd.info.properties?['\$url'] != null) {
+      if (nd.info.properties?['\$server'] != null) {
         break;
       }
       nd = nd.parent;

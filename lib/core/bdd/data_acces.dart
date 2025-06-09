@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/editor/code_editor.dart';
 import 'package:supabase/supabase.dart';
 
 DataAcces bddStorage = DataAcces();
@@ -44,7 +45,7 @@ class DataAcces {
 
     // Simple function to log any messages we receive
     void messageReceived(payload) {
-      print(payload);
+      //print(payload);
       doEventListner[payload['id']]?.onPatch(payload);
     }
 
@@ -144,17 +145,30 @@ class DataAcces {
     setYaml(model, value);
   }
 
-  FutureOr<Null> _sendMessage(payload) async {
-    try {
-      //final res =
-      await myChannel.sendBroadcastMessage(event: "shout", payload: payload);
-      //print('call $res');
-    } on Exception catch (e) {
-      print(e);
-    }
+  void dispatchChangeProp(
+    ModelSchemaDetail model,
+    dynamic patch,
+    TextConfig textConfig,
+  ) {
+    var element = patch['payload'];
+    var info = model.mapInfoByJsonPath[element['path']] ?? AttributInfo();
+    info.masterID = element['attr_id'];
+    info.path = element['path'];
+    info.properties = element['prop'];
+    info.action = element['state'];
+    model.modelProperties[info.path] = info.properties;
+    model.mapInfoByJsonPath[info.path] = info;
+    info.cacheRowWidget = null;
+    info.numUpdate++;
+    // ignore: invalid_use_of_protected_member
+    textConfig.treeJsonState.setState(() {});
   }
 
-  dynamic dispatchSaveYAML({required String id, dynamic patch, dynamic value}) {
+  dynamic dispatchChangeYAML({
+    required String id,
+    dynamic patch,
+    dynamic value,
+  }) {
     if (value == patch['old']) {
       local[id]!.value = patch['new'];
       return local[id]!.value;
@@ -194,7 +208,7 @@ class DataAcces {
           data: payload,
         );
 
-        _sendMessage({'type': 'PROP', 'payload': payload});
+        _sendMessage({'typeEvent': 'PROP', 'id': model.id, 'payload': payload});
 
         storeManager.add(save);
       }
@@ -204,25 +218,40 @@ class DataAcces {
       if (attr.masterID != null && !attr.isInitByRef && attr.action != 'R') {
         attr.action = 'R';
 
+        var payload = {
+          'company_id': getCompanyId,
+          'namespace': 'main',
+          'category': model.type.name,
+          'schema_id': model.id,
+          'version': '1',
+          'attr_id': attr.masterID,
+          'path': attr.path,
+          'prop': attr.properties,
+          'state': attr.action ?? 'R',
+        };
+
         var save = SaveEvent(
           model: model,
           id: '${model.id};${attr.masterID}',
           table: 'attributs',
-          data: {
-            'company_id': getCompanyId,
-            'namespace': 'main',
-            'category': model.type.name,
-            'schema_id': model.id,
-            'version': '1',
-            'attr_id': attr.masterID,
-            'path': attr.path,
-            'prop': attr.properties,
-            'state': attr.action ?? 'R',
-          },
+          data: payload,
         );
+
+        _sendMessage({'typeEvent': 'PROP', 'id': model.id, 'payload': payload});
 
         storeManager.add(save);
       }
+    }
+  }
+
+  FutureOr<Null> _sendMessage(payload) async {
+    try {
+      print('send by ${payload['id']}'); // event $payload
+      //final res =
+      await myChannel.sendBroadcastMessage(event: "shout", payload: payload);
+      //print('call $res');
+    } on Exception catch (e) {
+      print(e);
     }
   }
 

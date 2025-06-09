@@ -2,13 +2,16 @@ import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/main.dart';
-import 'package:nanoid/async.dart';
+import 'package:uuid/uuid.dart';
+// import 'package:nanoid/async.dart';
 
 class JsonBrowser<T> {
   bool ready = false;
+  var uuid = Uuid();
 
   void onInit(ModelSchemaDetail model) {}
   void onReady(ModelSchemaDetail model) {}
+  void onRowChange(ModelSchemaDetail model, NodeAttribut node) {}
 
   ModelBrower browse(ModelSchemaDetail model, bool unknowedMode) {
     int time = DateTime.now().millisecondsSinceEpoch;
@@ -60,24 +63,24 @@ class JsonBrowser<T> {
       });
     }
 
-    List<Future> waitAllAsync = [];
-    for (var element in browser.asyncMaster) {
-      element.masterId!.then((value) {
-        element.nodeAttribut.info.properties?[constMasterID] = value;
-        element.nodeAttribut.info.masterID = value;
-        element.nodeAttribut.info.cache = null;
-      });
-      waitAllAsync.add(element.masterId!);
-    }
-    if (waitAllAsync.isNotEmpty) {
-      Future.wait(waitAllAsync).then((value) {
-        model.first = true; // pour les nouveau noeud ajouter par les $ref
-        onPropertiesChanged();
-        if (model.autoSave) {
-          model.saveProperties();
-        }
-      });
-    }
+    //List<Future> waitAllAsync = [];
+    // for (var element in browser.asyncMaster) {
+    //   element.masterId!.then((value) {
+    //     element.nodeAttribut.info.properties?[constMasterID] = value;
+    //     element.nodeAttribut.info.masterID = value;
+    //     element.nodeAttribut.info.cacheRowWidget = null;
+    //   });
+    //   waitAllAsync.add(element.masterId!);
+    // }
+    // if (waitAllAsync.isNotEmpty) {
+    //   Future.wait(waitAllAsync).then((value) {
+    //     model.first = true; // pour les nouveau noeud ajouter par les $ref
+    //     onPropertiesChanged();
+    //     if (model.autoSave) {
+    //       model.saveProperties();
+    //     }
+    //   });
+    // }
 
     if (browser.propertiesChanged) {
       onPropertiesChanged();
@@ -129,7 +132,7 @@ class JsonBrowser<T> {
             element.aJsonPath,
           );
           _initNode(model, element);
-          element.nodeAttribut.info.cache = null;
+          element.nodeAttribut.info.cacheRowWidget = null;
         } else {
           _doSearchNode(model, element);
           //newAttribut.add(element);
@@ -209,7 +212,11 @@ class JsonBrowser<T> {
       var yamlPathAttr = '${attr.yamlPathAttr};$i';
       if (mapChild.key == null || mapChild.value == null) continue;
 
-      String yamlAttrName = mapChild.key;
+      String yamlAttrName =
+          (mapChild.key is Map
+                  ? (mapChild.key as Map).keys.first
+                  : mapChild.key)
+              .toString();
       var aJsonPath = '${attr.aJsonPath}>$yamlAttrName';
 
       // recherche AttributInfo via le jonPath
@@ -363,7 +370,7 @@ class JsonBrowser<T> {
       // print(
       //   "change position ${nodeAttribut.info.oldTreePosition} => ${bi.yamlPathAttr}",
       // );
-      bi.browser.propertiesChanged = info.action=='D';
+      bi.browser.propertiesChanged = info.action == 'D';
       model.addHistory(
         info,
         aJsonPath,
@@ -374,15 +381,19 @@ class JsonBrowser<T> {
       );
     }
     info.treePosition = bi.yamlPathAttr;
-    info.name = bi.nodeAttribut.yamlNode.key;
+    info.name =
+        (nodeAttribut.yamlNode.key is Map
+                ? (nodeAttribut.yamlNode.key as Map).keys.first
+                : nodeAttribut.yamlNode.key)
+            .toString();
     info.date = bi.browser.time;
     info.isRef = bi.nodeAttribut.info.isRef;
     bi.nodeAttribut.level = bi.level;
 
     model.mapInfoByTreePath[bi.yamlPathAttr] = info;
 
-    model.mapInfoByName[nodeAttribut.yamlNode.key] ??= [];
-    var aMapInfo = model.mapInfoByName[nodeAttribut.yamlNode.key]!;
+    model.mapInfoByName[info.name] ??= [];
+    var aMapInfo = model.mapInfoByName[info.name]!;
     if (!aMapInfo.contains(info)) {
       aMapInfo.add(info);
     }
@@ -396,7 +407,7 @@ class JsonBrowser<T> {
       model.modelProperties[aJsonPath] = info.properties;
       model.modelProperties.remove(info.path);
       model.mapInfoByJsonPath.remove(info.path);
-      info.cache = null;
+      info.cacheRowWidget = null;
       bi.browser.propertiesChanged = true;
     }
     model.mapInfoByJsonPath[aJsonPath] = info;
@@ -417,12 +428,16 @@ class JsonBrowser<T> {
     // affecte les properties si 1° fois
     info.properties ??= model.modelProperties[aJsonPath] ?? {};
     if (info.properties![constMasterID] == null) {
-      bi.masterId = nanoid();
-      bi.browser.asyncMaster.add(bi);
-      info.properties![constMasterID] = '???';
+      bi.masterId = uuid.v7(); // nanoid();
+      //bi.browser.asyncMaster.add(bi);
+      info.properties![constMasterID] = bi.masterId;
+      info.masterID = bi.masterId;
+      bi.browser.propertiesChanged = true;
     }
 
-    model.allAttributInfo[info.hashCode] = info;
+    if (info.masterID != null) {
+      model.allAttributInfo[info.masterID!] = info;
+    }
 
     var type = model.infoManager.getTypeTitle(
       nodeAttribut,
@@ -437,6 +452,9 @@ class JsonBrowser<T> {
         info.type,
         type,
       );
+    }
+    if (type != info.type) {
+      onRowChange(model, nodeAttribut);
     }
     info.type = type;
     if (bi.ref != null && info.type == '\$ref') {
@@ -601,6 +619,14 @@ class NodeAttribut {
   State? widgetRowState;
   bool addChildAsync = false;
   Color? bgcolor;
+
+  void repaint() {
+    //info.cacheRowWidget = null;
+    if (widgetRowState?.mounted ?? false) {
+      // ignore: invalid_use_of_protected_member
+      widgetRowState?.setState(() {});
+    }
+  }
 }
 
 class AttributInfo {
@@ -615,10 +641,11 @@ class AttributInfo {
   Map<String, dynamic>? properties;
   Map<EnumErrorType, AttributError>? error;
   String? tooltipError;
-  Widget? cache;
+  Widget? cacheRowWidget;
   bool isInitByRef = false;
   bool firstLoad = false;
   String? action;
+  int numUpdate = 0;
 }
 
 class BrowserAttrInfo {
@@ -638,7 +665,7 @@ class BrowserAttrInfo {
   bool unkwown = false;
   ModelSchemaDetail? ref;
   String? aJsonPathRef;
-  Future<String>? masterId;
+  String? masterId;
 }
 
 enum EnumErrorType { errorRef, errorType }

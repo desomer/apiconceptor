@@ -3,16 +3,18 @@ import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/main.dart';
+import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 
 class JsonList extends StatefulWidget {
   const JsonList({super.key, required this.modelInfo});
   final TreeListLink modelInfo;
   @override
-  State<JsonList> createState() => _JsonListState();
+  State<JsonList> createState() => JsonListState();
 }
 
-class _JsonListState extends State<JsonList> {
+class JsonListState extends State<JsonList> {
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   late ListModel<NodeAttribut> _list;
 
@@ -40,6 +42,22 @@ class _JsonListState extends State<JsonList> {
       },
     );
   }
+
+  // NodeAttribut? getNodeAttribut(NodeAttribut attr) {
+  //   var result = _list._items;
+  //   for (var i = 0; i < result.length; i++) {
+  //     AttributInfo? a;
+  //     if (result[i] is TreeNode<NodeAttribut>) {
+  //       a = (result[i] as TreeNode<NodeAttribut>).data!.info;
+  //     } else {
+  //       a = (result[i]).info;
+  //     }
+  //     if (a == attr.info) {
+  //       return result[i];
+  //     }
+  //   }
+  //   return null;
+  // }
 
   int findInfoOnTree(List<dynamic> result, NodeAttribut? attr) {
     if (attr == null) return -1;
@@ -75,23 +93,29 @@ class _JsonListState extends State<JsonList> {
       initialItemCount: _list.length,
       itemBuilder: (context, index, Animation<double> animation) {
         var dataAttr = _list[index];
-        if (dataAttr.info.cache != null) {
+        var valueKey = ValueKey(dataAttr.info.masterID);
+
+        if (dataAttr.info.cacheRowWidget != null) {
           return SizeTransition(
+            key: valueKey,
             fixedCrossAxisSizeFactor: 1,
             sizeFactor: animation,
             child: Container(
               color: dataAttr.bgcolor,
               width: width - 10,
-              child: dataAttr.info.cache!,
+              height: rowHeight,
+              child: dataAttr.info.cacheRowWidget!,
             ),
           );
         }
         return SizeTransition(
+          key: valueKey,
           sizeFactor: animation,
           child: Container(
             color: dataAttr.bgcolor,
             width: width - 10,
-            child: widget.modelInfo.config.getRow(
+            height: rowHeight,
+            child: _getJsonRowCached(
               dataAttr,
               widget.modelInfo.config.getModel(),
             ),
@@ -99,6 +123,15 @@ class _JsonListState extends State<JsonList> {
         );
       },
     );
+  }
+
+  Widget _getJsonRowCached(NodeAttribut attr, ModelSchemaDetail schema) {
+    attr.info.cacheRowWidget = WidgetJsonRow(
+      node: attr,
+      schema: schema,
+      fctGetRow: widget.modelInfo.config.getRow,
+    );
+    return attr.info.cacheRowWidget!;
   }
 
   Widget getHorizontal(Function fctChild) {
@@ -165,6 +198,7 @@ class _JsonListState extends State<JsonList> {
       if (r.info == rc?.data?.info) {
         ci++;
       } else {
+        // recherche dans la list
         int idx = findInfoOnTree(_list._items, rc?.data);
         if (idx > -1) {
           for (var j = i; j < idx; j++) {
@@ -173,6 +207,7 @@ class _JsonListState extends State<JsonList> {
           i = idx;
           ci++;
         } else {
+          // recherche dans le tree (si fermeture de node) 
           int idx = findInfoOnTree(result, _list._items[i]);
           if (idx > -1) {
             ci = idx + 1;

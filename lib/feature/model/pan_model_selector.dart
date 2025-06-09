@@ -3,7 +3,6 @@ import 'package:highlight/languages/yaml.dart' show yaml;
 import 'package:jsonschema/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/json_browser/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
@@ -12,7 +11,7 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget_state/widget_md_doc.dart';
 
-import 'widget/widget_split.dart';
+import '../../widget/widget_split.dart';
 
 // ignore: must_be_immutable
 class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
@@ -53,7 +52,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       return listModel.modelYaml;
     }
 
-    var modelSelector = SplitView(
+    var modelSelector = SplitView(primaryWidth: 350,
       childs: [
         getStructureModel(),
         JsonEditor(
@@ -63,14 +62,14 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
                   textConfig: textConfig,
                   getModel: () => listModel,
                   onTap: (NodeAttribut node) {
-                    goToModel(node);
+                    goToModel(node, 1);
                   },
                   onDoubleTap: (NodeAttribut node) {
-                    goToModel(node);
+                    goToModel(node, 1);
                   },
                 )
                 ..getJson = getJsonYaml
-                ..getRow = getWidgetModelInfo,
+                ..getRow = _getWidgetModelInfo,
         ),
       ],
     );
@@ -79,7 +78,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
   }
 
 
-  Widget getWidgetModelInfo(NodeAttribut attr, ModelSchemaDetail schema) {
+  Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchemaDetail schema) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }
@@ -88,7 +87,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey('${attr.hashCode}#title'),
+        key: ValueKey(attr.info.numUpdate),
         acces: ModelAccessorAttr(
           node: attr,
           schema: listModel,
@@ -103,7 +102,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       row.add(
         TextButton.icon(
           onPressed: () async {
-            await goToModel(attr);
+            await goToModel(attr, 1);
           },
           label: Icon(Icons.remove_red_eye),
         ),
@@ -113,15 +112,16 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
           icon: Icon(Icons.import_export),
           onPressed: () async {
             if (attr.info.type == 'model') {
-              var key = attr.info.properties![constMasterID];
-              var model = ModelSchemaDetail(
-                type: YamlType.model,
-                name: attr.info.name,
-                id: key,
-                infoManager: InfoManagerModel(typeMD: TypeMD.model),
-              );
-              await model.loadYamlAndProperties(cache: false);
-              await ExportJsonSchema2clipboard().doExport(model);
+              await goToModel(attr, 2);
+              // var key = attr.info.properties![constMasterID];
+              // var model = ModelSchemaDetail(
+              //   type: YamlType.model,
+              //   name: attr.info.name,
+              //   id: key,
+              //   infoManager: InfoManagerModel(typeMD: TypeMD.model),
+              // );
+              // await model.loadYamlAndProperties(cache: false);
+              // await ExportJsonSchema2clipboard().doExport(model);
             }
           },
           label: Text('Json schemas'),
@@ -132,9 +132,9 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     var ret = SizedBox(
       height: rowHeight,
       child: InkWell(
-        onDoubleTap: () async {
-          await goToModel(attr);
-        },
+        // onDoubleTap: () async {
+        //   await goToModel(attr, 1);
+        // },
         child: Card(
           key: ObjectKey(attr),
           margin: EdgeInsets.all(1),
@@ -142,11 +142,11 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
         ),
       ),
     );
-    attr.info.cache = ret;
+   // attr.info.cacheRowWidget = ret;
     return ret;
   }
 
-  Future<void> goToModel(NodeAttribut attr) async {
+  Future<void> goToModel(NodeAttribut attr, int tabNumber) async {
     if (attr.info.type == 'model') {
       stateModel.tabDisable.clear();
       // ignore: invalid_use_of_protected_member
@@ -176,7 +176,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       listModel.currentAttr = attr;
 
       await currentCompany.currentModel!.loadYamlAndProperties(cache: false);
-      stateModel.tabModel.animateTo(1);
+      stateModel.tabModel.animateTo(tabNumber);
     }
   }
 

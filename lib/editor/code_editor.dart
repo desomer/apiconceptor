@@ -3,6 +3,7 @@ import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:highlight/highlight_core.dart';
 import 'package:jsonschema/widget/widget_error_banner.dart';
+// ignore: implementation_imports
 import 'package:flutter_code_editor/src/code_field/actions/tab.dart';
 
 class TextEditor extends StatefulWidget {
@@ -19,7 +20,7 @@ class TextEditor extends StatefulWidget {
   final Function? onHelp;
 
   @override
-  State<TextEditor> createState() => _TextEditorState();
+  State<TextEditor> createState() => TextEditorState();
 }
 
 class TabKeyAction2 extends Action<TabKeyIntent> {
@@ -34,7 +35,7 @@ class TabKeyAction2 extends Action<TabKeyIntent> {
   }
 }
 
-class _TextEditorState extends State<TextEditor> {
+class TextEditorState extends State<TextEditor> {
   late CodeController controller;
   late ScrollController c;
 
@@ -113,7 +114,7 @@ class _TextEditorState extends State<TextEditor> {
                   gutterStyle: GutterStyle(
                     textStyle: TextStyle(fontSize: 10, height: 1.53),
                     margin: 0,
-                    width: 60,
+                    width: 80,
                     showErrors: true,
                     showFoldingHandles: true,
                     showLineNumbers: true,
@@ -145,10 +146,10 @@ class TextConfig {
   late Function getText;
   late ValueNotifier<String> notifError;
   bool readOnly;
-  late State textYamlState;
+  late TextEditorState textYamlState;
   late State treeJsonState;
 
-  doRebind() {
+  void doRebind() {
     // ignore: invalid_use_of_protected_member
     textYamlState.setState(() {});
   }

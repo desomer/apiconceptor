@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 var stateApi = StateAPI();
 
 class StateAPI {
-  GlobalKey keyListAPI = GlobalKey();
+  GlobalKey keyListAPIYaml = GlobalKey();
   GlobalKey keyListAPIInfo = GlobalKey();
 
   GlobalKey keyTab = GlobalKey();

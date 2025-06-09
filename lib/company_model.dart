@@ -15,7 +15,8 @@ class CompanyModelSchema {
   String? currentType;
 
   late ModelSchemaDetail listAPI;
-  ModelSchemaDetail? currentAPI;
+  ModelSchemaDetail? currentAPIResquest;
+  ModelSchemaDetail? currentAPIResponse;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -50,7 +51,7 @@ class ModelSchemaDetail {
 
   Map<String, AttributInfo> mapInfoByJsonPath = {};
   Map<String, List<AttributInfo>> mapInfoByName = {};
-  Map<int, AttributInfo> allAttributInfo = {};
+  Map<String, AttributInfo> allAttributInfo = {};
 
   List<AttributInfo> notUseAttributInfo = [];
   List<AttributInfo> useAttributInfo = [];
@@ -67,10 +68,11 @@ class ModelSchemaDetail {
     bddStorage.doEventListner[id] = OnEvent(
       id: id,
       onPatch: (patch) {
-        if (patch['type'] == 'PROP') {
-
-        } else if (patch['type'] == 'YAML') {
-          var ret = bddStorage.dispatchSaveYAML(
+        print('receive on $id event $patch');
+        if (patch['typeEvent'] == 'PROP') {
+          bddStorage.dispatchChangeProp(this, patch, textConfig);
+        } else if (patch['typeEvent'] == 'YAML') {
+          var ret = bddStorage.dispatchChangeYAML(
             id: id,
             patch: patch,
             value: modelYaml,
@@ -122,7 +124,7 @@ class ModelSchemaDetail {
     });
   }
 
-  _getMdValue(dynamic v) {
+  dynamic _getMdValue(dynamic v) {
     if (v.toString().contains('\n')) {
       return v.toString().replaceAll('\n', ';');
     }
@@ -203,7 +205,24 @@ class ModelSchemaDetail {
     }
   }
 
-  loadYamlAndProperties({required bool cache}) async {
+  void loadSubSchema(String path, ModelSchemaDetail source) {
+    try {
+      mapModelYaml = source.mapModelYaml[path];
+    } catch (e) {
+      print(e);
+    }
+    modelProperties = {};
+    String pa = 'root>$path>';
+    for (var element in source.modelProperties.entries) {
+      if (element.key.startsWith(pa)) {
+        var p = element.key.substring(pa.length);
+        modelProperties['root>$p'] = element.value;
+      }
+    }
+    isLoadProp = true;
+  }
+
+  Future<void> loadYamlAndProperties({required bool cache}) async {
     dynamic savedYamlModel = bddStorage.getItem(this, id, cache ? -1 : 0);
     if (savedYamlModel is Future) {
       savedYamlModel = await savedYamlModel;
@@ -291,13 +310,16 @@ class ModelSchemaDetail {
       if (save) {
         bddStorage.saveYAML(model: this, type: 'YAML', value: modelYaml);
       }
-      // ignore: invalid_use_of_protected_member
-      config?.treeJsonState.setState(() {});
+
       if (action == 'event') {
         // ignore: invalid_use_of_protected_member
         config?.textYamlState.setState(() {});
+        // ignore: invalid_use_of_protected_member
+        config?.treeJsonState.setState(() {});
+      } else {
+        // ignore: invalid_use_of_protected_member
+        config?.treeJsonState.setState(() {});
       }
-      //stateModel.keyTreeModelInfo.currentState?.setState(() {});
     }
   }
 }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/yaml.dart';
-import 'package:jsonschema/pan_attribut_editor.dart';
+import 'package:jsonschema/feature/pan_attribut_editor.dart';
 import 'package:jsonschema/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/pan_model_change_viewer.dart';
-import 'package:jsonschema/pan_model_import.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
+import 'package:jsonschema/feature/model/pan_model_change_viewer.dart';
+import 'package:jsonschema/feature/model/pan_model_import.dart';
+import 'package:jsonschema/widget/doc_editor.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/editor/code_editor.dart';
@@ -58,6 +58,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     currentCompany.currentModel?.initEventListener(textConfig);
 
     return SplitView(
+      primaryWidth: 350,
       childs: [_getEditorLeftTab(context), _getEditorMainTab(context)],
     );
 
@@ -101,12 +102,18 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
                     },
                   )
                   ..getJson = getJsonYaml
-                  ..getRow = _getJsonRow,
+                  ..getRow = _getRowsAttrInfo,
           ),
         ),
         WidgetHiddenBox(
           showNotifier: showAttrEditor,
-          child: AttributProperties(key: keyAttrEditor),
+          child: AttributProperties(
+            typeAttr: TypeAttr.model,
+            key: keyAttrEditor,
+            getModel: () {
+              return currentCompany.currentModel;
+            },
+          ),
         ),
       ],
     );
@@ -119,14 +126,40 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
       onInitController: (TabController tab) {
         tabEditor = tab;
         tab.addListener(() {
-          if (tab.indexIsChanging && tab.index == 1) {
+          // raffraichi lr change log
+          if (tab.indexIsChanging && tab.index == 3) {
             // ignore: invalid_use_of_protected_member
             keyChangeViewer.currentState?.setState(() {});
           }
         });
       },
-      listTab: [Tab(text: 'Editor'), Tab(text: 'Change log')],
-      listTabCont: [_getEditor(), _getChangeLogTab()],
+      listTab: [
+        Tab(text: 'Schema detail'),
+        Tab(text: 'Life cycle method'),
+        Tab(text: 'Mapping rules'),
+        Tab(text: 'Change log'),
+        Tab(text: 'Documentation',)
+      ],
+      listTabCont: [
+        _getEditor(),
+        getLifeCycleTab(),
+        Container(),
+        _getChangeLogTab(),
+        DocEditor()
+      ],
+      heightTab: 40,
+    );
+  }
+
+  Widget getLifeCycleTab() {
+    return WidgetTab(
+      onInitController: (TabController tab) {},
+      listTab: [
+        Tab(text: 'Create'),
+        Tab(text: 'Enhancements'),
+        Tab(text: 'Delete'),
+      ],
+      listTabCont: [Container(), Container(), Container()],
       heightTab: 40,
     );
   }
@@ -202,7 +235,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         children: [
           CellSelectEditor(),
           CellEditor(
-            key: ValueKey('description#${info.hashCode}'),
+            key: ValueKey('description#${info.info.masterID}'),
             acces: ModelAccessorAttr(
               node: info,
               schema: currentCompany.listModel,
@@ -216,14 +249,6 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     );
   }
 
-  Widget _getJsonRow(NodeAttribut attr, ModelSchemaDetail schema) {
-    attr.info.cache = WidgetJsonRow(
-      node: attr,
-      schema: schema,
-      fctGetRow: _getRowsAttrInfo,
-    );
-    return attr.info.cache!;
-  }
 
   Widget _getRowsAttrInfo(NodeAttribut attr, ModelSchemaDetail schema) {
     if (attr.info.type == 'root') {
@@ -233,7 +258,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     List<Widget> rowWidget = [SizedBox(width: 10)];
     rowWidget.add(
       CellEditor(
-        key: ValueKey('${attr.hashCode}#title'),
+        key: ValueKey(attr.info.numUpdate),
         acces: ModelAccessorAttr(
           node: attr,
           schema: currentCompany.currentModel!,
@@ -277,7 +302,6 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
       child: InkWell(
         onTap: () {
           doShowAttrEditor(schema, attr);
-          //bool isSelected = schema.currentAttr == attr.info;
           if (rowSelected?.mounted == true) {
             // ignore: invalid_use_of_protected_member
             rowSelected?.setState(() {});
@@ -292,7 +316,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
             }
             return isSelected;
           },
-          key: ObjectKey(attr),
+          //key: ValueKey(attr.info.masterID),
           //margin: EdgeInsets.all(1),
           child: Row(spacing: 5, children: rowWidget),
         ),

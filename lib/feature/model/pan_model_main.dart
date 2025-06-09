@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/pan_model_selector.dart';
+import 'package:jsonschema/feature/model/pan_model_selector.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
@@ -19,7 +19,7 @@ class WidgetModelMain extends StatelessWidget with WidgetModelHelper {
         Tab(text: 'Business models'),
         Tab(text: 'Components'),
         Tab(text: 'DTO'),
-        Tab(text: 'Entities'),
+        Tab(text: 'ORM Entities'),
       ],
       listTabCont: [
         KeepAliveWidget(

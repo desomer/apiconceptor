@@ -5,6 +5,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/editor/code_editor.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_list.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
 
 class JsonBrowserWidget extends JsonBrowser {
   late JsonEditorState state;
@@ -12,9 +13,8 @@ class JsonBrowserWidget extends JsonBrowser {
 
   double maxSize = 300;
 
-  reloadAll(NodeAttribut node) {
-    // ignore: invalid_use_of_protected_member
-    node.widgetRowState?.setState(() {});
+  void reloadAll(NodeAttribut node) {
+    node.repaint();
     // ignore: invalid_use_of_protected_member
     state.setState(() {});
     // ignore: invalid_use_of_protected_member
@@ -28,7 +28,7 @@ class JsonBrowserWidget extends JsonBrowser {
 
   @override
   void onPropertiesChanged() {
-    state.repaintListView(100);
+    state.repaintListView(100, 'onPropertiesChanged');
   }
 
   @override
@@ -47,7 +47,12 @@ class JsonBrowserWidget extends JsonBrowser {
 
   @override
   dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
-    double size = (node.info.name.length * 10) + (node.level * 30) + 75;
+    double sizeType = node.info.type.length * 11 * (zoom.value / 100);
+    double size =
+        (node.info.name.length * 11 * (zoom.value / 100)) +
+        (node.level * 40) +
+        sizeType;
+
     if (maxSize < size) {
       maxSize = size;
     }
@@ -105,6 +110,18 @@ class JsonBrowserWidget extends JsonBrowser {
     }
     return null;
   }
+
+  @override
+  void onRowChange(ModelSchemaDetail model, NodeAttribut node) {
+    super.onRowChange(model, node);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // var attr = state.keyJsonList.currentState?.getNodeAttribut(node);
+      // attr?.repaint();
+      if (node.info.cacheRowWidget is WidgetJsonRow) {
+        (node.info.cacheRowWidget as WidgetJsonRow).node.repaint();
+      }
+    });
+  }
 }
 
 //******************************************************************************/
@@ -121,7 +138,7 @@ class JsonEditorState extends State<JsonEditor>
   late AutoScrollController _scrollController;
 
   TreeListLink modelInfo = TreeListLink();
-  GlobalKey keyJsonList = GlobalKey();
+  var keyJsonList = GlobalKey<JsonListState>();
   GlobalKey keyTree = GlobalKey();
 
   @override
@@ -146,6 +163,8 @@ class JsonEditorState extends State<JsonEditor>
 
   @override
   Widget build(BuildContext context) {
+    stateOpenFactor?.stateList = this;
+
     ModelSchemaDetail? model = (widget.config.getModel() as ModelSchemaDetail?);
     if (model == null) return Text('Select model first');
 
@@ -156,7 +175,7 @@ class JsonEditorState extends State<JsonEditor>
     ModelBrower browser = jsonBrowserWidget.browse(model, true);
     model.lastBrowser = browser;
     model.lastJsonBrowser = jsonBrowserWidget;
-    repaintListView(0);
+    repaintListView(0, 'build');
     return getWidget(model, browser, jsonBrowserWidget);
   }
 
@@ -166,7 +185,7 @@ class JsonEditorState extends State<JsonEditor>
     JsonBrowserWidget jsonBrowserWidget,
   ) {
     print(
-      "nb name = ${model.mapInfoByName.length} nb path = ${model.mapInfoByJsonPath.length}  all info = ${model.allAttributInfo.length}",
+      "tree nb name = ${model.mapInfoByName.length} nb path = ${model.mapInfoByJsonPath.length}  all info = ${model.allAttributInfo.length}",
     );
 
     print(browser.nbLevelMax);
@@ -202,7 +221,7 @@ class JsonEditorState extends State<JsonEditor>
           (context, node) => ChevronIndicator.rightDown(
             tree: node,
             color: Colors.blue[700],
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(0),
           ),
       indentation: const Indentation(style: IndentStyle.roundJoint),
       onItemTap: (item) {
@@ -210,10 +229,15 @@ class JsonEditorState extends State<JsonEditor>
       },
       onTreeReady: (controller) {
         modelInfo.treeController = controller;
-        repaintListView(0);
+        repaintListView(0, 'onTreeReady');
         Future.delayed(Duration(milliseconds: 500)).then((value) {
-          var delay = doToogleNode(0, controller.tree);
-          repaintListView(delay);
+          var delay = doToogleNode(
+            0,
+            controller.tree,
+            0,
+            max: openFactor.value.toInt(),
+          );
+          repaintListView(delay, 'doToogleNode onTreeReady');
         });
       },
       builder: (context, node) {
@@ -223,19 +247,26 @@ class JsonEditorState extends State<JsonEditor>
             if (widget.config.onTap != null) {
               var ret = widget.config.onTap!(node.data);
               if (ret == true) {
-                repaintListView(0);
+                repaintListView(0, 'onTap');
               }
             }
           },
-          onDoubleTap: () {
-            if (node.isLeaf) {
-              if (widget.config.onDoubleTap != null) {
-                widget.config.onDoubleTap!(node.data);
-              }
-            }
-            var delay = doToogleNode(0, node);
-            repaintListView(delay);
-          },
+
+          onDoubleTap:
+              (!node.isLeaf || widget.config.onDoubleTap != null)
+                  ? () {
+                    if (widget.config.onDoubleTap != null) {
+                      widget.config.onDoubleTap!(node.data);
+                    }
+                    var delay = doToogleNode(
+                      0,
+                      node,
+                      0,
+                      max: openFactor.value.toInt(),
+                    );
+                    repaintListView(delay, 'doToogleNode onDoubleTap');
+                  }
+                  : null,
           child: Container(
             color: node.data?.bgcolor,
             height: rowHeight,
@@ -253,7 +284,8 @@ class JsonEditorState extends State<JsonEditor>
     );
   }
 
-  void repaintListView(int delay) {
+  void repaintListView(int delay, String cause) {
+    print('repaint list $cause delay $delay');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(Duration(milliseconds: 100 + delay)).then((_) {
         keyJsonList.currentState?.setState(() {});
@@ -261,8 +293,46 @@ class JsonEditorState extends State<JsonEditor>
     });
   }
 
-  int doToogleNode(int levelFormTop, TreeNode<NodeAttribut> node) {
-    //if (levelFormTop > 1) return levelFormTop;
+  int doZoomNode(
+    bool open,
+    int levelFormTop,
+    TreeNode<NodeAttribut> node,
+    int level, {
+    int max = -1,
+  }) {
+    if (open && max >= 0 && level >= max) return levelFormTop;
+
+    int delay = levelFormTop;
+    if (node.children.isNotEmpty) {
+      for (var element in node.childrenAsList) {
+        if (element.children.isNotEmpty) {
+          levelFormTop++;
+          levelFormTop = doZoomNode(
+            open,
+            levelFormTop,
+            (element as TreeNode<NodeAttribut>),
+            level + 1,
+            max: max,
+          );
+        }
+      }
+    }
+    if (!open && level < max) return levelFormTop;
+
+    Future.delayed(Duration(milliseconds: delay * 5)).then((_) {
+      if (mounted && open) modelInfo.treeController!.expandNode(node);
+      if (mounted && !open) modelInfo.treeController!.collapseNode(node);
+    });
+    return levelFormTop;
+  }
+
+  int doToogleNode(
+    int levelFormTop,
+    TreeNode<NodeAttribut> node,
+    int level, {
+    int max = -1,
+  }) {
+    if (max >= 0 && level >= max) return levelFormTop;
 
     int delay = levelFormTop;
     if (!node.isExpanded && node.children.isNotEmpty) {
@@ -272,6 +342,8 @@ class JsonEditorState extends State<JsonEditor>
           levelFormTop = doToogleNode(
             levelFormTop,
             (element as TreeNode<NodeAttribut>),
+            level + 1,
+            max: max,
           );
         }
       }

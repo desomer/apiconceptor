@@ -53,7 +53,7 @@ class Export2Json<T extends Map<String, dynamic>>
     return NodeJson(name: name, value: getValue(name, type, node));
   }
 
-  getValue(String name, String type, NodeAttribut node) {
+  Object getValue(String name, String type, NodeAttribut node) {
     if (node.info.properties?['const'] != null) {
       var vString = node.info.properties?['const'];
       return getValueTyped(type, vString);
@@ -65,6 +65,13 @@ class Export2Json<T extends Map<String, dynamic>>
       var vString = enumer[faker.randomGenerator.integer(enumer.length)];
       return getValueTyped(type, vString);
     }
+    if (node.info.properties?['example'] != null) {
+      List<String> enumer = node.info.properties!['example'].toString().split(
+        '\n',
+      );
+      var vString = enumer[faker.randomGenerator.integer(enumer.length)];
+      return getValueTyped(type, vString);
+    }    
 
     var pattern = node.info.properties?['pattern'];
     if (pattern != null) {

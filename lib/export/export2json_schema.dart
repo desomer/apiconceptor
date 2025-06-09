@@ -15,7 +15,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       "\$id": model.name,
       "title": model.name,
       "description":
-          currentCompany.currentModelSel!.info.properties!['description'] ?? '',
+          currentCompany.currentModelSel?.info.properties?['description'] ?? '',
       "type": "object",
       "properties": {},
       "additionalProperties": false,
@@ -47,7 +47,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     Map<String, dynamic> items = {'type': 'object'};
     child['items'] = items;
     node.addChildOn = "items";
-    //node.addInAttr = "properties";
+    node.addInAttr = "properties";
     return NodeJson(name: name, value: child);
   }
 
@@ -135,7 +135,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
 }
 
 class ExportJsonSchema2clipboard {
-  doExport(ModelSchemaDetail model) async {
+  Future<void> doExport(ModelSchemaDetail model) async {
     // var export = Export2JsonSchema()..browse(model, false);
 
     // Clipboard.setData(

@@ -1,15 +1,21 @@
+import 'package:fleather/fleather.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/feature/api/pan_api_action_hub.dart';
+import 'package:jsonschema/import/swagger2schema.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/pan_api_editor.dart';
-import 'package:jsonschema/pan_model_main.dart';
+import 'package:jsonschema/feature/model/pan_model_action_hub.dart';
+import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/feature/model/pan_model_main.dart';
 import 'package:jsonschema/widget/hexagon/hexagon_widget.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
+import 'package:jsonschema/widget/widget_global_zoom.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
-import 'package:jsonschema/pan_json_validator.dart';
-import 'package:jsonschema/pan_model_editor.dart';
+import 'package:jsonschema/feature/model/pan_model_json_validator.dart';
+import 'package:jsonschema/feature/model/pan_model_editor.dart';
 import 'package:jsonschema/widget/widget_rail.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
@@ -17,7 +23,7 @@ import 'package:jsonschema/widget_state/state_api.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget_state/widget_md_doc.dart';
 
-import 'pan_api_selector.dart';
+import 'feature/api/pan_api_selector.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,14 +43,25 @@ void main() async {
     'component',
     'Business component',
   );
-  currentCompany.listModel.dependency = [currentCompany.listComponent];
-  currentCompany.listComponent.dependency = [currentCompany.listModel];
 
   currentCompany.listRequest = await loadSchema(
     TypeMD.listmodel,
     'request',
     'Request',
   );
+
+  currentCompany.listModel.dependency = [
+    currentCompany.listComponent,
+    currentCompany.listRequest,
+  ];
+  currentCompany.listComponent.dependency = [
+    currentCompany.listModel,
+    currentCompany.listRequest,
+  ];
+  currentCompany.listRequest.dependency = [
+    currentCompany.listModel,
+    currentCompany.listComponent,
+  ];
 
   currentCompany.listAPI = ModelSchemaDetail(
     type: YamlType.allApi,
@@ -54,6 +71,8 @@ void main() async {
   );
   await currentCompany.listAPI.loadYamlAndProperties(cache: false);
   BrowseAPI().browse(currentCompany.listAPI, false);
+
+  Swagger2Schema().import();
 
   runApp(CodeEditor());
 }
@@ -80,11 +99,14 @@ const constRefOn = '\$\$__ref__';
 
 final CompanyModelSchema currentCompany = CompanyModelSchema();
 
-const double rowHeight = 30;
+double scale = 0.9;
+double rowHeight = 30 * scale;
 
 ValueNotifier<String> notifierErrorYaml = ValueNotifier<String>('');
 
-final ValueNotifier<double> zoom = ValueNotifier(0);
+final ValueNotifier<double> openFactor = ValueNotifier(10);
+WidgetZoomSelectorState? stateOpenFactor;
+final ValueNotifier<int> zoom = ValueNotifier(100);
 
 // ignore: must_be_immutable
 class CodeEditor extends StatelessWidget {
@@ -93,6 +115,12 @@ class CodeEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      localizationsDelegates: [
+        FleatherLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -105,64 +133,91 @@ class CodeEditor extends StatelessWidget {
       ),
       themeMode: ThemeMode.dark,
 
-      home: Scaffold(
-        bottomNavigationBar: Row(
-          children: [
-            SizedBox(width: 10),
-            InkWell(child: Icon(Icons.undo)),
-            SizedBox(width: 5),
-            InkWell(child: Icon(Icons.redo)),
-            Spacer(),
-            Text('API Architect by Desomer G. V0.0.4'),
-          ],
-        ),
-        body: SafeArea(
-          child: WidgetRail(
-            listTab: [
-              NavigationRailDestination(
-                icon: Icon(Icons.design_services),
-                label: Text('Service'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.data_object),
-                label: Text('Model'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.api),
-                label: Text('API'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.electric_bolt),
-                label: Text('Event'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.view_kanban_outlined),
-                label: Text('Scrum'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.code),
-                label: Text('Code'),
-              ),
-            ],
-            listTabCont: [
-              // child: NeumorphismBtn() // Stack(children: [Positioned(top: 100, left: 100, child: NeumorphismBtn())]),
-              getServiceTab(),
-              Column(
+      home: ValueListenableBuilder(
+        valueListenable: zoom,
+        builder: (context, value, child) {
+          scale = (zoom.value - 5) / 100.0;
+          rowHeight = 30 * scale;
+
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(scale + 0.05),
+              supportsShowingSystemContextMenu: true,
+            ),
+            child: Scaffold(
+              bottomNavigationBar: Row(
                 children: [
-                  getBreadcrumbModel(),
-                  Expanded(child: getModelTab()),
+                  SizedBox(width: 10),
+                  InkWell(child: Icon(Icons.undo)),
+                  SizedBox(width: 5),
+                  InkWell(child: Icon(Icons.redo)),
+                  SizedBox(width: 5),
+                  SizedBox(height: 20, child: WidgetGlobalZoom()),
+                  Spacer(),
+                  Text('API Architect by Desomer G. V0.0.6'),
                 ],
               ),
-              Column(
-                children: [getBreadcrumbAPI(), Expanded(child: getApiTab())],
+              body: SafeArea(
+                child: WidgetRail(
+                  listTab: [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.design_services),
+                      label: Text('Service'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.data_object),
+                      label: Text('Model'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.api),
+                      label: Text('API'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.electric_bolt),
+                      label: Text('Event'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.view_kanban_outlined),
+                      label: Text('Scrum'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.code),
+                      label: Text('Code'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.check),
+                      label: Badge.count(
+                        count: 3,
+                        child: Text('Validate\nRequest'),
+                      ),
+                    ),
+                  ],
+                  listTabCont: [
+                    // child: NeumorphismBtn() // Stack(children: [Positioned(top: 100, left: 100, child: NeumorphismBtn())]),
+                    getServiceTab(),
+                    Column(
+                      children: [
+                        getBreadcrumbModel(),
+                        Expanded(child: _getModelTab()),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        getBreadcrumbAPI(),
+                        Expanded(child: _getApiTab()),
+                      ],
+                    ),
+                    getEventTab(),
+                    Container(),
+                    getCodeTab(),
+                    Container(),
+                  ],
+                  heightTab: 20,
+                ),
               ),
-              getEventTab(),
-              Container(),
-              getCodeTab(),
-            ],
-            heightTab: 20,
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -177,13 +232,12 @@ class CodeEditor extends StatelessWidget {
             BreadCrumbNavigator(
               key: stateModel.keyBreadcrumb,
               getList: () {
-                //currentCompany.currentModel.name;
-                return stateModel
-                    .path; // ["Business Model", "Model", "0.0.1", "draft"];
+                return stateModel.path;
               },
             ),
             Spacer(),
-            WidgetZoomSelector(zoom: zoom),
+            Text('Open factor '),
+            WidgetZoomSelector(zoom: openFactor),
           ],
         ),
       ),
@@ -204,14 +258,17 @@ class CodeEditor extends StatelessWidget {
               },
             ),
             Spacer(),
-            WidgetZoomSelector(zoom: zoom),
+            Text('Open factor '),
+            WidgetZoomSelector(zoom: openFactor),
           ],
         ),
       ),
     );
   }
 
-  Widget getApiTab() {
+  Widget _getApiTab() {
+    var panAPISelector = PanAPISelector();
+
     return WidgetTab(
       key: stateApi.keyTab,
       tabDisable: stateApi.tabDisable,
@@ -221,11 +278,38 @@ class CodeEditor extends StatelessWidget {
       listTab: [
         Tab(text: 'Browse API'),
         Tab(text: 'API Detail'),
-        Tab(text: 'API Servers'),
+        getTabSeparator(Tab(text: 'Servers & Env.')),
         Tab(text: 'Validation workflow'),
       ],
-      listTabCont: [PanAPISelector(), PanApiEditor(), Container(), Container()],
+      listTabCont: [
+        Column(
+          children: [
+            PanApiActionHub(selector: panAPISelector),
+            Expanded(child: panAPISelector),
+          ],
+        ),
+        PanApiEditor(),
+        Container(),
+        Container(),
+      ],
       heightTab: 40,
+    );
+  }
+
+  Widget getTabSeparator(Widget tab) {
+    return Container(
+      height: 40,
+      padding: EdgeInsets.fromLTRB(0, 0, 40, 0),
+      // decoration: BoxDecoration(
+      //   border: Border(
+      //     right: BorderSide(
+      //       color: Colors.white38,
+      //       width: 1,
+      //       style: BorderStyle.solid,
+      //     ),
+      //   ),
+      // ),
+      child: tab,
     );
   }
 
@@ -273,12 +357,15 @@ class CodeEditor extends StatelessWidget {
         ),
 
         Positioned(
-          top: 50,
-          left: 50,
+          top: 60,
+          left: 40,
           child: Card(
             elevation: 8,
             color: Colors.grey,
-            child: Padding(padding: EdgeInsets.all(20), child: Text('API')),
+            child: Padding(
+              padding: EdgeInsets.all(15),
+              child: Text('Input API'),
+            ),
           ),
         ),
 
@@ -301,7 +388,10 @@ class CodeEditor extends StatelessWidget {
           child: Card(
             elevation: 8,
             color: Colors.grey,
-            child: Padding(padding: EdgeInsets.all(20), child: Text('EVENTS')),
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('Input events'),
+            ),
           ),
         ),
 
@@ -312,6 +402,32 @@ class CodeEditor extends StatelessWidget {
             elevation: 8,
             color: Colors.orange,
             child: Padding(padding: EdgeInsets.all(20), child: Text('MODELS')),
+          ),
+        ),
+
+        Positioned(
+          top: 100,
+          left: 380,
+          child: Card(
+            elevation: 8,
+            color: Colors.grey,
+            child: Padding(
+              padding: EdgeInsets.all(10),
+              child: Text('Life cycle'),
+            ),
+          ),
+        ),
+
+        Positioned(
+          top: 180,
+          left: 350,
+          child: Card(
+            elevation: 8,
+            color: Colors.grey,
+            child: Padding(
+              padding: EdgeInsets.all(10),
+              child: Text('Mapping rule'),
+            ),
           ),
         ),
 
@@ -334,9 +450,26 @@ class CodeEditor extends StatelessWidget {
           child: Card(
             elevation: 8,
             color: Colors.grey,
-            child: Padding(padding: EdgeInsets.all(20), child: Text('EVENTS')),
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('Output events'),
+            ),
           ),
         ),
+
+        Positioned(
+          top: 270,
+          left: 370,
+          child: Card(
+            elevation: 8,
+            color: Colors.grey,
+            child: Padding(
+              padding: EdgeInsets.all(10),
+              child: Text('Output API'),
+            ),
+          ),
+        ),
+
         Positioned(
           top: 340,
           left: 200,
@@ -345,7 +478,10 @@ class CodeEditor extends StatelessWidget {
             color: Colors.yellow,
             child: Padding(
               padding: EdgeInsets.all(20),
-              child: Text('ENTITIES', style: TextStyle(color: Colors.black)),
+              child: Text(
+                'ORM ENTITIES',
+                style: TextStyle(color: Colors.black),
+              ),
             ),
           ),
         ),
@@ -362,7 +498,7 @@ class CodeEditor extends StatelessWidget {
     );
   }
 
-  Widget getModelTab() {
+  Widget _getModelTab() {
     return WidgetTab(
       key: stateModel.keyTab,
       onInitController: (TabController tab) {
@@ -378,9 +514,48 @@ class CodeEditor extends StatelessWidget {
         Tab(text: 'Validation workflow'),
       ],
       listTabCont: [
-        KeepAliveWidget(child: WidgetModelMain()),
+        Column(
+          children: [
+            PanModelActionHub(),
+            Expanded(child: KeepAliveWidget(child: WidgetModelMain())),
+          ],
+        ),
         WidgetModelEditor(),
         WidgetJsonValidator(),
+        getGlossaryTab(),
+        getNamingTab(),
+        Container(),
+      ],
+      heightTab: 40,
+    );
+  }
+
+  Widget getGlossaryTab() {
+    return WidgetTab(
+      onInitController: (TabController tab) {},
+      listTab: [
+        Tab(text: 'Notion naming'),
+        Tab(text: 'Available suffix'),
+        Tab(text: 'Available Prefix'),
+      ],
+      listTabCont: [Container(), Container(), Container()],
+      heightTab: 40,
+    );
+  }
+
+  Widget getNamingTab() {
+    return WidgetTab(
+      onInitController: (TabController tab) {},
+      listTab: [
+        Tab(text: 'Model'),
+        Tab(text: 'API'),
+        Tab(text: 'Event'),
+        Tab(text: 'DB SQL'),
+        Tab(text: 'DB Document'),
+      ],
+      listTabCont: [
+        Container(),
+        Container(),
         Container(),
         Container(),
         Container(),

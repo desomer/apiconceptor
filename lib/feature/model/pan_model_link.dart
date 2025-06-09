@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
@@ -33,7 +32,7 @@ class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
             },
           )
           ..getJson = getJsonYaml
-          ..getRow = _getJsonRow;
+          ..getRow = _getWidgetModelInfo;
 
     var modelSelector = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,20 +44,6 @@ class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
     return modelSelector;
   }
 
-  Widget _getJsonRow(NodeAttribut attr, ModelSchemaDetail schema) {
-    return WidgetJsonRow(
-      key: GlobalKey(),
-      node: attr,
-      schema: schema,
-      fctGetRow: _getWidgetModelInfo,
-    );
-    // attr.info.cache = WidgetJsonRow(
-    //   node: attr,
-    //   schema: schema,
-    //   fctGetRow: _getWidgetModelInfo,
-    // );
-    // return attr.info.cache!;
-  }
 
   Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchemaDetail schema) {
     if (attr.info.type == 'root') {

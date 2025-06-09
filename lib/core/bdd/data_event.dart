@@ -32,7 +32,7 @@ Future<Map<String, dynamic>> computeSendYamlChangeEvent(
 
   String textPatch = patchToText(patch);
   return Future.value({
-    'type': 'YAML',
+    'typeEvent': 'YAML',
     'id': id,
     'patch': textPatch,
     'old': old,

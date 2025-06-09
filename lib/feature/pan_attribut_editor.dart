@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/editor/cell_prop_editor.dart';
-import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
+enum TypeAttr { model, api }
+
 class AttributProperties extends StatefulWidget {
-  const AttributProperties({super.key});
+  const AttributProperties({super.key, required this.getModel, required this.typeAttr});
+  final Function getModel;
+  final TypeAttr typeAttr;
 
   @override
   State<AttributProperties> createState() => _AttributPropertiesState();
@@ -13,48 +17,49 @@ class AttributProperties extends StatefulWidget {
 class _AttributPropertiesState extends State<AttributProperties> {
   @override
   Widget build(BuildContext context) {
+    ModelSchemaDetail? model = widget.getModel();
+
     return WidgetTab(
       listTab: [
         Tab(text: 'Info'),
         Tab(text: 'Validator'),
         Tab(text: 'Fake'),
-        Tab(text: 'Bdd'),
-        Tab(text: 'Tag'),
+        if (widget.typeAttr == TypeAttr.model) Tab(text: 'Bdd'),
+        if (widget.typeAttr == TypeAttr.model) Tab(text: 'Tag'),
       ],
       listTabCont: [
-        SingleChildScrollView(child: getInfoForm()),
-        SingleChildScrollView(child: getTypeValidator()),
+        SingleChildScrollView(child: getInfoForm(model)),
+        SingleChildScrollView(child: getTypeValidator(model)),
         Container(),
-        Container(),
-        Container(),
+        if (widget.typeAttr == TypeAttr.model) Container(),
+        if (widget.typeAttr == TypeAttr.model) Container(),
       ],
       heightTab: 40,
     );
   }
 
-  Widget getTypeValidator() {
-    if (currentCompany.currentModel?.currentAttr == null) {
+  Widget getTypeValidator(ModelSchemaDetail? model) {
+    if (model?.currentAttr == null) {
       return Container();
     }
 
-    String type =
-        currentCompany.currentModel!.currentAttr!.info.type.toLowerCase();
+    String type = model!.currentAttr!.info.type.toLowerCase();
 
     if (type == 'string') {
-      return getValidatorStringForm();
+      return getValidatorStringForm(model);
     } else if (type == 'number') {
-      return getValidatorNumberForm();
+      return getValidatorNumberForm(model);
     } else if (type == 'boolean') {
-      return getValidatorBoolForm();
+      return getValidatorBoolForm(model);
     } else if (type == 'array') {
-      return getValidatorArrayForm();
+      return getValidatorArrayForm(model);
     }
 
     return Container();
   }
 
-  Widget getValidatorArrayForm() {
-    var info = currentCompany.currentModel!.currentAttr!;
+  Widget getValidatorArrayForm(ModelSchemaDetail model) {
+    var info = model.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -68,7 +73,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('required#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'required',
             ),
             inArray: false,
@@ -77,7 +82,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('dependentRequired#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'dependentRequired',
             ),
             line: 5,
@@ -88,7 +93,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('minItems#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'minItems',
             ),
             inArray: false,
@@ -99,7 +104,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('maxItems#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'maxItems',
             ),
             inArray: false,
@@ -110,19 +115,18 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('uniqueItems#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'uniqueItems ',
             ),
             inArray: false,
-          ),          
+          ),
         ],
       ),
     );
   }
 
-
-  Widget getValidatorNumberForm() {
-    var info = currentCompany.currentModel!.currentAttr!;
+  Widget getValidatorNumberForm(ModelSchemaDetail model) {
+    var info = model.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -136,7 +140,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('required#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'required',
             ),
             inArray: false,
@@ -145,7 +149,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('dependentRequired#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'dependentRequired',
             ),
             line: 5,
@@ -156,7 +160,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('pattern#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'pattern',
             ),
             inArray: false,
@@ -166,7 +170,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('format#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'format',
             ),
             inArray: false,
@@ -176,7 +180,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('enum#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'enum',
             ),
             line: 5,
@@ -187,7 +191,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('multipleOf#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'multipleOf',
             ),
             inArray: false,
@@ -197,7 +201,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('minimum#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'minimum',
             ),
             inArray: false,
@@ -207,7 +211,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('exclusiveMinimum#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'exclusiveMinimum',
             ),
             inArray: false,
@@ -217,7 +221,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('maximum#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'maximum',
             ),
             inArray: false,
@@ -227,7 +231,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('exclusiveMaximum#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'exclusiveMaximum',
             ),
             inArray: false,
@@ -237,8 +241,8 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getValidatorStringForm() {
-    var info = currentCompany.currentModel!.currentAttr!;
+  Widget getValidatorStringForm(ModelSchemaDetail model) {
+    var info = model.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -252,7 +256,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('required#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'required',
             ),
             inArray: false,
@@ -261,7 +265,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('dependentRequired#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'dependentRequired',
             ),
             line: 5,
@@ -272,7 +276,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('pattern#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'pattern',
             ),
             inArray: false,
@@ -282,7 +286,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('format#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'format',
             ),
             inArray: false,
@@ -292,7 +296,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('enum#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'enum',
             ),
             line: 5,
@@ -303,7 +307,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('minLength#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'minLength',
             ),
             inArray: false,
@@ -313,7 +317,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('maxLength#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'maxLength',
             ),
             inArray: false,
@@ -324,7 +328,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('contentEncoding#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'contentEncoding',
             ),
             inArray: false,
@@ -334,7 +338,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('contentMediaType#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'contentMediaType',
             ),
             inArray: false,
@@ -347,8 +351,8 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getValidatorBoolForm() {
-    var info = currentCompany.currentModel!.currentAttr!;
+  Widget getValidatorBoolForm(ModelSchemaDetail? model) {
+    var info = model!.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -362,7 +366,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('required#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'required',
             ),
             inArray: false,
@@ -371,7 +375,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('dependentRequired#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'dependentRequired',
             ),
             line: 5,
@@ -385,12 +389,12 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getInfoForm() {
-    if (currentCompany.currentModel?.currentAttr == null) {
+  Widget getInfoForm(ModelSchemaDetail? model) {
+    if (model?.currentAttr == null) {
       return Container();
     }
 
-    var info = currentCompany.currentModel!.currentAttr!;
+    var info = model!.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -404,7 +408,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('description#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'description',
             ),
             line: 5,
@@ -414,7 +418,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('example#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'example',
             ),
             line: 5,
@@ -424,7 +428,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('const#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'const',
             ),
             inArray: false,
@@ -433,7 +437,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('readOnly#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'readOnly',
             ),
             inArray: false,
@@ -442,7 +446,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('writeOnly#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'writeOnly',
             ),
             inArray: false,
@@ -451,7 +455,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('deprecated#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: 'deprecated',
             ),
             inArray: false,
@@ -460,7 +464,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
             key: ValueKey('comment#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
-              schema: currentCompany.currentModel!,
+              schema: model,
               propName: '\$comment',
             ),
             line: 5,

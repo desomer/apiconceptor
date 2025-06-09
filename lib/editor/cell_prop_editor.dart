@@ -237,11 +237,16 @@ class ModelAccessorAttr extends ModelAccessor {
   void set(dynamic value) {
     var path = '${node.info.path}.prop.$propName';
     var propChangeValue = node.info.properties?[propName];
-    schema.addHistory(node.info, path, ChangeOpe.change, propChangeValue, value);
+    schema.addHistory(
+      node.info,
+      path,
+      ChangeOpe.change,
+      propChangeValue,
+      value,
+    );
     node.info.properties?[propName] = value;
     schema.saveProperties();
-    // ignore: invalid_use_of_protected_member
-    node.widgetRowState?.setState(() {});
+    node.repaint();
   }
 
   @override
@@ -249,7 +254,7 @@ class ModelAccessorAttr extends ModelAccessor {
     node.info.properties?.remove(propName);
     schema.saveProperties();
     // ignore: invalid_use_of_protected_member
-    node.widgetRowState?.setState(() {});
+    node.repaint();
   }
 
   @override
