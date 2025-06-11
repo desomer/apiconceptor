@@ -1,6 +1,6 @@
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/import/json2schema_yaml.dart';
-import 'package:jsonschema/core/yaml_doc.dart';
+import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:yaml/yaml.dart';
 
 class Url2Api {

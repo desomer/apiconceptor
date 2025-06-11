@@ -52,7 +52,8 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       return listModel.modelYaml;
     }
 
-    var modelSelector = SplitView(primaryWidth: 350,
+    var modelSelector = SplitView(
+      primaryWidth: 350,
       childs: [
         getStructureModel(),
         JsonEditor(
@@ -76,7 +77,6 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
 
     return modelSelector;
   }
-
 
   Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchemaDetail schema) {
     if (attr.info.type == 'root') {
@@ -138,11 +138,14 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
         child: Card(
           key: ObjectKey(attr),
           margin: EdgeInsets.all(1),
-          child: Row(children: row),
+          child: getToolTip(
+            toolContent: getTooltipFromAttr(attr),
+            child: Row(children: row),
+          ),
         ),
       ),
     );
-   // attr.info.cacheRowWidget = ret;
+    // attr.info.cacheRowWidget = ret;
     return ret;
   }
 

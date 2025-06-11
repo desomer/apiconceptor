@@ -138,14 +138,14 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         Tab(text: 'Life cycle method'),
         Tab(text: 'Mapping rules'),
         Tab(text: 'Change log'),
-        Tab(text: 'Documentation',)
+        Tab(text: 'Documentation'),
       ],
       listTabCont: [
         _getEditor(),
         getLifeCycleTab(),
         Container(),
         _getChangeLogTab(),
-        DocEditor()
+        DocEditor(),
       ],
       heightTab: 40,
     );
@@ -249,7 +249,6 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     );
   }
 
-
   Widget _getRowsAttrInfo(NodeAttribut attr, ModelSchemaDetail schema) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
@@ -316,9 +315,10 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
             }
             return isSelected;
           },
-          //key: ValueKey(attr.info.masterID),
-          //margin: EdgeInsets.all(1),
-          child: Row(spacing: 5, children: rowWidget),
+          child: getToolTip(
+            toolContent: getTooltipFromAttr(attr),
+            child: Row(spacing: 5, children: rowWidget),
+          ),
         ),
       ),
     );

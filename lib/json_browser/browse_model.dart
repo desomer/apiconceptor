@@ -125,15 +125,15 @@ class InfoManagerModel extends InfoManager {
     return IntrinsicWidth(
       //width: 180,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
         child: Row(
           children: [
-            Padding(padding: EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
+            Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
             Text(
               name,
               style:
                   (isObject || isArray)
-                      ? TextStyle(fontWeight: FontWeight.bold)
+                      ? const TextStyle(fontWeight: FontWeight.bold)
                       : null,
             ),
           ],

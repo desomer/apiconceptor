@@ -4,6 +4,7 @@ import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
+import 'package:jsonschema/widget_state/state_model.dart';
 
 class WidgetModelMain extends StatelessWidget with WidgetModelHelper {
   const WidgetModelMain({super.key});
@@ -23,7 +24,7 @@ class WidgetModelMain extends StatelessWidget with WidgetModelHelper {
       ],
       listTabCont: [
         KeepAliveWidget(
-          child: WidgetModelSelector(listModel: currentCompany.listModel, typeModel: 'Business model'),
+          child: stateModel.modelSelector
         ),
         KeepAliveWidget(
           child: WidgetModelSelector(listModel: currentCompany.listComponent, typeModel: 'Component'),

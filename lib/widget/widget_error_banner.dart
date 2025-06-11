@@ -24,7 +24,7 @@ class _WidgetErrorBannerState extends State<WidgetErrorBanner> {
               color: Colors.green,
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 15),
-                child: Text('JSON VALID'),
+                child: Text('COMPLIANT JSON'),
               ),
             ),
           );

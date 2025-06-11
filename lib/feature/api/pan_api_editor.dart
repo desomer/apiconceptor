@@ -30,6 +30,9 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
     apiCallInfo = getPathWidget(currentCompany.listAPI.currentAttr!);
 
     return WidgetTab(
+      onInitController: (TabController tab) {
+        stateApi.tabSubApi = tab;
+      },      
       listTab: [
         Tab(text: 'Documentation'),
         Tab(text: 'Call examples'),
@@ -71,6 +74,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
     String name = attr.yamlNode.key.toString().toLowerCase();
     var ret = APICallInfo(
       currentAPI: currentCompany.currentAPIResquest,
+      currentAPIResponse: currentCompany.currentAPIResponse,
       httpOperation: name,
     );
 
@@ -368,6 +372,7 @@ class InfoManagerAPIParam extends InfoManager with WidgetModelHelper {
 class APICallInfo {
   final String httpOperation;
   final ModelSchemaDetail? currentAPI;
+  final ModelSchemaDetail? currentAPIResponse;
   String url = '';
   List<String> urlParamId = [];
   List<APIParamInfo> params = [];
@@ -375,7 +380,7 @@ class APICallInfo {
   dynamic body;
   String bodyStr = '';
 
-  APICallInfo({required this.currentAPI, required this.httpOperation});
+  APICallInfo({required this.currentAPI, required this.currentAPIResponse, required this.httpOperation});
 }
 
 class APIParamInfo {

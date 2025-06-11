@@ -43,21 +43,21 @@ class JsonListState extends State<JsonList> {
     );
   }
 
-  // NodeAttribut? getNodeAttribut(NodeAttribut attr) {
-  //   var result = _list._items;
-  //   for (var i = 0; i < result.length; i++) {
-  //     AttributInfo? a;
-  //     if (result[i] is TreeNode<NodeAttribut>) {
-  //       a = (result[i] as TreeNode<NodeAttribut>).data!.info;
-  //     } else {
-  //       a = (result[i]).info;
-  //     }
-  //     if (a == attr.info) {
-  //       return result[i];
-  //     }
-  //   }
-  //   return null;
-  // }
+  NodeAttribut? getNodeAttribut(NodeAttribut attr) {
+    var result = _list._items;
+    for (var i = 0; i < result.length; i++) {
+      AttributInfo? a;
+      if (result[i] is TreeNode<NodeAttribut>) {
+        a = (result[i] as TreeNode<NodeAttribut>).data!.info;
+      } else {
+        a = (result[i]).info;
+      }
+      if (a == attr.info) {
+        return result[i];
+      }
+    }
+    return null;
+  }
 
   int findInfoOnTree(List<dynamic> result, NodeAttribut? attr) {
     if (attr == null) return -1;

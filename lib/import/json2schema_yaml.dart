@@ -7,11 +7,12 @@ class JsonToSchemaYaml {
     var exp = RegExp(r'\,(?=\s*?[\}\]])');
     rawJson = rawJson.replaceAll('\n', '');
     rawJson = rawJson.replaceAll(exp, '');
-
-    dynamic root = jsonDecode(rawJson);
+    rawJson = rawJson.trim();
     ImportData data = ImportData();
-    doAttr(null, root, data);
-    print('${data.yaml}');
+    if (rawJson.isNotEmpty) {
+      dynamic root = jsonDecode(rawJson);
+      doAttr(null, root, data);
+    }
     return data;
   }
 
@@ -72,7 +73,7 @@ class ImportData {
 
   void addAttr(String name, dynamic value) {
     yaml.writeln('$name : $value');
-  }  
+  }
 
   void addTab() {
     for (var i = 0; i < level; i++) {

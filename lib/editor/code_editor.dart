@@ -37,7 +37,8 @@ class TabKeyAction2 extends Action<TabKeyIntent> {
 
 class TextEditorState extends State<TextEditor> {
   late CodeController controller;
-  late ScrollController c;
+  late ScrollController verticalScroll;
+  late ScrollController horizontalScroll;
 
   @override
   void initState() {
@@ -47,8 +48,8 @@ class TextEditorState extends State<TextEditor> {
     controller.actions[TabKeyIntent] = TabKeyAction2(controller: controller);
 
     controller.popupController.enabled = false;
-
-    c = ScrollController();
+    horizontalScroll = ScrollController();
+    verticalScroll = ScrollController();
     controller.addListener(() {
       if (dispatch) {
         widget.config.onChange(controller.fullText, widget.config);
@@ -59,7 +60,8 @@ class TextEditorState extends State<TextEditor> {
 
   @override
   void dispose() {
-    c.dispose();
+    verticalScroll.dispose();
+    horizontalScroll.dispose();
     controller.dispose();
     super.dispose();
   }
@@ -90,38 +92,41 @@ class TextEditorState extends State<TextEditor> {
               Expanded(child: Center(child: Text(widget.header))),
               ...widget.actions ?? [],
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: InkWell(
                   onTap: () {
                     if (widget.onHelp != null) widget.onHelp!(context);
                   },
-                  child: Icon(Icons.help_outline, size: 20),
+                  child: const Icon(Icons.help_outline, size: 20),
                 ),
               ),
             ],
           ),
         ),
         Expanded(
-          child: Scrollbar(
-            controller: c,
-            thumbVisibility: true,
-            trackVisibility: true,
-            child: SingleChildScrollView(
-              controller: c,
-              child: CodeTheme(
-                data: CodeThemeData(styles: monokaiSublimeTheme),
-                child: CodeField(
-                  gutterStyle: GutterStyle(
-                    textStyle: TextStyle(fontSize: 10, height: 1.53),
-                    margin: 0,
-                    width: 80,
-                    showErrors: true,
-                    showFoldingHandles: true,
-                    showLineNumbers: true,
+          child: CodeTheme(
+            data: CodeThemeData(styles: monokaiSublimeTheme),
+            child: Scrollbar(
+              controller: verticalScroll,
+              thumbVisibility: true,
+              trackVisibility: true,
+              child: SingleChildScrollView(
+                controller: verticalScroll,
+                child:  Container( //, SingleChildScrollView(
+                  //scrollDirection: Axis.horizontal,
+                  //controller: horizontalScroll,
+                  child: CodeField(
+                    gutterStyle: const GutterStyle(
+                      textStyle: TextStyle(height: 1.5),
+                      margin: 0,
+                      width: 80,
+                      showErrors: true,
+                      showFoldingHandles: true,
+                      showLineNumbers: true,
+                    ),
+                    controller: controller,
+                    readOnly: widget.config.readOnly,
                   ),
-                  controller: controller,
-                  expands: false,
-                  readOnly: widget.config.readOnly,
                 ),
               ),
             ),

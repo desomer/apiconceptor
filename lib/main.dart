@@ -154,7 +154,7 @@ class CodeEditor extends StatelessWidget {
                   SizedBox(width: 5),
                   SizedBox(height: 20, child: WidgetGlobalZoom()),
                   Spacer(),
-                  Text('API Architect by Desomer G. V0.0.6'),
+                  Text('API Architect by Desomer G. V0.1.0'),
                 ],
               ),
               body: SafeArea(

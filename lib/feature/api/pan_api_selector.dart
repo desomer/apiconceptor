@@ -75,7 +75,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
                         textConfig: textConfig,
                         getModel: () => currentCompany.listAPI,
                         onTap: (NodeAttribut node) {
-                          goToAPI(node);
+                          goToAPI(node, 1);
                         },
                       )
                       ..widthTree = 500
@@ -133,30 +133,20 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
       row.add(
         TextButton.icon(
           onPressed: () async {
-            await goToAPI(attr);
+            await goToAPI(attr, 1);
           },
           label: Icon(Icons.remove_red_eye),
         ),
       );
-      // row.add(
-      //   TextButton.icon(
-      //     icon: Icon(Icons.import_export),
-      //     onPressed: () async {
-      //       if (attr.info.type == 'api') {
-      //         // var key = attr.info.properties![constMasterID];
-      //         // var model = ModelSchemaDetail(
-      //         //   type: YamlType.api,
-      //         //   name: attr.info.name,
-      //         //   id: key,
-      //         //   infoManager: InfoManagerAPIParam(),
-      //         // );
-      //         // await model.loadYamlAndProperties(cache: false);
-      //         // await ExportJsonSchema2clipboard().doExport(model);
-      //       }
-      //     },
-      //     label: Text('Json schemas'),
-      //   ),
-      // );
+      row.add(
+        TextButton.icon(
+          icon: Icon(Icons.import_export),
+          onPressed: () async {
+            await goToAPI(attr, 1, subtabNumber: 2);
+          },
+          label: Text('Test API'),
+        ),
+      );
     }
 
     var ret = SizedBox(
@@ -171,7 +161,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         },
 
         onDoubleTap: () async {
-          await goToAPI(attr);
+          await goToAPI(attr, 1);
         },
         child: HoverableCard(
           isSelected: (State state) {
@@ -203,7 +193,11 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
     showAttrEditor.value = 300;
   }
 
-  Future<void> goToAPI(NodeAttribut attr) async {
+  Future<void> goToAPI(
+    NodeAttribut attr,
+    int tabNumber, {
+    int subtabNumber = -1,
+  }) async {
     if (attr.info.type == 'ope') {
       stateApi.tabDisable.clear();
       // ignore: invalid_use_of_protected_member
@@ -246,7 +240,10 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         cache: false,
       );
 
-      stateApi.tabApi.animateTo(1);
+      stateApi.tabApi.animateTo(tabNumber);
+      Future.delayed(Duration(milliseconds: 100)).then((value) {
+        if (subtabNumber >= 0) stateApi.tabSubApi.animateTo(subtabNumber);
+      });
     }
   }
 

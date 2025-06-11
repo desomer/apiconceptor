@@ -14,4 +14,5 @@ class StateAPI {
   List<String> urlParam = [];
 
   late TabController tabApi;
+  late TabController tabSubApi;
 }

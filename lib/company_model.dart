@@ -205,7 +205,7 @@ class ModelSchemaDetail {
     }
   }
 
-  void loadSubSchema(String path, ModelSchemaDetail source) {
+  void loadSubSchema(dynamic path, ModelSchemaDetail source) {
     try {
       mapModelYaml = source.mapModelYaml[path];
     } catch (e) {
@@ -311,7 +311,7 @@ class ModelSchemaDetail {
         bddStorage.saveYAML(model: this, type: 'YAML', value: modelYaml);
       }
 
-      if (action == 'event') {
+      if (action == 'event' || action == 'import') {
         // ignore: invalid_use_of_protected_member
         config?.textYamlState.setState(() {});
         // ignore: invalid_use_of_protected_member
