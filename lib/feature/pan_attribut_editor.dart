@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/editor/cell_prop_editor.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 enum TypeAttr { model, api }
 
 class AttributProperties extends StatefulWidget {
-  const AttributProperties({super.key, required this.getModel, required this.typeAttr});
+  const AttributProperties({
+    super.key,
+    required this.getModel,
+    required this.typeAttr,
+  });
   final Function getModel;
   final TypeAttr typeAttr;
 
@@ -17,7 +21,7 @@ class AttributProperties extends StatefulWidget {
 class _AttributPropertiesState extends State<AttributProperties> {
   @override
   Widget build(BuildContext context) {
-    ModelSchemaDetail? model = widget.getModel();
+    ModelSchema? model = widget.getModel();
 
     return WidgetTab(
       listTab: [
@@ -38,7 +42,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getTypeValidator(ModelSchemaDetail? model) {
+  Widget getTypeValidator(ModelSchema? model) {
     if (model?.currentAttr == null) {
       return Container();
     }
@@ -58,7 +62,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     return Container();
   }
 
-  Widget getValidatorArrayForm(ModelSchemaDetail model) {
+  Widget getValidatorArrayForm(ModelSchema model) {
     var info = model.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
@@ -125,7 +129,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getValidatorNumberForm(ModelSchemaDetail model) {
+  Widget getValidatorNumberForm(ModelSchema model) {
     var info = model.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
@@ -241,7 +245,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getValidatorStringForm(ModelSchemaDetail model) {
+  Widget getValidatorStringForm(ModelSchema model) {
     var info = model.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
@@ -351,7 +355,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getValidatorBoolForm(ModelSchemaDetail? model) {
+  Widget getValidatorBoolForm(ModelSchema? model) {
     var info = model!.currentAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
@@ -389,7 +393,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getInfoForm(ModelSchemaDetail? model) {
+  Widget getInfoForm(ModelSchema? model) {
     if (model?.currentAttr == null) {
       return Container();
     }

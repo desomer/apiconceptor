@@ -1,14 +1,33 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/main.dart';
 
 import '../widget_state/widget_md_doc.dart';
 
+void validateJsonSchemas(
+  JsonSchema validator,
+  dynamic json,
+  ValueNotifier<String> error,
+) {
+  ValidationResults r = validator.validate(json);
+  // print("r= $r");
+  if (r.isValid) {
+    error.value = '_VALID_';
+  } else {
+    StringBuffer ret = StringBuffer();
+    for (var element in r.errors) {
+      ret.writeln('${element.instancePath} : ${element.message}');
+    }
+    error.value = ret.toString();
+  }
+}
+
 class BrowseModel<T extends Map> extends JsonBrowser<T> {
   @override
-  void doTree(ModelSchemaDetail model, NodeAttribut aNodeAttribut, r) {
+  void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
     if (aNodeAttribut.info.type == 'model') {
       initVersion(aNodeAttribut, r);
     }
@@ -56,14 +75,22 @@ class InfoManagerModel extends InfoManager {
         typeStr = 'Array';
         node.bgcolor = Colors.blue.withAlpha(50);
       } else {
-        typeStr = 'Object';
+        node.bgcolor = Colors.blue.withAlpha(50);
+        typeStr = 'Array';
       }
     } else if (type is int) {
       typeStr = 'number';
     } else if (type is double) {
       typeStr = 'number';
     } else if (type is String) {
-      if (type.startsWith('\$')) {
+      if (name.endsWith('[]')) {
+        node.bgcolor = Colors.blue.withAlpha(50);
+        if (type.startsWith('\$')) {
+          typeStr = 'Array';
+        } else {
+          typeStr = '$type[]';
+        }
+      } else if (type.startsWith('\$')) {
         typeStr = 'Object';
       }
     }
@@ -79,6 +106,11 @@ class InfoManagerModel extends InfoManager {
     String typeTitle,
   ) {
     var type = typeTitle.toLowerCase();
+
+    if (type.endsWith('[]')) {
+      type = type.substring(0, type.length - 2);
+    }
+
     bool valid = [
       'folder',
       'model',
@@ -103,7 +135,9 @@ class InfoManagerModel extends InfoManager {
     var isObject = node.data!.info.type == 'Object';
     var isOneOf = node.data!.info.type == '\$anyOf';
     var isRef = node.data!.info.type == '\$ref';
-    var isArray = node.data!.info.type == 'Array';
+    var isType = node.data!.info.name == constType;
+    var isArray =
+        node.data!.info.type == 'Array' || node.data!.info.type.endsWith('[]');
     String name = node.data?.yamlNode.key;
 
     if (isRoot && name == 'Business model') {
@@ -120,15 +154,20 @@ class InfoManagerModel extends InfoManager {
       icon = Icon(Icons.looks_one_rounded);
     } else if (isArray) {
       icon = Icon(Icons.data_array);
+    } else if (isType) {
+      name = '\$type';
+      icon = Icon(Icons.type_specimen_outlined);
     }
 
     return IntrinsicWidth(
-      //width: 180,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
         child: Row(
           children: [
-            Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
+              child: icon,
+            ),
             Text(
               name,
               style:

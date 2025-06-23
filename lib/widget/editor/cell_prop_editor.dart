@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 
 class CellEditor extends StatefulWidget {
   const CellEditor({
@@ -22,6 +23,9 @@ class CellEditor extends StatefulWidget {
 
 class _CellEditorState extends State<CellEditor> {
   late final TextEditingController _controller;
+  TextInputType? keyboardType;
+  List<TextInputFormatter>? inputFormatters;
+  FocusNode? focus;
 
   @override
   void initState() {
@@ -29,7 +33,7 @@ class _CellEditorState extends State<CellEditor> {
     _controller.text = widget.acces.get()?.toString() ?? '';
     _controller.addListener(() {
       dynamic val = _controller.text;
-      if (val != widget.acces.get()?.toString()) {
+      if (val != (widget.acces.get()?.toString() ?? '')) {
         if (val != '') {
           if (widget.isNumber && val.toString().contains('.')) {
             val = double.parse(val);
@@ -42,19 +46,6 @@ class _CellEditorState extends State<CellEditor> {
         }
       }
     });
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    TextInputType? keyboardType;
-    List<TextInputFormatter>? inputFormatters;
 
     if (widget.isNumber) {
       keyboardType = TextInputType.numberWithOptions(
@@ -66,10 +57,41 @@ class _CellEditorState extends State<CellEditor> {
       ];
     }
 
+    focus = FocusNode();
+
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    focus?.dispose();
+    super.dispose();
+  }
+
+  var textStyleLabel = TextStyle(color: Colors.grey.shade600, fontSize: 16);
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.inArray) {
+      return EditOnHover(
+        focus: focus!,
+        childOnHover: getWidgetModeEdit(textStyleLabel),
+        childFct: () {
+          return getWidgetModeView(textStyleLabel);
+        },
+      );
+    }
+
+    return getWidgetModeEdit(textStyleLabel);
+  }
+
+  SizedBox getWidgetModeEdit(TextStyle textStyleLabel) {
     return SizedBox(
       width: widget.inArray ? 250 : double.infinity,
       height: widget.inArray ? 30 : null,
       child: TextField(
+        focusNode: focus,
         enabled: widget.acces.isEditable(),
         controller: _controller,
         autocorrect: true,
@@ -78,14 +100,103 @@ class _CellEditorState extends State<CellEditor> {
         inputFormatters: inputFormatters,
         decoration: InputDecoration(
           contentPadding:
-              widget.inArray ? EdgeInsets.fromLTRB(5, 0, 5, 0) : null,
-          border: OutlineInputBorder(),
+              widget.inArray ? const EdgeInsets.fromLTRB(5, 0, 5, 0) : null,
+          border: const OutlineInputBorder(),
           labelText: !widget.inArray ? widget.acces.getName() : null,
-          labelStyle: TextStyle(color: Colors.grey.shade600),
+          labelStyle: textStyleLabel,
           hintText: widget.inArray ? widget.acces.getName() : null,
-          hintStyle: TextStyle(color: Colors.grey.shade600),
+          hintStyle: textStyleLabel,
         ),
       ),
+    );
+  }
+
+  Container getWidgetModeView(TextStyle textStyleLabel) {
+    var value = widget.acces.get()?.toString() ?? '';
+    bool isEditable = widget.acces.isEditable();
+    bool hasValue = value.isNotEmpty;
+
+    if (hasValue) {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(4, 2, 5, 0),
+        width: 250,
+        height: 30,
+        decoration: BoxDecoration(
+          border: Border.fromBorderSide(
+            BorderSide(color: isEditable ? Colors.grey.shade600 : Colors.grey),
+          ),
+          borderRadius: const BorderRadius.all(Radius.circular(4.0)),
+        ),
+        child: Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            color: !isEditable ? Colors.white : null,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 2, 5, 0),
+      width: 250,
+      height: 30,
+      decoration: BoxDecoration(
+        border: Border.fromBorderSide(BorderSide(color: Colors.grey.shade600)),
+        borderRadius: const BorderRadius.all(Radius.circular(4.0)),
+      ),
+      child: Text(widget.acces.getName(), style: textStyleLabel),
+    );
+  }
+}
+
+class EditOnHover extends StatefulWidget {
+  const EditOnHover({
+    super.key,
+    required this.childOnHover,
+    required this.childFct,
+    required this.focus,
+  });
+
+  final Widget childOnHover;
+  final Function childFct;
+  final FocusNode focus;
+
+  @override
+  State<EditOnHover> createState() => _EditOnHoverState();
+}
+
+class _EditOnHoverState extends State<EditOnHover> {
+  bool hover = false;
+  bool isFocusRegisted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isFocusRegisted) {
+      isFocusRegisted = true;
+      widget.focus.addListener(() {
+        if (!widget.focus.hasFocus) {
+          setState(() {
+            hover = false;
+          });
+        }
+      });
+    }
+
+    return MouseRegion(
+      onEnter: (event) {
+        setState(() {
+          hover = true;
+        });
+      },
+      onExit: (event) {
+        if (!widget.focus.hasFocus) {
+          setState(() {
+            hover = false;
+          });
+        }
+      },
+      child: hover ? widget.childOnHover : widget.childFct(),
     );
   }
 }
@@ -225,7 +336,7 @@ class ModelAccessorAttr extends ModelAccessor {
   });
 
   final NodeAttribut node;
-  final ModelSchemaDetail schema;
+  final ModelSchema schema;
   final String propName;
 
   @override
@@ -237,13 +348,7 @@ class ModelAccessorAttr extends ModelAccessor {
   void set(dynamic value) {
     var path = '${node.info.path}.prop.$propName';
     var propChangeValue = node.info.properties?[propName];
-    schema.addHistory(
-      node.info,
-      path,
-      ChangeOpe.change,
-      propChangeValue,
-      value,
-    );
+    schema.addHistory(node, path, ChangeOpe.change, propChangeValue, value);
     node.info.properties?[propName] = value;
     schema.saveProperties();
     node.repaint();
@@ -251,7 +356,12 @@ class ModelAccessorAttr extends ModelAccessor {
 
   @override
   void remove() {
+    var path = '${node.info.path}.prop.$propName';
+    var propChangeValue = node.info.properties?[propName];
+    schema.addHistory(node, path, ChangeOpe.clear, propChangeValue, '');
+
     node.info.properties?.remove(propName);
+
     schema.saveProperties();
     // ignore: invalid_use_of_protected_member
     node.repaint();

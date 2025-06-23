@@ -1,4 +1,4 @@
-import 'package:jsonschema/import/json2schema_yaml.dart';
+import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:yaml/yaml.dart';
 
 class Swagger2Schema {

@@ -2,6 +2,7 @@ import 'package:faker/faker.dart';
 import 'package:jsonschema/core/randexp.dart';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/main.dart';
 
 class Export2Json<T extends Map<String, dynamic>>
     extends JsonBrowser2generic<T> {
@@ -71,7 +72,7 @@ class Export2Json<T extends Map<String, dynamic>>
       );
       var vString = enumer[faker.randomGenerator.integer(enumer.length)];
       return getValueTyped(type, vString);
-    }    
+    }
 
     var pattern = node.info.properties?['pattern'];
     if (pattern != null) {
@@ -113,5 +114,20 @@ class Export2Json<T extends Map<String, dynamic>>
       if (vdouble != null) return vdouble;
     }
     return vString;
+  }
+
+  @override
+  NodeJson doArrayOfType(String name, String type, NodeAttribut node) {
+    var child = [];
+    if (node.child.firstOrNull?.info.name == constType) {
+      // sera ajouter par le type
+    } else if (node.child.firstOrNull?.info.name == constRefOn) {
+      var obj = {};
+      var child = [obj];
+      return NodeJson(name: name, value: child)..parentOfChild = obj;
+    } else {
+      child.add(getValue(name, type, node));
+    }
+    return NodeJson(name: name, value: child);
   }
 }

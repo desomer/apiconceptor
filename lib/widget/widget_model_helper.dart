@@ -8,7 +8,7 @@ mixin class WidgetModelHelper {
       labelPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 5),
       color: WidgetStatePropertyAll(color),
       padding: EdgeInsets.all(0),
-      label: SelectionArea(child: content),
+      label: content, // SelectionArea(child: content),
     );
     if (height != null) {
       return SizedBox(height: height, child: w);
@@ -21,7 +21,12 @@ mixin class WidgetModelHelper {
     if (attr.info.properties != null) {
       for (var element in attr.info.properties!.entries) {
         if (!element.key.startsWith('\$\$')) {
-          tooltip.add(Text('${element.key} = ${element.value}'));
+          tooltip.add(
+            Text(
+              '${element.key} = ${element.value}',
+              style: TextStyle(fontSize: 15),
+            ),
+          );
         }
       }
     }
@@ -36,6 +41,8 @@ mixin class WidgetModelHelper {
     required List<Widget> toolContent,
     required Widget child,
   }) {
+    // if (true) return child;
+
     return Tooltip(
       verticalOffset: 4,
       //triggerMode: TooltipTriggerMode.manual,

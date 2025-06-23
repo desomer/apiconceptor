@@ -3,9 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
-import 'package:jsonschema/export/export2json.dart';
-import 'package:jsonschema/export/export2json_schema.dart';
-import 'package:jsonschema/editor/code_editor.dart';
+import 'package:jsonschema/core/export/export2json_fake.dart';
+import 'package:jsonschema/core/export/export2json_schema.dart';
+import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/main.dart';
 
 class WidgetJsonValidator extends StatefulWidget {
@@ -89,15 +90,16 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       notifError: error,
       onChange: (String json, TextConfig config) {
         try {
-          if (json != '' && jsonValidator!=null) {
+          if (json != '' && jsonValidator != null) {
             var jsonMap = jsonDecode(json);
-            ValidationResults r = jsonValidator!.validate(jsonMap);
-            // print("r= $r");
-            if (r.isValid) {
-              config.notifError.value = '_VALID_';
-            } else {
-              config.notifError.value = r.toString();
-            }
+            validateJsonSchemas(jsonValidator!, jsonMap, config.notifError);
+            // ValidationResults r = jsonValidator!.validate(jsonMap);
+            // // print("r= $r");
+            // if (r.isValid) {
+            //   config.notifError.value = '_VALID_';
+            // } else {
+            //   config.notifError.value = r.toString();
+            // }
           } else {
             config.notifError.value = '';
           }

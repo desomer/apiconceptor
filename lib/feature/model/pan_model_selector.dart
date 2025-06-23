@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/yaml.dart' show yaml;
-import 'package:jsonschema/editor/cell_prop_editor.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
-import 'package:jsonschema/editor/code_editor.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget_state/widget_md_doc.dart';
@@ -20,10 +21,10 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     required this.listModel,
     required this.typeModel,
   });
-  final ModelSchemaDetail listModel;
+  final ModelSchema listModel;
   final GlobalKey keyYamlListModel = GlobalKey();
   final GlobalKey keyListModelInfo = GlobalKey();
-  final String typeModel;
+  final TypeModelBreadcrumb typeModel;
   late TextConfig textConfig;
 
   @override
@@ -54,9 +55,9 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
 
     var modelSelector = SplitView(
       primaryWidth: 350,
-      childs: [
+      children: [
         getStructureModel(),
-        JsonEditor(
+        JsonListEditor(
           key: keyListModelInfo,
           config:
               JsonTreeConfig(
@@ -78,7 +79,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     return modelSelector;
   }
 
-  Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchemaDetail schema) {
+  Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchema schema) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }
@@ -155,8 +156,22 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       // ignore: invalid_use_of_protected_member
       stateModel.keyTab.currentState?.setState(() {});
 
+      var key = attr.info.properties![constMasterID];
+      currentCompany.currentModel = ModelSchema(
+        type: YamlType.model,
+        infoManager: InfoManagerModel(typeMD: TypeMD.model),
+        headerName: attr.info.name,
+        id: key,
+      );
+      currentCompany.currentModelSel = attr;
+      listModel.currentAttr = attr;
+      if (withBdd) {
+        await currentCompany.currentModel!.loadYamlAndProperties(cache: false);
+      }
+
       NodeAttribut? n = attr;
-      var modelPath = [];
+      List<String> modelPath = currentCompany.currentModel!.modelPath;
+      currentCompany.currentModel!.typeBreabcrumb = typeModel;
       while (n != null) {
         if (n.parent != null) {
           modelPath.insert(0, n.info.name);
@@ -164,22 +179,11 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
         n = n.parent;
       }
 
-      stateModel.path = [typeModel, ...modelPath, "0.0.1", "draft"];
-      // ignore: invalid_use_of_protected_member
-      stateModel.keyBreadcrumb.currentState?.setState(() {});
+      currentCompany.currentModel!.initBreadcrumb();
 
-      var key = attr.info.properties![constMasterID];
-      currentCompany.currentModel = ModelSchemaDetail(
-        type: YamlType.model,
-        infoManager: InfoManagerModel(typeMD: TypeMD.model),
-        name: attr.info.name,
-        id: key,
-      );
-      currentCompany.currentModelSel = attr;
-      listModel.currentAttr = attr;
-
-      await currentCompany.currentModel!.loadYamlAndProperties(cache: false);
       stateModel.tabModel.animateTo(tabNumber);
+      // ignore: invalid_use_of_protected_member
+      stateModel.keyModelEditor.currentState?.setState(() {});
     }
   }
 

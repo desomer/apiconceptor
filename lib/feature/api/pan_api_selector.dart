@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/yaml.dart' show yaml;
 import 'package:jsonschema/core/bdd/data_acces.dart';
-import 'package:jsonschema/editor/cell_prop_editor.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/core/repaint_manager.dart';
+import 'package:jsonschema/core/yaml_browser.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
@@ -12,7 +15,7 @@ import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/main.dart';
-import 'package:jsonschema/editor/code_editor.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -43,6 +46,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
           bddStorage.setYaml(
             currentCompany.listAPI,
             currentCompany.listAPI.modelYaml,
+            currentCompany.listAPI.currentVersion
           );
           // ignore: invalid_use_of_protected_member
           stateApi.keyListAPIInfo.currentState?.setState(() {});
@@ -63,12 +67,12 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
 
     var model = SplitView(
       primaryWidth: 400,
-      childs: [
+      children: [
         getStructureModel(context),
         Row(
           children: [
             Expanded(
-              child: JsonEditor(
+              child: JsonListEditor(
                 key: stateApi.keyListAPIInfo,
                 config:
                     JsonTreeConfig(
@@ -109,7 +113,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
     );
   }
 
-  Widget _getRowModelInfo(NodeAttribut attr, ModelSchemaDetail schema) {
+  Widget _getRowModelInfo(NodeAttribut attr, ModelSchema schema) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }
@@ -186,11 +190,15 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
     return ret;
   }
 
-  void doShowAttrEditor(ModelSchemaDetail schema, NodeAttribut attr) {
+  void doShowAttrEditor(ModelSchema schema, NodeAttribut attr) {
+    if (schema.currentAttr == attr && showAttrEditor.value == 300) {
+      showAttrEditor.value = 0;
+    } else {
+      showAttrEditor.value = 300;
+    }
     schema.currentAttr = attr;
     //ignore: invalid_use_of_protected_member
     keyAttrEditor.currentState?.setState(() {});
-    showAttrEditor.value = 300;
   }
 
   Future<void> goToAPI(
@@ -218,21 +226,25 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
       stateApi.keyBreadcrumb.currentState?.setState(() {});
 
       var key = attr.info.properties![constMasterID];
-      currentCompany.currentAPIResquest = ModelSchemaDetail(
+      currentCompany.currentAPIResquest = ModelSchema(
         type: YamlType.api,
         infoManager: InfoManagerAPIParam(),
-        name: attr.info.name,
+        headerName: attr.info.name,
         id: key,
       );
       currentCompany.listAPI.currentAttr = attr;
       await currentCompany.currentAPIResquest!.loadYamlAndProperties(
         cache: false,
       );
+      currentCompany.currentAPIResquest!.onChange = (change) {
+        currentCompany.apiCallInfo?.params.clear();
+        repaintManager.doRepaint(ChangeTag.apiparam);
+      };
 
-      currentCompany.currentAPIResponse = ModelSchemaDetail(
+      currentCompany.currentAPIResponse = ModelSchema(
         type: YamlType.api,
         infoManager: InfoManagerAPIParam(),
-        name: attr.info.name,
+        headerName: attr.info.name,
         id: 'response/$key',
       );
       currentCompany.listAPI.currentAttr = attr;
@@ -240,9 +252,17 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         cache: false,
       );
 
-      stateApi.tabApi.animateTo(tabNumber);
+      repaintManager.doRepaint(ChangeTag.apichange);
+
+      stateApi.tabApi.index = tabNumber;
       Future.delayed(Duration(milliseconds: 100)).then((value) {
-        if (subtabNumber >= 0) stateApi.tabSubApi.animateTo(subtabNumber);
+        stateApi.tabSubApi.index = 0; // charge l'ordre des params
+        Future.delayed(Duration(milliseconds: 100)).then((value) {
+          if (subtabNumber >= 0) {
+            // exemple : aller sur le test d'api
+            stateApi.tabSubApi.index = subtabNumber;
+          }
+        });
       });
     }
   }

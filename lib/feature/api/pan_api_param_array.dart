@@ -1,26 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/editor/cell_prop_editor.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/core/repaint_manager.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 
-class WidgetArray extends StatefulWidget {
-  const WidgetArray({super.key, required this.apiCallInfo});
+class WidgetArrayParam extends StatefulWidget {
+  const WidgetArrayParam({super.key, required this.apiCallInfo});
   final APICallInfo apiCallInfo;
 
   @override
-  State<WidgetArray> createState() => _WidgetArrayState();
+  State<WidgetArrayParam> createState() => _WidgetArrayParamState();
 }
 
-class _WidgetArrayState extends State<WidgetArray> {
+class _WidgetArrayParamState extends State<WidgetArrayParam> {
   final _scrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
-    List<APIParamInfo> params = [];
-    addParams('path', params);
-    addParams('query', params);
-    widget.apiCallInfo.params = params;
+    repaintManager.addTag(
+      ChangeTag.apiparam,
+      "_WidgetArrayParamState",
+      this,
+      () {
+        return true;
+      },
+    );
+
+    if (widget.apiCallInfo.params.isEmpty) {
+      List<APIParamInfo> params = [];
+      addParams('path', params);
+      addParams('query', params);
+      widget.apiCallInfo.params = params;
+    }
 
     double h = widget.apiCallInfo.params.length * 30;
     if (h > 120) h = 120;
@@ -56,7 +68,7 @@ class _WidgetArrayState extends State<WidgetArray> {
   }
 
   void addParams(String type, List<APIParamInfo> params) {
-    ModelSchemaDetail api = widget.apiCallInfo.currentAPI!;
+    ModelSchema api = widget.apiCallInfo.currentAPI!;
     AttributInfo? query = api.mapInfoByJsonPath['root>$type'];
     if (query != null) {
       var pos = query.treePosition;

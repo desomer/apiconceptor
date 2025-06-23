@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_selector.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/main.dart';
@@ -23,16 +24,20 @@ class WidgetModelMain extends StatelessWidget with WidgetModelHelper {
         Tab(text: 'ORM Entities'),
       ],
       listTabCont: [
+        KeepAliveWidget(child: stateModel.modelSelector),
         KeepAliveWidget(
-          child: stateModel.modelSelector
-        ),
-        KeepAliveWidget(
-          child: WidgetModelSelector(listModel: currentCompany.listComponent, typeModel: 'Component'),
+          child: WidgetModelSelector(
+            listModel: currentCompany.listComponent,
+            typeModel: TypeModelBreadcrumb.component,
+          ),
         ),
         WidgetTab(
           listTab: [Tab(text: 'Request'), Tab(text: 'Response')],
           listTabCont: [
-            WidgetModelSelector(listModel: currentCompany.listRequest, typeModel: 'Request'),
+            WidgetModelSelector(
+              listModel: currentCompany.listRequest,
+              typeModel: TypeModelBreadcrumb.request,
+            ),
             Container(),
           ],
           heightTab: 40,
@@ -42,6 +47,4 @@ class WidgetModelMain extends StatelessWidget with WidgetModelHelper {
       heightTab: 40,
     );
   }
-
-
 }

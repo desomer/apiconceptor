@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/yaml.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/pan_attribut_editor.dart';
-import 'package:jsonschema/editor/cell_prop_editor.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/model/pan_model_change_viewer.dart';
 import 'package:jsonschema/feature/model/pan_model_import.dart';
-import 'package:jsonschema/widget/doc_editor.dart';
+import 'package:jsonschema/widget/editor/doc_editor.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
-import 'package:jsonschema/editor/code_editor.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/widget/widget_glossary_indicator.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
@@ -19,12 +22,22 @@ import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget_state/widget_MD_doc.dart';
 
 // ignore: must_be_immutable
-class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
-  WidgetModelEditor({super.key});
-  final GlobalKey keyAttrEditor = GlobalKey();
+class WidgetModelEditor extends StatefulWidget {
+  const WidgetModelEditor({super.key});
+
+  @override
+  State<WidgetModelEditor> createState() => _WidgetModelEditorState();
+}
+
+class _WidgetModelEditorState extends State<WidgetModelEditor>
+    with WidgetModelHelper {
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
   State? rowSelected;
+
+  final GlobalKey keyAttrEditor = GlobalKey();
   final GlobalKey keyChangeViewer = GlobalKey();
+  final GlobalKey keyVersion = GlobalKey();
+
   late TextConfig textConfig;
 
   @override
@@ -59,20 +72,8 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
 
     return SplitView(
       primaryWidth: 350,
-      childs: [_getEditorLeftTab(context), _getEditorMainTab(context)],
+      children: [_getEditorLeftTab(context), _getEditorMainTab(context)],
     );
-
-    // return Row(
-    //   crossAxisAlignment: CrossAxisAlignment.start,
-    //   children: [
-    //     SizedBox(
-    //       width: 300,
-    //       height: double.infinity,
-    //       child: _getEditorLeftTab(context),
-    //     ),
-    //     Expanded(child: _getEditorMainTab(context)),
-    //   ],
-    // );
   }
 
   Widget _getEditor() {
@@ -83,8 +84,8 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     return Row(
       children: [
         Expanded(
-          child: JsonEditor(
-            key: stateModel.keyTreeModelInfo,
+          child: JsonListEditor(
+            key: ObjectKey(currentCompany.currentModel),
             config:
                 JsonTreeConfig(
                     textConfig: textConfig,
@@ -139,6 +140,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         Tab(text: 'Mapping rules'),
         Tab(text: 'Change log'),
         Tab(text: 'Documentation'),
+        Tab(text: 'Recommendation'),
       ],
       listTabCont: [
         _getEditor(),
@@ -146,6 +148,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         Container(),
         _getChangeLogTab(),
         DocEditor(),
+        Container(),
       ],
       heightTab: 40,
     );
@@ -155,9 +158,9 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     return WidgetTab(
       onInitController: (TabController tab) {},
       listTab: [
-        Tab(text: 'Create'),
-        Tab(text: 'Enhancements'),
-        Tab(text: 'Delete'),
+        Tab(text: 'Create use cases'),
+        Tab(text: 'Enhancement use cases'),
+        Tab(text: 'Delete use cases'),
       ],
       listTabCont: [Container(), Container(), Container()],
       heightTab: 40,
@@ -204,9 +207,53 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
           ),
         ),
         getInfoForm(),
-        Container(),
+        getVersionTab(),
       ],
       heightTab: 40,
+    );
+  }
+
+  Widget getVersionTab() {
+    var model = currentCompany.currentModel!;
+    return Column(
+      children: [
+        ElevatedButton.icon(
+          onPressed: () async {
+            var versionNum = int.parse(model.versions!.first.version) + 1;
+            ModelVersion version = ModelVersion(
+              id: model.id,
+              version: '$versionNum',
+              data: {
+                'state': 'D',
+                'by': currentCompany.userId,
+                'versionTxt': '0.0.$versionNum',
+              },
+            );
+            model.versions!.insert(0, version);
+            model.currentVersion = version;
+            await bddStorage.addVersion(model, version);
+            keyVersion.currentState?.setState(() {});
+            model.clear();
+            await model.loadYamlAndProperties(cache: false);
+            model.doChangeYaml(textConfig, false, 'event');
+          },
+          label: Text('add version'),
+          icon: Icon(Icons.add_box_outlined),
+        ),
+        Expanded(
+          child: PanModelVersionList(
+            key: keyVersion,
+            schema: model,
+            onTap: (ModelVersion version) async {
+              model.currentVersion = version;
+              model.clear();
+              await model.loadYamlAndProperties(cache: false);
+              model.doChangeYaml(textConfig, false, 'event');
+              model.initBreadcrumb();
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -249,7 +296,7 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     );
   }
 
-  Widget _getRowsAttrInfo(NodeAttribut attr, ModelSchemaDetail schema) {
+  Widget _getRowsAttrInfo(NodeAttribut attr, ModelSchema schema) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }
@@ -286,15 +333,16 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
         getChip(Text('regex'), color: null),
       if (minmax) Icon(Icons.tune),
       Spacer(),
-      getChip(
-        Row(children: [Icon(Icons.warning_amber, size: 20), Text('Glossary')]),
-        color: Colors.red,
-      ),
+      WidgetGlossaryIndicator(attr: attr.info),
     ]);
 
     // row.add(getChip(Text(attr.info.treePosition ?? ''), color: null));
     // row.add(getChip(Text(attr.info.path), color: null));
     // addWidgetMasterId(attr, row);
+
+    // if (true) {
+    //   return Row(spacing: 5, children: rowWidget);
+    // }
 
     return SizedBox(
       height: rowHeight,
@@ -324,10 +372,14 @@ class WidgetModelEditor extends StatelessWidget with WidgetModelHelper {
     );
   }
 
-  void doShowAttrEditor(ModelSchemaDetail schema, NodeAttribut attr) {
+  void doShowAttrEditor(ModelSchema schema, NodeAttribut attr) {
+    if (schema.currentAttr == attr && showAttrEditor.value == 300) {
+      showAttrEditor.value = 0;
+    } else {
+      showAttrEditor.value = 300;
+    }
     schema.currentAttr = attr;
     // ignore: invalid_use_of_protected_member
     keyAttrEditor.currentState?.setState(() {});
-    showAttrEditor.value = 300;
   }
 }

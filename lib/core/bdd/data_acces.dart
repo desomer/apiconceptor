@@ -3,10 +3,11 @@ import 'dart:core';
 
 import 'package:diff_match_patch/diff_match_patch.dart';
 import 'package:flutter/foundation.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/editor/code_editor.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/main.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:supabase/supabase.dart';
 
 DataAcces bddStorage = DataAcces();
@@ -63,13 +64,18 @@ class DataAcces {
   Map<String, CacheValue> local = {};
   Map<String, OnEvent> doEventListner = {};
 
-  Future<dynamic> _getFromSupabase(ModelSchemaDetail model, String id) async {
+  Future<dynamic> _getFromModelSupabase(
+    ModelSchema model,
+    String id,
+    ModelVersion? version,
+  ) async {
     if (id.startsWith('json/')) {
       print("load prop from bdd $id");
       var queryattr = supabase
           .from('attributs')
           .select('*')
-          .eq('company_id', getCompanyId)
+          .eq('version', version?.version ?? '1')
+          .eq('company_id', currentCompany.companyId)
           .eq('schema_id', id.substring(5));
       var ret2 = await queryattr;
       if (ret2.isNotEmpty) {
@@ -91,8 +97,9 @@ class DataAcces {
       var query = supabase
           .from('models')
           .select('json')
-          .eq('compagny_id', getCompanyId)
-          .eq('model_id', id);
+          .eq('compagny_id', currentCompany.companyId)
+          .eq('model_id', id)
+          .eq('version', version?.version ?? '1');
 
       var ret = await query;
       if (ret.isNotEmpty) {
@@ -103,85 +110,115 @@ class DataAcces {
     return null;
   }
 
-  String get getCompanyId => 'test';
-
-  dynamic getItemSync(String id, int delay) {
+  dynamic getItemSync({
+    required String id,
+    required int delay,
+    required ModelVersion? version,
+  }) {
     if (delay == -1) {
-      if (local[id] != null) {
-        return local[id]!.value;
+      String cacheId = getCacheId(id, version);
+      if (local[cacheId] != null) {
+        return local[cacheId]!.value;
       }
     }
     return null;
   }
 
-  dynamic getItem(ModelSchemaDetail model, String id, int delay) {
+  dynamic getItem({
+    required ModelSchema model,
+    required String id,
+    required ModelVersion? version,
+    required int delay,
+  }) {
     if (delay == -1) {
-      if (local[id] != null) {
-        return local[id]!.value;
+      String cacheId = getCacheId(id, version);
+      if (local[cacheId] != null) {
+        return local[cacheId]!.value;
       }
     }
-    return _getItemAsync(model, id);
+    return _getItemAsync(model: model, id: id, version: version);
   }
 
-  Future<dynamic> _getItemAsync(ModelSchemaDetail model, String id) async {
-    var ret = await _getFromSupabase(model, id);
-    _setCache(id, ret);
+  Future<dynamic> _getItemAsync({
+    required ModelSchema model,
+    required String id,
+    required ModelVersion? version,
+  }) async {
+    var ret = await _getFromModelSupabase(model, id, version);
+    String cacheId = getCacheId(id, version);
+    _setCache(cacheId, ret);
     return ret;
+  }
+
+  String getCacheId(String id, ModelVersion? version) {
+    return '$id/${version?.version ?? '1'}';
   }
 
   void saveYAML({
     required String type,
-    required ModelSchemaDetail model,
+    required ModelSchema model,
     dynamic value,
   }) async {
-    if (local[model.id] != null) {
-      var l = local[model.id]!.value;
+    ModelVersion? version = model.currentVersion;
+    String cacheId = getCacheId(model.id, version);
+    if (local[cacheId] != null) {
+      var l = local[cacheId]!.value;
       if (type == 'YAML') {
-        computeSendYamlChangeEvent({'old': l, 'value': value, 'id': model.id})
+        computeSendYamlChangeEvent({
+          'old': l,
+          'value': value,
+          'id': model.id,
+          'version': version?.version ?? '1',
+        })
         //compute(computeSendEvent, {'old': l, 'value': value, 'id': model.id});
         .then(_sendMessage);
       }
     }
-    setYaml(model, value);
+    setYaml(model, value, version);
   }
 
-  void dispatchChangeProp(
-    ModelSchemaDetail model,
+  void dispatchChangeProperties(
+    ModelSchema model,
     dynamic patch,
     TextConfig textConfig,
+    String version,
   ) {
     var element = patch['payload'];
-    var info = model.mapInfoByJsonPath[element['path']] ?? AttributInfo();
-    info.masterID = element['attr_id'];
-    info.path = element['path'];
-    info.properties = element['prop'];
-    info.action = element['state'];
-    model.modelProperties[info.path] = info.properties;
-    model.mapInfoByJsonPath[info.path] = info;
-    info.cacheRowWidget = null;
-    info.numUpdate++;
-    // ignore: invalid_use_of_protected_member
-    textConfig.treeJsonState.setState(() {});
+    if (model.getVersionId() == element['version']) {
+      var info = model.mapInfoByJsonPath[element['path']] ?? AttributInfo();
+      info.masterID = element['attr_id'];
+      info.path = element['path'];
+      info.properties = element['prop'];
+      info.action = element['state'];
+      model.modelProperties[info.path] = info.properties;
+      model.mapInfoByJsonPath[info.path] = info;
+      info.cacheRowWidget = null;
+      info.numUpdate++;
+      // ignore: invalid_use_of_protected_member
+      textConfig.treeJsonState.setState(() {});
+    }
   }
 
-  dynamic dispatchChangeYAML({
+  dynamic dispatchChangeYaml({
     required String id,
     dynamic patch,
     dynamic value,
+    required String version,
   }) {
+    String cacheId = '$id/$version';
     if (value == patch['old']) {
-      local[id]!.value = patch['new'];
-      return local[id]!.value;
+      local[cacheId]!.value = patch['new'];
+      return local[cacheId]!.value;
     } else {
       List<Patch> patchDest = patchFromText(patch['patch']);
       DiffMatchPatch dmp = DiffMatchPatch();
       var result = dmp.patch_apply(patchDest, value);
-      local[id]!.value = result.first;
-      return local[id]!.value;
+      local[cacheId]!.value = result.first;
+      return local[cacheId]!.value;
     }
   }
 
-  void prepareSaveModel(ModelSchemaDetail model) async {
+  void prepareSaveModel(ModelSchema model) async {
     var saveAttrDelete = [...model.notUseAttributInfo];
     var saveAttr = [...model.useAttributInfo];
 
@@ -190,11 +227,11 @@ class DataAcces {
         attr.action = 'D';
 
         var payload = {
-          'company_id': getCompanyId,
+          'company_id': currentCompany.companyId,
           'namespace': 'main',
           'category': model.type.name,
           'schema_id': model.id,
-          'version': '1',
+          'version': model.getVersionId(),
           'attr_id': attr.masterID,
           'path': attr.path,
           'prop': attr.properties,
@@ -203,6 +240,7 @@ class DataAcces {
 
         var save = SaveEvent(
           model: model,
+          version: model.currentVersion,
           id: '${model.id};${attr.masterID}',
           table: 'attributs',
           data: payload,
@@ -219,11 +257,11 @@ class DataAcces {
         attr.action = 'R';
 
         var payload = {
-          'company_id': getCompanyId,
+          'company_id': currentCompany.companyId,
           'namespace': 'main',
           'category': model.type.name,
           'schema_id': model.id,
-          'version': '1',
+          'version': model.getVersionId(),
           'attr_id': attr.masterID,
           'path': attr.path,
           'prop': attr.properties,
@@ -232,6 +270,7 @@ class DataAcces {
 
         var save = SaveEvent(
           model: model,
+          version: model.currentVersion,
           id: '${model.id};${attr.masterID}',
           table: 'attributs',
           data: payload,
@@ -244,7 +283,7 @@ class DataAcces {
     }
   }
 
-  FutureOr<Null> _sendMessage(payload) async {
+  FutureOr<Null> _sendMessage(dynamic payload) async {
     try {
       print('send by ${payload['id']}'); // event $payload
       //final res =
@@ -264,44 +303,86 @@ class DataAcces {
     }
   }
 
+  Future<List<ModelVersion>> getAllVersion(ModelSchema model) async {
+    var id = model.id;
+    print("load version from bdd $id");
+    var queryattr = supabase
+        .from('versions')
+        .select('*')
+        .eq('company_id', currentCompany.companyId)
+        .eq('model_id', id);
+    var ret2 = await queryattr;
+    var listVersion = <ModelVersion>[];
+    if (ret2.isNotEmpty) {
+      print('ret');
+      for (var element in ret2) {
+        ModelVersion version = ModelVersion(
+          id: id,
+          version: element['version'],
+          data: element['json'],
+        );
+        listVersion.add(version);
+      }
+      listVersion.sort();
+    }
+    model.versions = listVersion;
+    return listVersion;
+  }
+
+  Future<void> addVersion(ModelSchema model, ModelVersion version) async {
+    SaveEvent event = SaveEvent(
+      version: version,
+      model: model,
+      id: '',
+      table: 'versions',
+      data: {
+        'company_id': currentCompany.companyId,
+        'model_id': model.id,
+        'version': version.version,
+        'json': version.data,
+      },
+    );
+    return await _setSupabase(event);
+  }
+
   Future<void> _setSupabase(SaveEvent event) async {
     await supabase.from(event.table).upsert([event.data]);
   }
 
-  void setYaml(ModelSchemaDetail model, dynamic value) async {
-    _setCache(model.id, value);
-    await _set(model, value);
+  void setYaml(ModelSchema model, dynamic value, ModelVersion? version) async {
+    String cacheId = getCacheId(model.id, version);
+    _setCache(cacheId, value);
+    await _set(model, value, version);
   }
 
-  Future _set(ModelSchemaDetail model, dynamic value) async {
+  Future _set(ModelSchema model, dynamic value, ModelVersion? version) async {
     print("save models yaml ${model.id}");
+
     var save = SaveEvent(
       model: model,
+      version: version,
       id: '${model.id};',
       table: 'models',
       data: {
-        'compagny_id': getCompanyId,
+        'compagny_id': currentCompany.companyId,
         // 'namespace': 'main',
         'model_id': model.id,
-        //'version': '1',
+        'version': version?.version ?? '1',
         'json': value,
       },
     );
 
     storeManager.add(save);
-    // await supabase.from('models').upsert([
-    //   {'compagny_id': getCompanyId, 'model_id': id, 'json': value},
-    // ]);
   }
 
   void _setCache(String id, dynamic value) {
     if (value == null) {
       if (id.startsWith('json/')) {
-        value = {};
+        value = <String, dynamic>{};
       } else {
         value = '';
       }
-      print(id);
+      print('setcache $id');
     }
 
     if (local[id] != null) {

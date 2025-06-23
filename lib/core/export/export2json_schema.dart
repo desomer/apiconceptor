@@ -1,6 +1,6 @@
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/main.dart';
 
 class Export2JsonSchema<T extends Map<String, dynamic>>
@@ -9,11 +9,11 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   Map<String, NodeJson> ref = {};
 
   @override
-  void onInit(ModelSchemaDetail model) {
+  void onInit(ModelSchema model) {
     json = {
       "\$schema": "https://json-schema.org/draft/2020-12/schema",
-      "\$id": model.name,
-      "title": model.name,
+      "\$id": model.headerName,
+      "title": model.headerName,
       "description":
           currentCompany.currentModelSel?.info.properties?['description'] ?? '',
       "type": "object",
@@ -23,7 +23,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   }
 
   @override
-  void onReady(ModelSchemaDetail model) {
+  void onReady(ModelSchema model) {
     var def = {};
     json['\$def'] = def;
     for (var element in ref.entries) {
@@ -42,9 +42,12 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   NodeJson doArrayOfObject(String name, NodeAttribut node) {
     var prop = {...node.info.properties ?? {}};
     prop.remove(constMasterID);
-    prop.remove('required');   
+    prop.remove('required');
     Map<String, dynamic> child = {'type': 'array', ...prop};
-    Map<String, dynamic> items = {'type': 'object'};
+    Map<String, dynamic> items = {
+      'type': 'object',
+      "additionalProperties": false,
+    };
     child['items'] = items;
     node.addChildOn = "items";
     node.addInAttr = "properties";
@@ -52,10 +55,45 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   }
 
   @override
-  NodeJson doArrayWithAnyOf(String name, NodeAttribut node) {
-    var prop = {...node.info.properties ?? {}};    
+  NodeJson doArrayOfType(String name, String type, NodeAttribut node) {
+    var prop = {...node.info.properties ?? {}};
     prop.remove(constMasterID);
-    prop.remove('required');       
+    prop.remove('required');
+    Map<String, dynamic> child = {'type': 'array', ...prop};
+    if (node.child.firstOrNull?.info.name == constType) {
+      // ajoute le type et ses properties
+      child['items'] = {'type': type, ...getProp(node.child.first)};
+      node.addChildOn = "items";
+    } else if (node.child.firstOrNull?.info.name == constRefOn) {
+      // ajoute le type et ses properties
+      String refName = node.info.isRef!;
+      child['items'] = {'\$ref': '#/\$def/$refName'};
+      node.addChildOn = "items";
+      ref[refName] = NodeJson(
+        name: name,
+        value: {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {},
+        },
+      );
+      return NodeJson(name: name, value: child)
+        ..parentOfChild = ref[refName]!.value;
+    } else {
+      Map<String, dynamic> items = {'type': type};
+      child['items'] = items;
+    }
+
+    //
+    //node.addInAttr = "properties";
+    return NodeJson(name: name, value: child);
+  }
+
+  @override
+  NodeJson doArrayWithAnyOf(String name, NodeAttribut node) {
+    var prop = {...node.info.properties ?? {}};
+    prop.remove(constMasterID);
+    prop.remove('required');
     Map<String, dynamic> child = {'type': 'array', ...prop};
     child['items'] = {};
     node.addInAttr = ''; // ajoute le anyOf à la racine
@@ -120,6 +158,16 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   @override
   NodeJson doAttr(String name, String type, NodeAttribut node) {
     node.addInAttr = "properties";
+    if (name == constType) {
+      //pas d'ajout des type de tableau
+      return NodeJson(name: '', value: '')..add = false;
+    }
+    Map<String, dynamic> prop = getProp(node);
+    Map<String, dynamic> child = {'type': type, ...prop};
+    return NodeJson(name: name, value: child);
+  }
+
+  Map<String, dynamic> getProp(NodeAttribut node) {
     var prop = {...node.info.properties ?? {}};
     prop.remove(constMasterID);
     prop.remove('required');
@@ -129,13 +177,17 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       );
       prop['enum'] = enumer;
     }
-    Map<String, dynamic> child = {'type': type, ...prop};
-    return NodeJson(name: name, value: child);
+    // if (node.info.properties?['format'] != null)
+    // {
+    //   prop['\$schema'] = 'https://json-schema.org/draft/2020-12/schema';
+    // }
+
+    return prop;
   }
 }
 
 class ExportJsonSchema2clipboard {
-  Future<void> doExport(ModelSchemaDetail model) async {
+  Future<void> doExport(ModelSchema model) async {
     // var export = Export2JsonSchema()..browse(model, false);
 
     // Clipboard.setData(

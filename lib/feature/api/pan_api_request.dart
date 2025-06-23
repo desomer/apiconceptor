@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/yaml.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/editor/cell_prop_editor.dart';
-import 'package:jsonschema/editor/code_editor.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/feature/pan_attribut_editor.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
@@ -22,7 +22,7 @@ class PanRequestApi extends StatelessWidget with WidgetModelHelper {
   final GlobalKey keyApiYamlEditor = GlobalKey();
   final GlobalKey keyApiTreeEditor = GlobalKey();
   final GlobalKey keyAttrEditor = GlobalKey();
-  final ModelSchemaDetail? request;
+  final ModelSchema? request;
 
   State? rowSelected;
 
@@ -59,7 +59,7 @@ class PanRequestApi extends StatelessWidget with WidgetModelHelper {
       listTabCont: [
         SplitView(
           primaryWidth: 350,
-          childs: [_getYamlParam(), _getTreeEditor()],
+          children: [_getYamlParam(), _getTreeEditor()],
         ),
         _getInfoForm(),
         Container(),
@@ -91,7 +91,7 @@ class PanRequestApi extends StatelessWidget with WidgetModelHelper {
     return Row(
       children: [
         Expanded(
-          child: JsonEditor(
+          child: JsonListEditor(
             key: keyApiTreeEditor,
             config:
                 JsonTreeConfig(
@@ -121,7 +121,7 @@ class PanRequestApi extends StatelessWidget with WidgetModelHelper {
     );
   }
 
-  Widget _getRowsAttrInfo(NodeAttribut attr, ModelSchemaDetail schema) {
+  Widget _getRowsAttrInfo(NodeAttribut attr, ModelSchema schema) {
     if (attr.info.type == 'root' || attr.level < 2) {
       return Container(height: rowHeight);
     }
@@ -204,10 +204,14 @@ class PanRequestApi extends StatelessWidget with WidgetModelHelper {
     );
   }
 
-  void doShowAttrEditor(ModelSchemaDetail schema, NodeAttribut attr) {
+  void doShowAttrEditor(ModelSchema schema, NodeAttribut attr) {
+    if (schema.currentAttr == attr && showAttrEditor.value == 300) {
+      showAttrEditor.value = 0;
+    } else {
+      showAttrEditor.value = 300;
+    }
     schema.currentAttr = attr;
     // ignore: invalid_use_of_protected_member
     keyAttrEditor.currentState?.setState(() {});
-    showAttrEditor.value = 300;
   }
 }

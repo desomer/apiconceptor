@@ -18,6 +18,8 @@ class _HoverableCardState extends State<HoverableCard> {
 
   @override
   Widget build(BuildContext context) {
+  //  if (true) return widget.child;
+
     return MouseRegion(
       onEnter: (context) => setState(() => _isHovered = true),
       onExit: (context) => setState(() => _isHovered = false),

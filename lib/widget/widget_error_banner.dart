@@ -32,18 +32,50 @@ class _WidgetErrorBannerState extends State<WidgetErrorBanner> {
         return isError
             ? SizedBox(
               width: double.infinity,
-              child: IntrinsicHeight(
-                child: Card(
-                  color: Colors.red,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 15),
-                    child: Text(value),
+              child: Card(
+                color: Colors.red,
+                child: getDoubleScroll(
+                  IntrinsicWidth(
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 15),
+                        child: SelectableText(value),
+                      ),
+                    ),
                   ),
                 ),
               ),
             )
             : Container();
       },
+    );
+  }
+
+  final ScrollController _horizontal = ScrollController(),
+      _vertical = ScrollController();
+
+  Widget getDoubleScroll(Widget child) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: 200, minHeight: 100),
+      child: Scrollbar(
+        controller: _vertical,
+        thumbVisibility: true,
+        trackVisibility: true,
+        child: Scrollbar(
+          controller: _horizontal,
+          thumbVisibility: true,
+          trackVisibility: true,
+          notificationPredicate: (notif) => notif.depth == 1,
+          child: SingleChildScrollView(
+            controller: _vertical,
+            child: SingleChildScrollView(
+              controller: _horizontal,
+              scrollDirection: Axis.horizontal,
+              child: child,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
@@ -8,7 +8,7 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 // ignore: must_be_immutable
 class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
   WidgetModelLink({super.key, required this.listModel});
-  final ModelSchemaDetail listModel;
+  final ModelSchema listModel;
 
   final GlobalKey keyListModelInfo = GlobalKey();
 
@@ -26,7 +26,9 @@ class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
               listModel.changeSelected(node);
               print('tap ${node.hashCode}');
               if (node.info.type == 'model') {
-                (listModel.lastJsonBrowser as JsonBrowserWidget).reloadAll(node);
+                (listModel.lastJsonBrowser as JsonBrowserWidget).reloadAll(
+                  node,
+                );
               }
               return true;
             },
@@ -37,15 +39,14 @@ class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
     var modelSelector = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: JsonEditor(key: keyListModelInfo, config: config)),
+        Expanded(child: JsonListEditor(key: keyListModelInfo, config: config)),
       ],
     );
 
     return modelSelector;
   }
 
-
-  Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchemaDetail schema) {
+  Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchema schema) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }
@@ -59,10 +60,7 @@ class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
           height: 25,
           child: FittedBox(
             fit: BoxFit.fill,
-            child: ModelSwitch(
-              schema: schema,
-              attr: attr,
-            ),
+            child: ModelSwitch(schema: schema, attr: attr),
           ),
         ),
       );
@@ -77,13 +75,9 @@ class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
 }
 
 class ModelSwitch extends StatefulWidget {
-  const ModelSwitch({
-    super.key,
-    required this.attr,
-    required this.schema,
-  });
+  const ModelSwitch({super.key, required this.attr, required this.schema});
   final NodeAttribut attr;
-  final ModelSchemaDetail schema;
+  final ModelSchema schema;
 
   @override
   State<ModelSwitch> createState() => _ModelSwitchState();
@@ -104,7 +98,9 @@ class _ModelSwitchState extends State<ModelSwitch> {
         setState(() {
           widget.schema.changeSelected(widget.attr);
           if (widget.attr.info.type == 'model') {
-            (widget.schema.lastJsonBrowser as JsonBrowserWidget).reloadAll(widget.attr);
+            (widget.schema.lastJsonBrowser as JsonBrowserWidget).reloadAll(
+              widget.attr,
+            );
           }
         });
       },

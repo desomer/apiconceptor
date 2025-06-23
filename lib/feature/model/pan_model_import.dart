@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/editor/code_editor.dart';
-import 'package:jsonschema/import/json2schema_yaml.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/feature/model/pan_model_link.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
@@ -18,7 +19,7 @@ class PanModelImport extends StatelessWidget {
 
   Widget _getImportTab(
     JsonToSchemaYaml import,
-    ModelSchemaDetail model,
+    ModelSchema model,
     BuildContext ctx,
   ) {
     return WidgetTab(
@@ -56,7 +57,7 @@ class PanModelImport extends StatelessWidget {
     );
   }
 
-  Widget _getAttrSelector(ModelSchemaDetail model) {
+  Widget _getAttrSelector(ModelSchema model) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -70,9 +71,9 @@ class PanModelImport extends StatelessWidget {
   Widget build(BuildContext context) {
     JsonToSchemaYaml import = JsonToSchemaYaml();
 
-    ModelSchemaDetail model = ModelSchemaDetail(
+    ModelSchema model = ModelSchema(
       type: YamlType.selector,
-      name: 'Select Models',
+      headerName: 'Select Models',
       id: 'model',
       infoManager: currentCompany.listModel.infoManager,
     );
@@ -119,7 +120,7 @@ class PanModelImport extends StatelessWidget {
     );
   }
 
-  void doImportFromModel(ModelSchemaDetail model) {
+  void doImportFromModel(ModelSchema model) {
     print(model.lastBrowser?.selectedPath);
     for (var sel in model.lastBrowser?.selectedPath ?? {}) {
       var info = model.mapInfoByJsonPath[sel];

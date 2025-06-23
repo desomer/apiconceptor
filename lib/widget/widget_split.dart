@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:multi_split_view/multi_split_view.dart';
 
 class SplitView extends StatefulWidget {
-  const SplitView({super.key, required this.childs, required this.primaryWidth});
-  final List<Widget> childs;
+  const SplitView({
+    super.key,
+    required this.children,
+    required this.primaryWidth,
+  });
+  final List<Widget> children;
   final double primaryWidth;
 
   @override
@@ -33,7 +37,7 @@ class SplitViewState extends State<SplitView> {
       axis: Axis.horizontal,
       controller: _controller,
       builder: (BuildContext context, Area area) {
-        return widget.childs[area.data as int];
+        return widget.children[area.data as int];
       },
     );
 

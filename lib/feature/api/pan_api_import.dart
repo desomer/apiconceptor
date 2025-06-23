@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/markdown.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/editor/code_editor.dart';
-import 'package:jsonschema/import/url2api.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/core/import/url2api.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
@@ -13,11 +14,7 @@ class PanAPIImport extends StatelessWidget {
 
   late TabController tabImport;
 
-  Widget _getImportTab(
-    Url2Api import,
-    ModelSchemaDetail model,
-    BuildContext ctx,
-  ) {
+  Widget _getImportTab(Url2Api import, ModelSchema model, BuildContext ctx) {
     return WidgetTab(
       onInitController: (TabController tab) {
         tabImport = tab;
@@ -45,7 +42,7 @@ class PanAPIImport extends StatelessWidget {
     );
   }
 
-  Widget _getAttrSelector(ModelSchemaDetail model) {
+  Widget _getAttrSelector(ModelSchema model) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -59,9 +56,9 @@ class PanAPIImport extends StatelessWidget {
   Widget build(BuildContext context) {
     Url2Api import = Url2Api();
 
-    ModelSchemaDetail model = ModelSchemaDetail(
+    ModelSchema model = ModelSchema(
       type: YamlType.selector,
-      name: 'Select Models',
+      headerName: 'Select Models',
       id: 'model',
       infoManager: currentCompany.listModel.infoManager,
     );
@@ -95,12 +92,25 @@ class PanAPIImport extends StatelessWidget {
               var modelSchemaDetail = currentCompany.listAPI;
               modelSchemaDetail.modelYaml =
                   import.doImportJSON(modelSchemaDetail).yaml.toString();
-              // ignore: invalid_use_of_protected_member
-              stateApi.keyListAPIYaml.currentState?.setState(() {});
-              // ignore: invalid_use_of_protected_member
-              stateApi.keyListAPIInfo.currentState?.setState(() {});
+
+              stateApi.repaintListAPI();
 
               modelSchemaDetail.doChangeYaml(null, true, 'import');
+
+              // WidgetsBinding.instance.addPostFrameCallback((_) {
+              //   var newModel =
+              //       modelSchemaDetail
+              //           .mapInfoByJsonPath['root>$domainKey>$nameKey'];
+              //   var id = newModel!.masterID!;
+              //   var aModel = ModelSchemaDetail(
+              //     type: YamlType.model,
+              //     infoManager: InfoManagerModel(typeMD: TypeMD.model),
+              //     name: nameKey,
+              //     id: id,
+              //   );
+              //   aModel.modelYaml = yaml;
+              //   aModel.doChangeYaml(null, true, 'import');
+              // });
             } else if (tabImport.index == 1) {
               //doImportFromModel(model);
             }

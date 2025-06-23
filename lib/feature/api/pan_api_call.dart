@@ -6,16 +6,20 @@ import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/caller_api.dart';
-import 'package:jsonschema/editor/code_editor.dart';
-import 'package:jsonschema/export/export2json.dart';
-import 'package:jsonschema/export/export2json_schema.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/core/export/export2json_fake.dart';
+import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_response_status.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_param_array.dart';
+import 'package:jsonschema/widget_state/state_api.dart';
 
 import '../../widget_state/widget_md_doc.dart';
+
+GlobalKey keyResquestParam = GlobalKey();
 
 class WidgetApiCall extends StatefulWidget {
   const WidgetApiCall({super.key, required this.apiCallInfo});
@@ -31,7 +35,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
   JsonSchema? jsonValidator;
   JsonSchema? jsonValidatorResponse;
   APIResponse? aResponse;
-  GlobalKey keyResponseStatus = GlobalKey();
+
   bool callInProgress = false;
 
   Widget getBtnExecuteCall() {
@@ -43,14 +47,14 @@ class WidgetApiCallState extends State<WidgetApiCall> {
         callInProgress = true;
         errorParseResponse.value = '';
         jsonValidatorResponse = null;
-        keyResponseStatus.currentState?.setState(() {});
+        stateApi.keyResponseStatus.currentState?.setState(() {});
         textConfig.doRebind(); // vide la responce
         final cancelToken = CancelToken();
         //await CallerApi().callGraph();
         // await Future.delayed(Duration(seconds: 3));
         aResponse = await CallerApi().call(widget.apiCallInfo, cancelToken);
         callInProgress = false;
-        keyResponseStatus.currentState?.setState(() {});
+        stateApi.keyResponseStatus.currentState?.setState(() {});
 
         if (aResponse!.toDisplay == null &&
             aResponse!.reponse?.data is String) {
@@ -69,18 +73,14 @@ class WidgetApiCallState extends State<WidgetApiCall> {
           validateSchema(
             source: widget.apiCallInfo.currentAPIResponse!,
             subNode: code,
-            validateFct: (ModelSchemaDetail aSchema) {
+            validateFct: (ModelSchema aSchema) {
               initResponseValidator(aSchema);
               if (jsonValidatorResponse != null) {
-                ValidationResults r = jsonValidatorResponse!.validate(
+                validateJsonSchemas(
+                  jsonValidatorResponse!,
                   aResponse!.reponse?.data,
+                  errorParseResponse,
                 );
-                // print("r= $r");
-                if (r.isValid) {
-                  errorParseResponse.value = '_VALID_';
-                } else {
-                  errorParseResponse.value = r.toString();
-                }
               }
             },
           );
@@ -111,7 +111,10 @@ class WidgetApiCallState extends State<WidgetApiCall> {
                   children: [getBtnSave(), Spacer(), getBtnExecuteCall()],
                 ),
               ),
-              WidgetArray(apiCallInfo: widget.apiCallInfo),
+              WidgetArrayParam(
+                key: keyResquestParam,
+                apiCallInfo: widget.apiCallInfo,
+              ),
               Flexible(child: getBody()),
             ],
           ),
@@ -131,11 +134,11 @@ class WidgetApiCallState extends State<WidgetApiCall> {
                 child: Row(
                   children: [
                     PanApiResponseStatus(
-                      key: keyResponseStatus,
+                      key: stateApi.keyResponseStatus,
                       stateResponse: this,
                     ),
                     Spacer(),
-                    Chip(label: Text('Compliant')),
+                    Chip(label: Text('Compliant report')),
                   ],
                 ),
               ),
@@ -149,7 +152,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
 
   ValueNotifier<String> errorParseBody = ValueNotifier('');
 
-  void initBodyValidator(ModelSchemaDetail aSchema) {
+  void initBodyValidator(ModelSchema aSchema) {
     var export = Export2JsonSchema()..browse(aSchema, false);
     try {
       if ((export.json['properties'] as Map).isNotEmpty) {
@@ -161,12 +164,12 @@ class WidgetApiCallState extends State<WidgetApiCall> {
     }
   }
 
-  ModelSchemaDetail? validateSchema({
-    required ModelSchemaDetail source,
+  ModelSchema? validateSchema({
+    required ModelSchema source,
     required dynamic subNode,
     required Function validateFct,
   }) {
-    ModelSchemaDetail? aSchema;
+    ModelSchema? aSchema;
     var mapModelYaml = source.mapModelYaml[subNode];
     if (mapModelYaml != null) {
       if (mapModelYaml is String) {
@@ -177,9 +180,9 @@ class WidgetApiCallState extends State<WidgetApiCall> {
 
           if (listModel != null) {
             String masterIdRef = listModel.first.properties?[constMasterID];
-            aSchema = ModelSchemaDetail(
+            aSchema = ModelSchema(
               type: YamlType.model,
-              name: refName,
+              headerName: refName,
               id: masterIdRef,
               infoManager: InfoManagerModel(typeMD: TypeMD.model),
             );
@@ -190,10 +193,10 @@ class WidgetApiCallState extends State<WidgetApiCall> {
           }
         }
       } else {
-        aSchema = ModelSchemaDetail(
+        aSchema = ModelSchema(
           id: '?',
           type: YamlType.model,
-          name: '',
+          headerName: '',
           infoManager: InfoManagerModel(typeMD: TypeMD.model),
         )..autoSave = false;
 
@@ -205,10 +208,10 @@ class WidgetApiCallState extends State<WidgetApiCall> {
   }
 
   Widget getBody() {
-    ModelSchemaDetail? aSchema = validateSchema(
+    ModelSchema? aSchema = validateSchema(
       source: widget.apiCallInfo.currentAPI!,
       subNode: 'body',
-      validateFct: (ModelSchemaDetail aSchema) {
+      validateFct: (ModelSchema aSchema) {
         initBodyValidator(aSchema);
       },
     );
@@ -225,16 +228,21 @@ class WidgetApiCallState extends State<WidgetApiCall> {
             widget.apiCallInfo.body = jsonDecode(json);
           }
           if (jsonValidator != null && widget.apiCallInfo.body != null) {
-            widget.apiCallInfo.body = widget.apiCallInfo.body;
-            ValidationResults r = jsonValidator!.validate(
+            // widget.apiCallInfo.body = widget.apiCallInfo.body;
+            validateJsonSchemas(
+              jsonValidator!,
               widget.apiCallInfo.body,
+              config.notifError,
             );
-            // print("r= $r");
-            if (r.isValid) {
-              config.notifError.value = '_VALID_';
-            } else {
-              config.notifError.value = r.toString();
-            }
+            // ValidationResults r = jsonValidator!.validate(
+            //   widget.apiCallInfo.body,
+            // );
+            // // print("r= $r");
+            // if (r.isValid) {
+            //   config.notifError.value = '_VALID_';
+            // } else {
+            //   config.notifError.value = r.toString();
+            // }
           } else {
             config.notifError.value = '';
           }
@@ -266,7 +274,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
     );
   }
 
-  void initResponseValidator(ModelSchemaDetail aSchema) {
+  void initResponseValidator(ModelSchema aSchema) {
     var export = Export2JsonSchema()..browse(aSchema, false);
     try {
       if ((export.json['properties'] as Map).isNotEmpty) {

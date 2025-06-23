@@ -1,3 +1,4 @@
+import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:yaml/yaml.dart';
 
 class YamlDoc {
@@ -207,4 +208,25 @@ class YamlLine {
   dynamic value;
   YamlLine? parent;
   List<YamlLine>? child;
+}
+
+class ParseYamlManager {
+  Map? mapYaml;
+
+  bool doParseYaml(String yaml, TextConfig? config) {
+    bool parseOk = false;
+    try {
+      var r = loadYaml(yaml);
+      if (r is Map) {
+        mapYaml = r;
+        parseOk = true;
+        config?.notifError.value = '';
+      } else {
+        config?.notifError.value = 'no valid';
+      }
+    } catch (e) {
+      config?.notifError.value = '$e';
+    }
+    return parseOk;
+  }
 }

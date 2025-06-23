@@ -13,11 +13,23 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
 
     NodeJson toAdd;
 
-    if (type == 'array') {
+    if (type.endsWith('[]')) {
       name = name.substring(0, name.length - 2);
+      var typeArray = node.info.type.substring(0, node.info.type.length - 2);
+      toAdd = doArrayOfType(name, typeArray, node);
+    } else if (type == 'array') {
+      if (name.endsWith('[]')) {
+        name = name.substring(0, name.length - 2);
+      }
       if (node.child.length == 1 &&
           node.child.first.info.name == constTypeAnyof) {
         toAdd = doArrayWithAnyOf(name, node);
+      } else if (node.child.length == 1 &&
+          node.child.first.info.name == constType) {
+        toAdd = doArrayOfType(name, node.child.first.info.type, node);
+      } else if (node.child.length == 1 &&
+          node.child.first.info.name == constRefOn) {
+        toAdd = doArrayOfType(name, node.child.first.info.type, node);
       } else {
         toAdd = doArrayOfObject(name, node);
       }
@@ -59,6 +71,8 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
   }
 
   NodeJson doArrayOfObject(String name, NodeAttribut node);
+
+  NodeJson doArrayOfType(String name, String type, NodeAttribut node);
 
   NodeJson doArrayWithAnyOf(String name, NodeAttribut node);
 

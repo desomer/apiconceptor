@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/editor/cell_prop_editor.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 enum TypeAttr { model, api }
@@ -21,7 +21,7 @@ class APIProperties extends StatefulWidget {
 class _APIPropertiesState extends State<APIProperties> {
   @override
   Widget build(BuildContext context) {
-    ModelSchemaDetail? model = widget.getModel();
+    ModelSchema? model = widget.getModel();
 
     return WidgetTab(
       listTab: [Tab(text: 'Info')],
@@ -30,7 +30,7 @@ class _APIPropertiesState extends State<APIProperties> {
     );
   }
 
-  Widget getInfoForm(ModelSchemaDetail? model) {
+  Widget getInfoForm(ModelSchema? model) {
     if (model?.currentAttr == null) {
       return Container();
     }

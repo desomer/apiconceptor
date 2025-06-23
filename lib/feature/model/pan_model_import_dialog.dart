@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
-import 'package:jsonschema/editor/cell_prop_editor.dart';
-import 'package:jsonschema/editor/code_editor.dart';
-import 'package:jsonschema/import/json2schema_yaml.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -103,10 +104,10 @@ class PanModelImportDialog extends StatelessWidget {
                     modelSchemaDetail
                         .mapInfoByJsonPath['root>$domainKey>$nameKey'];
                 var id = newModel!.masterID!;
-                var aModel = ModelSchemaDetail(
+                var aModel = ModelSchema(
                   type: YamlType.model,
                   infoManager: InfoManagerModel(typeMD: TypeMD.model),
-                  name: nameKey,
+                  headerName: nameKey,
                   id: id,
                 );
                 aModel.modelYaml = yaml;

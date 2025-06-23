@@ -1,11 +1,14 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/core/repaint_manager.dart';
+import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_request.dart';
 import 'package:jsonschema/feature/api/pan_api_response.dart';
+import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
@@ -19,20 +22,32 @@ class PanApiEditor extends StatefulWidget {
 }
 
 class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
-  late APICallInfo apiCallInfo;
+  AttributInfo? displayedSchema;
 
   @override
   Widget build(BuildContext context) {
+    repaintManager.addTag(ChangeTag.apichange, "_PanApiEditorState", this, () {
+      return displayedSchema != currentCompany.listAPI.currentAttr?.info;
+    });
+
     if (currentCompany.listAPI.currentAttr == null) return Container();
+    displayedSchema = currentCompany.listAPI.currentAttr!.info;
 
     initNewApi();
 
-    apiCallInfo = getPathWidget(currentCompany.listAPI.currentAttr!);
+    currentCompany.apiCallInfo = getPathWidget(
+      currentCompany.listAPI.currentAttr!,
+    );
 
     return WidgetTab(
       onInitController: (TabController tab) {
         stateApi.tabSubApi = tab;
-      },      
+        tab.addListener(() {
+          if (tab.index == 2) {
+            repaintManager.doRepaint(ChangeTag.apiparam);
+          }
+        });
+      },
       listTab: [
         Tab(text: 'Documentation'),
         Tab(text: 'Call examples'),
@@ -41,14 +56,24 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
       listTabCont: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [apiCallInfo.widgetPath!, Expanded(child: getApiTab())],
+          children: [
+            currentCompany.apiCallInfo!.widgetPath!,
+            Expanded(child: getApiTab()),
+          ],
         ),
         getExampleTab(),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            apiCallInfo.widgetPath!,
-            Expanded(child: WidgetApiCall(apiCallInfo: apiCallInfo)),
+            currentCompany.apiCallInfo!.widgetPath!,
+            Expanded(
+              child: KeepAliveWidget(
+                child: WidgetApiCall(
+                  key: ObjectKey(currentCompany.listAPI.currentAttr),
+                  apiCallInfo: currentCompany.apiCallInfo!,
+                ),
+              ),
+            ),
           ],
         ),
       ],
@@ -104,7 +129,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
 
     stateApi.urlParam.clear();
     while (nd != null) {
-      var n = nd.yamlNode.key.toString();
+      var n = getKeyFromYaml(nd.yamlNode.key).toString();
       if (nd.info.properties?['\$server'] != null) {
         var url = nd.info.properties?['\$server'];
         ret.url = '$url${ret.url}';
@@ -167,7 +192,10 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
   Widget getApiTab() {
     return WidgetTab(
       listTab: [Tab(text: 'Request'), Tab(text: 'Responses')],
-      listTabCont: [PanRequestApi(request: currentCompany.currentAPIResquest), PanResponseApi(response: currentCompany.currentAPIResponse)],
+      listTabCont: [
+        PanRequestApi(request: currentCompany.currentAPIResquest),
+        PanResponseApi(response: currentCompany.currentAPIResponse),
+      ],
       heightTab: 40,
     );
   }
@@ -371,8 +399,8 @@ class InfoManagerAPIParam extends InfoManager with WidgetModelHelper {
 
 class APICallInfo {
   final String httpOperation;
-  final ModelSchemaDetail? currentAPI;
-  final ModelSchemaDetail? currentAPIResponse;
+  final ModelSchema? currentAPI;
+  final ModelSchema? currentAPIResponse;
   String url = '';
   List<String> urlParamId = [];
   List<APIParamInfo> params = [];
@@ -380,7 +408,11 @@ class APICallInfo {
   dynamic body;
   String bodyStr = '';
 
-  APICallInfo({required this.currentAPI, required this.currentAPIResponse, required this.httpOperation});
+  APICallInfo({
+    required this.currentAPI,
+    required this.currentAPIResponse,
+    required this.httpOperation,
+  });
 }
 
 class APIParamInfo {

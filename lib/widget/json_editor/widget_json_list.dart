@@ -1,8 +1,8 @@
 import 'package:animated_tree_view/node/node.dart';
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
@@ -30,8 +30,7 @@ class JsonListState extends State<JsonList> {
 
   @override
   Widget build(BuildContext context) {
-    var modelSchemaDetail =
-        (widget.modelInfo.config.getModel() as ModelSchemaDetail);
+    var modelSchemaDetail = (widget.modelInfo.config.getModel() as ModelSchema);
     Future prop = modelSchemaDetail.getProperties();
 
     return FutureBuilder(
@@ -75,7 +74,7 @@ class JsonListState extends State<JsonList> {
     return -1;
   }
 
-  Widget _getSyncWidget(ModelSchemaDetail modelSchemaDetail) {
+  Widget _getSyncWidget(ModelSchema modelSchemaDetail) {
     _generateModel(modelSchemaDetail);
 
     return SingleChildScrollView(
@@ -85,47 +84,60 @@ class JsonListState extends State<JsonList> {
     );
   }
 
+  double aWidth = 0;
+
   Widget getList(double width) {
+    aWidth = width;
+
     return AnimatedList(
       key: _listKey,
       primary: false,
       shrinkWrap: true,
       initialItemCount: _list.length,
       itemBuilder: (context, index, Animation<double> animation) {
-        var dataAttr = _list[index];
-        var valueKey = ValueKey(dataAttr.info.masterID);
+        // listener() {
+        //   if (animation.isCompleted || animation.isDismissed) ;
+        //   {
+        //     animation.removeListener(listener);
+        //     print('end $index');
+        //   }
+        // }
 
-        if (dataAttr.info.cacheRowWidget != null) {
-          return SizeTransition(
-            key: valueKey,
-            fixedCrossAxisSizeFactor: 1,
-            sizeFactor: animation,
-            child: Container(
-              color: dataAttr.bgcolor,
-              width: width - 10,
-              height: rowHeight,
-              child: dataAttr.info.cacheRowWidget!,
-            ),
-          );
-        }
-        return SizeTransition(
-          key: valueKey,
-          sizeFactor: animation,
-          child: Container(
-            color: dataAttr.bgcolor,
-            width: width - 10,
-            height: rowHeight,
-            child: _getJsonRowCached(
-              dataAttr,
-              widget.modelInfo.config.getModel(),
-            ),
-          ),
-        );
+        //animation.addListener(listener);
+
+        var dataAttr = _list[index];
+
+        return getRow(dataAttr, animation, width);
       },
     );
   }
 
-  Widget _getJsonRowCached(NodeAttribut attr, ModelSchemaDetail schema) {
+  SizeTransition getRow(
+    NodeAttribut dataAttr,
+    Animation<double> animation,
+    double width,
+  ) {
+    Widget cell;
+    if (dataAttr.info.cacheRowWidget != null) {
+      cell = dataAttr.info.cacheRowWidget!;
+    } else {
+      cell = _getJsonRowCached(dataAttr, widget.modelInfo.config.getModel());
+    }
+    return SizeTransition(
+      key: ValueKey(dataAttr.info.masterID),
+      sizeFactor: animation,
+      child: Container(
+        clipBehavior: Clip.none,
+        color: dataAttr.bgcolor,
+        width: width - 10,
+        margin: EdgeInsets.fromLTRB(0, 0, 10, 0),
+        height: rowHeight,
+        child: cell, // animation.isAnimating ? Text('data') : cell,
+      ),
+    );
+  }
+
+  Widget _getJsonRowCached(NodeAttribut attr, ModelSchema schema) {
     attr.info.cacheRowWidget = WidgetJsonRow(
       node: attr,
       schema: schema,
@@ -171,7 +183,7 @@ class JsonListState extends State<JsonList> {
     }
   }
 
-  void _generateModel(ModelSchemaDetail modelSchemaDetail) {
+  void _generateModel(ModelSchema modelSchemaDetail) {
     List<TreeNode<NodeAttribut>> result = [];
     List<TreeNode<NodeAttribut>> all = [];
     var tree2 =
@@ -183,12 +195,22 @@ class JsonListState extends State<JsonList> {
       if (all.isEmpty && modelSchemaDetail.modelYaml.isNotEmpty) {
         print("************* not change on error ****************");
       } else {
-        modelSchemaDetail.reorgProperties(all);
+        modelSchemaDetail.reorgPropertiesPath(all);
         print(
           'nb list rows = ${result.length} prop = ${modelSchemaDetail.useAttributInfo.length}',
         );
       }
     }
+
+    // for (var i = 0; i < math.min(all.length, 40); i++) {
+    //   // precache 40 ligne
+    //   if (all[i].data!.info.cacheRowWidget == null) {
+    //     all[i].data!.info.cacheRowWidget = _getJsonRowCached(
+    //       all[i].data!,
+    //       modelSchemaDetail,
+    //     );
+    //   }
+    // }
 
     int ci = 0;
     var remove = <NodeAttribut>[];
@@ -207,7 +229,7 @@ class JsonListState extends State<JsonList> {
           i = idx;
           ci++;
         } else {
-          // recherche dans le tree (si fermeture de node) 
+          // recherche dans le tree (si fermeture de node)
           int idx = findInfoOnTree(result, _list._items[i]);
           if (idx > -1) {
             ci = idx + 1;
@@ -246,13 +268,24 @@ class JsonListState extends State<JsonList> {
     BuildContext context,
     Animation<double> animation,
   ) {
-    return SizeTransition(
-      sizeFactor: animation,
-      child: widget.modelInfo.config.getRow(
-        item,
-        widget.modelInfo.config.getModel(),
-      ),
-    );
+    return getRow(item, animation, aWidth);
+
+    // SizeTransition(
+    //   sizeFactor: animation,
+    //   fixedCrossAxisSizeFactor: 0.5,
+    //   // child: Container(
+    //   //       clipBehavior: Clip.none,
+    //   //       color: item.bgcolor,
+    //   //       width: aWidth - 10,
+    //   //       height: rowHeight)
+    //   // animation.isAnimating
+    //   //     ? Text('close') : Text('close')
+    //   child: WidgetJsonRow(
+    //     fctGetRow: widget.modelInfo.config.getRow,
+    //     node: item,
+    //     schema: widget.modelInfo.config.getModel(),
+    //   ),
+    // );
   }
 
   // Insert the "next item" into the list model.

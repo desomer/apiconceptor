@@ -1,13 +1,17 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
+String getKeyFromYaml(dynamic key) {
+  return (key is Map ? '{${key.keys.first}}' : key).toString();
+}
+
 class BrowseAPI<T extends Map> extends JsonBrowser<T> {
   @override
-  void doTree(ModelSchemaDetail model, NodeAttribut aNodeAttribut, r) {
+  void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
     if (aNodeAttribut.info.type == 'ope') {
       initVersion(aNodeAttribut, r);
     }
@@ -35,7 +39,7 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
-      typeStr = node.level==1 ? 'Service' :  'Path';
+      typeStr = node.level == 1 ? 'Service' : 'Path';
     } else if (type is List) {
       // if (name.endsWith('[]')) {
       //   typeStr = 'Array';
@@ -95,7 +99,10 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
     var isRoot = node.isRoot;
     var type = node.data!.info.type;
     var isPath = type == 'Path';
-    String name = node.data!.yamlNode.key.toString().toLowerCase();
+
+    var key = getKeyFromYaml(node.data!.yamlNode.key);
+
+    String name = key.toLowerCase();
 
     if (isRoot && name == 'api') {
       icon = Icon(Icons.business);
@@ -156,7 +163,7 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
     }
     while (nd != null) {
       var sep = '';
-      var n = nd.yamlNode.key.toString().toLowerCase();
+      var n = getKeyFromYaml(nd.yamlNode.key).toLowerCase();
       var isServer = nd.info.properties?['\$server'];
       if (isServer != null) {
         n = '$isServer';

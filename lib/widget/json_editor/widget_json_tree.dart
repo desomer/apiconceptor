@@ -1,14 +1,15 @@
 import 'package:animated_tree_view/animated_tree_view.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/editor/code_editor.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_list.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
+import 'package:jsonschema/widget/widget_split.dart';
 
 class JsonBrowserWidget extends JsonBrowser {
-  late JsonEditorState state;
+  late JsonListEditorState state;
   late TreeNode<NodeAttribut> rootTree;
 
   double maxSize = 300;
@@ -112,28 +113,30 @@ class JsonBrowserWidget extends JsonBrowser {
   }
 
   @override
-  void onRowChange(ModelSchemaDetail model, NodeAttribut node) {
-    super.onRowChange(model, node);
+  void onRowTypeChange(ModelSchema model, NodeAttribut node) {
+    super.onRowTypeChange(model, node);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // var attr = state.keyJsonList.currentState?.getNodeAttribut(node);
       // attr?.repaint();
       if (node.info.cacheRowWidget is WidgetJsonRow) {
+        (node.info.cacheRowWidget as WidgetJsonRow).cache = null;
         (node.info.cacheRowWidget as WidgetJsonRow).node.repaint();
       }
     });
+    node.info.cacheHeaderWidget = null;
   }
 }
 
 //******************************************************************************/
-class JsonEditor extends StatefulWidget {
-  const JsonEditor({super.key, required this.config});
+class JsonListEditor extends StatefulWidget {
+  const JsonListEditor({super.key, required this.config});
   final JsonTreeConfig config;
 
   @override
-  State<JsonEditor> createState() => JsonEditorState();
+  State<JsonListEditor> createState() => JsonListEditorState();
 }
 
-class JsonEditorState extends State<JsonEditor>
+class JsonListEditorState extends State<JsonListEditor>
     with SingleTickerProviderStateMixin {
   late AutoScrollController _scrollController;
 
@@ -146,10 +149,14 @@ class JsonEditorState extends State<JsonEditor>
     _scrollController = AutoScrollController();
     modelInfo.scrollController = ScrollController();
     _scrollController.addListener(() {
-      modelInfo.scrollController!.jumpTo(_scrollController.offset);
+      if (modelInfo.scrollController!.offset != _scrollController.offset) {
+        modelInfo.scrollController!.jumpTo(_scrollController.offset);
+      }
     });
     modelInfo.scrollController!.addListener(() {
-      _scrollController.jumpTo(modelInfo.scrollController!.offset);
+      if (modelInfo.scrollController!.offset != _scrollController.offset) {
+        _scrollController.jumpTo(modelInfo.scrollController!.offset);
+      }
     });
     super.initState();
   }
@@ -165,7 +172,7 @@ class JsonEditorState extends State<JsonEditor>
   Widget build(BuildContext context) {
     stateOpenFactor?.stateList = this;
 
-    ModelSchemaDetail? model = (widget.config.getModel() as ModelSchemaDetail?);
+    ModelSchema? model = (widget.config.getModel() as ModelSchema?);
     if (model == null) return Text('Select model first');
 
     widget.config.textConfig?.treeJsonState = this;
@@ -179,8 +186,8 @@ class JsonEditorState extends State<JsonEditor>
     return getWidget(model, browser, jsonBrowserWidget);
   }
 
-  Row getWidget(
-    ModelSchemaDetail model,
+  Widget getWidget(
+    ModelSchema model,
     ModelBrower browser,
     JsonBrowserWidget jsonBrowserWidget,
   ) {
@@ -191,25 +198,35 @@ class JsonEditorState extends State<JsonEditor>
     print(browser.nbLevelMax);
 
     modelInfo.config = widget.config;
-    return Row(
+    return SplitView(
+      primaryWidth: jsonBrowserWidget.maxSize,
       children: [
-        SizedBox(
-          width:
-              jsonBrowserWidget
-                  .maxSize, //widget.config.widthTree + (browser.nbLevelMax * 20),
-          child: getTree(model, jsonBrowserWidget.rootTree),
-        ),
-        Expanded(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: JsonList(key: keyJsonList, modelInfo: modelInfo),
-          ),
+        getTree(model, jsonBrowserWidget.rootTree),
+        Align(
+          alignment: Alignment.topCenter,
+          child: JsonList(key: keyJsonList, modelInfo: modelInfo),
         ),
       ],
     );
+    // return Row(
+    //   children: [
+    //     SizedBox(
+    //       width:
+    //           jsonBrowserWidget
+    //               .maxSize, //widget.config.widthTree + (browser.nbLevelMax * 20),
+    //       child: getTree(model, jsonBrowserWidget.rootTree),
+    //     ),
+    //     Expanded(
+    //       child: Align(
+    //         alignment: Alignment.topCenter,
+    //         child: JsonList(key: keyJsonList, modelInfo: modelInfo),
+    //       ),
+    //     ),
+    //   ],
+    // );
   }
 
-  Widget getTree(ModelSchemaDetail aModel, TreeNode<NodeAttribut> tree) {
+  Widget getTree(ModelSchema aModel, TreeNode<NodeAttribut> tree) {
     return TreeView.simple(
       expansionBehavior: ExpansionBehavior.none,
       key: keyTree,
@@ -221,7 +238,7 @@ class JsonEditorState extends State<JsonEditor>
           (context, node) => ChevronIndicator.rightDown(
             tree: node,
             color: Colors.blue[700],
-            padding: const EdgeInsets.all(0),
+            padding: const EdgeInsets.fromLTRB(5, 0, 10, 0),
           ),
       indentation: const Indentation(style: IndentStyle.roundJoint),
       onItemTap: (item) {
@@ -230,57 +247,67 @@ class JsonEditorState extends State<JsonEditor>
       onTreeReady: (controller) {
         modelInfo.treeController = controller;
         repaintListView(0, 'onTreeReady');
+        // chargement aprés le scroll du TAB
         Future.delayed(Duration(milliseconds: 500)).then((value) {
-          var delay = doToogleNode(
+          var nbLevelFromTop = doToogleNode(
             0,
             controller.tree,
             0,
             max: openFactor.value.toInt(),
           );
-          repaintListView(delay, 'doToogleNode onTreeReady');
+          repaintListView(nbLevelFromTop, 'doToogleNode onTreeReady');
         });
       },
       builder: (context, node) {
-        return InkWell(
-          key: ObjectKey(node.data),
-          onTap: () {
-            if (widget.config.onTap != null) {
-              var ret = widget.config.onTap!(node.data);
-              if (ret == true) {
-                repaintListView(0, 'onTap');
-              }
-            }
-          },
-
-          onDoubleTap:
-              (!node.isLeaf || widget.config.onDoubleTap != null)
-                  ? () {
-                    if (widget.config.onDoubleTap != null) {
-                      widget.config.onDoubleTap!(node.data);
-                    }
-                    var delay = doToogleNode(
-                      0,
-                      node,
-                      0,
-                      max: openFactor.value.toInt(),
-                    );
-                    repaintListView(delay, 'doToogleNode onDoubleTap');
-                  }
-                  : null,
-          child: Container(
-            color: node.data?.bgcolor,
-            height: rowHeight,
-            child: Row(
-              children: [
-                aModel.infoManager.getAttributHeader(node),
-                Spacer(),
-                getWidgetType(node.data!),
-                SizedBox(width: 40),
-              ],
-            ),
-          ),
-        );
+        if (node.data!.info.cacheHeaderWidget == null ||
+            node.data!.info.cacheHeight != rowHeight) {
+          node.data!.info.cacheHeaderWidget = getRow(node, aModel);
+        }
+        return node.data!.info.cacheHeaderWidget!;
       },
+    );
+  }
+
+  Widget getRow(TreeNode<NodeAttribut> node, ModelSchema aModel) {
+    node.data!.info.cacheHeight = rowHeight;
+    return InkWell(
+      key: ObjectKey(node.data),
+      onTap: () {
+        if (widget.config.onTap != null) {
+          var ret = widget.config.onTap!(node.data);
+          if (ret == true) {
+            repaintListView(0, 'onTap');
+          }
+        }
+      },
+
+      onDoubleTap:
+          (!node.isLeaf || widget.config.onDoubleTap != null)
+              ? () {
+                if (widget.config.onDoubleTap != null) {
+                  widget.config.onDoubleTap!(node.data);
+                }
+                var delay = doToogleNode(
+                  0,
+                  node,
+                  0,
+                  max: openFactor.value.toInt(),
+                );
+                repaintListView(delay, 'doToogleNode onDoubleTap');
+              }
+              : null,
+      child: Container(
+        color: node.data?.bgcolor,
+        height: rowHeight,
+        child: Row(
+          children: [
+            aModel.infoManager.getAttributHeader(node),
+            Spacer(),
+            getWidgetType(node.data!),
+            SizedBox(width: 40),
+          ],
+        ),
+      ),
     );
   }
 

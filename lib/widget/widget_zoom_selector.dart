@@ -54,9 +54,9 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
     );
   }
 
-  JsonEditorState? stateList;
+  JsonListEditorState? stateList;
 
-  void setList(JsonEditorState state) {
+  void setList(JsonListEditorState state) {
     stateList = state;
   }
 }
