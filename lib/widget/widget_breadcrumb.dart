@@ -11,6 +11,13 @@ class BreadCrumbNavigator extends StatefulWidget {
   }
 }
 
+class BreadNode {
+  BreadNode({required this.name});
+  String name;
+  String? tooltip;
+  Function? onTap;
+}
+
 class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator> {
   @override
   Widget build(BuildContext context) {
@@ -46,7 +53,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator> {
   }
 }
 
-enum RouteCmpType { widget, cellidx, layout }
+enum RouteCmpType { widget, layout }
 
 class RouteCmp extends Route {
   RouteCmp({required this.idx, super.settings, required this.type});

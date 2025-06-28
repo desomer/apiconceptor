@@ -286,7 +286,7 @@ class InfoManagerGlossary extends InfoManager {
     var isArray = node.data!.info.type == 'Array';
     String name = node.data?.yamlNode.key;
 
-    if (isRoot && name == 'Business model') {
+    if (isRoot) {
       icon = Icon(Icons.business);
     } else if (isRoot) {
       icon = Icon(Icons.lan_outlined);

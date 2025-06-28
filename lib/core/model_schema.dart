@@ -27,14 +27,12 @@ class ModelVersion implements Comparable<ModelVersion> {
 enum TypeModelBreadcrumb {
   businessmodel,
   component,
-  request
-  ; 
-  
-  static String valString(TypeModelBreadcrumb v) {
-     return ['Business model', 'Component', 'Request'][v.index];
-  }
-} 
+  request;
 
+  static String valString(TypeModelBreadcrumb v) {
+    return ['Business models', 'Components', 'Requests & Responses'][v.index];
+  }
+}
 
 class ModelSchema {
   ModelSchema({
@@ -83,6 +81,20 @@ class ModelSchema {
   List<ModelVersion>? versions;
   ModelVersion? currentVersion;
 
+  List<AttributInfo>? getModelByRefName(String refName) {
+    List<AttributInfo>? aModelByName;
+    if (type == YamlType.api) {
+      aModelByName = currentCompany.listRequest.mapInfoByName[refName];
+      aModelByName ??= currentCompany.listComponent.mapInfoByName[refName];
+      aModelByName ??= currentCompany.listModel.mapInfoByName[refName];
+    } else {
+      aModelByName = currentCompany.listComponent.mapInfoByName[refName];
+      aModelByName ??= currentCompany.listModel.mapInfoByName[refName];
+      aModelByName ??= currentCompany.listRequest.mapInfoByName[refName];
+    }
+    return aModelByName;
+  }
+
   void clear() {
     isLoadProp = false;
 
@@ -110,7 +122,12 @@ class ModelSchema {
 
   void initBreadcrumb() {
     var version = currentCompany.currentModel!.getVersionText();
-    stateModel.path = [TypeModelBreadcrumb.valString(typeBreabcrumb!), ...modelPath, version, "draft"];
+    stateModel.path = [
+      TypeModelBreadcrumb.valString(typeBreabcrumb!),
+      ...modelPath,
+      version,
+      "draft",
+    ];
     // ignore: invalid_use_of_protected_member
     stateModel.keyBreadcrumb.currentState?.setState(() {});
   }
@@ -199,36 +216,80 @@ class ModelSchema {
     return v;
   }
 
-  String getHistoryMarkdown() {
+  String getHistory({required bool toMarkdown}) {
     StringBuffer ret = StringBuffer();
-    ret.writeln('## Change log\n version 0.0.1\n');
+    if (toMarkdown) {
+      ret.writeln('## Change log\n version 0.0.1\n');
+    }
     int i = 0;
+    List removeHisto = [];
     for (var h in histories) {
       var ope = h['ope'];
       dynamic from = h['from'];
       if (ope == ChangeOpe.change.name) {
         if (from == null || from.toString() == '') {
-          ret.writeln(
-            '* ${h['path']}   **SET**  ${h['to']}        *BY ${h['by']} **AT** ${h['date']}*',
-          );
+          if (toMarkdown) {
+            ret.writeln(
+              '* ${h['path']}   **SET**  ${h['to']}        *BY ${h['by']} **AT** ${h['date']}*',
+            );
+          }
         } else {
-          ret.writeln(
-            '* ${h['path']}   **FROM**  $from  **TO**  ${h['to']}       *BY ${h['by']} **AT** ${h['date']}*',
-          );
+          bool add = true;
+          if (i > 0) {
+            var last = histories[i - 1];
+            if (last['path'] == h['path'] &&
+                last['ope'] == h['ope'] &&
+                last['from'] == h['to']) {
+              // revient à la meme valeur
+              add = false;
+            }
+          }
+          if (i < histories.length - 1) {
+            var next = histories[i + 1];
+            if (next['path'] == h['path'] &&
+                next['ope'] == h['ope'] &&
+                next['to'] == h['from']) {
+              // revient à la meme valeur
+              add = false;
+            }
+          }
+
+          if (add && from != h['to']) {
+            if (toMarkdown) {
+              ret.writeln(
+                '* ${h['path']}   **FROM**  $from  **TO**  ${h['to']}       *BY ${h['by']} **AT** ${h['date']}*',
+              );
+            }
+          } else {
+            removeHisto.add(h);
+          }
         }
       } else if (ope == ChangeOpe.clear.name) {
-        ret.writeln(
-          '* ${h['path']}   **CLEAR**  $from        *BY ${h['by']} **AT** ${h['date']}*',
-        );
+        if (toMarkdown) {
+          ret.writeln(
+            '* ${h['path']}   **CLEAR**  $from        *BY ${h['by']} **AT** ${h['date']}*',
+          );
+        }
       } else if (ope == ChangeOpe.path.name || ope == ChangeOpe.rename.name) {
-        // String masterID = h['path'].toString();
-        ret.writeln(
-          '* **${ope.toString().toUpperCase()} FROM**  $from  **TO**  ${h['to']}       *BY ${h['by']} **AT** ${h['date']}*',
-        );
+        if (from != h['to']) {
+          if (toMarkdown) {
+            ret.writeln(
+              '* **${ope.toString().toUpperCase()} FROM**  $from  **TO**  ${h['to']}       *BY ${h['by']} **AT** ${h['date']}*',
+            );
+          }
+        } else {
+          removeHisto.add(h);
+        }
       } else if (ope == ChangeOpe.move.name) {
-        ret.writeln(
-          '* ${h['path']}  **${ope.toString().toUpperCase()} FROM**  $from  **TO**  ${h['to']}        *BY ${h['by']} **AT** ${h['date']}*',
-        );
+        if (from != h['to']) {
+          if (toMarkdown) {
+            ret.writeln(
+              '* ${h['path']}  **${ope.toString().toUpperCase()} FROM**  $from  **TO**  ${h['to']}        *BY ${h['by']} **AT** ${h['date']}*',
+            );
+          }
+        } else {
+          removeHisto.add(h);
+        }
       } else {
         // add et remove
         bool add = true;
@@ -248,13 +309,24 @@ class ModelSchema {
           }
         }
         if (add) {
-          ret.writeln(
-            '* **${ope.toString().toUpperCase()}  ${h['from']}**     *BY ${h['by']} **AT** ${h['date']}*',
-          );
+          if (toMarkdown) {
+            ret.writeln(
+              '* **${ope.toString().toUpperCase()}  ${h['from']}**     *BY ${h['by']} **AT** ${h['date']}*',
+            );
+          }
+        } else {
+          removeHisto.add(h);
         }
       }
       i++;
     }
+    if (removeHisto.isNotEmpty) {
+      for (var element in removeHisto) {
+        histories.remove(element);
+      }
+      return getHistory(toMarkdown: toMarkdown);
+    }
+
     return ret.toString();
   }
 
@@ -432,20 +504,74 @@ class ModelSchema {
       }
 
       if (action == 'event' || action == 'import') {
-        if (config?.textYamlState.mounted ?? false) {
+        if (config?.textYamlState?.mounted ?? false) {
           // ignore: invalid_use_of_protected_member
-          config?.textYamlState.setState(() {});
+          config?.textYamlState!.setState(() {});
         }
-        if (config?.treeJsonState.mounted ?? false) {
+        if (config?.treeJsonState?.mounted ?? false) {
           // ignore: invalid_use_of_protected_member
-          config?.treeJsonState.setState(() {});
+          config?.treeJsonState?.setState(() {});
         }
       } else {
-        if (config?.treeJsonState.mounted ?? false) {
+        if (config?.treeJsonState?.mounted ?? false) {
           // ignore: invalid_use_of_protected_member
-          config?.treeJsonState.setState(() {});
+          config?.treeJsonState?.setState(() {});
         }
       }
     }
+  }
+
+  AttributInfo? getNearestAttributNotUsed(
+    List<AttributInfo>? list,
+    BrowserAttrInfo bi,
+    bool isDependency,
+  ) {
+    if (list == null) return null;
+
+    if (isDependency) {
+      List<AttributInfo>? nllist = [...list];
+      for (var element in nllist) {
+        var idx = notUseAttributInfo.indexOf(element);
+        if (idx == -1) {
+          list.remove(element);
+        }
+      }
+      if (list.isEmpty) return null;
+    }
+
+    int maxNear = 0;
+    AttributInfo? sel;
+    if (list.length == 1) {
+      if (list.first.date < bi.browser.time) {
+        if (isDependency) notUseAttributInfo.remove(list.first);
+        return list.first;
+      } else {
+        return null;
+      }
+    }
+
+    for (var n in list) {
+      if (n.date == bi.browser.time) continue; // déja affecter
+      String pathA = bi.aJsonPath;
+      String pathB = n.path;
+      if (pathA == pathB) {
+        return n;
+      }
+      int nb = pathA.length;
+      if (pathB.length < nb) {
+        nb = pathB.length;
+      }
+      int nbNear = 0;
+      for (var i = 0; i < nb; i++) {
+        if (pathA[i] != pathB[i]) break;
+        nbNear++;
+      }
+      if (nbNear > maxNear) {
+        maxNear = nbNear;
+        sel = n;
+      }
+    }
+    if (isDependency && sel != null) notUseAttributInfo.remove(sel);
+    return sel;
   }
 }

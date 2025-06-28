@@ -5,14 +5,16 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_action_hub.dart';
+import 'package:jsonschema/feature/code/pan_code_generator.dart';
 import 'package:jsonschema/feature/glossary/pan_glossary.dart';
+import 'package:jsonschema/feature/graph/pan_service_info.dart';
+import 'package:jsonschema/feature/graph/pan_spring_graph.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/feature/model/pan_model_action_hub.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/model/pan_model_main.dart';
-import 'package:jsonschema/widget/hexagon/hexagon_widget.dart';
 import 'package:jsonschema/widget/login/login_screen.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_global_zoom.dart';
@@ -51,18 +53,21 @@ void main() async {
   currentCompany.listModel = await loadSchema(
     TypeMD.listmodel,
     'model',
-    'Business model',
+    'Business models',
+    TypeModelBreadcrumb.businessmodel,
   );
   currentCompany.listComponent = await loadSchema(
     TypeMD.listmodel,
     'component',
-    'Business component',
+    'Business components',
+    TypeModelBreadcrumb.component,
   );
 
   currentCompany.listRequest = await loadSchema(
     TypeMD.listmodel,
     'request',
-    'Request',
+    'Requests & responses',
+    TypeModelBreadcrumb.request,
   );
 
   currentCompany.listModel.dependency = [
@@ -126,14 +131,19 @@ Future<ModelSchema> loadGlossary(String id, String name) async {
   return schema;
 }
 
-Future<ModelSchema> loadSchema(TypeMD type, String id, String name) async {
+Future<ModelSchema> loadSchema(
+  TypeMD type,
+  String id,
+  String name,
+  TypeModelBreadcrumb typeBread,
+) async {
   var m = ModelSchema(
     type: YamlType.allModel,
     headerName: name,
     id: id,
     infoManager: InfoManagerModel(typeMD: type),
   );
-
+  m.typeBreabcrumb = typeBread;
   if (withBdd) {
     try {
       await m.loadYamlAndProperties(cache: false);
@@ -161,6 +171,7 @@ ValueNotifier<String> notifierErrorYaml = ValueNotifier<String>('');
 final ValueNotifier<double> openFactor = ValueNotifier(10);
 WidgetZoomSelectorState? stateOpenFactor;
 final ValueNotifier<int> zoom = ValueNotifier(100);
+int timezoom = 0;
 
 GlobalKey keyAPIEditor = GlobalKey();
 
@@ -220,7 +231,7 @@ class ApiArchitecEditor extends StatelessWidget {
                   SizedBox(width: 5),
                   SizedBox(height: 20, child: WidgetGlobalZoom()),
                   Spacer(),
-                  Text('API Architect by Desomer G. V0.1.1'),
+                  Text('API Architect by Desomer G. V0.1.3'),
                 ],
               ),
               body: SafeArea(
@@ -255,6 +266,10 @@ class ApiArchitecEditor extends StatelessWidget {
                       label: Text('Gen. Doc'),
                     ),
                     NavigationRailDestination(
+                      icon: Icon(Icons.construction),
+                      label: Text('Json tools'),
+                    ),
+                    NavigationRailDestination(
                       icon: Icon(Icons.check),
                       label: Badge.count(
                         count: 3,
@@ -281,6 +296,7 @@ class ApiArchitecEditor extends StatelessWidget {
                     Container(),
                     getCodeTab(),
                     Container(),
+                    //PanJsonBeautifier(),
                     Container(),
                   ],
                   heightTab: 20,
@@ -410,180 +426,20 @@ class ApiArchitecEditor extends StatelessWidget {
   Widget getCodeTab() {
     return WidgetTab(
       listTab: [Tab(text: 'DTO'), Tab(text: 'SQL'), Tab(text: 'Mongo')],
-      listTabCont: [Container(), Container(), Container()],
+      listTabCont: [PanCodeGenerator(), Container(), Container()],
       heightTab: 40,
     );
   }
 
   Widget getServiceTab(BuildContext context) {
-    var view = Stack(
-      children: [
-        Positioned(
-          top: 100,
-          left: 150,
-          child: HexagonWidget.pointy(
-            width: 200,
-            color: Colors.lightBlue,
-            elevation: 8,
-            child: Text('Business Domain'),
-          ),
-        ),
-
-        Positioned(
-          top: 100,
-          left: 100,
-          child: Card(
-            elevation: 8,
-            color: Colors.blue,
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('Application'),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 60,
-          left: 40,
-          child: Card(
-            elevation: 8,
-            color: Colors.grey,
-            child: Padding(
-              padding: EdgeInsets.all(15),
-              child: Text('Input API'),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 55,
-          left: 150,
-          child: Card(
-            elevation: 8,
-            color: Colors.yellow,
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('DTO', style: TextStyle(color: Colors.black)),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 150,
-          left: 30,
-          child: Card(
-            elevation: 8,
-            color: Colors.grey,
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('Input events'),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 130,
-          left: 320,
-          child: Card(
-            elevation: 8,
-            color: Colors.orange,
-            child: Padding(padding: EdgeInsets.all(20), child: Text('MODELS')),
-          ),
-        ),
-
-        Positioned(
-          top: 100,
-          left: 380,
-          child: Card(
-            elevation: 8,
-            color: Colors.grey,
-            child: Padding(
-              padding: EdgeInsets.all(10),
-              child: Text('Life cycle'),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 180,
-          left: 350,
-          child: Card(
-            elevation: 8,
-            color: Colors.grey,
-            child: Padding(
-              padding: EdgeInsets.all(10),
-              child: Text('Mapping rule'),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 290,
-          left: 260,
-          child: Card(
-            elevation: 8,
-            color: Colors.blue,
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('Infrastructure'),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 340,
-          left: 350,
-          child: Card(
-            elevation: 8,
-            color: Colors.grey,
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('Output events'),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 270,
-          left: 370,
-          child: Card(
-            elevation: 8,
-            color: Colors.grey,
-            child: Padding(
-              padding: EdgeInsets.all(10),
-              child: Text('Output API'),
-            ),
-          ),
-        ),
-
-        Positioned(
-          top: 340,
-          left: 200,
-          child: Card(
-            elevation: 8,
-            color: Colors.yellow,
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text(
-                'ORM ENTITIES',
-                style: TextStyle(color: Colors.black),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          top: 400,
-          left: 200,
-          child: Card(
-            elevation: 8,
-            color: Colors.grey,
-            child: Padding(padding: EdgeInsets.all(20), child: Text('BDD')),
-          ),
-        ),
+    return WidgetTab(
+      listTab: [Tab(text: 'Graph'), Tab(text: 'Statistic')],
+      listTabCont: [
+        PanModelGraph(),
+        Column(children: [Expanded(child: PanServiceInfo())]),
       ],
+      heightTab: 40,
     );
-
-    return Column(children: [Expanded(child: view)]);
   }
 
   Future<void> _dialogBuilder(BuildContext context) {
@@ -594,7 +450,7 @@ class ApiArchitecEditor extends StatelessWidget {
           contentPadding: EdgeInsets.all(5),
           content: SizedBox(
             width: 500,
-            height: 700,
+            height: 600,
             child: LoginScreen(email: 'toto@titit.com'),
           ),
         );

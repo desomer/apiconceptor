@@ -22,7 +22,7 @@ class LoginScreen extends StatelessWidget {
         children: [
           const BackgroundScreen(),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 100),
+            padding: const EdgeInsets.symmetric(vertical: 60),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/main.dart';
 
 class CellEditor extends StatefulWidget {
   const CellEditor({
@@ -88,7 +89,7 @@ class _CellEditorState extends State<CellEditor> {
 
   SizedBox getWidgetModeEdit(TextStyle textStyleLabel) {
     return SizedBox(
-      width: widget.inArray ? 250 : double.infinity,
+      width: widget.inArray ? (250 * (zoom.value / 100))  : double.infinity,
       height: widget.inArray ? 30 : null,
       child: TextField(
         focusNode: focus,
@@ -119,7 +120,7 @@ class _CellEditorState extends State<CellEditor> {
     if (hasValue) {
       return Container(
         padding: const EdgeInsets.fromLTRB(4, 2, 5, 0),
-        width: 250,
+        width: (250 * (zoom.value / 100)),
         height: 30,
         decoration: BoxDecoration(
           border: Border.fromBorderSide(
@@ -139,7 +140,7 @@ class _CellEditorState extends State<CellEditor> {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(4, 2, 5, 0),
-      width: 250,
+      width: (250 * (zoom.value / 100)),
       height: 30,
       decoration: BoxDecoration(
         border: Border.fromBorderSide(BorderSide(color: Colors.grey.shade600)),

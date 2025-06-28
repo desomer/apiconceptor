@@ -48,9 +48,9 @@ class JsonBrowserWidget extends JsonBrowser {
 
   @override
   dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
-    double sizeType = node.info.type.length * 11 * (zoom.value / 100);
+    double sizeType = node.info.type.length * 9 * (zoom.value / 100);
     double size =
-        (node.info.name.length * 11 * (zoom.value / 100)) +
+        (node.info.name.length * 10 * (zoom.value / 100)) +
         (node.level * 40) +
         sizeType;
 

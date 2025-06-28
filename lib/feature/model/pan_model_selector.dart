@@ -9,6 +9,7 @@ import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
+import 'package:jsonschema/widget/widget_version_state.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget_state/widget_md_doc.dart';
 
@@ -88,7 +89,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey(attr.info.numUpdate),
+        key: ValueKey(attr.info.numUpdateForKey),
         acces: ModelAccessorAttr(
           node: attr,
           schema: listModel,
@@ -100,6 +101,8 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     //addWidgetMasterId(attr, row);
 
     if (attr.info.type == 'model') {
+      row.add(SizedBox(width: 10));
+      row.add(WidgetVersionState(margeVertical: 2));
       row.add(
         TextButton.icon(
           onPressed: () async {
@@ -191,7 +194,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     return Container(
       color: Colors.black,
       child: TextEditor(
-        header: "Business models",
+        header: TypeModelBreadcrumb.valString(listModel.typeBreabcrumb!),
         onHelp: (BuildContext ctx) {
           showDialog(
             context: ctx,

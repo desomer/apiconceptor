@@ -193,9 +193,11 @@ class DataAcces {
       model.modelProperties[info.path] = info.properties;
       model.mapInfoByJsonPath[info.path] = info;
       info.cacheRowWidget = null;
-      info.numUpdate++;
-      // ignore: invalid_use_of_protected_member
-      textConfig.treeJsonState.setState(() {});
+      info.numUpdateForKey++;
+      if (textConfig.treeJsonState?.mounted ?? false) {
+        // ignore: invalid_use_of_protected_member
+        textConfig.treeJsonState?.setState(() {});
+      }
     }
   }
 

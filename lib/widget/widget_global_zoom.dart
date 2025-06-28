@@ -26,6 +26,7 @@ class _WidgetGlobalZoomState extends State<WidgetGlobalZoom> {
         if (count < 80 || count > 130) return;
         setState(() {
           zoom.value = count;
+          timezoom = DateTime.now().millisecondsSinceEpoch;
         });
       },
     );

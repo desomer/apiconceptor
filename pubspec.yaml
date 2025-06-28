@@ -54,6 +54,8 @@ dependencies:
   ret: ^0.0.2  # pour regex to fake
   shared_preferences: ^2.5.3
   flutter_secure_storage: ^9.2.4
+  # re_editor: ^0.7.0  
+  # re_highlight: ^0.0.3
 
   flutter:
     sdk: flutter
@@ -64,6 +66,7 @@ dependencies:
 
   flutter_localizations:
     sdk: flutter
+
 
 
 dev_dependencies:
@@ -124,7 +127,7 @@ msix_config:
   display_name: Api Architect
   publisher_display_name: ApiArchitect
   identity_name: apiarchitect
-  msix_version: 1.0.1.1
+  msix_version: 1.0.1.6
   logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
   capabilities: internetClient
   sign_msix: true

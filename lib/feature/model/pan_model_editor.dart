@@ -6,7 +6,7 @@ import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/pan_attribut_editor.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/model/pan_model_change_viewer.dart';
+import 'package:jsonschema/feature/model/pan_model_change_log.dart';
 import 'package:jsonschema/feature/model/pan_model_import.dart';
 import 'package:jsonschema/widget/editor/doc_editor.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
@@ -170,7 +170,7 @@ class _WidgetModelEditorState extends State<WidgetModelEditor>
   Widget _getChangeLogTab() {
     if (currentCompany.currentModel == null) return Container();
 
-    return PanModelChangeViewer(key: keyChangeViewer);
+    return PanModelChangeLog(key: keyChangeViewer);
   }
 
   Widget _getEditorLeftTab(BuildContext ctx) {
@@ -304,7 +304,7 @@ class _WidgetModelEditorState extends State<WidgetModelEditor>
     List<Widget> rowWidget = [SizedBox(width: 10)];
     rowWidget.add(
       CellEditor(
-        key: ValueKey(attr.info.numUpdate),
+        key: ValueKey(attr.info.numUpdateForKey),
         acces: ModelAccessorAttr(
           node: attr,
           schema: currentCompany.currentModel!,

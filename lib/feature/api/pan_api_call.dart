@@ -7,6 +7,7 @@ import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/caller_api.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/api/pan_api_save_param.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
@@ -15,6 +16,7 @@ import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_param_array.dart';
+import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
 
 import '../../widget_state/widget_md_doc.dart';
@@ -35,6 +37,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
   JsonSchema? jsonValidator;
   JsonSchema? jsonValidatorResponse;
   APIResponse? aResponse;
+  dynamic validateSchemaJson;
 
   bool callInProgress = false;
 
@@ -73,8 +76,8 @@ class WidgetApiCallState extends State<WidgetApiCall> {
           validateSchema(
             source: widget.apiCallInfo.currentAPIResponse!,
             subNode: code,
-            validateFct: (ModelSchema aSchema) {
-              initResponseValidator(aSchema);
+            validateFct: (ModelSchema aSchema) async {
+              await initResponseValidator(aSchema);
               if (jsonValidatorResponse != null) {
                 validateJsonSchemas(
                   jsonValidatorResponse!,
@@ -90,16 +93,29 @@ class WidgetApiCallState extends State<WidgetApiCall> {
     );
   }
 
-  Widget getBtnSave() {
+  Widget getBtnSave(BuildContext ctx) {
     return TextButton.icon(
       icon: Icon(Icons.save_alt_rounded),
-      onPressed: () async {},
+      onPressed: () async {
+        var json = widget.apiCallInfo.toJson();
+        showSaveParamDialog(ctx);
+        widget.apiCallInfo.initWithJson(json);
+      },
       label: Text('Save example'),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Future<void> showSaveParamDialog(BuildContext ctx) async {
+    return showDialog<void>(
+      context: ctx,
+      barrierDismissible: true, // user must tap button!
+      builder: (BuildContext context) {
+        return PanSaveParam();
+      },
+    );
+  }
+
+  Widget getLeftPan(BuildContext ctx) {
     return Row(
       children: [
         Flexible(
@@ -108,7 +124,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
               SizedBox(
                 height: 40,
                 child: Row(
-                  children: [getBtnSave(), Spacer(), getBtnExecuteCall()],
+                  children: [getBtnSave(ctx), Spacer(), getBtnExecuteCall()],
                 ),
               ),
               WidgetArrayParam(
@@ -120,40 +136,55 @@ class WidgetApiCallState extends State<WidgetApiCall> {
           ),
         ),
         Container(
-          width: 10,
+          width: 5,
           height: double.infinity,
           decoration: BoxDecoration(
             border: Border.all(width: 1, color: Colors.white),
-          ),
-        ),
-        Flexible(
-          child: Column(
-            children: [
-              SizedBox(
-                height: 40,
-                child: Row(
-                  children: [
-                    PanApiResponseStatus(
-                      key: stateApi.keyResponseStatus,
-                      stateResponse: this,
-                    ),
-                    Spacer(),
-                    Chip(label: Text('Compliant report')),
-                  ],
-                ),
-              ),
-              Expanded(child: getResponse()),
-            ],
           ),
         ),
       ],
     );
   }
 
+  Widget getRightPan() {
+    return Column(
+      children: [
+        SizedBox(
+          height: 40,
+          child: Row(
+            children: [
+              PanApiResponseStatus(
+                key: stateApi.keyResponseStatus,
+                stateResponse: this,
+              ),
+              Spacer(),
+              InkWell(
+                onTap: () {
+                  print(validateSchemaJson);
+                },
+                child: Chip(label: Text('Compliant report')),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: getResponse()),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SplitView(
+      primaryWidth: -1,
+      children: [getLeftPan(context), getRightPan()],
+    );
+  }
+
   ValueNotifier<String> errorParseBody = ValueNotifier('');
 
-  void initBodyValidator(ModelSchema aSchema) {
-    var export = Export2JsonSchema()..browse(aSchema, false);
+  Future<void> initBodyValidator(ModelSchema aSchema) async {
+    var export = Export2JsonSchema();
+    await export.browseSync(aSchema, false, 0);
     try {
       if ((export.json['properties'] as Map).isNotEmpty) {
         jsonValidator = JsonSchema.create(export.json);
@@ -175,11 +206,10 @@ class WidgetApiCallState extends State<WidgetApiCall> {
       if (mapModelYaml is String) {
         if (mapModelYaml.startsWith('\$')) {
           var refName = mapModelYaml.substring(1);
-          var listModel = currentCompany.listComponent.mapInfoByName[refName];
-          listModel ??= currentCompany.listModel.mapInfoByName[refName];
+          var aModelByName = source.getModelByRefName(refName);
 
-          if (listModel != null) {
-            String masterIdRef = listModel.first.properties?[constMasterID];
+          if (aModelByName != null) {
+            String masterIdRef = aModelByName.first.properties?[constMasterID];
             aSchema = ModelSchema(
               type: YamlType.model,
               headerName: refName,
@@ -274,11 +304,13 @@ class WidgetApiCallState extends State<WidgetApiCall> {
     );
   }
 
-  void initResponseValidator(ModelSchema aSchema) {
-    var export = Export2JsonSchema()..browse(aSchema, false);
+  Future<void> initResponseValidator(ModelSchema aSchema) async {
+    var export = Export2JsonSchema();
+    await export.browseSync(aSchema, false, 0);
     try {
       if ((export.json['properties'] as Map).isNotEmpty) {
-        jsonValidatorResponse = JsonSchema.create(export.json);
+        validateSchemaJson = export.json;
+        jsonValidatorResponse = JsonSchema.create(validateSchemaJson);
       }
       errorParseResponse.value = '';
     } catch (e) {

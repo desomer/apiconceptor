@@ -124,7 +124,7 @@ class YamlDoc {
           listRoot.add(allLine[i]);
         }
         searchIndex = _doNode(level + 1, v, path, i);
-        allLine[i].endIndex = searchIndex+1;
+        allLine[i].endIndex = searchIndex + 1;
         if (indexBy?.contains(k) ?? false) {
           addIndex(k, v, allLine[i]);
         }
@@ -217,7 +217,11 @@ class ParseYamlManager {
     bool parseOk = false;
     try {
       var r = loadYaml(yaml);
-      if (r is Map) {
+      if (r == null && yaml.trim()=='') {
+        mapYaml = {};
+        parseOk = true;
+        config?.notifError.value = '';        
+      } else if (r is Map) {
         mapYaml = r;
         parseOk = true;
         config?.notifError.value = '';

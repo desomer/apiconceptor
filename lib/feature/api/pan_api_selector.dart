@@ -19,6 +19,7 @@ import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
+import 'package:jsonschema/widget/widget_version_state.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
 
 // ignore: must_be_immutable
@@ -46,7 +47,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
           bddStorage.setYaml(
             currentCompany.listAPI,
             currentCompany.listAPI.modelYaml,
-            currentCompany.listAPI.currentVersion
+            currentCompany.listAPI.currentVersion,
           );
           // ignore: invalid_use_of_protected_member
           stateApi.keyListAPIInfo.currentState?.setState(() {});
@@ -66,7 +67,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
     );
 
     var model = SplitView(
-      primaryWidth: 400,
+      primaryWidth: 350,
       children: [
         getStructureModel(context),
         Row(
@@ -134,6 +135,8 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
     //addWidgetMasterId(attr, row);
 
     if (attr.info.type == 'ope') {
+      row.add(SizedBox(width: 10));
+      row.add(WidgetVersionState(margeVertical: 2));
       row.add(
         TextButton.icon(
           onPressed: () async {

@@ -85,9 +85,9 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
     return WidgetTab(
       onInitController: (TabController tab) {},
       listTab: [
+        Tab(text: 'Temporary'),
         Tab(text: 'Saved'),
         Tab(text: 'Shared'),
-        Tab(text: 'Temporary'),
         Tab(text: 'History'),
       ],
       listTabCont: [Container(), Container(), Container(), Container()],
@@ -408,6 +408,59 @@ class APICallInfo {
   dynamic body;
   String bodyStr = '';
 
+  dynamic toJson() {
+    Map<String, dynamic> json = {};
+    int pos = 0;
+    for (var element in params) {
+      var type = element.type;
+      Map<String, dynamic>? tj = json[type];
+      if (tj == null) {
+        tj = {};
+        json[type] = tj;
+      }
+      tj[element.name] = {
+        'pos': pos,
+        'send': element.toSend,
+        'value': element.value,
+      };
+      pos++;
+    }
+    if (bodyStr.isNotEmpty) {
+      json['body'] = {'send': true, 'value': bodyStr};
+    }
+    print('$json');
+    return json;
+  }
+
+  void initWithJson(Map<String, dynamic> json) {
+    // params.clear();
+    // bodyStr = '';
+    // body = null;
+    List<APIParamInfo> aParams = [];
+
+    for (var element in json.entries) {
+      var type = element.key;
+      if (type == 'body') {
+        bodyStr = element.value['value'];
+      } else {
+        Map<String, dynamic> listParam = element.value;
+        for (var aParam in listParam.entries) {
+          var apiParamInfo = APIParamInfo(
+            name: aParam.key,
+            type: type,
+            info: null,
+          );
+          apiParamInfo.pos = aParam.value['pos'];
+          apiParamInfo.toSend = aParam.value['send'];
+          apiParamInfo.value = aParam.value['value'];
+          aParams.add(apiParamInfo);
+        }
+      }
+    }
+    aParams.sort();
+    print(aParams);
+  }
+
   APICallInfo({
     required this.currentAPI,
     required this.currentAPIResponse,
@@ -415,7 +468,8 @@ class APICallInfo {
   });
 }
 
-class APIParamInfo {
+class APIParamInfo implements Comparable<APIParamInfo> {
+  int pos = 0;
   bool toSend = true;
   final AttributInfo? info;
   final String type;
@@ -423,4 +477,9 @@ class APIParamInfo {
   dynamic value;
 
   APIParamInfo({required this.type, required this.name, required this.info});
+
+  @override
+  int compareTo(APIParamInfo other) {
+    return pos.compareTo(other.pos);
+  }
 }

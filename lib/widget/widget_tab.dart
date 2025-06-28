@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/main.dart';
 
 // ignore: must_be_immutable
 class WidgetTab extends StatefulWidget {
@@ -64,7 +65,7 @@ class _WidgetTabState extends State<WidgetTab>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints viewportConstraints) {
-        double heightTab = widget.heightTab;
+        double heightTab = widget.heightTab * (zoom.value / 100);
         if (widget.heightContent == true) {
           return Column(
             mainAxisSize: MainAxisSize.min,

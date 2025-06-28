@@ -20,10 +20,14 @@ class SplitViewState extends State<SplitView> {
   @override
   void initState() {
     super.initState();
-    _controller.areas = [
-      Area(data: 0, size: widget.primaryWidth, min: 50, max: 700),
-      Area(data: 1, flex: 1),
-    ];
+    if (widget.primaryWidth == -1) {
+      _controller.areas = [Area(data: 0, flex: 1), Area(data: 1, flex: 1)];
+    } else {
+      _controller.areas = [
+        Area(data: 0, size: widget.primaryWidth, min: 50, max: 700),
+        Area(data: 1, flex: 1),
+      ];
+    }
   }
 
   @override

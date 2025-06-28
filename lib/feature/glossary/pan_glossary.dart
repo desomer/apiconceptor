@@ -30,6 +30,7 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
     schemaGlossary.onChange = (change) {
       NodeAttribut node = change['node'];
       String ope = change['ope'];
+      String path = change['path'];
       String? from = change['from'];
       if (ope == ChangeOpe.rename.name) {
         var sp = from!.split('>');
@@ -39,7 +40,7 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
         currentCompany.glossaryManager.dico.remove(
           node.info.name.toLowerCase(),
         );
-      } else if (ope != ChangeOpe.change.name) {
+      } else if (ope != ChangeOpe.change.name || path.endsWith('.type')) {
         if (autorizedGlossaryType.contains(node.info.type)) {
           currentCompany.glossaryManager.add(node);
         }
@@ -105,7 +106,7 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey(attr.info.numUpdate),
+        key: ValueKey(attr.info.numUpdateForKey),
         acces: ModelAccessorAttr(
           node: attr,
           schema: schemaGlossary,

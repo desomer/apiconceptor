@@ -31,16 +31,22 @@ class WidgetModelMain extends StatelessWidget with WidgetModelHelper {
             typeModel: TypeModelBreadcrumb.component,
           ),
         ),
-        WidgetTab(
-          listTab: [Tab(text: 'Request'), Tab(text: 'Response')],
-          listTabCont: [
-            WidgetModelSelector(
-              listModel: currentCompany.listRequest,
-              typeModel: TypeModelBreadcrumb.request,
-            ),
-            Container(),
-          ],
-          heightTab: 40,
+        // WidgetTab(
+        //   listTab: [Tab(text: 'Request'), Tab(text: 'Response')],
+        //   listTabCont: [
+        //     WidgetModelSelector(
+        //       listModel: currentCompany.listRequest,
+        //       typeModel: TypeModelBreadcrumb.request,
+        //     ),
+        //     Container(),
+        //   ],
+        //   heightTab: 40,
+        // ),
+        KeepAliveWidget(
+          child: WidgetModelSelector(
+            listModel: currentCompany.listRequest,
+            typeModel: TypeModelBreadcrumb.request,
+          ),
         ),
         Container(),
       ],

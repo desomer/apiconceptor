@@ -15,6 +15,20 @@ class JsonBrowser<T> {
   void onReady(ModelSchema model) {}
   void onRowTypeChange(ModelSchema model, NodeAttribut node) {}
 
+  Future<ModelBrower> browseSync(
+    ModelSchema model,
+    bool unknowedMode,
+    int antiloop,
+  ) async {
+    var ret = browse(model, unknowedMode);
+    if (ret.wait != null && antiloop < 20) {
+      //await Future.delayed(Duration(milliseconds: 300));
+      await ret.wait;
+      ret = await browseSync(model, unknowedMode, antiloop++);
+    }
+    return ret;
+  }
+
   ModelBrower browse(ModelSchema model, bool unknowedMode) {
     int time = DateTime.now().millisecondsSinceEpoch;
     ModelBrower browser = ModelBrower()..time = time;
@@ -63,6 +77,7 @@ class JsonBrowser<T> {
       Future.wait(waitAllRef).then((value) {
         onStrutureChanged();
       });
+      browser.wait = Future.wait(waitAllRef);
     }
 
     //List<Future> waitAllAsync = [];
@@ -128,7 +143,7 @@ class JsonBrowser<T> {
           //print('renommage de ${info.path} => ${element.aJsonPath}');
           model.addHistory(
             element.nodeAttribut,
-            info.masterID!,
+            info.masterID ?? info.properties?[constMasterID],
             ChangeOpe.rename,
             info.path,
             element.aJsonPath,
@@ -153,11 +168,11 @@ class JsonBrowser<T> {
   void _doSearchNode(ModelSchema model, BrowserAttrInfo element) {
     // recherche AttributInfo par mon si renommage
     var listName = model.mapInfoByName[element.nodeAttribut.info.name];
-    var info = _getNearestAttributNotUsed(listName, element);
+    var info = model.getNearestAttributNotUsed(listName, element, false);
     if (info == null) {
       for (var dep in model.dependency) {
         var listName = dep.mapInfoByName[element.nodeAttribut.info.name];
-        info = _getNearestAttributNotUsed(listName, element);
+        info = dep.getNearestAttributNotUsed(listName, element, true);
         if (info != null) {
           break;
         }
@@ -332,12 +347,11 @@ class JsonBrowser<T> {
     String refName,
     bool selected,
   ) {
-    var listModel = currentCompany.listComponent.mapInfoByName[refName];
-    listModel ??= currentCompany.listModel.mapInfoByName[refName];
+    List<AttributInfo>? aModelByName = model.getModelByRefName(refName);
 
-    if (listModel != null) {
+    if (aModelByName != null) {
       browserAttrInfo.nodeAttribut.info.isRef = refName;
-      String masterIdRef = listModel.first.properties?[constMasterID];
+      String masterIdRef = aModelByName.first.properties?[constMasterID];
       var modelRef = ModelSchema(
         type: model.type,
         headerName: refName,
@@ -525,46 +539,6 @@ class JsonBrowser<T> {
     }
   }
 
-  AttributInfo? _getNearestAttributNotUsed(
-    List<AttributInfo>? list,
-    BrowserAttrInfo bi,
-  ) {
-    if (list == null) return null;
-
-    int maxNear = 0;
-    AttributInfo? sel;
-    if (list.length == 1) {
-      if (list.first.date < bi.browser.time) {
-        return list.first;
-      } else {
-        return null;
-      }
-    }
-
-    for (var n in list) {
-      if (n.date == bi.browser.time) continue; // déja affecter
-      String pathA = bi.aJsonPath;
-      String pathB = n.path;
-      if (pathA == pathB) {
-        return n;
-      }
-      int nb = pathA.length;
-      if (pathB.length < nb) {
-        nb = pathB.length;
-      }
-      int nbNear = 0;
-      for (var i = 0; i < nb; i++) {
-        if (pathA[i] != pathB[i]) break;
-        nbNear++;
-      }
-      if (nbNear > maxNear) {
-        maxNear = nbNear;
-        sel = n;
-      }
-    }
-    return sel;
-  }
-
   void _reorgInfoByName(int date, ModelSchema model) {
     var toRemoveKey = <String>[];
 
@@ -620,6 +594,7 @@ class ModelBrower {
   List<BrowserAttrInfo> asyncMaster = [];
 
   Set<String>? selectedPath;
+  Future? wait;
 }
 
 class NodeAttribut {
@@ -669,7 +644,7 @@ class AttributInfo {
   bool isInitByRef = false;
   bool firstLoad = false;
   String? action;
-  int numUpdate = 0;
+  int numUpdateForKey = 0;
 }
 
 class BrowserAttrInfo {

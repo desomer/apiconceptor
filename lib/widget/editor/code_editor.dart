@@ -42,7 +42,6 @@ class TextEditorState extends State<TextEditor> {
 
   @override
   void initState() {
-    widget.config.textYamlState = this;
     controller = CodeController(language: widget.config.mode);
 
     controller.actions[TabKeyIntent] = TabKeyAction2(controller: controller);
@@ -70,6 +69,8 @@ class TextEditorState extends State<TextEditor> {
 
   @override
   Widget build(BuildContext context) {
+    widget.config.textYamlState = this;
+
     var aText = widget.config.getText();
     if (aText == null) {
       return Text('select model first');
@@ -151,11 +152,11 @@ class TextConfig {
   late Function getText;
   late ValueNotifier<String> notifError;
   bool readOnly;
-  late TextEditorState textYamlState;
-  late State treeJsonState;
+  TextEditorState? textYamlState;
+  State? treeJsonState;
 
   void doRebind() {
     // ignore: invalid_use_of_protected_member
-    textYamlState.setState(() {});
+    textYamlState?.setState(() {});
   }
 }

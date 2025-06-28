@@ -140,7 +140,7 @@ class InfoManagerModel extends InfoManager {
         node.data!.info.type == 'Array' || node.data!.info.type.endsWith('[]');
     String name = node.data?.yamlNode.key;
 
-    if (isRoot && name == 'Business model') {
+    if (isRoot ) {
       icon = Icon(Icons.business);
     } else if (isRoot) {
       icon = Icon(Icons.lan_outlined);

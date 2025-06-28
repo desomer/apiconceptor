@@ -118,7 +118,8 @@ class JsonListState extends State<JsonList> {
     double width,
   ) {
     Widget cell;
-    if (dataAttr.info.cacheRowWidget != null) {
+    int time = DateTime.now().millisecondsSinceEpoch;
+    if (dataAttr.info.cacheRowWidget != null && time - timezoom > 300) {
       cell = dataAttr.info.cacheRowWidget!;
     } else {
       cell = _getJsonRowCached(dataAttr, widget.modelInfo.config.getModel());

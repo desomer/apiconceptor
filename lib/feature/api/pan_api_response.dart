@@ -68,7 +68,7 @@ class PanResponseApi extends StatelessWidget with WidgetModelHelper {
     return Container(
       color: Colors.black,
       child: TextEditor(
-        header: "200, 404",
+        header: "200, 404, ...",
         key: keyApiYamlEditor,
         config: textConfig,
       ),

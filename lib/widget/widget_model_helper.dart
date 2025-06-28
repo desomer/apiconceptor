@@ -27,6 +27,20 @@ mixin class WidgetModelHelper {
               style: TextStyle(fontSize: 15),
             ),
           );
+        } else if (element.key == constMasterID) {
+          tooltip.insert(
+            0,
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+              decoration: BoxDecoration(
+                border: BoxBorder.all(color: Colors.grey, width: 1),
+              ),
+              child: Text(
+                'id = ${element.value}',
+                style: TextStyle(fontSize: 11),
+              ),
+            ),
+          );
         }
       }
     }
