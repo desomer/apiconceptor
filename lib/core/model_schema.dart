@@ -29,49 +29,54 @@ enum TypeModelBreadcrumb {
   component,
   request;
 
-  static String valString(TypeModelBreadcrumb v) {
+  static String valString(TypeModelBreadcrumb? v) {
+    if (v == null) return '';
     return ['Business models', 'Components', 'Requests & Responses'][v.index];
   }
 }
 
 class ModelSchema {
   ModelSchema({
-    required this.type,
+    required this.category,
     required this.headerName,
     required this.id,
     required this.infoManager,
   });
 
-  final YamlType type;
   final String id;
-  final String headerName;
+
+  final Category category; // pour la sauvegarde et certain traitement
+  final String headerName; // pour les export
   bool isLoadProp = false;
+
+  ModelBrower? lastBrowser;
+  JsonBrowser? lastJsonBrowser;
+  final InfoManager infoManager;
 
   String modelYaml = '';
   Map mapModelYaml = {};
   Map<String, dynamic> modelProperties = {};
 
-  final InfoManager infoManager;
-  List<ModelSchema> dependency = [];
+  final List<ModelSchema> dependency = [];
 
-  List histories = [];
+  final List histories = [];
 
-  Map<String, AttributInfo> mapInfoByTreePath = {};
+  final Map<String, AttributInfo> mapInfoByTreePath = {};
 
-  Map<String, AttributInfo> mapInfoByJsonPath = {};
-  Map<String, List<AttributInfo>> mapInfoByName = {};
-  Map<String, AttributInfo> allAttributInfo = {};
+  final Map<String, AttributInfo> mapInfoByJsonPath = {};
+  final Map<String, List<AttributInfo>> mapInfoByName = {};
+  final Map<String, AttributInfo> allAttributInfo = {};
 
-  List<AttributInfo> notUseAttributInfo = [];
-  List<AttributInfo> useAttributInfo = [];
+  final List<AttributInfo> notUseAttributInfo = [];
+  final List<AttributInfo> useAttributInfo = [];
+  final Map<String, NodeAttribut> nodeByMasterId = {};
+
   int lastNbNode = 0;
   bool first = true;
   bool isEmpty = false;
-  bool autoSave = true;
+  bool autoSaveProperties = true;
 
   NodeAttribut? currentAttr;
-  ModelBrower? lastBrowser;
-  JsonBrowser? lastJsonBrowser;
 
   Function? onChange; // sur un changement du schema
 
@@ -83,7 +88,7 @@ class ModelSchema {
 
   List<AttributInfo>? getModelByRefName(String refName) {
     List<AttributInfo>? aModelByName;
-    if (type == YamlType.api) {
+    if (category == Category.api) {
       aModelByName = currentCompany.listRequest.mapInfoByName[refName];
       aModelByName ??= currentCompany.listComponent.mapInfoByName[refName];
       aModelByName ??= currentCompany.listModel.mapInfoByName[refName];
@@ -102,16 +107,16 @@ class ModelSchema {
     mapModelYaml = {};
     modelProperties = {};
 
-    histories = [];
+    histories.clear();
 
-    mapInfoByTreePath = {};
+    mapInfoByTreePath.clear();
 
-    mapInfoByJsonPath = {};
-    mapInfoByName = {};
-    allAttributInfo = {};
+    mapInfoByJsonPath.clear();
+    mapInfoByName.clear();
+    allAttributInfo.clear();
 
-    notUseAttributInfo = [];
-    useAttributInfo = [];
+    notUseAttributInfo.clear();
+    useAttributInfo.clear();
     lastNbNode = 0;
     first = true;
     isEmpty = false;
@@ -153,7 +158,7 @@ class ModelSchema {
               version: patch['version'],
             );
             if (ret != null) modelYaml = ret;
-            doChangeYaml(textConfig, false, 'event');
+            doChangeAndRepaintYaml(textConfig, false, 'event');
           }
         }
       },
@@ -370,8 +375,14 @@ class ModelSchema {
     isLoadProp = true;
   }
 
-  Future<void> loadYamlAndProperties({required bool cache}) async {
-    if (type == YamlType.model) {
+  /// charge les informations 
+  ///  [cache] avec cache mémoire 
+  ///  [withProperties] pour les graph
+  Future<void> loadYamlAndProperties({
+    required bool cache,
+    required bool withProperties,
+  }) async {
+    if (currentVersion == null && category == Category.model) {
       var versions = await bddStorage.getAllVersion(this);
       if (versions.isEmpty) {
         ModelVersion version = ModelVersion(
@@ -415,8 +426,9 @@ class ModelSchema {
       modelYaml = '';
       mapModelYaml = {};
     }
-
-    await _loadProperties();
+    if (withProperties) {
+      await _loadProperties(cache: cache);
+    }
   }
 
   dynamic loadYamlAndPropertiesSyncOrNot({required bool cache}) {
@@ -427,7 +439,7 @@ class ModelSchema {
       delay: cache ? -1 : 0,
     );
     if (saveModel is Future) {
-      return loadYamlAndProperties(cache: cache);
+      return loadYamlAndProperties(cache: cache, withProperties: true);
     } else {}
 
     if (saveModel != null) {
@@ -446,11 +458,14 @@ class ModelSchema {
   }
 
   Future<Map<String, dynamic>> getProperties() async {
-    await _loadProperties();
+    await _loadProperties(cache: true);
     return modelProperties;
   }
 
-  Future _loadProperties() async {
+  Future _loadProperties({required bool cache}) async {
+    if (cache == false) {
+      isLoadProp = false;
+    }
     if (!isLoadProp && withBdd) {
       var l = await bddStorage.getItem(
         model: this,
@@ -493,7 +508,7 @@ class ModelSchema {
     }
   }
 
-  void doChangeYaml(TextConfig? config, bool save, String action) {
+  void doChangeAndRepaintYaml(TextConfig? config, bool save, String action) {
     var parser = ParseYamlManager();
     bool parseOk = parser.doParseYaml(modelYaml, config);
 
@@ -542,7 +557,7 @@ class ModelSchema {
     int maxNear = 0;
     AttributInfo? sel;
     if (list.length == 1) {
-      if (list.first.date < bi.browser.time) {
+      if (list.first.lastBrowseDate < bi.browser.time) {
         if (isDependency) notUseAttributInfo.remove(list.first);
         return list.first;
       } else {
@@ -551,7 +566,7 @@ class ModelSchema {
     }
 
     for (var n in list) {
-      if (n.date == bi.browser.time) continue; // déja affecter
+      if (n.lastBrowseDate == bi.browser.time) continue; // déja affecter
       String pathA = bi.aJsonPath;
       String pathB = n.path;
       if (pathA == pathB) {

@@ -30,4 +30,4 @@ class CompanyModelSchema {
 ///
 enum ChangeOpe { change, clear, rename, path, move, add, remove }
 
-enum YamlType { allModel, model, selector, allApi, api, allGlossary }
+enum Category { allModel, model, selector, allApi, api, allGlossary, exampleApi }

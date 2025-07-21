@@ -57,12 +57,12 @@ class PanAPIImport extends StatelessWidget {
     Url2Api import = Url2Api();
 
     ModelSchema model = ModelSchema(
-      type: YamlType.selector,
+      category: Category.selector,
       headerName: 'Select Models',
       id: 'model',
       infoManager: currentCompany.listModel.infoManager,
     );
-    model.autoSave = false;
+    model.autoSaveProperties = false;
     model.mapModelYaml = currentCompany.listModel.mapModelYaml;
     model.modelProperties = currentCompany.listModel.modelProperties;
 
@@ -95,7 +95,7 @@ class PanAPIImport extends StatelessWidget {
 
               stateApi.repaintListAPI();
 
-              modelSchemaDetail.doChangeYaml(null, true, 'import');
+              modelSchemaDetail.doChangeAndRepaintYaml(null, true, 'import');
 
               // WidgetsBinding.instance.addPostFrameCallback((_) {
               //   var newModel =

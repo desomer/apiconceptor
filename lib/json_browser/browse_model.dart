@@ -25,6 +25,13 @@ void validateJsonSchemas(
   }
 }
 
+var commentRE = RegExp(r'"(?:[^\\"]|\\[^])*"|/\*[^]*?\*/|//.*');
+String removeComments(String jsonWithComments) =>
+    jsonWithComments.replaceAllMapped(commentRE, (m) {
+      var s = m[0]!;
+      return s.startsWith('"') ? s : "";
+    });
+
 class BrowseModel<T extends Map> extends JsonBrowser<T> {
   @override
   void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
@@ -140,7 +147,7 @@ class InfoManagerModel extends InfoManager {
         node.data!.info.type == 'Array' || node.data!.info.type.endsWith('[]');
     String name = node.data?.yamlNode.key;
 
-    if (isRoot ) {
+    if (isRoot) {
       icon = Icon(Icons.business);
     } else if (isRoot) {
       icon = Icon(Icons.lan_outlined);

@@ -1,15 +1,26 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:highlight/languages/json.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/model/pan_model_import_dialog.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:uuid/uuid.dart';
 
 class PanSaveParam extends StatefulWidget {
-  const PanSaveParam({super.key});
+  const PanSaveParam(this.api, this.jsonParam, {super.key});
+  final dynamic jsonParam;
+  final APICallInfo api;
 
   @override
   State<PanSaveParam> createState() => _PanSaveParamState();
 }
 
 class _PanSaveParamState extends State<PanSaveParam> {
+  final uuid = Uuid();
+
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
@@ -20,6 +31,19 @@ class _PanSaveParamState extends State<PanSaveParam> {
       title: const Text('Save example'),
       content: SizedBox(width: width, height: height, child: getPan()),
       actions: <Widget>[
+        TextButton(
+          child: const Text('save'),
+          onPressed: () {
+            bddStorage.addApiParam(
+              widget.api.currentAPI!,
+              widget.api.selectedExample!.info.masterID!,
+              'test',
+              widget.jsonParam,
+            );
+
+            Navigator.of(context).pop();
+          },
+        ),
         TextButton(
           child: const Text('close'),
           onPressed: () {
@@ -33,6 +57,9 @@ class _PanSaveParamState extends State<PanSaveParam> {
   Map<String, String> info = {};
 
   Widget getPan() {
+    var encoder = JsonEncoder.withIndent("  ");
+    var text = encoder.convert(widget.jsonParam);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -57,7 +84,20 @@ class _PanSaveParamState extends State<PanSaveParam> {
             ],
           ),
         ),
-        Flexible(child: Container()),
+        Flexible(
+          child: TextEditor(
+            config: TextConfig(
+              readOnly: true,
+              mode: json,
+              getText: () => text,
+              onChange: (String json, TextConfig config) {
+                // Handle changes if needed
+              },
+              notifError: ValueNotifier(''),
+            ),
+            header: 'Parameters',
+          ),
+        ),
       ],
     );
   }

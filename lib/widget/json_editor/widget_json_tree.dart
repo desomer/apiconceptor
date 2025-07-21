@@ -7,6 +7,7 @@ import 'package:jsonschema/widget/json_editor/widget_json_list.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
 import 'package:jsonschema/widget/widget_split.dart';
+import 'package:widget_visibility_checker/widget_visibility_checker.dart';
 
 class JsonBrowserWidget extends JsonBrowser {
   late JsonListEditorState state;
@@ -14,8 +15,8 @@ class JsonBrowserWidget extends JsonBrowser {
 
   double maxSize = 300;
 
-  void reloadAll(NodeAttribut node) {
-    node.repaint();
+  void reloadAll(NodeAttribut? node) {
+    node?.repaint();
     // ignore: invalid_use_of_protected_member
     state.setState(() {});
     // ignore: invalid_use_of_protected_member
@@ -137,7 +138,7 @@ class JsonListEditor extends StatefulWidget {
 }
 
 class JsonListEditorState extends State<JsonListEditor>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, VisibilityChangeHandler {
   late AutoScrollController _scrollController;
 
   TreeListLink modelInfo = TreeListLink();
@@ -183,7 +184,12 @@ class JsonListEditorState extends State<JsonListEditor>
     model.lastBrowser = browser;
     model.lastJsonBrowser = jsonBrowserWidget;
     repaintListView(0, 'build');
-    return getWidget(model, browser, jsonBrowserWidget);
+
+    return WidgetVisibilityChecker(
+      childScrollDirection: Axis.horizontal,
+      handler: this,
+      child: getWidget(model, browser, jsonBrowserWidget),
+    );
   }
 
   Widget getWidget(
@@ -270,6 +276,8 @@ class JsonListEditorState extends State<JsonListEditor>
 
   Widget getRow(TreeNode<NodeAttribut> node, ModelSchema aModel) {
     node.data!.info.cacheHeight = rowHeight;
+    var canDoubleTap = (!node.isLeaf || widget.config.onDoubleTap != null);
+
     return InkWell(
       key: ObjectKey(node.data),
       onTap: () {
@@ -282,7 +290,7 @@ class JsonListEditorState extends State<JsonListEditor>
       },
 
       onDoubleTap:
-          (!node.isLeaf || widget.config.onDoubleTap != null)
+          canDoubleTap
               ? () {
                 if (widget.config.onDoubleTap != null) {
                   widget.config.onDoubleTap!(node.data);
@@ -399,6 +407,16 @@ class JsonListEditorState extends State<JsonListEditor>
       label: content,
     );
   }
+
+  @override
+  void scrollMetricsChanged() {
+    stateOpenFactor?.stateList = this;
+  }
+
+  @override
+  void visibilityStatesChanged() {
+    stateOpenFactor?.stateList = this;
+  }
 }
 
 class JsonTreeConfig {
@@ -411,7 +429,7 @@ class JsonTreeConfig {
   Function getModel;
   late Function getJson;
   late Function getRow;
-  int widthTree = 350;
+  // int widthTree = 350;
   Function? onTap;
   Function? onDoubleTap;
   TextConfig? textConfig;

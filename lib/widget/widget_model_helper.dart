@@ -3,6 +3,29 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 
 mixin class WidgetModelHelper {
+  Widget? getHttpOpe(String name) {
+    if (name == 'get') {
+      return getChip(Text('GET'), color: Colors.green, height: 27);
+    } else if (name == 'post') {
+      return getChip(
+        Text('POST', style: TextStyle(color: Colors.black)),
+        color: Colors.yellow,
+        height: 27,
+      );
+    } else if (name == 'put') {
+      return getChip(Text('PUT'), color: Colors.blue, height: 27);
+    } else if (name == 'patch') {
+      return getChip(Text('PATCH'), color: Colors.indigoAccent, height: 27);
+    } else if (name == 'delete') {
+      return getChip(
+        Text('DELETE', style: TextStyle(color: Colors.black)),
+        color: Colors.redAccent.shade100,
+        height: 27,
+      );
+    }
+    return null;
+  }
+
   Widget getChip(Widget content, {required Color? color, double? height}) {
     var w = Chip(
       labelPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 5),

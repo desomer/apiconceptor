@@ -50,7 +50,7 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
     void onYamlChange(String yaml, TextConfig config) {
       if (schemaGlossary.modelYaml != yaml) {
         schemaGlossary.modelYaml = yaml;
-        schemaGlossary.doChangeYaml(config, true, 'change');
+        schemaGlossary.doChangeAndRepaintYaml(config, true, 'change');
       }
     }
 

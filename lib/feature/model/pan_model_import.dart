@@ -72,12 +72,12 @@ class PanModelImport extends StatelessWidget {
     JsonToSchemaYaml import = JsonToSchemaYaml();
 
     ModelSchema model = ModelSchema(
-      type: YamlType.selector,
+      category: Category.selector,
       headerName: 'Select Models',
       id: 'model',
       infoManager: currentCompany.listModel.infoManager,
     );
-    model.autoSave = false;
+    model.autoSaveProperties = false;
     model.mapModelYaml = currentCompany.listModel.mapModelYaml;
     model.modelProperties = currentCompany.listModel.modelProperties;
 
@@ -109,7 +109,7 @@ class PanModelImport extends StatelessWidget {
                   import.doImportJSON().yaml.toString();
               // ignore: invalid_use_of_protected_member
               stateModel.keyModelYamlEditor.currentState?.setState(() {});
-              modelSchemaDetail.doChangeYaml(null, true, 'import');
+              modelSchemaDetail.doChangeAndRepaintYaml(null, true, 'import');
             } else if (tabImport.index == 1) {
               doImportFromModel(model);
             }
@@ -139,7 +139,7 @@ class PanModelImport extends StatelessWidget {
       modelSchemaDetail.modelYaml = '${modelSchemaDetail.modelYaml}add';
       // ignore: invalid_use_of_protected_member
       stateModel.keyModelYamlEditor.currentState?.setState(() {});
-      modelSchemaDetail.doChangeYaml(null, true, 'import');
+      modelSchemaDetail.doChangeAndRepaintYaml(null, true, 'import');
     }
   }
 }

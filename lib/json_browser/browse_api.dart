@@ -5,10 +5,6 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
-String getKeyFromYaml(dynamic key) {
-  return (key is Map ? '{${key.keys.first}}' : key).toString();
-}
-
 class BrowseAPI<T extends Map> extends JsonBrowser<T> {
   @override
   void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
@@ -100,7 +96,7 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
     var type = node.data!.info.type;
     var isPath = type == 'Path';
 
-    var key = getKeyFromYaml(node.data!.yamlNode.key);
+    var key = getKeyParamFromYaml(node.data!.yamlNode.key);
 
     String name = key.toLowerCase();
 
@@ -118,24 +114,9 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
     }
 
     bool isAPI = node.data!.info.type == 'ope';
-    late Widget w;
-    if (name == 'get') {
-      w = getChip(Text('GET'), color: Colors.green, height: 27);
-    } else if (name == 'post') {
-      w = getChip(
-        Text('POST', style: TextStyle(color: Colors.black)),
-        color: Colors.yellow,
-        height: 27,
-      );
-    } else if (name == 'put') {
-      w = getChip(Text('PUT'), color: Colors.blue, height: 27);
-    } else if (name == 'delete') {
-      w = getChip(
-        Text('DELETE', style: TextStyle(color: Colors.black)),
-        color: Colors.redAccent.shade100,
-        height: 27,
-      );
-    } else {
+    Widget? w = getHttpOpe(name);
+
+    if (w == null) {
       List<String> path = name.split('/');
       List<Widget> wpath = [];
       int i = 0;
@@ -163,7 +144,7 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
     }
     while (nd != null) {
       var sep = '';
-      var n = getKeyFromYaml(nd.yamlNode.key).toLowerCase();
+      var n = getKeyParamFromYaml(nd.yamlNode.key).toLowerCase();
       var isServer = nd.info.properties?['\$server'];
       if (isServer != null) {
         n = '$isServer';
@@ -194,5 +175,31 @@ class InfoManagerAPI extends InfoManager with WidgetModelHelper {
         ),
       ),
     );
+  }
+}
+
+class InfoManagerTrashAPI extends InfoManager with WidgetModelHelper {
+  @override
+  Widget getAttributHeader(TreeNode<NodeAttribut> node) {
+    return getChip(Text(node.data!.info.name), color: null);
+  }
+
+  @override
+  String getTypeTitle(NodeAttribut node, String name, type) {
+    if (type is Map) {
+      return node.level == 1 ? 'Service' : 'Path';
+    } else {
+      return '$type';
+    }
+  }
+
+  @override
+  InvalidInfo? isTypeValid(
+    NodeAttribut nodeAttribut,
+    String name,
+    type,
+    String typeTitle,
+  ) {
+    return null;
   }
 }

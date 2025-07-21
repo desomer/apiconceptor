@@ -52,7 +52,7 @@ class _WidgetModelEditorState extends State<WidgetModelEditor>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           tabEditor.index = 0;
 
-          modelSchemaDetail.doChangeYaml(config, true, 'change');
+          modelSchemaDetail.doChangeAndRepaintYaml(config, true, 'change');
         });
       }
     }
@@ -179,6 +179,7 @@ class _WidgetModelEditorState extends State<WidgetModelEditor>
         Tab(text: 'Structure'),
         Tab(text: 'Info'),
         Tab(text: 'Version'),
+        Tab(text: 'Restore point'),
       ],
       listTabCont: [
         Container(
@@ -208,6 +209,7 @@ class _WidgetModelEditorState extends State<WidgetModelEditor>
         ),
         getInfoForm(),
         getVersionTab(),
+        Container(),
       ],
       heightTab: 40,
     );
@@ -233,9 +235,20 @@ class _WidgetModelEditorState extends State<WidgetModelEditor>
             model.currentVersion = version;
             await bddStorage.addVersion(model, version);
             keyVersion.currentState?.setState(() {});
+            String modelYaml = model.modelYaml;
+            var modelProperties = model.useAttributInfo;
             model.clear();
-            await model.loadYamlAndProperties(cache: false);
-            model.doChangeYaml(textConfig, false, 'event');
+            await bddStorage.duplicateVersion(
+              model,
+              version,
+              modelYaml,
+              modelProperties,
+            );
+            await model.loadYamlAndProperties(
+              cache: false,
+              withProperties: true,
+            );
+            model.doChangeAndRepaintYaml(textConfig, false, 'event');
           },
           label: Text('add version'),
           icon: Icon(Icons.add_box_outlined),
@@ -247,8 +260,11 @@ class _WidgetModelEditorState extends State<WidgetModelEditor>
             onTap: (ModelVersion version) async {
               model.currentVersion = version;
               model.clear();
-              await model.loadYamlAndProperties(cache: false);
-              model.doChangeYaml(textConfig, false, 'event');
+              await model.loadYamlAndProperties(
+                cache: false,
+                withProperties: true,
+              );
+              model.doChangeAndRepaintYaml(textConfig, false, 'event');
               model.initBreadcrumb();
             },
           ),
@@ -287,6 +303,16 @@ class _WidgetModelEditorState extends State<WidgetModelEditor>
               node: info,
               schema: currentCompany.listModel,
               propName: 'description',
+            ),
+            line: 5,
+            inArray: false,
+          ),
+          CellEditor(
+            key: ValueKey('link#${info.info.masterID}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: currentCompany.listModel,
+              propName: 'link',
             ),
             line: 5,
             inArray: false,

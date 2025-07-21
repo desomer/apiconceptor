@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/caller_api.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_save_param.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
@@ -22,6 +24,7 @@ import 'package:jsonschema/widget_state/state_api.dart';
 import '../../widget_state/widget_md_doc.dart';
 
 GlobalKey keyResquestParam = GlobalKey();
+GlobalKey keyBtnSave = GlobalKey();
 
 class WidgetApiCall extends StatefulWidget {
   const WidgetApiCall({super.key, required this.apiCallInfo});
@@ -33,7 +36,8 @@ class WidgetApiCall extends StatefulWidget {
 
 class WidgetApiCallState extends State<WidgetApiCall> {
   String response = '';
-  late TextConfig textConfig;
+  late TextConfig textConfigBody;
+  late TextConfig textConfigResponse;
   JsonSchema? jsonValidator;
   JsonSchema? jsonValidatorResponse;
   APIResponse? aResponse;
@@ -51,7 +55,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
         errorParseResponse.value = '';
         jsonValidatorResponse = null;
         stateApi.keyResponseStatus.currentState?.setState(() {});
-        textConfig.doRebind(); // vide la responce
+        textConfigResponse.doRebind(); // vide la responce
         final cancelToken = CancelToken();
         //await CallerApi().callGraph();
         // await Future.delayed(Duration(seconds: 3));
@@ -69,10 +73,11 @@ class WidgetApiCallState extends State<WidgetApiCall> {
           );
         }
 
-        textConfig.doRebind();
+        textConfigResponse.doRebind();
 
         if (aResponse?.reponse?.statusCode != null) {
           int code = aResponse!.reponse!.statusCode!;
+          var resp = aResponse; // sauv en resp car validation async
           validateSchema(
             source: widget.apiCallInfo.currentAPIResponse!,
             subNode: code,
@@ -81,7 +86,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
               if (jsonValidatorResponse != null) {
                 validateJsonSchemas(
                   jsonValidatorResponse!,
-                  aResponse!.reponse?.data,
+                  resp!.reponse?.data,
                   errorParseResponse,
                 );
               }
@@ -93,24 +98,12 @@ class WidgetApiCallState extends State<WidgetApiCall> {
     );
   }
 
-  Widget getBtnSave(BuildContext ctx) {
-    return TextButton.icon(
-      icon: Icon(Icons.save_alt_rounded),
-      onPressed: () async {
-        var json = widget.apiCallInfo.toJson();
-        showSaveParamDialog(ctx);
-        widget.apiCallInfo.initWithJson(json);
-      },
-      label: Text('Save example'),
-    );
-  }
-
-  Future<void> showSaveParamDialog(BuildContext ctx) async {
+  Future<void> showSaveParamDialog(dynamic json, BuildContext ctx) async {
     return showDialog<void>(
       context: ctx,
       barrierDismissible: true, // user must tap button!
       builder: (BuildContext context) {
-        return PanSaveParam();
+        return PanSaveParam(widget.apiCallInfo, json);
       },
     );
   }
@@ -124,7 +117,14 @@ class WidgetApiCallState extends State<WidgetApiCall> {
               SizedBox(
                 height: 40,
                 child: Row(
-                  children: [getBtnSave(ctx), Spacer(), getBtnExecuteCall()],
+                  children: [
+                    BtnApiSave(
+                      key: keyBtnSave,
+                      apiCallInfo: widget.apiCallInfo,
+                    ),
+                    Spacer(),
+                    getBtnExecuteCall(),
+                  ],
                 ),
               ),
               WidgetArrayParam(
@@ -174,6 +174,12 @@ class WidgetApiCallState extends State<WidgetApiCall> {
 
   @override
   Widget build(BuildContext context) {
+    repaintManager.addTag(ChangeTag.apiparam, "WidgetApiCallState", this, () {
+      textConfigBody.doRebind();
+      keyBtnSave.currentState?.setState(() {});
+      return false;
+    });
+
     return SplitView(
       primaryWidth: -1,
       children: [getLeftPan(context), getRightPan()],
@@ -211,24 +217,26 @@ class WidgetApiCallState extends State<WidgetApiCall> {
           if (aModelByName != null) {
             String masterIdRef = aModelByName.first.properties?[constMasterID];
             aSchema = ModelSchema(
-              type: YamlType.model,
+              category: Category.model,
               headerName: refName,
               id: masterIdRef,
               infoManager: InfoManagerModel(typeMD: TypeMD.model),
             );
 
-            aSchema.loadYamlAndProperties(cache: false).then((value) {
-              validateFct(aSchema!);
-            });
+            aSchema
+                .loadYamlAndProperties(cache: false, withProperties: true)
+                .then((value) {
+                  validateFct(aSchema!);
+                });
           }
         }
       } else {
         aSchema = ModelSchema(
           id: '?',
-          type: YamlType.model,
+          category: Category.model,
           headerName: '',
           infoManager: InfoManagerModel(typeMD: TypeMD.model),
-        )..autoSave = false;
+        )..autoSaveProperties = false;
 
         aSchema.loadSubSchema(subNode, source);
         validateFct(aSchema);
@@ -246,7 +254,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
       },
     );
 
-    var textConfig = TextConfig(
+    textConfigBody = TextConfig(
       // mode: graphql,
       mode: json,
       notifError: errorParseBody,
@@ -255,24 +263,14 @@ class WidgetApiCallState extends State<WidgetApiCall> {
         widget.apiCallInfo.bodyStr = json;
         try {
           if (json != '') {
-            widget.apiCallInfo.body = jsonDecode(json);
+            widget.apiCallInfo.body = jsonDecode(removeComments(json));
           }
           if (jsonValidator != null && widget.apiCallInfo.body != null) {
-            // widget.apiCallInfo.body = widget.apiCallInfo.body;
             validateJsonSchemas(
               jsonValidator!,
               widget.apiCallInfo.body,
               config.notifError,
             );
-            // ValidationResults r = jsonValidator!.validate(
-            //   widget.apiCallInfo.body,
-            // );
-            // // print("r= $r");
-            // if (r.isValid) {
-            //   config.notifError.value = '_VALID_';
-            // } else {
-            //   config.notifError.value = r.toString();
-            // }
           } else {
             config.notifError.value = '';
           }
@@ -294,13 +292,13 @@ class WidgetApiCallState extends State<WidgetApiCall> {
               var export = Export2Json()..browse(aSchema, false);
               widget.apiCallInfo.body = export.json;
               widget.apiCallInfo.bodyStr = export.prettyPrintJson(export.json);
-              textConfig.doRebind();
+              textConfigBody.doRebind();
             }
           },
           child: Text('load fake'),
         ),
       ],
-      config: textConfig,
+      config: textConfigBody,
     );
   }
 
@@ -321,7 +319,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
   ValueNotifier<String> errorParseResponse = ValueNotifier('');
 
   Widget getResponse() {
-    textConfig = TextConfig(
+    textConfigResponse = TextConfig(
       mode: json,
       notifError: errorParseResponse,
       readOnly: true,
@@ -331,6 +329,44 @@ class WidgetApiCallState extends State<WidgetApiCall> {
       },
     );
 
-    return TextEditor(header: "Response", config: textConfig);
+    return TextEditor(header: "Response", config: textConfigResponse);
+  }
+}
+
+class BtnApiSave extends StatefulWidget {
+  const BtnApiSave({super.key, required this.apiCallInfo});
+  final APICallInfo apiCallInfo;
+
+  @override
+  State<BtnApiSave> createState() => _BtnApiSaveState();
+}
+
+class _BtnApiSaveState extends State<BtnApiSave> {
+  bool isEditable() {
+    return widget.apiCallInfo.selectedExample != null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String name = widget.apiCallInfo.selectedExample?.info.name ?? '';
+    return TextButton.icon(
+      icon: Icon(Icons.save_alt_rounded),
+      onPressed:
+          isEditable()
+              ? () async {
+                var jsonParam = widget.apiCallInfo.toJson();
+                bddStorage.addApiParam(
+                  widget.apiCallInfo.currentAPI!,
+                  widget.apiCallInfo.selectedExample!.info.masterID!,
+                  'test',
+                  jsonParam,
+                );
+
+                //showSaveParamDialog(jsonParam, ctx);
+                //widget.apiCallInfo.initWithJson(jsonParam);
+              }
+              : null,
+      label: Text('Save example $name'),
+    );
   }
 }

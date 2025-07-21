@@ -59,6 +59,12 @@ class _CellEditorState extends State<CellEditor> {
     }
 
     focus = FocusNode();
+    focus!.addListener(() {
+      if (focus!.hasPrimaryFocus)
+      {
+        _controller.text = widget.acces.get()?.toString() ?? '';
+      }
+    });
 
     super.initState();
   }
@@ -89,14 +95,14 @@ class _CellEditorState extends State<CellEditor> {
 
   SizedBox getWidgetModeEdit(TextStyle textStyleLabel) {
     return SizedBox(
-      width: widget.inArray ? (250 * (zoom.value / 100))  : double.infinity,
+      width: widget.inArray ? (250 * (zoom.value / 100)) : double.infinity,
       height: widget.inArray ? 30 : null,
       child: TextField(
         focusNode: focus,
         enabled: widget.acces.isEditable(),
         controller: _controller,
         autocorrect: true,
-        maxLines: widget.line,
+        maxLines: widget.line ?? 1,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         decoration: InputDecoration(
@@ -130,6 +136,9 @@ class _CellEditorState extends State<CellEditor> {
         ),
         child: Text(
           value,
+          overflow: TextOverflow.clip,
+          softWrap: false,
+          maxLines: 1,
           style: TextStyle(
             fontSize: 16,
             color: !isEditable ? Colors.white : null,
@@ -334,11 +343,13 @@ class ModelAccessorAttr extends ModelAccessor {
     required this.node,
     required this.schema,
     required this.propName,
+    this.editable = true,
   });
 
   final NodeAttribut node;
   final ModelSchema schema;
   final String propName;
+  final bool editable;
 
   @override
   get() {
@@ -375,7 +386,7 @@ class ModelAccessorAttr extends ModelAccessor {
 
   @override
   bool isEditable() {
-    if (node.info.isInitByRef) return false;
+    if (!editable || node.info.isInitByRef) return false;
     return true;
   }
 }

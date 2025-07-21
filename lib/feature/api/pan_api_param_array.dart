@@ -86,6 +86,7 @@ class _WidgetArrayParamState extends State<WidgetArrayParam> {
     return Row(
       children: [
         CellCheckEditor(
+          key: ValueKey('sel ${param.hashCode}'),
           inArray: true,
           acces: ParamAccess(col: 0, paramInfo: param),
         ),
@@ -125,6 +126,7 @@ class _WidgetArrayParamState extends State<WidgetArrayParam> {
           ),
         ),
         CellEditor(
+          key: ValueKey('val ${param.hashCode}'),
           inArray: true,
           line: 1,
           acces: ParamAccess(col: 1, paramInfo: param),
@@ -166,7 +168,7 @@ class ParamAccess extends ModelAccessor {
 
   @override
   bool isEditable() {
-    return true;
+    return paramInfo.type!='path' || col == 1;
   }
 
   @override

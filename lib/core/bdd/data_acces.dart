@@ -64,6 +64,40 @@ class DataAcces {
   Map<String, CacheValue> local = {};
   Map<String, OnEvent> doEventListner = {};
 
+  Future<dynamic> getTrashSupabase(
+    ModelSchema model,
+    String id,
+    String pathYaml,
+  ) async {
+    var queryattr = supabase
+        .from('attributs')
+        .select('*')
+        .eq('company_id', currentCompany.companyId)
+        .eq('state', 'D')
+        .eq('schema_id', id)
+        .order('update_at', ascending: false);
+    var ret2 = await queryattr;
+    if (ret2.isNotEmpty) {
+      print('ret');
+      model.modelProperties = {};
+      for (var element in ret2) {
+        AttributInfo info = AttributInfo();
+        info.masterID = element['attr_id'];
+        info.path = element['path'];
+        info.properties = element['prop'];
+        info.action = element['state'];
+        info.timeLastUpdate = DateTime.tryParse(element['update_at'] ?? '');
+        model.mapInfoByTreePath[info.masterID!] = info;
+        var path = 'root>$pathYaml>${info.masterID}';
+        model.modelProperties[path] = info.properties;
+        model.modelProperties[path]['_\$\$version'] = element['version'] ?? '1';
+        model.mapInfoByJsonPath[path] = info;
+      }
+      return model.mapInfoByTreePath;
+    }
+    return null;
+  }
+
   Future<dynamic> _getFromModelSupabase(
     ModelSchema model,
     String id,
@@ -76,7 +110,8 @@ class DataAcces {
           .select('*')
           .eq('version', version?.version ?? '1')
           .eq('company_id', currentCompany.companyId)
-          .eq('schema_id', id.substring(5));
+          .eq('schema_id', id.substring(5))
+          .eq('state', 'R');
       var ret2 = await queryattr;
       if (ret2.isNotEmpty) {
         print('ret');
@@ -231,13 +266,14 @@ class DataAcces {
         var payload = {
           'company_id': currentCompany.companyId,
           'namespace': 'main',
-          'category': model.type.name,
+          'category': model.category.name,
           'schema_id': model.id,
           'version': model.getVersionId(),
           'attr_id': attr.masterID,
           'path': attr.path,
           'prop': attr.properties,
           'state': attr.action ?? 'D',
+          'update_at': DateTime.now().toIso8601String(),
         };
 
         var save = SaveEvent(
@@ -261,13 +297,14 @@ class DataAcces {
         var payload = {
           'company_id': currentCompany.companyId,
           'namespace': 'main',
-          'category': model.type.name,
+          'category': model.category.name,
           'schema_id': model.id,
           'version': model.getVersionId(),
           'attr_id': attr.masterID,
           'path': attr.path,
           'prop': attr.properties,
           'state': attr.action ?? 'R',
+          'update_at': DateTime.now().toIso8601String(),
         };
 
         var save = SaveEvent(
@@ -347,6 +384,50 @@ class DataAcces {
     return await _setSupabase(event);
   }
 
+  Future<void> addApiParam(
+    ModelSchema model,
+    String id,
+    String category,
+    dynamic json,
+  ) async {
+    SaveEvent event = SaveEvent(
+      version: null,
+      model: model,
+      id: '',
+      table: 'api_params',
+      data: {
+        'id': id,
+        'company_id': currentCompany.companyId,
+        'api_id': model.id,
+        'category': category,
+        'param': json,
+      },
+    );
+    return await _setSupabase(event);
+  }
+
+  Future<Map<String, dynamic>?> getAPIParam(
+    ModelSchema model,
+    String id,
+  ) async {
+    var apiid = model.id;
+    print("load param api from bdd $apiid");
+    var queryattr = supabase
+        .from('api_params')
+        .select('*')
+        .eq('company_id', currentCompany.companyId)
+        .eq('api_id', apiid)
+        .eq('id', id);
+    var ret2 = await queryattr;
+    if (ret2.isNotEmpty) {
+      for (var element in ret2) {
+        return element['param'];
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _setSupabase(SaveEvent event) async {
     await supabase.from(event.table).upsert([event.data]);
   }
@@ -396,6 +477,20 @@ class DataAcces {
             ..time = DateTime.now().millisecondsSinceEpoch
             ..value = value;
     }
+  }
+
+  Future<void> duplicateVersion(
+    ModelSchema model,
+    ModelVersion version,
+    String modelYaml,
+    List<AttributInfo> properties,
+  ) async {
+    saveYAML(model: model, type: 'YAML', value: modelYaml);
+    for (AttributInfo element in properties) {
+      model.useAttributInfo.add(element.clone()..action = 'U');
+    }
+    prepareSaveModel(model);
+    doStore();
   }
 }
 

@@ -2,10 +2,15 @@ import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/model_schema.dart';
+
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
 import 'package:uuid/uuid.dart';
 // import 'package:nanoid/async.dart';
+
+String getKeyParamFromYaml(dynamic key) {
+  return (key is Map ? '{${key.keys.first}}' : key).toString();
+}
 
 class JsonBrowser<T> {
   bool ready = false;
@@ -33,7 +38,6 @@ class JsonBrowser<T> {
     int time = DateTime.now().millisecondsSinceEpoch;
     ModelBrower browser = ModelBrower()..time = time;
     browser.selectedPath = model.lastBrowser?.selectedPath;
-
     browser.unknowedMode = unknowedMode;
 
     var rootNodeAttribut = NodeAttribut(
@@ -53,6 +57,8 @@ class JsonBrowser<T> {
       level: 0,
     );
 
+    model.nodeByMasterId.clear();
+
     _recursiveBrowseNode(model, browseAttrInfo, model.mapModelYaml);
 
     if (model.first && model.mapModelYaml.isEmpty) {
@@ -71,7 +77,9 @@ class JsonBrowser<T> {
     List<Future> waitAllRef = [];
 
     for (var element in browser.asyncRef) {
-      waitAllRef.add(element.ref!.loadYamlAndProperties(cache: true));
+      waitAllRef.add(
+        element.ref!.loadYamlAndProperties(cache: true, withProperties: true),
+      );
     }
     if (waitAllRef.isNotEmpty) {
       Future.wait(waitAllRef).then((value) {
@@ -101,7 +109,7 @@ class JsonBrowser<T> {
 
     if (browser.propertiesChanged) {
       onPropertiesChanged();
-      if (model.autoSave) {
+      if (model.autoSaveProperties) {
         model.saveProperties();
       }
     }
@@ -138,7 +146,7 @@ class JsonBrowser<T> {
       for (var element in browser.unknownAttribut) {
         // recherche AttributInfo par path si renommage
         var info = model.mapInfoByTreePath[element.yamlPathAttr];
-        if (info != null && info.date < browser.time) {
+        if (info != null && info.lastBrowseDate < browser.time) {
           element.nodeAttribut.info = info;
           //print('renommage de ${info.path} => ${element.aJsonPath}');
           model.addHistory(
@@ -230,13 +238,7 @@ class JsonBrowser<T> {
       var yamlPathAttr = '${attr.yamlPathAttr};$i';
       if (mapChild.key == null || mapChild.value == null) continue;
 
-      String yamlAttrName =
-          (mapChild.key is Map
-                  ? (mapChild.key as Map)
-                      .keys
-                      .first // cas des {id}
-                  : mapChild.key)
-              .toString();
+      String yamlAttrName = getKeyParamFromYaml(mapChild.key);
       var aJsonPath = '${attr.aJsonPath}>$yamlAttrName';
 
       // recherche AttributInfo via le jonPath
@@ -353,7 +355,7 @@ class JsonBrowser<T> {
       browserAttrInfo.nodeAttribut.info.isRef = refName;
       String masterIdRef = aModelByName.first.properties?[constMasterID];
       var modelRef = ModelSchema(
-        type: model.type,
+        category: model.category,
         headerName: refName,
         id: masterIdRef,
         infoManager: model.infoManager,
@@ -413,13 +415,16 @@ class JsonBrowser<T> {
         master: info.masterID,
       );
     }
+
     info.treePosition = bi.yamlPathAttr;
-    info.name =
-        (nodeAttribut.yamlNode.key is Map
-                ? (nodeAttribut.yamlNode.key as Map).keys.first
-                : nodeAttribut.yamlNode.key)
-            .toString();
-    info.date = bi.browser.time;
+    info.name = getKeyParamFromYaml(nodeAttribut.yamlNode.key);
+
+    //     //
+    // (nodeAttribut.yamlNode.key is Map
+    //         ? (nodeAttribut.yamlNode.key as Map).keys.first
+    //         : nodeAttribut.yamlNode.key)
+    //     .toString();
+    info.lastBrowseDate = bi.browser.time;
     info.isRef = bi.nodeAttribut.info.isRef;
     bi.nodeAttribut.level = bi.level;
 
@@ -471,6 +476,7 @@ class JsonBrowser<T> {
 
     if (info.masterID != null) {
       model.allAttributInfo[info.masterID!] = info;
+      model.nodeByMasterId[info.masterID!] = nodeAttribut;
     }
 
     var type = model.infoManager.getTypeTitle(
@@ -510,6 +516,7 @@ class JsonBrowser<T> {
         invalidInfo: typeValid,
       );
     }
+
     model.infoManager.onNode(nodeAttribut.parent, nodeAttribut);
   }
 
@@ -559,7 +566,7 @@ class JsonBrowser<T> {
     model.notUseAttributInfo.clear();
     model.useAttributInfo.clear();
     for (var element in model.allAttributInfo.entries) {
-      if (element.value.date < date) {
+      if (element.value.lastBrowseDate < date) {
         if (element.value.oldTreePosition == null &&
             element.value.masterID != null) {
           browser.propertiesChanged = true;
@@ -574,6 +581,7 @@ class JsonBrowser<T> {
         element.value.oldTreePosition ??= element.value.treePosition;
         element.value.treePosition = null;
         model.notUseAttributInfo.add(element.value);
+        model.mapInfoByJsonPath.remove(element.value.path);
       } else {
         element.value.oldTreePosition = null;
         model.useAttributInfo.add(element.value);
@@ -626,7 +634,7 @@ class NodeAttribut {
 }
 
 class AttributInfo {
-  int date = 0;
+  int lastBrowseDate = 0;
   String? masterID;
   String? treePosition;
   String? oldTreePosition;
@@ -640,11 +648,35 @@ class AttributInfo {
   Widget? cacheRowWidget;
   Widget? cacheHeaderWidget;
   double? cacheHeight;
+  DateTime? timeLastUpdate;
 
   bool isInitByRef = false;
   bool firstLoad = false;
   String? action;
   int numUpdateForKey = 0;
+
+  AttributInfo clone() {
+    return AttributInfo()
+      ..lastBrowseDate = lastBrowseDate
+      ..masterID = masterID
+      ..treePosition = treePosition
+      ..oldTreePosition = oldTreePosition
+      ..name = name
+      ..type = type
+      ..path = path
+      ..isRef = isRef
+      ..properties = properties
+      ..error = error
+      ..tooltipError = tooltipError
+      ..cacheRowWidget = cacheRowWidget
+      ..cacheHeaderWidget = cacheHeaderWidget
+      ..cacheHeight = cacheHeight
+      ..timeLastUpdate = timeLastUpdate
+      ..isInitByRef = isInitByRef
+      ..firstLoad = firstLoad
+      ..action = action
+      ..numUpdateForKey = numUpdateForKey;
+  }
 }
 
 class BrowserAttrInfo {
@@ -685,6 +717,11 @@ abstract class InfoManager {
     String typeTitle,
   );
 
+  void getAttributRow(
+    NodeAttribut attr,
+    ModelSchema schema,
+    List<Widget> row,
+  ) {}
   Widget getAttributHeader(TreeNode<NodeAttribut> node);
   void onNode(NodeAttribut? parent, NodeAttribut child) {}
 }

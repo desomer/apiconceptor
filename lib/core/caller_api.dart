@@ -33,6 +33,11 @@ class CallerApi {
     }
   }
 
+  String? getEscapeUrl(String? param) {
+    if (param == null) return null;
+    return Uri.encodeComponent(param);
+  }
+
   Future<APIResponse> call(APICallInfo info, CancelToken cancelToken) async {
     final options = BaseOptions(
       connectTimeout: Duration(seconds: 30),
@@ -44,12 +49,12 @@ class CallerApi {
     int nbPathParam = 0;
     for (var element in info.params) {
       if (element.type == 'path') {
-        url = url.replaceAll('{${element.name}}', element.value ?? '');
-      } else if (element.type == 'query') {
+        url = url.replaceAll('{${element.name}}', getEscapeUrl(element.value) ?? '');
+      } else if (element.type == 'query' && element.toSend) {
         if (nbPathParam == 0) {
-          url = '$url?${element.name}=${element.value}';
+          url = '$url?${element.name}=${getEscapeUrl(element.value)}';
         } else {
-          url = '$url&${element.name}=${element.value}';
+          url = '$url&${element.name}=${getEscapeUrl(element.value)}';
         }
         nbPathParam++;
       }

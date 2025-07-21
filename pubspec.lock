@@ -98,7 +98,7 @@ packages:
     source: hosted
     version: "1.1.2"
   collection:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: collection
       sha256: "2f5709ae4d3d59dd8f7cd309b4e023046b57d8a6c82130785d2b0e5868084e76"
@@ -229,10 +229,10 @@ packages:
     dependency: "direct main"
     description:
       name: fleather
-      sha256: ef2d47562db57414c320b8b093834dd8e2c0ffb033d82eb92281e0fb848ea9ef
+      sha256: a0fba8a9ee19f5df679a78e09e6c43f65980d32448be92a783b6a489b566393e
       url: "https://pub.dev"
     source: hosted
-    version: "1.23.0"
+    version: "1.24.0+1"
   flex_color_picker:
     dependency: "direct main"
     description:
@@ -414,7 +414,7 @@ packages:
     source: hosted
     version: "4.5.4"
   intl:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: intl
       sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
@@ -601,10 +601,10 @@ packages:
     dependency: transitive
     description:
       name: parchment
-      sha256: "5b957b973f83ae4207edbcb52665d1fdc18a55a76829bc7d50ecdf12838dfeed"
+      sha256: "579d98303e285f9f982d5cea0fa3768cd78105173a6f6666bf93d2b9e2bfc798"
       url: "https://pub.dev"
     source: hosted
-    version: "1.22.0"
+    version: "1.24.0"
   parchment_delta:
     dependency: transitive
     description:
@@ -697,10 +697,10 @@ packages:
     dependency: transitive
     description:
       name: posix
-      sha256: f0d7856b6ca1887cfa6d1d394056a296ae33489db914e365e2044fdada449e62
+      sha256: "6323a5b0fa688b6a010df4905a56b00181479e6d10534cecfecede2aa55add61"
       url: "https://pub.dev"
     source: hosted
-    version: "6.0.2"
+    version: "6.0.3"
   postgrest:
     dependency: transitive
     description:
@@ -942,10 +942,10 @@ packages:
     dependency: transitive
     description:
       name: url_launcher
-      sha256: "9d06212b1362abc2f0f0d78e6f09f726608c74e3b9462e8368bb03314aa8d603"
+      sha256: f6a7e5c4835bb4e3026a04793a4199ca2d14c739ec378fdfe23fc8075d0439f8
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.1"
+    version: "6.3.2"
   url_launcher_android:
     dependency: transitive
     description:
@@ -1058,6 +1058,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
+  widget_visibility_checker:
+    dependency: "direct main"
+    description:
+      name: widget_visibility_checker
+      sha256: "62f58e8bf8a6ef5b9cbebc47a14ec6394b2de8c48fb1c482400135f828661e09"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   win32:
     dependency: transitive
     description:

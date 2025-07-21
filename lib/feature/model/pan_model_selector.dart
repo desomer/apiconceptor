@@ -33,7 +33,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     void onYamlChange(String yaml, TextConfig config) {
       if (listModel.modelYaml != yaml) {
         listModel.modelYaml = yaml;
-        listModel.doChangeYaml(config, true, 'change');
+        listModel.doChangeAndRepaintYaml(config, true, 'change');
       }
     }
 
@@ -65,10 +65,10 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
                   textConfig: textConfig,
                   getModel: () => listModel,
                   onTap: (NodeAttribut node) {
-                    goToModel(node, 1);
+                    _goToModel(node, 1);
                   },
                   onDoubleTap: (NodeAttribut node) {
-                    goToModel(node, 1);
+                    _goToModel(node, 1);
                   },
                 )
                 ..getJson = getJsonYaml
@@ -106,7 +106,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       row.add(
         TextButton.icon(
           onPressed: () async {
-            await goToModel(attr, 1);
+            await _goToModel(attr, 1);
           },
           label: Icon(Icons.remove_red_eye),
         ),
@@ -116,7 +116,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
           icon: Icon(Icons.import_export),
           onPressed: () async {
             if (attr.info.type == 'model') {
-              await goToModel(attr, 2);
+              await _goToModel(attr, 2);
               // var key = attr.info.properties![constMasterID];
               // var model = ModelSchemaDetail(
               //   type: YamlType.model,
@@ -153,7 +153,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
     return ret;
   }
 
-  Future<void> goToModel(NodeAttribut attr, int tabNumber) async {
+  Future<void> _goToModel(NodeAttribut attr, int tabNumber) async {
     if (attr.info.type == 'model') {
       stateModel.tabDisable.clear();
       // ignore: invalid_use_of_protected_member
@@ -161,7 +161,7 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
 
       var key = attr.info.properties![constMasterID];
       currentCompany.currentModel = ModelSchema(
-        type: YamlType.model,
+        category: Category.model,
         infoManager: InfoManagerModel(typeMD: TypeMD.model),
         headerName: attr.info.name,
         id: key,
@@ -169,7 +169,10 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
       currentCompany.currentModelSel = attr;
       listModel.currentAttr = attr;
       if (withBdd) {
-        await currentCompany.currentModel!.loadYamlAndProperties(cache: false);
+        await currentCompany.currentModel!.loadYamlAndProperties(
+          cache: false,
+          withProperties: true,
+        );
       }
 
       NodeAttribut? n = attr;

@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/json_browser/browse_api.dart';
+import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_request.dart';
@@ -23,19 +27,28 @@ class PanApiEditor extends StatefulWidget {
 
 class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
   AttributInfo? displayedSchema;
+  String? url;
 
   @override
   Widget build(BuildContext context) {
     repaintManager.addTag(ChangeTag.apichange, "_PanApiEditorState", this, () {
+      currentCompany.apiCallInfo = getAPICall(
+        currentCompany.listAPI.currentAttr!,
+      );
+      if (url != currentCompany.apiCallInfo!.url) {
+        url = currentCompany.apiCallInfo!.url;
+        return true;
+      }
+
       return displayedSchema != currentCompany.listAPI.currentAttr?.info;
     });
 
     if (currentCompany.listAPI.currentAttr == null) return Container();
-    displayedSchema = currentCompany.listAPI.currentAttr!.info;
 
+    displayedSchema = currentCompany.listAPI.currentAttr!.info;
     initNewApi();
 
-    currentCompany.apiCallInfo = getPathWidget(
+    currentCompany.apiCallInfo = getAPICall(
       currentCompany.listAPI.currentAttr!,
     );
 
@@ -90,12 +103,35 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
         Tab(text: 'Shared'),
         Tab(text: 'History'),
       ],
-      listTabCont: [Container(), Container(), Container(), Container()],
+      listTabCont: [
+        KeepAliveWidget(
+          child: PanApiExample(
+            key: ValueKey(currentCompany.apiCallInfo),
+            apiCallInfo: currentCompany.apiCallInfo!,
+            getSchemaFct: () async {
+              var model = ModelSchema(
+                category: Category.exampleApi,
+                headerName: 'example',
+                id: 'example/temp/${displayedSchema!.masterID}',
+                infoManager: InfoManagerApiExample(),
+              );
+              await model.loadYamlAndProperties(
+                cache: false,
+                withProperties: true,
+              );
+              return model;
+            },
+          ),
+        ),
+        Container(),
+        Container(),
+        Container(),
+      ],
       heightTab: 40,
     );
   }
 
-  APICallInfo getPathWidget(NodeAttribut attr) {
+  APICallInfo getAPICall(NodeAttribut attr) {
     String name = attr.yamlNode.key.toString().toLowerCase();
     var ret = APICallInfo(
       currentAPI: currentCompany.currentAPIResquest,
@@ -104,24 +140,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
     );
 
     List<Widget> wpath = [];
-    Widget wOpe = Text('');
-    if (name == 'get') {
-      wOpe = getChip(Text('GET'), color: Colors.green, height: 27);
-    } else if (name == 'post') {
-      wOpe = getChip(
-        Text('POST', style: TextStyle(color: Colors.black)),
-        color: Colors.yellow,
-        height: 27,
-      );
-    } else if (name == 'put') {
-      wOpe = getChip(Text('PUT'), color: Colors.blue, height: 27);
-    } else if (name == 'delete') {
-      wOpe = getChip(
-        Text('DELETE', style: TextStyle(color: Colors.black)),
-        color: Colors.redAccent.shade100,
-        height: 27,
-      );
-    }
+    Widget wOpe = getHttpOpe(name) ?? Container();
 
     wpath.add(wOpe);
 
@@ -129,7 +148,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
 
     stateApi.urlParam.clear();
     while (nd != null) {
-      var n = getKeyFromYaml(nd.yamlNode.key).toString();
+      var n = nd.info.name; // getKeyParamFromYaml(nd.yamlNode.key);
       if (nd.info.properties?['\$server'] != null) {
         var url = nd.info.properties?['\$server'];
         ret.url = '$url${ret.url}';
@@ -151,6 +170,21 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetModelHelper {
 
       nd = nd.parent;
     }
+
+    wpath.add(
+      Padding(
+        padding: EdgeInsetsGeometry.symmetric(horizontal: 10),
+        child: IconButton.filledTonal(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: ret.url));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('URL copied to clipboard')));
+          },
+          icon: Icon(Icons.copy),
+        ),
+      ),
+    );
 
     ret.widgetPath = Card(
       elevation: 10,
@@ -306,24 +340,8 @@ class InfoManagerAPIParam extends InfoManager with WidgetModelHelper {
       name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
     }
 
-    late Widget w;
-    if (name == 'get') {
-      w = getChip(Text('GET'), color: Colors.green, height: 27);
-    } else if (name == 'post') {
-      w = getChip(
-        Text('POST', style: TextStyle(color: Colors.black)),
-        color: Colors.yellow,
-        height: 27,
-      );
-    } else if (name == 'put') {
-      w = getChip(Text('PUT'), color: Colors.blue, height: 27);
-    } else if (name == 'delete') {
-      w = getChip(
-        Text('DELETE', style: TextStyle(color: Colors.black)),
-        color: Colors.redAccent.shade100,
-        height: 27,
-      );
-    } else {
+    late Widget? w = getHttpOpe(name);
+    if (w == null) {
       List<Widget> wpath = [];
       if (isRef) {
         wpath.add(Text(name));
@@ -401,9 +419,12 @@ class APICallInfo {
   final String httpOperation;
   final ModelSchema? currentAPI;
   final ModelSchema? currentAPIResponse;
+
+  NodeAttribut? selectedExample;
   String url = '';
   List<String> urlParamId = [];
   List<APIParamInfo> params = [];
+
   Widget? widgetPath;
   dynamic body;
   String bodyStr = '';
@@ -426,22 +447,21 @@ class APICallInfo {
       pos++;
     }
     if (bodyStr.isNotEmpty) {
-      json['body'] = {'send': true, 'value': bodyStr};
+      json['body'] = {'send': true, 'value': body};
     }
     print('$json');
     return json;
   }
 
   void initWithJson(Map<String, dynamic> json) {
-    // params.clear();
-    // bodyStr = '';
-    // body = null;
     List<APIParamInfo> aParams = [];
 
     for (var element in json.entries) {
       var type = element.key;
       if (type == 'body') {
-        bodyStr = element.value['value'];
+        body = element.value['value'];
+        const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+        bodyStr = encoder.convert(body);
       } else {
         Map<String, dynamic> listParam = element.value;
         for (var aParam in listParam.entries) {
@@ -458,7 +478,8 @@ class APICallInfo {
       }
     }
     aParams.sort();
-    print(aParams);
+   // print(aParams);
+    params = aParams;
   }
 
   APICallInfo({

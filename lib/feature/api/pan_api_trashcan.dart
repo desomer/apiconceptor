@@ -1,120 +1,100 @@
 import 'package:flutter/material.dart';
-import 'package:highlight/languages/yaml.dart' show yaml;
-import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:highlight/languages/yaml.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:intl/intl.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
-import 'package:jsonschema/feature/api/pan_api_import.dart';
 import 'package:jsonschema/feature/api/pan_api_info.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
-import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
-import 'package:jsonschema/widget/widget_split.dart';
-import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget/widget_version_state.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
 
 // ignore: must_be_immutable
-class PanAPISelector extends StatelessWidget with WidgetModelHelper {
-  PanAPISelector({super.key});
-  late final TextConfig textConfig;
+class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
+  PanAPITrashcan({super.key, required this.getModelFct});
+  TextConfig? textConfig;
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
   State? rowSelected;
   final GlobalKey keyAttrEditor = GlobalKey();
+  final GlobalKey treeEditor = GlobalKey();
+  final Function getModelFct;
+  ModelSchema? modelToDisplay;
 
   @override
   Widget build(BuildContext context) {
-    void onYamlChange(String yaml, TextConfig config) {
-      if (currentCompany.listAPI.modelYaml != yaml) {
-        currentCompany.listAPI.modelYaml = yaml;
-        var parser = ParseYamlManager();
-        bool parseOk = parser.doParseYaml(
-          currentCompany.listAPI.modelYaml,
-          config,
-        );
-
-        if (parseOk) {
-          currentCompany.listAPI.mapModelYaml = parser.mapYaml!;
-          // bddStorage.savePath(type: 'YAML', id: id, value: yaml);
-          bddStorage.setYaml(
-            currentCompany.listAPI,
-            currentCompany.listAPI.modelYaml,
-            currentCompany.listAPI.currentVersion,
-          );
-          // ignore: invalid_use_of_protected_member
-          stateApi.keyListAPIInfo.currentState?.setState(() {});
-        }
-      }
-    }
+    Future<ModelSchema> futureModel = getModelFct();
 
     getYaml() {
-      return currentCompany.listAPI.modelYaml;
+      return modelToDisplay?.modelYaml;
     }
 
-    textConfig = TextConfig(
+    textConfig ??= TextConfig(
       mode: yaml,
       notifError: ValueNotifier<String>(''),
-      onChange: onYamlChange,
+      onChange: () {},
       getText: getYaml,
     );
 
-    var model = SplitView(
-      primaryWidth: 350,
+    var model = Row(
       children: [
-        getStructureModel(context),
-        Row(
-          children: [
-            Expanded(
-              child: JsonListEditor(
-                key: stateApi.keyListAPIInfo,
-                config:
-                    JsonTreeConfig(
-                        textConfig: textConfig,
-                        getModel: () => currentCompany.listAPI,
-                        onTap: (NodeAttribut node) {
-                          goToAPI(node, 1);
-                        },
-                      )
-                      ..getJson = getYaml
-                      ..getRow = _getRowAPIInfo,
-              ),
-            ),
-            WidgetHiddenBox(
-              showNotifier: showAttrEditor,
-              child: APIProperties(
-                typeAttr: TypeAttr.model,
-                key: keyAttrEditor,
-                getModel: () {
-                  return currentCompany.listAPI;
-                },
-              ),
-            ),
-          ],
+        Expanded(
+          child: JsonListEditor(
+            key: treeEditor,
+            config:
+                JsonTreeConfig(
+                    textConfig: textConfig,
+                    getModel: () => modelToDisplay,
+                    onTap: (NodeAttribut node) {
+                      _goToAPI(node, 1);
+                    },
+                  )
+                  ..getJson = getYaml
+                  ..getRow = _getRowModelInfo,
+          ),
+        ),
+        WidgetHiddenBox(
+          showNotifier: showAttrEditor,
+          child: APIProperties(
+            typeAttr: TypeAttr.model,
+            key: keyAttrEditor,
+            getModel: () {
+              return modelToDisplay;
+            },
+          ),
         ),
       ],
     );
 
-    return WidgetTab(
-      listTab: [
-        Tab(text: 'API'),
-        Tab(text: 'Proxy Mock'),
-        Tab(text: 'Proxy random error'),
-      ],
-      listTabCont: [KeepAliveWidget(child: model), Container(), Container()],
-      heightTab: 40,
+    return FutureBuilder<ModelSchema>(
+      future: futureModel,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          modelToDisplay = snapshot.data;
+          return model;
+        } else if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        } else {
+          return Center(child: CircularProgressIndicator());
+        }
+      },
     );
   }
 
-  Widget _getRowAPIInfo(NodeAttribut attr, ModelSchema schema) {
+  var inputFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
+
+  Widget _getRowModelInfo(NodeAttribut attr, ModelSchema schema) {
     if (attr.info.type == 'root') {
+      return Container(height: rowHeight);
+    }
+
+    if (attr.level == 1) {
       return Container(height: rowHeight);
     }
 
@@ -127,39 +107,44 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
           node: attr,
           schema: currentCompany.listAPI,
           propName: 'summary',
+          editable: false,
         ),
       ),
     );
 
-    //addWidgetMasterId(attr, row);
+    row.add(
+      Text(
+        ' version: ${attr.info.properties!['_\$\$version']}',
+        // style: TextStyle(fontSize: 10, color: Colors.grey),
+      ),
+    );
 
-    if (attr.info.type == 'ope') {
-      row.add(SizedBox(width: 10));
-      row.add(WidgetVersionState(margeVertical: 2));
-      row.add(
-        TextButton.icon(
-          onPressed: () async {
-            await goToAPI(attr, 1);
-          },
-          label: Icon(Icons.remove_red_eye),
-        ),
-      );
-      row.add(
-        TextButton.icon(
-          icon: Icon(Icons.import_export),
-          onPressed: () async {
-            await goToAPI(attr, 1, subtabNumber: 2);
-          },
-          label: Text('Test API'),
-        ),
-      );
+    row.add(
+      TextButton.icon(
+        onPressed: () async {},
+        label: Icon(Icons.delete, size: 20, color: Colors.red),
+      ),
+    );
+
+    row.add(
+      TextButton.icon(
+        onPressed: () async {},
+        label: Icon(Icons.restore, size: 20),
+      ),
+    );
+
+    var inputDate = '';
+    if (attr.info.timeLastUpdate != null) {
+      inputDate = ' at ${inputFormat.format(attr.info.timeLastUpdate!)}';
     }
+
+    row.add(Text(inputDate));
 
     var ret = SizedBox(
       height: rowHeight,
       child: InkWell(
         onTap: () {
-          doShowAttrEditor(schema, attr);
+          _doShowAttrEditor(schema, attr);
           if (rowSelected?.mounted == true) {
             // ignore: invalid_use_of_protected_member
             rowSelected?.setState(() {});
@@ -167,7 +152,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         },
 
         onDoubleTap: () async {
-          await goToAPI(attr, 1);
+          await _goToAPI(attr, 1);
         },
         child: HoverableCard(
           isSelected: (State state) {
@@ -192,7 +177,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
     return ret;
   }
 
-  void doShowAttrEditor(ModelSchema schema, NodeAttribut attr) {
+  void _doShowAttrEditor(ModelSchema schema, NodeAttribut attr) {
     if (schema.currentAttr == attr && showAttrEditor.value == 300) {
       showAttrEditor.value = 0;
     } else {
@@ -203,14 +188,12 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
     keyAttrEditor.currentState?.setState(() {});
   }
 
-  Future<void> goToAPI(
+  Future<void> _goToAPI(
     NodeAttribut attr,
     int tabNumber, {
     int subtabNumber = -1,
   }) async {
-    attr = currentCompany.listAPI.nodeByMasterId[attr.info.masterID]!;
-
-    if (attr.info.type == 'ope') {
+    if (attr.level == 2) {
       stateApi.tabDisable.clear();
       // ignore: invalid_use_of_protected_member
       stateApi.keyTab.currentState?.setState(() {});
@@ -225,17 +208,17 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         n = n.parent;
       }
 
-      stateApi.path = ["API", ...modelPath, "0.0.1", "draft"];
+      stateApi.path = ["Tashcan API", ...modelPath, "0.0.1", "draft"];
       // ignore: invalid_use_of_protected_member
       stateApi.keyBreadcrumb.currentState?.setState(() {});
 
       currentCompany.listAPI.currentAttr = attr;
 
-      var key = attr.info.properties![constMasterID];
+      var key = attr.info.name;
       currentCompany.currentAPIResquest = ModelSchema(
         category: Category.api,
         infoManager: InfoManagerAPIParam(),
-        headerName: attr.info.name,
+        headerName: 'trashcan/${attr.info.type}',
         id: key,
       );
 
@@ -273,29 +256,5 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         });
       });
     }
-  }
-
-  Widget getStructureModel(BuildContext ctx) {
-    return Container(
-      color: Colors.black,
-      child: TextEditor(
-        header: "API routes",
-        key: stateApi.keyListAPIYaml,
-        config: textConfig,
-        actions: <Widget>[
-          InkWell(onTap: () {}, child: Icon(Icons.auto_fix_high, size: 18)),
-        ],
-      ),
-    );
-  }
-
-  Future<void> showImportDialog(BuildContext ctx) async {
-    return showDialog<void>(
-      context: ctx,
-      barrierDismissible: false, // user must tap button!
-      builder: (BuildContext context) {
-        return PanAPIImport();
-      },
-    );
   }
 }

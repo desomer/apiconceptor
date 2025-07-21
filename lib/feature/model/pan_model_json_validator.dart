@@ -91,7 +91,9 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       onChange: (String json, TextConfig config) {
         try {
           if (json != '' && jsonValidator != null) {
-            var jsonMap = jsonDecode(json);
+
+
+            var jsonMap = jsonDecode( removeComments(json));
             validateJsonSchemas(jsonValidator!, jsonMap, config.notifError);
             // ValidationResults r = jsonValidator!.validate(jsonMap);
             // // print("r= $r");

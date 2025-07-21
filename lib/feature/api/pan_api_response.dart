@@ -34,7 +34,7 @@ class PanResponseApi extends StatelessWidget with WidgetModelHelper {
       if (modelSchemaDetail.modelYaml != yaml) {
         modelSchemaDetail.modelYaml = yaml;
 
-        modelSchemaDetail.doChangeYaml(config, true, 'change');
+        modelSchemaDetail.doChangeAndRepaintYaml(config, true, 'change');
       }
     }
 

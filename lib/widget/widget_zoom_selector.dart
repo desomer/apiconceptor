@@ -50,6 +50,14 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
             },
           ),
         ),
+        IconButton(
+          onPressed: () {
+            stateList!.setState(() {});
+            stateList!.keyTree.currentState!.setState(() {});
+            stateList!.keyJsonList.currentState!.setState(() {});
+          },
+          icon: Icon(Icons.replay_outlined),
+        ),
       ],
     );
   }

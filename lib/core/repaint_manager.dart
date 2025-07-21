@@ -6,7 +6,7 @@ enum ChangeTag { apichange, apiparam }
 
 class RepaintManager {
   Map<ChangeTag, DicoTagRepaint> tags = {};
-  void addTag(ChangeTag id, String idWidget, State state, Function isChanged) {
+  void addTag(ChangeTag id, String idWidget, State? state, Function isChanged) {
     DicoTagRepaint? dico = tags[id];
     if (dico == null) {
       dico = DicoTagRepaint(id: id);
@@ -24,9 +24,9 @@ class RepaintManager {
     for (var element in tags[id]!.states.entries) {
       bool change = element.value.isChanged();
       if (change) {
-        if (element.value.state.mounted) {
+        if (element.value.state?.mounted??false) {
           // ignore: invalid_use_of_protected_member
-          element.value.state.setState(() {});
+          element.value.state!.setState(() {});
         }
       }
     }
@@ -42,7 +42,7 @@ class DicoTagRepaint {
 
 class TagRepaint {
   final String idWidget;
-  final State state;
+  final State? state;
   final Function isChanged;
 
   TagRepaint({

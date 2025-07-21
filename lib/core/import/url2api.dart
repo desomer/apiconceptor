@@ -20,6 +20,22 @@ class Url2Api {
     for (var urll in lines) {
       var apiDesc = ApiImportDesc();
 
+      var ope = 'get';
+
+      var hasOpe = urll.split(' ');
+      if (hasOpe.length == 2) {
+        if ([
+          'GET',
+          'DELETE',
+          'PATCH',
+          'PUT',
+          'POST',
+        ].contains(hasOpe[0].toUpperCase())) {
+          ope = hasOpe[0].toLowerCase();
+        }
+        urll = hasOpe[1];
+      }
+
       var u = urll.split('?');
       var svr = u[0];
       var param = u.length == 2 ? u[1] : '';
@@ -34,24 +50,40 @@ class Url2Api {
       StringBuffer path = StringBuffer('root>');
 
       var s = svr.split('/');
-      if (s.length > 2) {
-        var serveur = '${s[0]}//${s[2]}';
-        var existServeur = docYaml.index['\$server']?.value[serveur];
-        YamlLine row;
-        path.write(s[2]);
-        if (existServeur == null) {
-          row = docYaml.addAtEnd(s[2], '');
-          docYaml.addChild(row, '\$server', serveur);
+      YamlLine row;
+      int nb = 0;
+      if (s.length > 1) {
+        if (s[0].startsWith("http")) {
+          nb = 3;
+          var serveur = '${s[0]}//${s[2]}';
+          var existServeur = docYaml.index['\$server']?.value[serveur];
+          path.write(s[2]);
+
+          if (existServeur == null) {
+            row = docYaml.addAtEnd(s[2], '');
+            docYaml.addChild(row, '\$server', serveur);
+          } else {
+            row = existServeur.first.parent!;
+          }
         } else {
-          row = existServeur.first.parent!;
+          nb = 1;
+          row = docYaml.listRoot.firstWhere(
+            (element) {
+              return element.name == s[0];
+            },
+            orElse: () {
+              return docYaml.addAtEnd(s[0], '');
+            },
+          );
         }
-        for (var i = 3; i < s.length; i++) {
+
+        for (var i = nb; i < s.length; i++) {
           path.write('>');
           path.write(s[i]);
           row = docYaml.addChild(row, s[i], '');
         }
-        path.write('>get');
-        docYaml.addChild(row, 'get', 'ope');
+        path.write('>$ope');
+        docYaml.addChild(row, ope, 'ope');
       }
 
       apiDesc.path = path.toString();

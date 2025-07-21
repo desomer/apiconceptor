@@ -4,8 +4,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_action_hub.dart';
+import 'package:jsonschema/feature/api/pan_api_trashcan.dart';
 import 'package:jsonschema/feature/code/pan_code_generator.dart';
+import 'package:jsonschema/feature/model/pan_model_trashcan.dart';
 import 'package:jsonschema/feature/glossary/pan_glossary.dart';
 import 'package:jsonschema/feature/graph/pan_service_info.dart';
 import 'package:jsonschema/feature/graph/pan_spring_graph.dart';
@@ -28,6 +31,7 @@ import 'package:jsonschema/widget/widget_zoom_selector.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget_state/widget_md_doc.dart';
+import 'package:yaml/yaml.dart';
 
 import 'feature/api/pan_api_selector.dart';
 
@@ -70,21 +74,21 @@ void main() async {
     TypeModelBreadcrumb.request,
   );
 
-  currentCompany.listModel.dependency = [
+  currentCompany.listModel.dependency.addAll( [
     currentCompany.listComponent,
     currentCompany.listRequest,
-  ];
-  currentCompany.listComponent.dependency = [
+  ]);
+  currentCompany.listComponent.dependency.addAll([
     currentCompany.listModel,
     currentCompany.listRequest,
-  ];
-  currentCompany.listRequest.dependency = [
+  ]);
+  currentCompany.listRequest.dependency.addAll([
     currentCompany.listModel,
     currentCompany.listComponent,
-  ];
+  ]);
 
   currentCompany.listAPI = ModelSchema(
-    type: YamlType.allApi,
+    category: Category.allApi,
     headerName: 'All servers',
     id: 'api',
     infoManager: InfoManagerAPI(),
@@ -92,7 +96,10 @@ void main() async {
 
   if (withBdd) {
     try {
-      await currentCompany.listAPI.loadYamlAndProperties(cache: false);
+      await currentCompany.listAPI.loadYamlAndProperties(
+        cache: false,
+        withProperties: true,
+      );
       BrowseAPI().browse(currentCompany.listAPI, false);
     } on Exception catch (e) {
       print("$e");
@@ -106,14 +113,12 @@ void main() async {
     'Suffix & Prefix',
   );
 
-  // Swagger2Schema().import();
-
   runApp(ApiArchitecEditor());
 }
 
 Future<ModelSchema> loadGlossary(String id, String name) async {
   var schema = ModelSchema(
-    type: YamlType.allGlossary,
+    category: Category.allGlossary,
     headerName: name,
     id: id,
     infoManager: InfoManagerGlossary(),
@@ -121,7 +126,7 @@ Future<ModelSchema> loadGlossary(String id, String name) async {
 
   if (withBdd) {
     try {
-      await schema.loadYamlAndProperties(cache: false);
+      await schema.loadYamlAndProperties(cache: false, withProperties: true);
       BrowseGlossary().browse(schema, false);
     } on Exception catch (e) {
       print("$e");
@@ -138,7 +143,7 @@ Future<ModelSchema> loadSchema(
   TypeModelBreadcrumb typeBread,
 ) async {
   var m = ModelSchema(
-    type: YamlType.allModel,
+    category: Category.allModel,
     headerName: name,
     id: id,
     infoManager: InfoManagerModel(typeMD: type),
@@ -146,7 +151,7 @@ Future<ModelSchema> loadSchema(
   m.typeBreabcrumb = typeBread;
   if (withBdd) {
     try {
-      await m.loadYamlAndProperties(cache: false);
+      await m.loadYamlAndProperties(cache: false, withProperties: true);
       BrowseModel().browse(m, false);
     } on Exception catch (e) {
       print('$e');
@@ -231,7 +236,7 @@ class ApiArchitecEditor extends StatelessWidget {
                   SizedBox(width: 5),
                   SizedBox(height: 20, child: WidgetGlobalZoom()),
                   Spacer(),
-                  Text('API Architect by Desomer G. V0.1.3'),
+                  Text('API Architect by Desomer G. V0.1.5'),
                 ],
               ),
               body: SafeArea(
@@ -361,6 +366,11 @@ class ApiArchitecEditor extends StatelessWidget {
       tabDisable: stateApi.tabDisable,
       onInitController: (TabController tab) {
         stateApi.tabApi = tab;
+        tab.addListener(() {
+          if (tab.index == 1) {
+            repaintManager.doRepaint(ChangeTag.apichange);
+          }
+        });
       },
       listTab: [
         Tab(text: 'Browse API'),
@@ -379,7 +389,33 @@ class ApiArchitecEditor extends StatelessWidget {
         KeepAliveWidget(child: PanApiEditor(key: keyAPIEditor)),
         Container(),
         Container(),
-        Container(),
+        PanAPITrashcan(
+          getModelFct: () async {
+            var trash = ModelSchema(
+              category: Category.allApi,
+              headerName: 'All servers',
+              id: 'api',
+              infoManager: InfoManagerTrashAPI(),
+            );
+            trash.autoSaveProperties = false;
+
+            await bddStorage.getTrashSupabase(trash, trash.id, 'trash');
+
+            StringBuffer yamlTrash = StringBuffer();
+            yamlTrash.writeln('trash:');
+            for (var trashElem in trash.mapInfoByTreePath.entries) {
+              yamlTrash.writeln(
+                ' ${trashElem.value.masterID} : ${trashElem.value.path}',
+              );
+            }
+            trash.mapInfoByTreePath.clear();
+            // Swagger2Schema().import();
+            // print(yamlTrash.toString());
+            trash.mapModelYaml = loadYaml(yamlTrash.toString(), recover: true);
+
+            return trash;
+          },
+        ),
       ],
       heightTab: 40,
     );
@@ -488,7 +524,60 @@ class ApiArchitecEditor extends StatelessWidget {
         getGlossaryTab(),
         getNamingTab(),
         Container(),
-        Container(),
+        PanModelTrashcan(
+          getModelFct: () async {
+            var trash = ModelSchema(
+              category: Category.allModel,
+              headerName: 'All models',
+              id: 'model',
+              infoManager: InfoManagerTrashAPI(),
+            );
+            trash.autoSaveProperties = false;
+
+            await bddStorage.getTrashSupabase(trash, 'model', 'trash model');
+
+            StringBuffer yamlTrash = StringBuffer();
+            yamlTrash.writeln('trash model:');
+            for (var trashElem in trash.mapInfoByTreePath.entries) {
+              yamlTrash.writeln(
+                ' ${trashElem.value.masterID} : ${trashElem.value.path}',
+              );
+            }
+            trash.mapInfoByTreePath.clear();
+
+            await bddStorage.getTrashSupabase(
+              trash,
+              'component',
+              'trash component',
+            );
+
+            yamlTrash.writeln('trash component:');
+            for (var trashElem in trash.mapInfoByTreePath.entries) {
+              yamlTrash.writeln(
+                ' ${trashElem.value.masterID} : ${trashElem.value.path}',
+              );
+            }
+            trash.mapInfoByTreePath.clear();
+
+            await bddStorage.getTrashSupabase(
+              trash,
+              'request',
+              'trash request',
+            );
+
+            yamlTrash.writeln('trash request:');
+            for (var trashElem in trash.mapInfoByTreePath.entries) {
+              yamlTrash.writeln(
+                ' ${trashElem.value.masterID} : ${trashElem.value.path}',
+              );
+            }
+            trash.mapInfoByTreePath.clear();
+
+            trash.mapModelYaml = loadYaml(yamlTrash.toString(), recover: true);
+
+            return trash;
+          },
+        ),
       ],
       heightTab: 40,
     );

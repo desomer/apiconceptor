@@ -52,6 +52,8 @@ items :
 
 Example 4 : Array
 ```
+tag : string[]
+
 items[] :
     price : number
     activate : boolean
@@ -59,7 +61,7 @@ items[] :
 
 Example 5 : Array of any type
 ```
-items[] :
+items :  # or items[] :
     - a :
          val : string
     - b :

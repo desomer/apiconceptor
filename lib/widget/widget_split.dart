@@ -24,7 +24,7 @@ class SplitViewState extends State<SplitView> {
       _controller.areas = [Area(data: 0, flex: 1), Area(data: 1, flex: 1)];
     } else {
       _controller.areas = [
-        Area(data: 0, size: widget.primaryWidth, min: 50, max: 700),
+        Area(data: 0, size: widget.primaryWidth, min: 50, max: 1000),
         Area(data: 1, flex: 1),
       ];
     }

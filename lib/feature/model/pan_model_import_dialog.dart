@@ -93,7 +93,7 @@ class PanModelImportDialog extends StatelessWidget {
               docYaml.addChild(domain, nameKey, 'model');
               var newYaml = docYaml.getDoc();
               modelSchemaDetail.modelYaml = newYaml;
-              modelSchemaDetail.doChangeYaml(
+              modelSchemaDetail.doChangeAndRepaintYaml(
                 stateModel.modelSelector.textConfig,
                 true,
                 'import',
@@ -105,13 +105,13 @@ class PanModelImportDialog extends StatelessWidget {
                         .mapInfoByJsonPath['root>$domainKey>$nameKey'];
                 var id = newModel!.masterID!;
                 var aModel = ModelSchema(
-                  type: YamlType.model,
+                  category: Category.model,
                   infoManager: InfoManagerModel(typeMD: TypeMD.model),
                   headerName: nameKey,
                   id: id,
                 );
                 aModel.modelYaml = yaml;
-                aModel.doChangeYaml(null, true, 'import');
+                aModel.doChangeAndRepaintYaml(null, true, 'import');
               });
             } else if (tabImport.index == 1) {}
 

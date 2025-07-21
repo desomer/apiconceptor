@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:yaml/yaml.dart';
 
@@ -6,6 +7,49 @@ class YamlDoc {
   List<YamlLine> listYamlLine = [];
   List<String>? indexBy;
   Map<String, YamlLineIndex> index = {};
+  Map<String, YamlLineIndex> refs = {};
+
+  List<Widget> doPrettyPrint() {
+    List<Widget> listRows = [];
+    for (var i = 0; i < listYamlLine.length; i++) {
+      List<Widget> listWidget = [];
+      var l = listYamlLine[i];
+      if (l.name != null) {
+        var withoutBlank = l.text.trimLeft();
+        int nbLevel = l.text.indexOf(withoutBlank);
+        if (nbLevel < 0) nbLevel = 0;
+        StringBuffer sb = StringBuffer();
+        for (var j = 0; j < nbLevel; j++) {
+          sb.write(' ');
+        }
+        if (l.isItemArray) {
+          sb.write('- ');
+        }
+        sb.write('${l.name} : ');
+        listWidget.add(
+          Text(
+            sb.toString(),
+            style: TextStyle(color: Colors.pink, fontWeight: FontWeight.normal),
+          ),
+        );
+        if (l.value != null && (l.value is! Map && l.value is! List)) {
+          listWidget.add(
+            Text(
+              l.value!.toString(),
+              style: TextStyle(
+                color: Colors.yellow.shade400,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          );
+        }
+      } else {
+        listWidget.add(Text(l.text));
+      }
+      listRows.add(Row(children: listWidget));
+    }
+    return listRows;
+  }
 
   void doAnalyse(YamlDocument docYaml, String doc) {
     var v = docYaml.contents;
@@ -17,7 +61,7 @@ class YamlDoc {
       i++;
     }
 
-    _doNode(0, val, [], -1);
+    _doNode(0, val, [], -1, false);
   }
 
   String getDoc() {
@@ -56,8 +100,22 @@ class YamlDoc {
     }
     int newIdx = row.index + 1;
     if (row.child != null) {
-      newIdx = row.child!.last.endIndex + 1;
+      newIdx = row.child!.last.endIndex;
     }
+
+    // passes les lignes vides et les commentaires
+    int i = newIdx - 1;
+    if (i > 0) {
+      var l = listYamlLine[i];
+      var txt = l.text.trim();
+      while ((txt.isEmpty || txt.startsWith('#')) && i > 0) {
+        i--;
+        l = listYamlLine[i];
+        txt = l.text.trim();
+      }
+      newIdx = i + 1;
+    }
+
     StringBuffer nl = StringBuffer();
     int nbLevel = (row.level + 1) * 3;
     if (row.child?.first != null) {
@@ -98,7 +156,13 @@ class YamlDoc {
     return newLine;
   }
 
-  int _doNode(int level, YamlMap val, List<String> path, int line) {
+  int _doNode(
+    int level,
+    YamlMap val,
+    List<String> path,
+    int line,
+    bool isItemArray,
+  ) {
     var aPath = [...path];
 
     int searchIndex = val.span.start.line - 1;
@@ -107,11 +171,18 @@ class YamlDoc {
     for (var e in val.entries) {
       dynamic v = e.value;
       if (v is YamlMap) {
-        // object
         String k = e.key.toString();
+        if (e.key is Map) {
+          // cas des {id}
+          k = '{${e.key.keys.first.toString()}}';
+        }
+
+        // object
+
         path.add(k);
         int i = getIndexKey(searchIndex, val, allLine, k);
-        //print('level $level objet ${e.key}  $i');
+        print('level $level objet ${e.key}  $i');
+        allLine[i].isItemArray = isItemArray;
         allLine[i].name = k;
         allLine[i].value = e.value;
         allLine[i].path = aPath;
@@ -123,10 +194,38 @@ class YamlDoc {
         } else {
           listRoot.add(allLine[i]);
         }
-        searchIndex = _doNode(level + 1, v, path, i);
+        searchIndex = _doNode(level + 1, v, path, i, false);
         allLine[i].endIndex = searchIndex + 1;
         if (indexBy?.contains(k) ?? false) {
           addIndex(k, v, allLine[i]);
+        }
+        path.removeLast();
+      } else if (v is List) {
+        String k = e.key.toString();
+        path.add(k);
+        int i = getIndexKey(searchIndex, val, allLine, k);
+        allLine[i].name = k;
+        allLine[i].isItemArray = isItemArray;
+        allLine[i].value = e.value;
+        allLine[i].path = aPath;
+        allLine[i].level = level;
+        if (line > -1) {
+          allLine[i].parent = allLine[line];
+          allLine[line].child ??= [];
+          allLine[line].child!.add(allLine[i]);
+        } else {
+          listRoot.add(allLine[i]);
+        }
+
+        for (var item in v) {
+          // boucle sur les type d'items
+          if (item is YamlMap) {
+            searchIndex = _doNode(level + 1, item, path, i, true);
+            allLine[i].endIndex = searchIndex + 1;
+            if (indexBy?.contains(k) ?? false) {
+              addIndex(k, v, allLine[i]);
+            }
+          }
         }
         path.removeLast();
       } else {
@@ -138,6 +237,14 @@ class YamlDoc {
         allLine[i].value = e.value;
         allLine[i].path = aPath;
         allLine[i].level = level;
+
+        if (e.value is String && e.value.toString().startsWith('\$')) {
+          var r = e.value.toString().substring(1);
+          refs[r] ??= YamlLineIndex(key: k);
+          refs[r]!.value[k] ??= [];
+          refs[r]!.value[k]!.add(allLine[i]);
+        }
+
         if (line > -1) {
           allLine[i].parent = allLine[line];
           allLine[line].child ??= [];
@@ -163,6 +270,9 @@ class YamlDoc {
     for (var i = searchIndex; i < val.span.end.line + 1; i++) {
       var aLine = allLine[i].text;
       aLine = aLine.trimLeft();
+      if (aLine.startsWith('-')) {
+        aLine = aLine.substring(1).trimLeft();
+      }
       if (aLine.startsWith(k)) {
         aLine = aLine.substring(k.length).trimLeft();
         if (aLine.startsWith(':')) {
@@ -201,6 +311,7 @@ class YamlLine {
   int index;
   int endIndex;
   int level = 0;
+  bool isItemArray = false;
   List<String>? path;
   String text;
   String? type;
@@ -217,10 +328,10 @@ class ParseYamlManager {
     bool parseOk = false;
     try {
       var r = loadYaml(yaml);
-      if (r == null && yaml.trim()=='') {
+      if (r == null && yaml.trim() == '') {
         mapYaml = {};
         parseOk = true;
-        config?.notifError.value = '';        
+        config?.notifError.value = '';
       } else if (r is Map) {
         mapYaml = r;
         parseOk = true;
