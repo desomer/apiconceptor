@@ -24,12 +24,13 @@ class WidgetModelSelector extends StatelessWidget with WidgetModelHelper {
   });
   final ModelSchema listModel;
   final GlobalKey keyYamlListModel = GlobalKey();
-  final GlobalKey keyListModelInfo = GlobalKey();
+  final GlobalKey<JsonListEditorState> keyListModelInfo = GlobalKey();
   final TypeModelBreadcrumb typeModel;
   late TextConfig textConfig;
 
   @override
   Widget build(BuildContext context) {
+
     void onYamlChange(String yaml, TextConfig config) {
       if (listModel.modelYaml != yaml) {
         listModel.modelYaml = yaml;

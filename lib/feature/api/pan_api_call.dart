@@ -289,7 +289,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
         TextButton(
           onPressed: () {
             if (aSchema != null) {
-              var export = Export2Json()..browse(aSchema, false);
+              var export = Export2FakeJson()..browse(aSchema, false);
               widget.apiCallInfo.body = export.json;
               widget.apiCallInfo.bodyStr = export.prettyPrintJson(export.json);
               textConfigBody.doRebind();

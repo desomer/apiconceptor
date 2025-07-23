@@ -16,7 +16,9 @@ import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
+import 'package:jsonschema/widget_state/widget_md_doc.dart';
 import 'package:yaml/yaml.dart';
+import 'package:jsonschema/json_browser/browse_model.dart';
 
 class PanApiEditor extends StatefulWidget {
   const PanApiEditor({super.key});
@@ -259,34 +261,20 @@ body :
 }
 
 //////////////////////////////////////////////////////////////////////////////
-class InfoManagerAPIParam extends InfoManager with WidgetModelHelper {
+class InfoManagerAPIParam extends InfoManagerModel with WidgetModelHelper {
+  InfoManagerAPIParam({required super.typeMD});
+
   @override
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
       typeStr = 'param';
       if (node.level > 1) {
-        typeStr = 'object';
+        return super.getTypeTitle(node, name, type);
       }
-      if (name.startsWith(constRefOn)) {
-        typeStr = '\$ref';
-      }
-    } else if (type is List) {
-      // if (name.endsWith('[]')) {
-      //   typeStr = 'Array';
-      // } else {
-      //   typeStr = 'Object';
-      // }
-    } else if (type is int) {
-      typeStr = '?';
-    } else if (type is double) {
-      typeStr = '?';
-    } else if (type is String) {
-      if (type.startsWith('\$')) {
-        typeStr = 'Object';
-      }
+    } else {
+      return super.getTypeTitle(node, name, type);
     }
-    typeStr ??= '$type';
     return typeStr;
   }
 
@@ -301,118 +289,201 @@ class InfoManagerAPIParam extends InfoManager with WidgetModelHelper {
     String typeTitle,
   ) {
     var type = typeTitle.toLowerCase();
-    bool valid = [
-      'param',
-      'string',
-      'number',
-      'boolean',
-      'object',
-      '\$ref',
-    ].contains(type);
-    if (!valid) {
-      return InvalidInfo(color: Colors.red);
+    bool valid = ['param'].contains(type);
+    if (valid) {
+      return null;
     }
-    return null;
+    return super.isTypeValid(nodeAttribut, name, type, typeTitle);
   }
 
   @override
   Widget getAttributHeader(TreeNode<NodeAttribut> node) {
-    Widget icon = Container();
-    var isRoot = node.isRoot;
-    var type = node.data!.info.type;
-    var isPath = type == 'Path';
-    String name = node.data!.yamlNode.key.toString().toLowerCase();
-    var isRef = node.data!.info.type == '\$ref';
-
-    if (isRoot && name == 'api') {
-      icon = Icon(Icons.business);
-    } else if (isPath) {
-      if (node.data!.info.properties!['\$server'] != null) {
-        icon = Icon(Icons.dns_outlined);
-      } else {
-        icon = Icon(Icons.lan_outlined);
-      }
-    } else if (name == ('\$server')) {
-      icon = Icon(Icons.http_outlined);
-      name = 'URL';
-    } else if (isRef) {
-      icon = Icon(Icons.link);
-      name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
-    }
-
-    late Widget? w = getHttpOpe(name);
-    if (w == null) {
-      List<Widget> wpath = [];
-      if (isRef) {
-        wpath.add(Text(name));
-      } else if (isPath) {
-        List<String> path = node.data!.yamlNode.key.toString().split('/');
-        int i = 0;
-        for (var element in path) {
-          bool isLast = i == path.length - 1;
-          if (element.startsWith('{')) {
-            String v = element.substring(1, element.length - 1);
-            wpath.add(getChip(Text(v), color: null));
-            if (!isLast) {
-              wpath.add(Text('/'));
-            }
-          } else {
-            wpath.add(Text(element + (!isLast ? '/' : '')));
-          }
-          i++;
+    //var type = node.data!.info.type;
+    if (node.level == 1) {
+      var name = node.data!.yamlNode.key.toString();
+      List<Widget> w = [
+        Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ];
+      if (typeMD == TypeMD.apiresponse) {
+        int? v = int.tryParse(name);
+        if (v != null) {
+          w = [ getChip(w.first, color: v<300 ? Colors.green : Colors.red.shade400)];
+          w.add(Text(' ${interpretHttpStatusCode(v)}'));
         }
-      } else {
-        wpath.add(Text(node.data!.yamlNode.key.toString()));
       }
-      w = Row(children: wpath);
-    }
-
-    bool isAPI = node.data!.info.type == 'ope';
-    String bufPath = getTooltip(node, isAPI, name);
-
-    return Tooltip(
-      message: bufPath.toString(),
-      child: IntrinsicWidth(
-        //width: 180,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
-          child: Row(
-            children: [
-              Padding(padding: EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
-              w,
-            ],
+      return Row(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(0, 0, 5, 0),
+            child: Icon(Icons.api),
           ),
-        ),
-      ),
-    );
+          ...w,
+        ],
+      );
+    } else {
+      return super.getAttributHeader(node);
+    }
   }
 
-  String getTooltip(TreeNode<NodeAttribut> node, bool isAPI, String name) {
-    String bufPath = '';
-    NodeAttribut? nd = node.data!;
+  String interpretHttpStatusCode(int code) {
+    const statusMessages = {
+      // Informational
+      100: 'Continue',
+      101: 'Switching protocols',
+      102: 'Processing',
 
-    if (isAPI) {
-      nd = nd.parent;
-    }
-    while (nd != null) {
-      var sep = '';
-      var n = nd.yamlNode.key.toString().toLowerCase();
-      var isServer = nd.info.properties?['\$server'];
-      if (isServer != null) {
-        n = '<$isServer>';
-      }
-      if (!n.endsWith('/') && !bufPath.startsWith('/')) sep = '/';
-      bufPath = n + sep + bufPath;
-      if (nd.info.properties?['\$server'] != null) {
-        break;
-      }
-      nd = nd.parent;
-    }
-    if (isAPI) {
-      bufPath = '[${name.toUpperCase()}] $bufPath';
-    }
-    return bufPath;
+      // Success
+      200: 'Success OK',
+      201: 'Successfully created',
+      202: 'Accepted',
+      203: 'Non-authoritative information',
+      204: 'No content',
+      205: 'Reset content',
+      206: 'Partial content',
+
+      // Redirection
+      300: 'Multiple choices',
+      301: 'Moved permanently',
+      302: 'Found (previously "Moved temporarily")',
+      303: 'See other',
+      304: 'Not modified',
+      307: 'Temporary redirect',
+      308: 'Permanent redirect',
+
+      // Client Error
+      400: 'Bad request',
+      401: 'Unauthorized',
+      402: 'Payment required',
+      403: 'Forbidden access',
+      404: 'Resource not found',
+      405: 'Method not allowed',
+      406: 'Not acceptable',
+      407: 'Proxy authentication required',
+      408: 'Request timeout',
+      409: 'Conflict',
+      410: 'Gone',
+      411: 'Length required',
+      412: 'Precondition failed',
+      413: 'Payload too large',
+      414: 'URI too long',
+      415: 'Unsupported media type',
+      416: 'Range not satisfiable',
+      417: 'Expectation failed',
+      422: 'Unprocessable entity',
+      429: 'Too many requests',
+
+      // Server Error
+      500: 'Internal server error',
+      501: 'Not implemented',
+      502: 'Bad gateway',
+      503: 'Service unavailable',
+      504: 'Gateway timeout',
+      505: 'HTTP version not supported',
+      507: 'Insufficient storage',
+      511: 'Network authentication required',
+    };
+
+    return statusMessages[code] ?? '';
   }
+
+  // @override
+  // Widget getAttributHeader(TreeNode<NodeAttribut> node) {
+  //   Widget icon = Container();
+  //   var isRoot = node.isRoot;
+  //   var type = node.data!.info.type;
+  //   var isPath = type == 'Path';
+  //   String name = node.data!.yamlNode.key.toString().toLowerCase();
+  //   var isRef = node.data!.info.type == '\$ref';
+
+  //   if (isRoot && name == 'api') {
+  //     icon = Icon(Icons.business);
+  //   } else if (isPath) {
+  //     if (node.data!.info.properties!['\$server'] != null) {
+  //       icon = Icon(Icons.dns_outlined);
+  //     } else {
+  //       icon = Icon(Icons.lan_outlined);
+  //     }
+  //   } else if (name == ('\$server')) {
+  //     icon = Icon(Icons.http_outlined);
+  //     name = 'URL';
+  //   } else if (isRef) {
+  //     icon = Icon(Icons.link);
+  //     name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
+  //   }
+
+  //   late Widget? w = getHttpOpe(name);
+  //   if (w == null) {
+  //     List<Widget> wpath = [];
+  //     if (isRef) {
+  //       wpath.add(Text(name));
+  //     } else if (isPath) {
+  //       List<String> path = node.data!.yamlNode.key.toString().split('/');
+  //       int i = 0;
+  //       for (var element in path) {
+  //         bool isLast = i == path.length - 1;
+  //         if (element.startsWith('{')) {
+  //           String v = element.substring(1, element.length - 1);
+  //           wpath.add(getChip(Text(v), color: null));
+  //           if (!isLast) {
+  //             wpath.add(Text('/'));
+  //           }
+  //         } else {
+  //           wpath.add(Text(element + (!isLast ? '/' : '')));
+  //         }
+  //         i++;
+  //       }
+  //     } else {
+  //       wpath.add(Text(node.data!.yamlNode.key.toString()));
+  //     }
+  //     w = Row(children: wpath);
+  //   }
+
+  //   bool isAPI = node.data!.info.type == 'ope';
+  //   String bufPath = getTooltip(node, isAPI, name);
+
+  //   return Tooltip(
+  //     message: bufPath.toString(),
+  //     child: IntrinsicWidth(
+  //       //width: 180,
+  //       child: Padding(
+  //         padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
+  //         child: Row(
+  //           children: [
+  //             Padding(padding: EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
+  //             w,
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
+
+  // String getTooltip(TreeNode<NodeAttribut> node, bool isAPI, String name) {
+  //   String bufPath = '';
+  //   NodeAttribut? nd = node.data!;
+
+  //   if (isAPI) {
+  //     nd = nd.parent;
+  //   }
+  //   while (nd != null) {
+  //     var sep = '';
+  //     var n = nd.yamlNode.key.toString().toLowerCase();
+  //     var isServer = nd.info.properties?['\$server'];
+  //     if (isServer != null) {
+  //       n = '<$isServer>';
+  //     }
+  //     if (!n.endsWith('/') && !bufPath.startsWith('/')) sep = '/';
+  //     bufPath = n + sep + bufPath;
+  //     if (nd.info.properties?['\$server'] != null) {
+  //       break;
+  //     }
+  //     nd = nd.parent;
+  //   }
+  //   if (isAPI) {
+  //     bufPath = '[${name.toUpperCase()}] $bufPath';
+  //   }
+  //   return bufPath;
+  // }
 }
 
 class APICallInfo {
@@ -478,7 +549,7 @@ class APICallInfo {
       }
     }
     aParams.sort();
-   // print(aParams);
+    // print(aParams);
     params = aParams;
   }
 

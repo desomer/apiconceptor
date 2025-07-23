@@ -1,6 +1,7 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 
 import 'package:jsonschema/main.dart';
@@ -29,7 +30,7 @@ class JsonBrowser<T> {
     if (ret.wait != null && antiloop < 20) {
       //await Future.delayed(Duration(milliseconds: 300));
       await ret.wait;
-      ret = await browseSync(model, unknowedMode, antiloop++);
+      ret = await browseSync(model, unknowedMode, antiloop+1);
     }
     return ret;
   }
@@ -74,7 +75,7 @@ class JsonBrowser<T> {
 
     model.lastNbNode = browser.nbNode;
 
-    List<Future> waitAllRef = [];
+    List<Future<ModelSchema>> waitAllRef = [];
 
     for (var element in browser.asyncRef) {
       waitAllRef.add(
@@ -359,7 +360,8 @@ class JsonBrowser<T> {
         headerName: refName,
         id: masterIdRef,
         infoManager: model.infoManager,
-      );
+      );    
+      modelRef.currentVersion = bddStorage.lastVersionByMaster[masterIdRef]; // recupére la derniere version charger
       var ret = modelRef.getItemSync(-1);
       if (ret == null) {
         if (browserAttrInfo.ref == null ||

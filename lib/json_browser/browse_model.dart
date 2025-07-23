@@ -145,7 +145,7 @@ class InfoManagerModel extends InfoManager {
     var isType = node.data!.info.name == constType;
     var isArray =
         node.data!.info.type == 'Array' || node.data!.info.type.endsWith('[]');
-    String name = node.data?.yamlNode.key;
+    String name = node.data!.yamlNode.key.toString();
 
     if (isRoot) {
       icon = Icon(Icons.business);

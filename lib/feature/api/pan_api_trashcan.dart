@@ -15,6 +15,7 @@ import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
+import 'package:jsonschema/widget_state/widget_md_doc.dart';
 
 // ignore: must_be_immutable
 class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
@@ -217,7 +218,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
       var key = attr.info.name;
       currentCompany.currentAPIResquest = ModelSchema(
         category: Category.api,
-        infoManager: InfoManagerAPIParam(),
+        infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
         headerName: 'trashcan/${attr.info.type}',
         id: key,
       );
@@ -233,7 +234,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
 
       currentCompany.currentAPIResponse = ModelSchema(
         category: Category.api,
-        infoManager: InfoManagerAPIParam(),
+        infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
         headerName: attr.info.name,
         id: 'response/$key',
       );

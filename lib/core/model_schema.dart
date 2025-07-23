@@ -375,10 +375,10 @@ class ModelSchema {
     isLoadProp = true;
   }
 
-  /// charge les informations 
-  ///  [cache] avec cache mémoire 
+  /// charge les informations
+  ///  [cache] avec cache mémoire
   ///  [withProperties] pour les graph
-  Future<void> loadYamlAndProperties({
+  Future<ModelSchema> loadYamlAndProperties({
     required bool cache,
     required bool withProperties,
   }) async {
@@ -400,6 +400,7 @@ class ModelSchema {
       } else {
         currentVersion ??= versions.first;
       }
+      bddStorage.lastVersionByMaster[id] = currentVersion!;
     }
 
     dynamic savedYamlModel = bddStorage.getItem(
@@ -411,7 +412,7 @@ class ModelSchema {
     if (savedYamlModel is Future) {
       savedYamlModel = await savedYamlModel;
     } else if (mapModelYaml.isNotEmpty) {
-      return;
+      return this;
     }
 
     if (savedYamlModel != null) {
@@ -429,6 +430,7 @@ class ModelSchema {
     if (withProperties) {
       await _loadProperties(cache: cache);
     }
+    return this;
   }
 
   dynamic loadYamlAndPropertiesSyncOrNot({required bool cache}) {

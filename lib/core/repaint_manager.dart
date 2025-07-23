@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 RepaintManager repaintManager = RepaintManager();
 
-enum ChangeTag { apichange, apiparam }
+enum ChangeTag { showListModel, showListApi, apichange, apiparam }
 
 class RepaintManager {
   Map<ChangeTag, DicoTagRepaint> tags = {};
@@ -20,11 +20,12 @@ class RepaintManager {
   }
 
   void doRepaint(ChangeTag id) {
+    print("************** repaint $id **********");
     if (tags[id] == null) return;
     for (var element in tags[id]!.states.entries) {
       bool change = element.value.isChanged();
       if (change) {
-        if (element.value.state?.mounted??false) {
+        if (element.value.state?.mounted ?? false) {
           // ignore: invalid_use_of_protected_member
           element.value.state!.setState(() {});
         }

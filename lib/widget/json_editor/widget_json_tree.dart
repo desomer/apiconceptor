@@ -7,7 +7,6 @@ import 'package:jsonschema/widget/json_editor/widget_json_list.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
 import 'package:jsonschema/widget/widget_split.dart';
-import 'package:widget_visibility_checker/widget_visibility_checker.dart';
 
 class JsonBrowserWidget extends JsonBrowser {
   late JsonListEditorState state;
@@ -138,7 +137,7 @@ class JsonListEditor extends StatefulWidget {
 }
 
 class JsonListEditorState extends State<JsonListEditor>
-    with SingleTickerProviderStateMixin, VisibilityChangeHandler {
+    with SingleTickerProviderStateMixin {
   late AutoScrollController _scrollController;
 
   TreeListLink modelInfo = TreeListLink();
@@ -171,7 +170,7 @@ class JsonListEditorState extends State<JsonListEditor>
 
   @override
   Widget build(BuildContext context) {
-    stateOpenFactor?.stateList = this;
+    stateOpenFactor?.setList(this);
 
     ModelSchema? model = (widget.config.getModel() as ModelSchema?);
     if (model == null) return Text('Select model first');
@@ -185,11 +184,7 @@ class JsonListEditorState extends State<JsonListEditor>
     model.lastJsonBrowser = jsonBrowserWidget;
     repaintListView(0, 'build');
 
-    return WidgetVisibilityChecker(
-      childScrollDirection: Axis.horizontal,
-      handler: this,
-      child: getWidget(model, browser, jsonBrowserWidget),
-    );
+    return getWidget(model, browser, jsonBrowserWidget);
   }
 
   Widget getWidget(
@@ -406,16 +401,6 @@ class JsonListEditorState extends State<JsonListEditor>
       padding: EdgeInsets.all(0),
       label: content,
     );
-  }
-
-  @override
-  void scrollMetricsChanged() {
-    stateOpenFactor?.stateList = this;
-  }
-
-  @override
-  void visibilityStatesChanged() {
-    stateOpenFactor?.stateList = this;
   }
 }
 

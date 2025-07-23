@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
 
 var stateApi = StateAPI();
 
 class StateAPI {
   GlobalKey keyListAPIYaml = GlobalKey();
-  GlobalKey keyListAPIInfo = GlobalKey();
+  GlobalKey<JsonListEditorState> keyListAPIInfo = GlobalKey();
 
 
   GlobalKey keyTab = GlobalKey();

@@ -74,7 +74,7 @@ void main() async {
     TypeModelBreadcrumb.request,
   );
 
-  currentCompany.listModel.dependency.addAll( [
+  currentCompany.listModel.dependency.addAll([
     currentCompany.listComponent,
     currentCompany.listRequest,
   ]);
@@ -236,7 +236,7 @@ class ApiArchitecEditor extends StatelessWidget {
                   SizedBox(width: 5),
                   SizedBox(height: 20, child: WidgetGlobalZoom()),
                   Spacer(),
-                  Text('API Architect by Desomer G. V0.1.5'),
+                  Text('API Architect by Desomer G. V0.2.2'),
                 ],
               ),
               body: SafeArea(
@@ -367,6 +367,9 @@ class ApiArchitecEditor extends StatelessWidget {
       onInitController: (TabController tab) {
         stateApi.tabApi = tab;
         tab.addListener(() {
+          if (tab.index == 0) {
+            repaintManager.doRepaint(ChangeTag.showListApi);
+          }
           if (tab.index == 1) {
             repaintManager.doRepaint(ChangeTag.apichange);
           }
@@ -499,6 +502,11 @@ class ApiArchitecEditor extends StatelessWidget {
       key: stateModel.keyTab,
       onInitController: (TabController tab) {
         stateModel.tabModel = tab;
+        tab.addListener(() {
+          if (tab.index == 0) {
+            stateModel.setTab();
+          }
+        });
       },
       tabDisable: stateModel.tabDisable,
       listTab: [

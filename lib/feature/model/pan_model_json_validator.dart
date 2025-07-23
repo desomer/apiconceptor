@@ -91,9 +91,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       onChange: (String json, TextConfig config) {
         try {
           if (json != '' && jsonValidator != null) {
-
-
-            var jsonMap = jsonDecode( removeComments(json));
+            var jsonMap = jsonDecode(removeComments(json));
             validateJsonSchemas(jsonValidator!, jsonMap, config.notifError);
             // ValidationResults r = jsonValidator!.validate(jsonMap);
             // // print("r= $r");
@@ -110,7 +108,8 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
         }
       },
       getText: () {
-        var export = Export2Json()..browse(currentCompany.currentModel!, false);
+        var export =
+            Export2FakeJson()..browse(currentCompany.currentModel!, false);
         var json = export.prettyPrintJson(export.json);
 
         return json;

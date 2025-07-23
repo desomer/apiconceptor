@@ -5,33 +5,18 @@ import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
+import 'package:jsonschema/feature/graph/domain_painter.dart';
+import 'package:jsonschema/feature/graph/edge_painter.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
-import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget_state/widget_md_doc.dart';
 import 'package:yaml/yaml.dart';
 import 'package:collection/collection.dart';
 
-class Node {
-  double x, y, dx = 0, dy = 0;
-  Node(this.x, this.y, this.name, this.info);
-  double height = 100;
-  double width = 200;
-  String name;
-  AttributInfo info;
-  ModelSchema? model; // Added to allow assignment to node.model
-}
+import 'widget_graph_node.dart';
 
-class ApiNode extends Node {
-  ApiNode(super.x, super.y, super.name, super.info);
-}
 
-class ModelNode extends Node {
-  ModelNode(super.x, super.y, super.name, super.info);
-  int nbRow = 3; // 3 par defaut
-  List<Widget> listRowYaml = [];
-}
 
 class Edge {
   int from, to;
@@ -52,7 +37,7 @@ class PanModelGraph extends StatefulWidget {
   State<PanModelGraph> createState() => _PanModelGraphState();
 }
 
-class _PanModelGraphState extends State<PanModelGraph> with WidgetModelHelper {
+class _PanModelGraphState extends State<PanModelGraph> {
   final List<Node> nodes = [];
   final List<Edge> edges = [];
 
@@ -79,7 +64,7 @@ class _PanModelGraphState extends State<PanModelGraph> with WidgetModelHelper {
   void initGraph(ModelSchema model) {
     model.mapInfoByTreePath.forEach((key, value) {
       if (value.type == 'model') {
-        addModel(value);
+        _addModel(value);
       } else if (value.type == 'ope') {
         _addApi(value);
       }
@@ -88,7 +73,7 @@ class _PanModelGraphState extends State<PanModelGraph> with WidgetModelHelper {
     //print( pathHead);
   }
 
-  void addModel(AttributInfo value) {
+  void _addModel(AttributInfo value) {
     var node = ModelNode(
       100 + Random().nextDouble() * 800,
       100 + Random().nextDouble() * 500,
@@ -119,8 +104,9 @@ class _PanModelGraphState extends State<PanModelGraph> with WidgetModelHelper {
     nodes.add(node);
     node.height = 1;
     node.width = node.name.length * 9;
+
     _initApiLink(value, node, ''); // les requests
-    _initApiLink(value, node, 'response/');
+    _initApiLink(value, node, 'response/'); // les response
   }
 
   void _initModelLink(AttributInfo value, ModelNode node) {
@@ -361,10 +347,7 @@ class _PanModelGraphState extends State<PanModelGraph> with WidgetModelHelper {
                     node.y = (node.y + details.delta.dy).clamp(0.0, areaHeight);
                   });
                 },
-                child:
-                    node is ModelNode
-                        ? getModel(node)
-                        : getAPI(node as ApiNode),
+                child: node.getWidget(),
               ),
             ),
           );
@@ -385,227 +368,4 @@ class _PanModelGraphState extends State<PanModelGraph> with WidgetModelHelper {
     return interactiveViewer;
   }
 
-  Widget getAPI(ApiNode node) {
-    var name = node.info.name;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black54,
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: Colors.grey),
-      ),
-      child: Row(
-        spacing: 5,
-        children: [getHttpOpe(name) ?? Container(), Text(node.name)],
-      ),
-    );
-  }
-
-  Widget getModel(ModelNode node) {
-    var scrollController = ScrollController();
-    return Column(
-      children: [
-        Text(node.name, style: TextStyle(fontSize: 14)),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.all(4),
-          width: node.width,
-          height: node.height,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade800,
-            border: Border.all(color: Colors.white, width: 1),
-          ),
-          alignment: Alignment.topLeft,
-          child: Scrollbar(
-            controller: scrollController,
-
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              controller: scrollController,
-              child: ListView.builder(
-                itemBuilder: (context, index) {
-                  return node.listRowYaml.length > index
-                      ? getOverflowHidden(node.listRowYaml[index])
-                      : Container();
-                },
-                itemExtent: 19 * (zoom.value / 100),
-                itemCount: node.nbRow,
-                shrinkWrap: true,
-                physics: const AlwaysScrollableScrollPhysics(),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget getOverflowHidden(Widget child) {
-    return SizedBox(
-      height: 19 * (zoom.value / 100),
-      child: OverflowBox(
-        alignment: Alignment.topLeft,
-        maxWidth: double.infinity,
-        child: child,
-      ),
-    );
-  }
-}
-
-class DomainPainter extends CustomPainter {
-  final PathNode pathHead;
-
-  DomainPainter({required this.pathHead});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..color = Colors.grey.shade500
-          ..strokeWidth = 1;
-
-    for (var element in pathHead.children.entries) {
-      String domain = element.key.substring('root>'.length);
-      var nodes = element.value;
-
-      Rectangle<double>? rect;
-
-      // Draw the nodes
-      for (var node in nodes) {
-        var node2 = node.children.values.firstOrNull?.first.node;
-        if (node2 != null) {
-          var rec = Rectangle(node2.x, node2.y, node2.width, node2.height + 25);
-          if (rect == null) {
-            rect = rec;
-          } else {
-            // Manually compute the union of two rectangles
-            double left = min(rect.left, rec.left);
-            double top = min(rect.top, rec.top);
-            double right = max(rect.right, rec.right);
-            double bottom = max(rect.bottom, rec.bottom);
-            rect = Rectangle(left, top, right - left, bottom - top);
-          }
-        }
-      }
-      if (rect != null) {
-        final dashWidth = 4.0;
-        final dashSpace = 4.0;
-        final path = _createDashedRectPath(
-          Rect.fromLTWH(
-            rect.left - 20,
-            rect.top - 20,
-            rect.width + 40,
-            rect.height + 40,
-          ),
-          dashWidth,
-          dashSpace,
-        );
-
-        TextSpan span = TextSpan(
-          style: TextStyle(color: Colors.blue[800]),
-          text: domain,
-        );
-        TextPainter tp = TextPainter(
-          text: span,
-          textAlign: TextAlign.left,
-          textDirection: TextDirection.ltr,
-        );
-        tp.layout();
-        tp.paint(canvas, Offset(rect.left - 20, rect.top - 20 - 20));
-
-        canvas.drawPath(path, paint);
-      }
-    }
-  }
-
-  Path _createDashedRectPath(Rect rect, double dashWidth, double dashSpace) {
-    final path = Path();
-    // Top
-    _addDashedLine(
-      path,
-      Offset(rect.left, rect.top),
-      Offset(rect.right, rect.top),
-      dashWidth,
-      dashSpace,
-    );
-    // Right
-    _addDashedLine(
-      path,
-      Offset(rect.right, rect.top),
-      Offset(rect.right, rect.bottom),
-      dashWidth,
-      dashSpace,
-    );
-    // Bottom
-    _addDashedLine(
-      path,
-      Offset(rect.right, rect.bottom),
-      Offset(rect.left, rect.bottom),
-      dashWidth,
-      dashSpace,
-    );
-    // Left
-    _addDashedLine(
-      path,
-      Offset(rect.left, rect.bottom),
-      Offset(rect.left, rect.top),
-      dashWidth,
-      dashSpace,
-    );
-    return path;
-  }
-
-  void _addDashedLine(
-    Path path,
-    Offset start,
-    Offset end,
-    double dashWidth,
-    double dashSpace,
-  ) {
-    final totalLength = (end - start).distance;
-    final direction = (end - start) / totalLength;
-    double distance = 0.0;
-    while (distance < totalLength) {
-      final currentStart = start + direction * distance;
-      final currentEnd =
-          start + direction * min(distance + dashWidth, totalLength);
-      path.moveTo(currentStart.dx, currentStart.dy);
-      path.lineTo(currentEnd.dx, currentEnd.dy);
-      distance += dashWidth + dashSpace;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
-
-class EdgePainter extends CustomPainter {
-  final List<Node> nodes;
-  final List<Edge> edges;
-
-  EdgePainter(this.nodes, this.edges);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = Colors.grey.shade500
-          ..strokeWidth = 2;
-
-    for (var edge in edges) {
-      final from = nodes[edge.from];
-      final to = nodes[edge.to];
-      canvas.drawLine(
-        Offset(from.x + (from.width / 2), from.y + (from.height / 2) + 20),
-        Offset(to.x + (to.width / 2), to.y + (to.height / 2) + 20),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

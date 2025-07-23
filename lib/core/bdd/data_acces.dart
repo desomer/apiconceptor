@@ -63,6 +63,7 @@ class DataAcces {
   late RealtimeChannel myChannel;
   Map<String, CacheValue> local = {};
   Map<String, OnEvent> doEventListner = {};
+  Map<String, ModelVersion> lastVersionByMaster = {};
 
   Future<dynamic> getTrashSupabase(
     ModelSchema model,

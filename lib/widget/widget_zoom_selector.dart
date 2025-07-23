@@ -31,19 +31,19 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
               setState(() {
                 bool open = value > widget.zoom.value;
                 widget.zoom.value = value;
-                if (stateList?.mounted ?? false) {
+                if (_stateList?.mounted ?? false) {
                   var root =
-                      stateList!.modelInfo.treeController?.tree
+                      _stateList!.modelInfo.treeController?.tree
                           as TreeNode<NodeAttribut>?;
                   if (root != null) {
-                    var delay = stateList!.doZoomNode(
+                    var delay = _stateList!.doZoomNode(
                       open,
                       0,
                       root,
                       0,
                       max: value.toInt(),
                     );
-                    stateList!.repaintListView(delay, 'zoom');
+                    _stateList!.repaintListView(delay, 'zoom');
                   }
                 }
               });
@@ -52,9 +52,9 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
         ),
         IconButton(
           onPressed: () {
-            stateList!.setState(() {});
-            stateList!.keyTree.currentState!.setState(() {});
-            stateList!.keyJsonList.currentState!.setState(() {});
+            _stateList!.setState(() {});
+            _stateList!.keyTree.currentState!.setState(() {});
+            _stateList!.keyJsonList.currentState!.setState(() {});
           },
           icon: Icon(Icons.replay_outlined),
         ),
@@ -62,9 +62,11 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
     );
   }
 
-  JsonListEditorState? stateList;
+  JsonListEditorState? _stateList;
 
-  void setList(JsonListEditorState state) {
-    stateList = state;
+  void setList(JsonListEditorState? state) {
+    if (state != null) {
+      _stateList = state;
+    }
   }
 }

@@ -57,6 +57,8 @@ dependencies:
   # re_editor: ^0.7.0  
   # re_highlight: ^0.0.3
   widget_visibility_checker: ^1.0.2
+  shelf: ^1.4.2
+  url_launcher: ^6.3.2
 
   flutter:
     sdk: flutter
@@ -130,7 +132,7 @@ msix_config:
   display_name: Api Architect
   publisher_display_name: ApiArchitect
   identity_name: apiarchitect
-  msix_version: 1.0.2.0
+  msix_version: 1.0.2.2
   logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
   capabilities: internetClient
   sign_msix: true

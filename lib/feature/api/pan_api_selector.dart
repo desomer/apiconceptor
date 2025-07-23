@@ -4,6 +4,7 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
+import 'package:jsonschema/server.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -21,6 +22,8 @@ import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_version_state.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
+import 'package:jsonschema/widget_state/widget_md_doc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ignore: must_be_immutable
 class PanAPISelector extends StatelessWidget with WidgetModelHelper {
@@ -32,6 +35,11 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
 
   @override
   Widget build(BuildContext context) {
+    repaintManager.addTag(ChangeTag.showListApi, "PanAPISelector", null, () {
+      stateOpenFactor?.setList(stateApi.keyListAPIInfo.currentState!);
+      return false;
+    });
+
     void onYamlChange(String yaml, TextConfig config) {
       if (currentCompany.listAPI.modelYaml != yaml) {
         currentCompany.listAPI.modelYaml = yaml;
@@ -108,7 +116,32 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
         Tab(text: 'Proxy Mock'),
         Tab(text: 'Proxy random error'),
       ],
-      listTabCont: [KeepAliveWidget(child: model), Container(), Container()],
+      listTabCont: [
+        KeepAliveWidget(child: model),
+        Container(
+          child: Column(
+            children: [
+              ElevatedButton.icon(
+                icon: Icon(Icons.troubleshoot_rounded),
+                onPressed: () async {
+                  startServer();
+                  String baseUrl = 'localhost:1234';
+                  String path = 'all/api';
+                  Uri url = Uri.http(baseUrl, path);
+                  if (!await launchUrl(
+                    url,
+                    mode: LaunchMode.externalApplication,
+                  )) {
+                    throw Exception('Could not launch $url');
+                  }
+                },
+                label: Text('Test API Mock '),
+              ),
+            ],
+          ),
+        ),
+        Container(),
+      ],
       heightTab: 40,
     );
   }
@@ -234,7 +267,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
       var key = attr.info.properties![constMasterID];
       currentCompany.currentAPIResquest = ModelSchema(
         category: Category.api,
-        infoManager: InfoManagerAPIParam(),
+        infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
         headerName: attr.info.name,
         id: key,
       );
@@ -250,7 +283,7 @@ class PanAPISelector extends StatelessWidget with WidgetModelHelper {
 
       currentCompany.currentAPIResponse = ModelSchema(
         category: Category.api,
-        infoManager: InfoManagerAPIParam(),
+        infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiresponse),
         headerName: attr.info.name,
         id: 'response/$key',
       );

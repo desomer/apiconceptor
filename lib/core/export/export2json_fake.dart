@@ -4,7 +4,7 @@ import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 
-class Export2Json<T extends Map<String, dynamic>>
+class Export2FakeJson<T extends Map<String, dynamic>>
     extends JsonBrowser2generic<T> {
   Map<String, dynamic> json = {};
 
