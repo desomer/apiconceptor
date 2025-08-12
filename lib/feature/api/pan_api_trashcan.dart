@@ -7,20 +7,20 @@ import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
-import 'package:jsonschema/feature/api/pan_api_info.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
+import 'package:jsonschema/feature/pan_attribut_editor.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
-import 'package:jsonschema/widget_state/widget_md_doc.dart';
+import 'package:jsonschema/widget/widget_md_doc.dart';
 
 // ignore: must_be_immutable
-class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
+class PanAPITrashcan extends StatelessWidget with WidgetHelper {
   PanAPITrashcan({super.key, required this.getModelFct});
-  TextConfig? textConfig;
+  YamlEditorConfig? textConfig;
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
   State? rowSelected;
   final GlobalKey keyAttrEditor = GlobalKey();
@@ -36,7 +36,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
       return modelToDisplay?.modelYaml;
     }
 
-    textConfig ??= TextConfig(
+    textConfig ??= YamlEditorConfig(
       mode: yaml,
       notifError: ValueNotifier<String>(''),
       onChange: () {},
@@ -52,8 +52,9 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
                 JsonTreeConfig(
                     textConfig: textConfig,
                     getModel: () => modelToDisplay,
-                    onTap: (NodeAttribut node) {
+                    onTap: (NodeAttribut node, BuildContext context) {
                       _goToAPI(node, 1);
+                      return true;
                     },
                   )
                   ..getJson = getYaml
@@ -62,7 +63,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
         ),
         WidgetHiddenBox(
           showNotifier: showAttrEditor,
-          child: APIProperties(
+          child: EditorProperties(
             typeAttr: TypeAttr.model,
             key: keyAttrEditor,
             getModel: () {
@@ -90,7 +91,11 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
 
   var inputFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
 
-  Widget _getRowModelInfo(NodeAttribut attr, ModelSchema schema) {
+  Widget _getRowModelInfo(
+    NodeAttribut attr,
+    ModelSchema schema,
+    BuildContext context,
+  ) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }
@@ -106,7 +111,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
         key: ValueKey('${attr.hashCode}#summary'),
         acces: ModelAccessorAttr(
           node: attr,
-          schema: currentCompany.listAPI,
+          schema: currentCompany.listAPI!,
           propName: 'summary',
           editable: false,
         ),
@@ -209,11 +214,13 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
         n = n.parent;
       }
 
-      stateApi.path = ["Tashcan API", ...modelPath, "0.0.1", "draft"];
-      // ignore: invalid_use_of_protected_member
-      stateApi.keyBreadcrumb.currentState?.setState(() {});
+      // BreadCrumbNavigator.setPath(["Trashcan API", ...modelPath, "draft"]);
 
-      currentCompany.listAPI.currentAttr = attr;
+      // stateApi.path = ["Tashcan API", ...modelPath, "0.0.1", "draft"];
+      // // ignore: invalid_use_of_protected_member
+      // stateApi.keyBreadcrumb.currentState?.setState(() {});
+
+      currentCompany.listAPI!.currentAttr = attr;
 
       var key = attr.info.name;
       currentCompany.currentAPIResquest = ModelSchema(
@@ -246,13 +253,13 @@ class PanAPITrashcan extends StatelessWidget with WidgetModelHelper {
 
       repaintManager.doRepaint(ChangeTag.apichange);
 
-      stateApi.tabApi.index = tabNumber;
+      stateApi.tabApi?.index = tabNumber;
       Future.delayed(Duration(milliseconds: 100)).then((value) {
-        stateApi.tabSubApi.index = 0; // charge l'ordre des params
+        stateApi.tabSubApi?.index = 0; // charge l'ordre des params
         Future.delayed(Duration(milliseconds: 100)).then((value) {
           if (subtabNumber >= 0) {
             // exemple : aller sur le test d'api
-            stateApi.tabSubApi.index = subtabNumber;
+            stateApi.tabSubApi?.index = subtabNumber;
           }
         });
       });

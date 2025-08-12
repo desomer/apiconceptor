@@ -5,8 +5,8 @@ import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/main.dart';
-import 'package:jsonschema/widget_state/widget_md_doc.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
@@ -32,7 +32,7 @@ Future<Response> _echoRequest(Request request) async {
   List<String> appApi = [];
 
   //currentCompany.listAPI.mapInfoByJsonPath.forEach((key, value)
-  for (var element in currentCompany.listAPI.mapInfoByJsonPath.entries) {
+  for (var element in currentCompany.listAPI!.mapInfoByJsonPath.entries) {
     var value = element.value;
     if (value.type == 'ope') {
       var paths = value.path.split('>');
@@ -68,7 +68,7 @@ Future<Response> _echoRequest(Request request) async {
     await export.browseSync(currentModel, false, 0);
     var json = export.prettyPrintJson(export.json['200'] ?? {});
 
-    return Response.ok(json);
+    return Response.ok(json, headers: {'Content-Type': 'application/json; charset=utf-8'},);
   }
   if (request.url.toString() == 'all/api') {
     var html = StringBuffer();

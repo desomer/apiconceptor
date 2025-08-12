@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 
 // ignore: must_be_immutable
 class WidgetTab extends StatefulWidget {

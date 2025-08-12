@@ -5,8 +5,8 @@ import 'package:jsonschema/widget/widget_tab.dart';
 
 enum TypeAttr { model, api }
 
-class AttributProperties extends StatefulWidget {
-  const AttributProperties({
+class EditorProperties extends StatefulWidget {
+  const EditorProperties({
     super.key,
     required this.getModel,
     required this.typeAttr,
@@ -15,381 +15,18 @@ class AttributProperties extends StatefulWidget {
   final TypeAttr typeAttr;
 
   @override
-  State<AttributProperties> createState() => _AttributPropertiesState();
+  State<EditorProperties> createState() => _EditorPropertiesState();
 }
 
-class _AttributPropertiesState extends State<AttributProperties> {
+class _EditorPropertiesState extends State<EditorProperties> {
   @override
   Widget build(BuildContext context) {
     ModelSchema? model = widget.getModel();
 
     return WidgetTab(
-      listTab: [
-        Tab(text: 'Info'),
-        Tab(text: 'Validator'),
-        Tab(text: 'Fake'),
-        if (widget.typeAttr == TypeAttr.model) Tab(text: 'Bdd'),
-        if (widget.typeAttr == TypeAttr.model) Tab(text: 'Tag'),
-      ],
-      listTabCont: [
-        SingleChildScrollView(child: getInfoForm(model)),
-        SingleChildScrollView(child: getTypeValidator(model)),
-        Container(),
-        if (widget.typeAttr == TypeAttr.model) Container(),
-        if (widget.typeAttr == TypeAttr.model) Container(),
-      ],
+      listTab: [Tab(text: 'Info')],
+      listTabCont: [SingleChildScrollView(child: getInfoForm(model))],
       heightTab: 40,
-    );
-  }
-
-  Widget getTypeValidator(ModelSchema? model) {
-    if (model?.currentAttr == null) {
-      return Container();
-    }
-
-    String type = model!.currentAttr!.info.type.toLowerCase();
-
-    if (type == 'string') {
-      return getValidatorStringForm(model);
-    } else if (type == 'number') {
-      return getValidatorNumberForm(model);
-    } else if (type == 'boolean') {
-      return getValidatorBoolForm(model);
-    } else if (type == 'array') {
-      return getValidatorArrayForm(model);
-    }
-
-    return Container();
-  }
-
-  Widget getValidatorArrayForm(ModelSchema model) {
-    var info = model.currentAttr!;
-    return Padding(
-      padding: EdgeInsets.all(10),
-      child: Column(
-        spacing: 10,
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (info.info.isInitByRef)
-            TextButton(onPressed: () {}, child: Text("Go to definition")),
-          CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'required',
-            ),
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'dependentRequired',
-            ),
-            line: 5,
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('minItems#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'minItems',
-            ),
-            inArray: false,
-            isNumber: true,
-          ),
-
-          CellEditor(
-            key: ValueKey('maxItems#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'maxItems',
-            ),
-            inArray: false,
-            isNumber: true,
-          ),
-
-          CellCheckEditor(
-            key: ValueKey('uniqueItems#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'uniqueItems ',
-            ),
-            inArray: false,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget getValidatorNumberForm(ModelSchema model) {
-    var info = model.currentAttr!;
-    return Padding(
-      padding: EdgeInsets.all(10),
-      child: Column(
-        spacing: 10,
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (info.info.isInitByRef)
-            TextButton(onPressed: () {}, child: Text("Go to definition")),
-          CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'required',
-            ),
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'dependentRequired',
-            ),
-            line: 5,
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('pattern#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'pattern',
-            ),
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('format#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'format',
-            ),
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('enum#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'enum',
-            ),
-            line: 5,
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('multipleOf#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'multipleOf',
-            ),
-            inArray: false,
-            isNumber: true,
-          ),
-          CellEditor(
-            key: ValueKey('minimum#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'minimum',
-            ),
-            inArray: false,
-            isNumber: true,
-          ),
-          CellCheckEditor(
-            key: ValueKey('exclusiveMinimum#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'exclusiveMinimum',
-            ),
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('maximum#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'maximum',
-            ),
-            inArray: false,
-            isNumber: true,
-          ),
-          CellCheckEditor(
-            key: ValueKey('exclusiveMaximum#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'exclusiveMaximum',
-            ),
-            inArray: false,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget getValidatorStringForm(ModelSchema model) {
-    var info = model.currentAttr!;
-    return Padding(
-      padding: EdgeInsets.all(10),
-      child: Column(
-        spacing: 10,
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (info.info.isInitByRef)
-            TextButton(onPressed: () {}, child: Text("Go to definition")),
-          CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'required',
-            ),
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'dependentRequired',
-            ),
-            line: 5,
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('pattern#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'pattern',
-            ),
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('format#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'format',
-            ),
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('enum#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'enum',
-            ),
-            line: 5,
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('minLength#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'minLength',
-            ),
-            inArray: false,
-            isNumber: true,
-          ),
-          CellEditor(
-            key: ValueKey('maxLength#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'maxLength',
-            ),
-            inArray: false,
-            isNumber: true,
-          ),
-
-          CellEditor(
-            key: ValueKey('contentEncoding#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'contentEncoding',
-            ),
-            inArray: false,
-          ),
-
-          CellEditor(
-            key: ValueKey('contentMediaType#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'contentMediaType',
-            ),
-            inArray: false,
-          ),
-
-          // "contentEncoding": "base64",
-          // "contentMediaType": "image/png"
-        ],
-      ),
-    );
-  }
-
-  Widget getValidatorBoolForm(ModelSchema? model) {
-    var info = model!.currentAttr!;
-    return Padding(
-      padding: EdgeInsets.all(10),
-      child: Column(
-        spacing: 10,
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (info.info.isInitByRef)
-            TextButton(onPressed: () {}, child: Text("Go to definition")),
-          CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'required',
-            ),
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'dependentRequired',
-            ),
-            line: 5,
-            inArray: false,
-          ),
-
-          // "contentEncoding": "base64",
-          // "contentMediaType": "image/png"
-        ],
-      ),
     );
   }
 
@@ -406,8 +43,6 @@ class _AttributPropertiesState extends State<AttributProperties> {
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (info.info.isInitByRef)
-            TextButton(onPressed: () {}, child: Text("Go to definition")),
           CellEditor(
             key: ValueKey('description#${info.hashCode}'),
             acces: ModelAccessorAttr(
@@ -419,59 +54,12 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellEditor(
-            key: ValueKey('example#${info.hashCode}'),
+            key: ValueKey('tag#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
-              propName: 'example',
+              propName: 'tag',
             ),
-            line: 5,
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('const#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'const',
-            ),
-            inArray: false,
-          ),
-          CellCheckEditor(
-            key: ValueKey('readOnly#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'readOnly',
-            ),
-            inArray: false,
-          ),
-          CellCheckEditor(
-            key: ValueKey('writeOnly#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'writeOnly',
-            ),
-            inArray: false,
-          ),
-          CellCheckEditor(
-            key: ValueKey('deprecated#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'deprecated',
-            ),
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('comment#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: '\$comment',
-            ),
-            line: 5,
             inArray: false,
           ),
         ],

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 
 class CellEditor extends StatefulWidget {
   const CellEditor({
@@ -14,19 +14,23 @@ class CellEditor extends StatefulWidget {
     this.isNumber = false,
   });
   final int? line;
-  final ModelAccessor acces;
+  final ValueAccessor acces;
   final bool inArray;
   final bool isNumber;
 
   @override
-  State<CellEditor> createState() => _CellEditorState();
+  State<CellEditor> createState() => CellEditorState();
 }
 
-class _CellEditorState extends State<CellEditor> {
+class CellEditorState extends State<CellEditor> {
   late final TextEditingController _controller;
   TextInputType? keyboardType;
   List<TextInputFormatter>? inputFormatters;
   FocusNode? focus;
+
+  void setText(String txt) {
+    _controller.text = txt;
+  }
 
   @override
   void initState() {
@@ -60,8 +64,7 @@ class _CellEditorState extends State<CellEditor> {
 
     focus = FocusNode();
     focus!.addListener(() {
-      if (focus!.hasPrimaryFocus)
-      {
+      if (focus!.hasPrimaryFocus) {
         _controller.text = widget.acces.get()?.toString() ?? '';
       }
     });
@@ -219,13 +222,21 @@ class CellCheckEditor extends StatefulWidget {
     required this.acces,
     required this.inArray,
   });
-  final ModelAccessor acces;
+  final ValueAccessor acces;
   final bool inArray;
   @override
-  State<CellCheckEditor> createState() => _CellCheckEditorState();
+  State<CellCheckEditor> createState() => CellCheckEditorState();
 }
 
-class _CellCheckEditorState extends State<CellCheckEditor> {
+class CellCheckEditorState extends State<CellCheckEditor> {
+  void check(bool check) {
+    if (widget.acces.get() != check) {
+      setState(() {
+        widget.acces.set(check);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -298,7 +309,7 @@ class _SingleChoiceState extends State<CellSelectEditor> {
   }
 }
 
-abstract class ModelAccessor {
+abstract class ValueAccessor {
   dynamic get();
   void set(dynamic value);
   void remove();
@@ -306,39 +317,49 @@ abstract class ModelAccessor {
   bool isEditable();
 }
 
-// class ModelEntityAccessor extends ModelAccessor {
-//   ModelEntityAccessor({
-//     required this.schema,
-//     required this.propName,
-//   });
+// mixin HasAccessorProp {
+//   Map<String, dynamic> properties = {};
 
-//   final ModelSchemaDetail schema;
+//   ValueAccessor getValueAccessor(String name) {
+//     var a = PropAccessor(propName: name);
+//     a.obj = this;
+//     return a;
+//   }
+// }
+
+// class PropAccessor extends ValueAccessor {
+//   PropAccessor({required this.propName});
+
 //   final String propName;
+//   late HasAccessorProp obj;
 
 //   @override
 //   get() {
-//     return schema.modelProperties[propName];
-//   }
-
-//   @override
-//   void set(dynamic value) {
-//     schema.modelProperties[propName] = value;
-//     schema.saveProperties();
-//   }
-
-//   @override
-//   void remove() {
-//     schema.modelProperties.remove(propName);
-//     schema.saveProperties();
+//     return obj.properties[propName];
 //   }
 
 //   @override
 //   String getName() {
 //     return propName;
 //   }
+
+//   @override
+//   bool isEditable() {
+//     throw UnimplementedError();
+//   }
+
+//   @override
+//   void remove() {
+//     obj.properties.remove(propName);
+//   }
+
+//   @override
+//   void set(value) {
+//     obj.properties[propName] = value;
+//   }
 // }
 
-class ModelAccessorAttr extends ModelAccessor {
+class ModelAccessorAttr extends ValueAccessor {
   ModelAccessorAttr({
     required this.node,
     required this.schema,

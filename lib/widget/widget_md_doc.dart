@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 
-enum TypeMD { listmodel, model, listapi, apiparam, apiresponse }
+enum TypeMD { listmodel, model, listapi, apiparam, apiresponse, env, domain }
 
 class WidgetMdDoc extends StatefulWidget {
   const WidgetMdDoc({super.key, required this.type});

@@ -2,6 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 List<String> startError = [];
+GlobalKey keyError = GlobalKey(debugLabel: 'keyError');
+
+void showError(String message) {
+  SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+    ScaffoldMessenger.of(keyError.currentContext!).showSnackBar(
+      SnackBar(
+        duration: Duration(seconds: 5),
+        backgroundColor: Colors.red,
+
+        content: Text(message, style: TextStyle(color: Colors.white)),
+      ),
+    );
+  });
+}
 
 class WidgetShowError extends StatelessWidget {
   const WidgetShowError({super.key});
@@ -24,6 +38,6 @@ class WidgetShowError extends StatelessWidget {
       });
     }
 
-    return SizedBox(width: 20, height: 20);
+    return SizedBox(key: keyError, width: 20, height: 20);
   }
 }

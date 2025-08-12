@@ -4,20 +4,20 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:jsonschema/main.dart';
-import 'package:jsonschema/feature/pan_attribut_editor.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/feature/pan_attribut_editor_detail.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 // ignore: must_be_immutable
-class PanResponseApi extends StatelessWidget with WidgetModelHelper {
+class PanResponseApi extends StatelessWidget with WidgetHelper {
   PanResponseApi({super.key, required this.response});
 
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
-  late TextConfig textConfig;
+  late YamlEditorConfig textConfig;
   final GlobalKey keyApiYamlEditor = GlobalKey();
   final GlobalKey keyApiTreeEditor = GlobalKey();
   final GlobalKey keyAttrEditor = GlobalKey();
@@ -27,7 +27,7 @@ class PanResponseApi extends StatelessWidget with WidgetModelHelper {
 
   @override
   Widget build(BuildContext context) {
-    void onYamlChange(String yaml, TextConfig config) {
+    void onYamlChange(String yaml, YamlEditorConfig config) {
       if (response == null) return;
 
       var modelSchemaDetail = response!;
@@ -42,7 +42,7 @@ class PanResponseApi extends StatelessWidget with WidgetModelHelper {
       return response!.modelYaml;
     }
 
-    textConfig = TextConfig(
+    textConfig = YamlEditorConfig(
       mode: yaml,
       notifError: notifierErrorYaml,
       onChange: onYamlChange,
@@ -50,7 +50,7 @@ class PanResponseApi extends StatelessWidget with WidgetModelHelper {
     );
 
     return WidgetTab(
-      listTab: [Tab(text: 'Responses code'), Tab(text: 'Version')],
+      listTab: [Tab(text: 'Responses code'), Tab(text: 'DTO Version')],
       listTabCont: [
         Row(
           children: [
@@ -92,8 +92,9 @@ class PanResponseApi extends StatelessWidget with WidgetModelHelper {
                     getModel: () {
                       return response;
                     },
-                    onTap: (NodeAttribut node) {
+                    onTap: (NodeAttribut node, BuildContext context) {
                       // doShowAttrEditor(currentCompany.currentModel!, node);
+                      return true;
                     },
                   )
                   ..getJson = getJsonYaml
@@ -103,7 +104,7 @@ class PanResponseApi extends StatelessWidget with WidgetModelHelper {
         WidgetHiddenBox(
           showNotifier: showAttrEditor,
           child: AttributProperties(
-            typeAttr: TypeAttr.api,
+            typeAttr: TypeAttr.detailapi,
             key: keyAttrEditor,
             getModel: () {
               return response;
@@ -114,7 +115,11 @@ class PanResponseApi extends StatelessWidget with WidgetModelHelper {
     );
   }
 
-  Widget _getRowsAttrInfo(NodeAttribut attr, ModelSchema schema) {
+  Widget _getRowsAttrInfo(
+    NodeAttribut attr,
+    ModelSchema schema,
+    BuildContext context,
+  ) {
     if (attr.info.type == 'root' || attr.level < 2) {
       return Container(height: rowHeight);
     }

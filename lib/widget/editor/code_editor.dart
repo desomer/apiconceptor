@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:highlight/highlight_core.dart';
+import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/widget/widget_error_banner.dart';
 // ignore: implementation_imports
 import 'package:flutter_code_editor/src/code_field/actions/tab.dart';
+import 'package:yaml/yaml.dart';
 
 class TextEditor extends StatefulWidget {
   const TextEditor({
@@ -13,11 +15,13 @@ class TextEditor extends StatefulWidget {
     required this.header,
     this.actions,
     this.onHelp,
+    this.onSelection,
   });
-  final TextConfig config;
+  final YamlEditorConfig config;
   final String header;
   final List<Widget>? actions;
   final Function? onHelp;
+  final Function? onSelection;
 
   @override
   State<TextEditor> createState() => TextEditorState();
@@ -92,8 +96,14 @@ class TextEditorState extends State<TextEditor> {
             children: [
               Expanded(child: Center(child: Text(widget.header))),
               ...widget.actions ?? [],
+              InkWell(
+                onTap: () {
+                  // if (widget.onHelp != null) widget.onHelp!(context);
+                },
+                child: const Icon(Icons.history, size: 20),
+              ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
                 child: InkWell(
                   onTap: () {
                     if (widget.onHelp != null) widget.onHelp!(context);
@@ -101,6 +111,36 @@ class TextEditorState extends State<TextEditor> {
                   child: const Icon(Icons.help_outline, size: 20),
                 ),
               ),
+              if (widget.onSelection != null)
+                InkWell(
+                  child: Icon(Icons.double_arrow_sharp),
+                  onTap: () {
+                    //print(controller.selection);
+                    var curPos = controller.selection.baseOffset;
+                    YamlDocument doc = loadYamlDocument(controller.fullText);
+                    YamlDoc docYaml = YamlDoc();
+                    docYaml.doAnalyse(doc, controller.fullText);
+
+                    String path = '';
+
+                    for (var line in docYaml.listYamlLine) {
+                      if (curPos > line.idxCharStart &&
+                          curPos < line.idxCharStop) {
+                        YamlLine? l = line;
+                        while (l != null) {
+                          if (path.isNotEmpty) {
+                            path = '>$path';
+                          }
+                          path = '${l.name}$path';
+                          l = l.parent;
+                        }
+                        path = 'root>$path';
+                        widget.onSelection!(path);
+                        break;
+                      }
+                    }
+                  },
+                ),
             ],
           ),
         ),
@@ -113,21 +153,17 @@ class TextEditorState extends State<TextEditor> {
               trackVisibility: true,
               child: SingleChildScrollView(
                 controller: verticalScroll,
-                child:  Container( //, SingleChildScrollView(
-                  //scrollDirection: Axis.horizontal,
-                  //controller: horizontalScroll,
-                  child: CodeField(
-                    gutterStyle: const GutterStyle(
-                      textStyle: TextStyle(height: 1.5),
-                      margin: 0,
-                      width: 80,
-                      showErrors: true,
-                      showFoldingHandles: true,
-                      showLineNumbers: true,
-                    ),
-                    controller: controller,
-                    readOnly: widget.config.readOnly,
+                child: CodeField(
+                  gutterStyle: const GutterStyle(
+                    textStyle: TextStyle(height: 1.5),
+                    margin: 0,
+                    width: 80,
+                    showErrors: true,
+                    showFoldingHandles: true,
+                    showLineNumbers: true,
                   ),
+                  controller: controller,
+                  readOnly: widget.config.readOnly,
                 ),
               ),
             ),
@@ -139,8 +175,8 @@ class TextEditorState extends State<TextEditor> {
   }
 }
 
-class TextConfig {
-  TextConfig({
+class YamlEditorConfig {
+  YamlEditorConfig({
     required this.mode,
     required this.getText,
     required this.onChange,
@@ -152,10 +188,11 @@ class TextConfig {
   late Function getText;
   late ValueNotifier<String> notifError;
   bool readOnly;
+
   TextEditorState? textYamlState;
   State? treeJsonState;
 
-  void doRebind() {
+  void repaintYaml() {
     // ignore: invalid_use_of_protected_member
     textYamlState?.setState(() {});
   }

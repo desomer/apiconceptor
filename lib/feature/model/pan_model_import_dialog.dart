@@ -7,10 +7,10 @@ import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
-import 'package:jsonschema/widget_state/widget_md_doc.dart';
+import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:yaml/yaml.dart';
 
 // ignore: must_be_immutable
@@ -74,7 +74,7 @@ class PanModelImportDialog extends StatelessWidget {
             if (tabImport.index == 0) {
               var yaml = import.doImportJSON().yaml.toString();
 
-              var modelSchemaDetail = currentCompany.listModel;
+              var modelSchemaDetail = currentCompany.listModel!;
               YamlDocument doc = loadYamlDocument(modelSchemaDetail.modelYaml);
               YamlDoc docYaml = YamlDoc();
               docYaml.doAnalyse(doc, modelSchemaDetail.modelYaml);
@@ -94,7 +94,7 @@ class PanModelImportDialog extends StatelessWidget {
               var newYaml = docYaml.getDoc();
               modelSchemaDetail.modelYaml = newYaml;
               modelSchemaDetail.doChangeAndRepaintYaml(
-                stateModel.modelSelector.textConfig,
+                stateModel.panModelSelector?.getYamlConfig(),
                 true,
                 'import',
               );
@@ -136,12 +136,12 @@ class PanModelImportDialog extends StatelessWidget {
 
   Widget _getJsonImport(JsonToSchemaYaml import) {
     return TextEditor(
-      config: TextConfig(
+      config: YamlEditorConfig(
         mode: json,
         getText: () {
           return '';
         },
-        onChange: (String json, TextConfig config) {
+        onChange: (String json, YamlEditorConfig config) {
           import.rawJson = json;
         },
         notifError: ValueNotifier(''),
@@ -151,7 +151,7 @@ class PanModelImportDialog extends StatelessWidget {
   }
 }
 
-class InfoAccess extends ModelAccessor {
+class InfoAccess extends ValueAccessor {
   InfoAccess({required this.map, required this.name});
 
   final Map<String, String> map;

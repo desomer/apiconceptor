@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/tree_editor/tree_view.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
 
-import '../widget_state/widget_md_doc.dart';
+import '../widget/widget_md_doc.dart';
 
 void validateJsonSchemas(
   JsonSchema validator,
@@ -32,6 +34,7 @@ String removeComments(String jsonWithComments) =>
       return s.startsWith('"') ? s : "";
     });
 
+//************************************************************************* */
 class BrowseModel<T extends Map> extends JsonBrowser<T> {
   @override
   void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
@@ -56,8 +59,23 @@ class BrowseModel<T extends Map> extends JsonBrowser<T> {
   }
 }
 
+class BrowseSingle<T extends Map> extends JsonBrowser<T> {
+  List<NodeAttribut> root = [];
+
+  @override
+  T? getRoot(NodeAttribut node) {
+    return {} as T;
+  }
+
+  @override
+  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+    root.add(node);
+    return parent;
+  }
+}
+
 //************************************************************************* */
-class InfoManagerModel extends InfoManager {
+class InfoManagerModel extends InfoManager with WidgetHelper {
   InfoManagerModel({required this.typeMD});
 
   final TypeMD typeMD;
@@ -121,6 +139,7 @@ class InfoManagerModel extends InfoManager {
     bool valid = [
       'folder',
       'model',
+
       'string',
       'number',
       'object',
@@ -136,9 +155,11 @@ class InfoManagerModel extends InfoManager {
   }
 
   @override
-  Widget getAttributHeader(TreeNode<NodeAttribut> node) {
-    Widget icon = Container();
+  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
     var isRoot = node.isRoot;
+    var isFolder = node.data!.info.type == 'folder';
+    var isModel = node.data!.info.type == 'model';
+
     var isObject = node.data!.info.type == 'Object';
     var isOneOf = node.data!.info.type == '\$anyOf';
     var isRef = node.data!.info.type == '\$ref';
@@ -147,10 +168,13 @@ class InfoManagerModel extends InfoManager {
         node.data!.info.type == 'Array' || node.data!.info.type.endsWith('[]');
     String name = node.data!.yamlNode.key.toString();
 
+    Widget icon = Container();
     if (isRoot) {
       icon = Icon(Icons.business);
-    } else if (isRoot) {
+    } else if (isFolder) {
       icon = Icon(Icons.lan_outlined);
+    } else if (isModel) {
+      icon = Icon(Icons.data_object);
     } else if (isObject) {
       icon = Icon(Icons.data_object);
     } else if (isRef) {
@@ -166,6 +190,120 @@ class InfoManagerModel extends InfoManager {
       icon = Icon(Icons.type_specimen_outlined);
     }
 
+    return GetRowWidget(
+      icon: icon,
+      name: name,
+      isObject: isObject,
+      isArray: isArray,
+    );
+  }
+
+  @override
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+    Widget? icon;
+    var isRoot = node.isRoot;
+    var isFolder = node.data.info.type == 'folder';
+    var isModel = node.data.info.type == 'model';
+
+    var isObject = node.data.info.type == 'Object';
+    var isOneOf = node.data.info.type == '\$anyOf';
+    var isRef = node.data.info.type == '\$ref';
+    var isType = node.data.info.name == constType;
+    var isArray =
+        node.data.info.type == 'Array' || node.data.info.type.endsWith('[]');
+    String name = node.data.info.name;
+
+    if (isRoot) {
+      icon = Icon(Icons.business);
+    } else if (isFolder) {
+      icon = Icon(Icons.folder);
+    } else if (isModel) {
+      icon = Icon(Icons.data_object);
+    } else if (isObject) {
+      icon = Icon(Icons.data_object);
+    } else if (isRef) {
+      icon = Icon(Icons.link);
+      name = '\$${node.data.info.properties?[constRefOn] ?? '?'}';
+    } else if (isOneOf) {
+      name = '\$anyOf';
+      icon = Icon(Icons.looks_one_rounded);
+    } else if (isArray) {
+      icon = Icon(Icons.data_array);
+    } else if (isType) {
+      name = '\$type';
+      icon = Icon(Icons.type_specimen_outlined);
+    }
+
+    return Row(
+      children: [
+        if (icon != null)
+          Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
+
+        Expanded(
+          child: InkWell(
+            onTap: () {
+              node.doTap();
+            },
+            child: Row(
+              children: [
+                Text(
+                  name,
+                  style:
+                      (isObject || isArray)
+                          ? const TextStyle(fontWeight: FontWeight.bold)
+                          : null,
+                ),
+                Spacer(),
+                getWidgetType(node.data, isModel, isRoot),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget getWidgetType(NodeAttribut attr, bool isModel, bool isRoot) {
+    if (isRoot) return Container();
+
+    bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
+    hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
+    String msg = hasError ? 'string\nnumber\nboolean\n\$type' : '';
+
+    return Tooltip(
+      message: msg,
+      child: getChip(
+        isModel
+            ? Row(
+              spacing: 5,
+              children: [
+                Text(attr.info.type),
+                Icon(Icons.arrow_forward_ios, size: 10),
+              ],
+            )
+            : Text(attr.info.type),
+        color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
+      ),
+    );
+  }
+}
+
+class GetRowWidget extends StatelessWidget {
+  const GetRowWidget({
+    super.key,
+    required this.icon,
+    required this.name,
+    required this.isObject,
+    required this.isArray,
+  });
+
+  final Widget icon;
+  final String name;
+  final bool isObject;
+  final bool isArray;
+
+  @override
+  Widget build(BuildContext context) {
     return IntrinsicWidth(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),

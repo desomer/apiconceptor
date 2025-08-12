@@ -9,19 +9,22 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/caller_api.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
+import 'package:jsonschema/feature/api/pan_api_doc_response.dart';
 import 'package:jsonschema/feature/api/pan_api_save_param.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_response_status.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_param_array.dart';
+import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
 
-import '../../widget_state/widget_md_doc.dart';
+import '../../widget/widget_md_doc.dart';
 
 GlobalKey keyResquestParam = GlobalKey();
 GlobalKey keyBtnSave = GlobalKey();
@@ -36,52 +39,68 @@ class WidgetApiCall extends StatefulWidget {
 
 class WidgetApiCallState extends State<WidgetApiCall> {
   String response = '';
-  late TextConfig textConfigBody;
-  late TextConfig textConfigResponse;
+  late YamlEditorConfig textConfigBody;
+  late YamlEditorConfig textConfigResponse;
   JsonSchema? jsonValidator;
   JsonSchema? jsonValidatorResponse;
-  APIResponse? aResponse;
+
   dynamic validateSchemaJson;
 
   bool callInProgress = false;
+
+  Widget getBtnMockCall() {
+    return TextButton.icon(
+      icon: Icon(Icons.text_snippet),
+      onPressed: () async {},
+      label: Text('Add mock'),
+    );
+  }
 
   Widget getBtnExecuteCall() {
     return TextButton.icon(
       icon: Icon(Icons.send),
       onPressed: () async {
         response = '';
-        aResponse = null;
+
+        widget.apiCallInfo.aResponse = null;
         callInProgress = true;
         errorParseResponse.value = '';
         jsonValidatorResponse = null;
         stateApi.keyResponseStatus.currentState?.setState(() {});
-        textConfigResponse.doRebind(); // vide la responce
+        textConfigResponse.repaintYaml(); // vide la responce
         final cancelToken = CancelToken();
         //await CallerApi().callGraph();
         // await Future.delayed(Duration(seconds: 3));
-        aResponse = await CallerApi().call(widget.apiCallInfo, cancelToken);
+        widget.apiCallInfo.aResponse = await CallerApi().call(
+          widget.apiCallInfo,
+          cancelToken,
+        );
         callInProgress = false;
         stateApi.keyResponseStatus.currentState?.setState(() {});
 
-        if (aResponse!.toDisplay == null &&
-            aResponse!.reponse?.data is String) {
-          response = aResponse!.reponse!.data.toString();
+        if (widget.apiCallInfo.aResponse!.toDisplay == null &&
+            widget.apiCallInfo.aResponse!.reponse?.data is String) {
+          response = widget.apiCallInfo.aResponse!.reponse!.data.toString();
         } else {
           var encoder = JsonEncoder.withIndent("  ");
           response = encoder.convert(
-            aResponse!.toDisplay ?? aResponse!.reponse?.data ?? {},
+            widget.apiCallInfo.aResponse!.toDisplay ??
+                widget.apiCallInfo.aResponse!.reponse?.data ??
+                {},
           );
         }
 
-        textConfigResponse.doRebind();
+        textConfigResponse.repaintYaml();
 
-        if (aResponse?.reponse?.statusCode != null) {
-          int code = aResponse!.reponse!.statusCode!;
-          var resp = aResponse; // sauv en resp car validation async
+        if (widget.apiCallInfo.aResponse?.reponse?.statusCode != null) {
+          int code = widget.apiCallInfo.aResponse!.reponse!.statusCode!;
+          var resp =
+              widget.apiCallInfo.aResponse; // sauv en resp car validation async
           validateSchema(
             source: widget.apiCallInfo.currentAPIResponse!,
             subNode: code,
             validateFct: (ModelSchema aSchema) async {
+              widget.apiCallInfo.responseSchema = aSchema;
               await initResponseValidator(aSchema);
               if (jsonValidatorResponse != null) {
                 validateJsonSchemas(
@@ -94,7 +113,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
           );
         }
       },
-      label: Text('Execute API'),
+      label: GlowingHalo(child: Text('Execute API')),
     );
   }
 
@@ -109,30 +128,56 @@ class WidgetApiCallState extends State<WidgetApiCall> {
   }
 
   Widget getLeftPan(BuildContext ctx) {
+    return WidgetTab(
+      listTab: [Tab(text: 'Parameters'), Tab(text: 'Response documentation')],
+      listTabCont: [getLeftParamPan(ctx), getLeftDocParamPan(ctx)],
+      heightTab: 40,
+    );
+  }
+
+  Widget getLeftDocParamPan(BuildContext ctx) {
+    return PanApiDocResponse(
+      key: ValueKey(currentCompany.apiCallInfo),
+      showable: () {
+        return widget.apiCallInfo.responseSchema != null;
+      },
+      getSchemaFct: () async {
+        return widget.apiCallInfo.responseSchema!;
+      },
+    );
+  }
+
+  Widget getLeftParamPan(BuildContext ctx) {
     return Row(
       children: [
         Flexible(
-          child: Column(
-            children: [
-              SizedBox(
-                height: 40,
-                child: Row(
-                  children: [
-                    BtnApiSave(
-                      key: keyBtnSave,
-                      apiCallInfo: widget.apiCallInfo,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                children: [
+                  SizedBox(
+                    height: 40,
+                    child: Row(
+                      children: [
+                        BtnApiSave(
+                          key: keyBtnSave,
+                          apiCallInfo: widget.apiCallInfo,
+                        ),
+                        Spacer(),
+                        getBtnMockCall(),
+                        getBtnExecuteCall(),
+                      ],
                     ),
-                    Spacer(),
-                    getBtnExecuteCall(),
-                  ],
-                ),
-              ),
-              WidgetArrayParam(
-                key: keyResquestParam,
-                apiCallInfo: widget.apiCallInfo,
-              ),
-              Flexible(child: getBody()),
-            ],
+                  ),
+                  WidgetArrayParam(
+                    constraints: constraints,
+                    key: keyResquestParam,
+                    apiCallInfo: widget.apiCallInfo,
+                  ),
+                  Flexible(child: getBody()),
+                ],
+              );
+            },
           ),
         ),
         Container(
@@ -175,7 +220,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
   @override
   Widget build(BuildContext context) {
     repaintManager.addTag(ChangeTag.apiparam, "WidgetApiCallState", this, () {
-      textConfigBody.doRebind();
+      textConfigBody.repaintYaml();
       keyBtnSave.currentState?.setState(() {});
       return false;
     });
@@ -222,7 +267,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
               id: masterIdRef,
               infoManager: InfoManagerModel(typeMD: TypeMD.model),
             );
-
+            aSchema.autoSaveProperties = false;
             aSchema
                 .loadYamlAndProperties(cache: false, withProperties: true)
                 .then((value) {
@@ -254,11 +299,11 @@ class WidgetApiCallState extends State<WidgetApiCall> {
       },
     );
 
-    textConfigBody = TextConfig(
+    textConfigBody = YamlEditorConfig(
       // mode: graphql,
       mode: json,
       notifError: errorParseBody,
-      onChange: (String json, TextConfig config) {
+      onChange: (String json, YamlEditorConfig config) {
         widget.apiCallInfo.body = null;
         widget.apiCallInfo.bodyStr = json;
         try {
@@ -292,7 +337,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
               var export = Export2FakeJson()..browse(aSchema, false);
               widget.apiCallInfo.body = export.json;
               widget.apiCallInfo.bodyStr = export.prettyPrintJson(export.json);
-              textConfigBody.doRebind();
+              textConfigBody.repaintYaml();
             }
           },
           child: Text('load fake'),
@@ -319,11 +364,11 @@ class WidgetApiCallState extends State<WidgetApiCall> {
   ValueNotifier<String> errorParseResponse = ValueNotifier('');
 
   Widget getResponse() {
-    textConfigResponse = TextConfig(
+    textConfigResponse = YamlEditorConfig(
       mode: json,
       notifError: errorParseResponse,
       readOnly: true,
-      onChange: (String json, TextConfig config) {},
+      onChange: (String json, YamlEditorConfig config) {},
       getText: () {
         return response;
       },

@@ -6,23 +6,25 @@ import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/api/pan_api_info.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
+import 'package:jsonschema/feature/pan_attribut_editor.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
-import 'package:jsonschema/widget_state/widget_md_doc.dart';
+import 'package:jsonschema/widget/widget_md_doc.dart';
 
 // ignore: must_be_immutable
-class PanModelTrashcan extends StatelessWidget with WidgetModelHelper {
+class PanModelTrashcan extends StatelessWidget with WidgetHelper {
   PanModelTrashcan({super.key, required this.getModelFct});
-  TextConfig? textConfig;
+  YamlEditorConfig? textConfig;
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
   State? rowSelected;
-  final GlobalKey keyAttrEditor = GlobalKey();
+  final GlobalKey keyAttrEditor = GlobalKey(
+    debugLabel: 'keyAttrEditor PanModelTrashcan',
+  );
   final GlobalKey treeEditor = GlobalKey();
   final Function getModelFct;
   ModelSchema? modelToDisplay;
@@ -35,7 +37,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetModelHelper {
       return modelToDisplay?.modelYaml;
     }
 
-    textConfig ??= TextConfig(
+    textConfig ??= YamlEditorConfig(
       mode: yaml,
       notifError: ValueNotifier<String>(''),
       onChange: () {},
@@ -51,8 +53,9 @@ class PanModelTrashcan extends StatelessWidget with WidgetModelHelper {
                 JsonTreeConfig(
                     textConfig: textConfig,
                     getModel: () => modelToDisplay,
-                    onTap: (NodeAttribut node) {
+                    onTap: (NodeAttribut node, BuildContext context) {
                       _goToModel(node, 1);
+                      return true;
                     },
                   )
                   ..getJson = getYaml
@@ -61,7 +64,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetModelHelper {
         ),
         WidgetHiddenBox(
           showNotifier: showAttrEditor,
-          child: APIProperties(
+          child: EditorProperties(
             typeAttr: TypeAttr.model,
             key: keyAttrEditor,
             getModel: () {
@@ -89,7 +92,11 @@ class PanModelTrashcan extends StatelessWidget with WidgetModelHelper {
 
   var inputFormat = DateFormat('dd/MM/yyyy HH:mm:ss');
 
-  Widget _getRowModelInfo(NodeAttribut attr, ModelSchema schema) {
+  Widget _getRowModelInfo(
+    NodeAttribut attr,
+    ModelSchema schema,
+    BuildContext context,
+  ) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }
@@ -105,7 +112,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetModelHelper {
         key: ValueKey('${attr.hashCode}#title'),
         acces: ModelAccessorAttr(
           node: attr,
-          schema: currentCompany.listAPI,
+          schema: currentCompany.listAPI!,
           propName: 'title',
           editable: false,
         ),
@@ -227,9 +234,9 @@ class PanModelTrashcan extends StatelessWidget with WidgetModelHelper {
         n = n.parent;
       }
 
-      currentCompany.currentModel!.initBreadcrumb();
+      //currentCompany.currentModel!.initBreadcrumb();
 
-      stateModel.tabModel.animateTo(tabNumber);
+      //stateModel.tabModel.animateTo(tabNumber);
       // ignore: invalid_use_of_protected_member
       stateModel.keyModelEditor.currentState?.setState(() {});
     }

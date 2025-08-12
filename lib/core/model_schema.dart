@@ -5,10 +5,12 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:jsonschema/widget_state/state_model.dart';
+import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:yaml/yaml.dart';
+
+int nbtesterror = -37;
 
 class ModelVersion implements Comparable<ModelVersion> {
   ModelVersion({required this.id, required this.version, required this.data});
@@ -27,13 +29,17 @@ class ModelVersion implements Comparable<ModelVersion> {
 enum TypeModelBreadcrumb {
   businessmodel,
   component,
-  request;
+  request,
+  env,
+  domain;
 
   static String valString(TypeModelBreadcrumb? v) {
     if (v == null) return '';
     return ['Business models', 'Components', 'Requests & Responses'][v.index];
   }
 }
+
+typedef OnChange = void Function(dynamic histo);
 
 class ModelSchema {
   ModelSchema({
@@ -45,11 +51,13 @@ class ModelSchema {
 
   final String id;
 
+  int loadingTime = 0;
+
   final Category category; // pour la sauvegarde et certain traitement
   final String headerName; // pour les export
   bool isLoadProp = false;
 
-  ModelBrower? lastBrowser;
+  NodeBrower? lastBrowser;
   JsonBrowser? lastJsonBrowser;
   final InfoManager infoManager;
 
@@ -78,7 +86,20 @@ class ModelSchema {
 
   NodeAttribut? currentAttr;
 
-  Function? onChange; // sur un changement du schema
+  void setCurrentAttr(AttributInfo? attr) {
+    if (attr == null) {
+      currentAttr = null;
+      return;
+    }
+    attr.selected = true;
+    currentAttr = NodeAttribut(
+      info: attr,
+      parent: null,
+      yamlNode: const MapEntry('', null),
+    );
+  }
+
+  OnChange? onChange; // sur un changement du schema
 
   List<String> modelPath = [];
   TypeModelBreadcrumb? typeBreabcrumb;
@@ -86,16 +107,18 @@ class ModelSchema {
   List<ModelVersion>? versions;
   ModelVersion? currentVersion;
 
+  String? namespace;
+
   List<AttributInfo>? getModelByRefName(String refName) {
     List<AttributInfo>? aModelByName;
     if (category == Category.api) {
-      aModelByName = currentCompany.listRequest.mapInfoByName[refName];
-      aModelByName ??= currentCompany.listComponent.mapInfoByName[refName];
-      aModelByName ??= currentCompany.listModel.mapInfoByName[refName];
+      // aModelByName = currentCompany.listRequest.mapInfoByName[refName];
+      // aModelByName ??= currentCompany.listComponent.mapInfoByName[refName];
+      aModelByName ??= currentCompany.listModel!.mapInfoByName[refName];
     } else {
-      aModelByName = currentCompany.listComponent.mapInfoByName[refName];
-      aModelByName ??= currentCompany.listModel.mapInfoByName[refName];
-      aModelByName ??= currentCompany.listRequest.mapInfoByName[refName];
+      //aModelByName = currentCompany.listComponent.mapInfoByName[refName];
+      aModelByName ??= currentCompany.listModel!.mapInfoByName[refName];
+      //aModelByName ??= currentCompany.listRequest.mapInfoByName[refName];
     }
     return aModelByName;
   }
@@ -125,19 +148,19 @@ class ModelSchema {
   String getVersionId() => currentVersion?.version ?? '1';
   String getVersionText() => currentVersion?.data['versionTxt'] ?? '0.0.1';
 
-  void initBreadcrumb() {
-    var version = currentCompany.currentModel!.getVersionText();
-    stateModel.path = [
-      TypeModelBreadcrumb.valString(typeBreabcrumb!),
-      ...modelPath,
-      version,
-      "draft",
-    ];
-    // ignore: invalid_use_of_protected_member
-    stateModel.keyBreadcrumb.currentState?.setState(() {});
-  }
+  // void initBreadcrumb() {
+  //   var version = currentCompany.currentModel!.getVersionText();
+  //   stateModel.path = [
+  //     TypeModelBreadcrumb.valString(typeBreabcrumb!),
+  //     ...modelPath,
+  //     version,
+  //     "draft",
+  //   ];
+  //   // ignore: invalid_use_of_protected_member
+  //   stateModel.keyBreadcrumb.currentState?.setState(() {});
+  // }
 
-  void initEventListener(TextConfig textConfig) {
+  void initEventListener(YamlEditorConfig textConfig) {
     bddStorage.doEventListner[id] = OnEvent(
       id: id,
       onPatch: (patch) {
@@ -343,9 +366,9 @@ class ModelSchema {
     );
   }
 
-  void reorgPropertiesPath(List<TreeNode<NodeAttribut>> all) {
+  void reorgModelPropertiesPath(List<TreeNode<NodeAttribut>> all) {
     if (!first) {
-      print("************* reorg & purge properties ****************");
+      //print("************* reorg & purge properties ****************");
       modelProperties.clear();
       for (var element in all) {
         if (element.data!.info.isInitByRef == false) {
@@ -382,6 +405,62 @@ class ModelSchema {
     required bool cache,
     required bool withProperties,
   }) async {
+    try {
+      loadingTime = DateTime.now().millisecondsSinceEpoch;
+
+      await _initVersion();
+
+      nbtesterror--;
+      if (nbtesterror == 0) {
+        nbtesterror = 19;
+        dynamic a;
+        a.padLeft(4);
+      }
+
+      dynamic savedYamlModel = bddStorage.getItem(
+        model: this,
+        id: id,
+        version: currentVersion,
+        delay: cache ? -1 : 0,
+        setcache: withProperties,
+      );
+
+      if (savedYamlModel is Future) {
+        savedYamlModel = await savedYamlModel;
+      } else if (mapModelYaml.isNotEmpty) {
+        loadingTime = 0;
+        return this;
+      }
+
+      if (savedYamlModel != null) {
+        modelYaml = savedYamlModel;
+        try {
+          mapModelYaml = loadYaml(modelYaml, recover: true);
+          //print("load yaml model = $id");
+        } catch (e) {
+          showError("load yaml model = $id");
+          print(e);
+        }
+      } else {
+        modelYaml = '';
+        mapModelYaml = {};
+      }
+
+      if (withProperties) {
+        await _loadProperties(cache: cache);
+        loadingTime = 0;
+      } else {
+        loadingTime = 0;
+      }
+    } catch (e) {
+      showError('loadYamlAndProperties $e');
+      rethrow;
+    }
+
+    return this;
+  }
+
+  Future<void> _initVersion() async {
     if (currentVersion == null && category == Category.model) {
       var versions = await bddStorage.getAllVersion(this);
       if (versions.isEmpty) {
@@ -402,35 +481,6 @@ class ModelSchema {
       }
       bddStorage.lastVersionByMaster[id] = currentVersion!;
     }
-
-    dynamic savedYamlModel = bddStorage.getItem(
-      model: this,
-      id: id,
-      version: currentVersion,
-      delay: cache ? -1 : 0,
-    );
-    if (savedYamlModel is Future) {
-      savedYamlModel = await savedYamlModel;
-    } else if (mapModelYaml.isNotEmpty) {
-      return this;
-    }
-
-    if (savedYamlModel != null) {
-      modelYaml = savedYamlModel;
-      try {
-        mapModelYaml = loadYaml(modelYaml, recover: true);
-        print("load yaml model = $id");
-      } catch (e) {
-        print(e);
-      }
-    } else {
-      modelYaml = '';
-      mapModelYaml = {};
-    }
-    if (withProperties) {
-      await _loadProperties(cache: cache);
-    }
-    return this;
   }
 
   dynamic loadYamlAndPropertiesSyncOrNot({required bool cache}) {
@@ -439,6 +489,7 @@ class ModelSchema {
       id: id,
       version: currentVersion,
       delay: cache ? -1 : 0,
+      setcache: true,
     );
     if (saveModel is Future) {
       return loadYamlAndProperties(cache: cache, withProperties: true);
@@ -474,12 +525,13 @@ class ModelSchema {
         version: currentVersion,
         id: 'json/$id',
         delay: 0,
+        setcache: true,
       );
       if (l == null) {
         modelProperties = {};
       }
 
-      print("load properties model = $id");
+      // print("load properties model = $id");
       isLoadProp = true;
     }
   }
@@ -491,6 +543,7 @@ class ModelSchema {
         version: currentVersion,
         id: 'json/$id',
         delay: -1,
+        setcache: true,
       );
       if (l is! Future) {
         if (l == null) {
@@ -498,7 +551,7 @@ class ModelSchema {
         } else {
           modelProperties = l;
         }
-        print("load properties model = $id");
+        // print("load properties model = $id");
         isLoadProp = true;
       }
     }
@@ -510,7 +563,11 @@ class ModelSchema {
     }
   }
 
-  void doChangeAndRepaintYaml(TextConfig? config, bool save, String action) {
+  bool doChangeAndRepaintYaml(
+    YamlEditorConfig? config,
+    bool save,
+    String action,
+  ) {
     var parser = ParseYamlManager();
     bool parseOk = parser.doParseYaml(modelYaml, config);
 
@@ -536,6 +593,8 @@ class ModelSchema {
         }
       }
     }
+
+    return parseOk;
   }
 
   AttributInfo? getNearestAttributNotUsed(

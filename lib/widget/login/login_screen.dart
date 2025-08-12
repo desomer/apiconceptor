@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // import 'package:login_app/view/login/login_card.dart';
 // import 'package:login_app/view/main_page.dart';
 
-import 'package:jsonschema/widget/login/background_screen.dart';
+import 'package:jsonschema/widget/login/background_screen_login.dart';
 import 'package:jsonschema/widget/login/heading_text.dart';
 import 'package:jsonschema/widget/login/login_card.dart';
 
@@ -20,7 +20,7 @@ class LoginScreen extends StatelessWidget {
     return SizedBox(
       child: Stack(
         children: [
-          const BackgroundScreen(),
+          const BackgroundScreenLogin(),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 60),
             child: Column(

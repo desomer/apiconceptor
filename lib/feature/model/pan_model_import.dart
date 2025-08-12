@@ -5,9 +5,9 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/import/json2schema_yaml.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/feature/model/pan_model_link.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
 
@@ -43,12 +43,12 @@ class PanModelImport extends StatelessWidget {
 
   Widget _getJsonImport(JsonToSchemaYaml import) {
     return TextEditor(
-      config: TextConfig(
+      config: YamlEditorConfig(
         mode: json,
         getText: () {
           return '';
         },
-        onChange: (String json, TextConfig config) {
+        onChange: (String json, YamlEditorConfig config) {
           import.rawJson = json;
         },
         notifError: ValueNotifier(''),
@@ -75,11 +75,11 @@ class PanModelImport extends StatelessWidget {
       category: Category.selector,
       headerName: 'Select Models',
       id: 'model',
-      infoManager: currentCompany.listModel.infoManager,
+      infoManager: currentCompany.listModel!.infoManager,
     );
     model.autoSaveProperties = false;
-    model.mapModelYaml = currentCompany.listModel.mapModelYaml;
-    model.modelProperties = currentCompany.listModel.modelProperties;
+    model.mapModelYaml = currentCompany.listModel!.mapModelYaml;
+    model.modelProperties = currentCompany.listModel!.modelProperties;
 
     Size size = MediaQuery.of(context).size;
     double width = size.width * 0.8;

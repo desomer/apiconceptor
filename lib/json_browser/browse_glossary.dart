@@ -2,7 +2,8 @@ import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:lemmatizerx/lemmatizerx.dart';
 //import 'package:text_analysis/text_analysis.dart';
 //import 'package:text_analysis/extensions.dart';
@@ -277,7 +278,7 @@ class InfoManagerGlossary extends InfoManager {
   }
 
   @override
-  Widget getAttributHeader(TreeNode<NodeAttribut> node) {
+  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
     Widget icon = Container();
     var isRoot = node.isRoot;
     var isObject = node.data!.info.type == 'Object';
@@ -323,5 +324,11 @@ class InfoManagerGlossary extends InfoManager {
         ),
       ),
     );
+  }
+
+  @override
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+    // TODO: implement getRowHeader
+    throw UnimplementedError();
   }
 }

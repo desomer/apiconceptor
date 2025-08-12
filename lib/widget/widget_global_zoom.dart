@@ -1,6 +1,6 @@
 import 'package:cart_stepper/cart_stepper.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 
 class WidgetGlobalZoom extends StatefulWidget {
   const WidgetGlobalZoom({super.key});

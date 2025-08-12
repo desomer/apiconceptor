@@ -86,11 +86,11 @@ class _PanSaveParamState extends State<PanSaveParam> {
         ),
         Flexible(
           child: TextEditor(
-            config: TextConfig(
+            config: YamlEditorConfig(
               readOnly: true,
               mode: json,
               getText: () => text,
-              onChange: (String json, TextConfig config) {
+              onChange: (String json, YamlEditorConfig config) {
                 // Handle changes if needed
               },
               notifError: ValueNotifier(''),

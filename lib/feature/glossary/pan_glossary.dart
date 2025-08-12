@@ -5,15 +5,15 @@ import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
 import '../../widget/widget_split.dart';
 
 // ignore: must_be_immutable
-class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
+class WidgetGlossary extends StatelessWidget with WidgetHelper {
   WidgetGlossary({
     super.key,
     required this.schemaGlossary,
@@ -23,7 +23,7 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
   final GlobalKey keyYaml = GlobalKey();
   final GlobalKey keyListInfo = GlobalKey();
   final String typeModel;
-  late TextConfig textConfig;
+  late YamlEditorConfig textConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +47,7 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
       }
     };
 
-    void onYamlChange(String yaml, TextConfig config) {
+    void onYamlChange(String yaml, YamlEditorConfig config) {
       if (schemaGlossary.modelYaml != yaml) {
         schemaGlossary.modelYaml = yaml;
         schemaGlossary.doChangeAndRepaintYaml(config, true, 'change');
@@ -58,7 +58,7 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
       return schemaGlossary.modelYaml;
     }
 
-    textConfig = TextConfig(
+    textConfig = YamlEditorConfig(
       mode: yaml,
       notifError: ValueNotifier<String>(''),
       onChange: onYamlChange,
@@ -81,8 +81,9 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
               JsonTreeConfig(
                   textConfig: textConfig,
                   getModel: () => schemaGlossary,
-                  onTap: (NodeAttribut node) {
+                  onTap: (NodeAttribut node, BuildContext context) {
                     //goToModel(node, 1);
+                    return false;
                   },
                   onDoubleTap: (NodeAttribut node) {
                     //goToModel(node, 1);
@@ -97,7 +98,11 @@ class WidgetGlossary extends StatelessWidget with WidgetModelHelper {
     return modelSelector;
   }
 
-  Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchema schema) {
+  Widget _getWidgetModelInfo(
+    NodeAttribut attr,
+    ModelSchema schema,
+    BuildContext context,
+  ) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }

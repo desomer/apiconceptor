@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 
 var stateApi = StateAPI();
 
@@ -9,14 +9,13 @@ class StateAPI {
 
 
   GlobalKey keyTab = GlobalKey();
-  Set<int> tabDisable = {1, 2};
+  Set<int> tabDisable = {1};
 
-  GlobalKey keyBreadcrumb = GlobalKey();
-  List<String> path = ["API", "Select or create API"];
+
   List<String> urlParam = [];
 
-  late TabController tabApi;
-  late TabController tabSubApi;
+  TabController? tabApi;
+  TabController? tabSubApi;
 
   GlobalKey keyResponseStatus = GlobalKey();
 

@@ -1,8 +1,100 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/login/background_screen_login.dart';
+import 'package:jsonschema/widget/login/heading_text.dart';
+import 'package:jsonschema/widget/widget_dialog_card.dart';
+import 'package:super_tooltip/super_tooltip.dart';
 
-mixin class WidgetModelHelper {
+mixin class WidgetHelper {
+  Future<void> dialogBuilderBelow(
+    BuildContext context,
+    Widget child,
+    GlobalKey targetKey,
+  ) {
+    return showDialog(
+      context: context,
+      //barrierColor: Colors.transparent, // Pour éviter le fond sombre
+      builder: (context) {
+        return Stack(
+          children: [
+            PositionedDialogBelow(
+              targetKey: targetKey,
+              child: AlertDialog(
+                contentPadding: EdgeInsets.all(5),
+                content: child,
+                actions: [
+                  TextButton(
+                    child: const Text('Cancel'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> dialogBuilder(BuildContext context, Widget child) {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          contentPadding: EdgeInsets.all(5),
+          content: child,
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> messageBuilder(BuildContext context, Widget child) {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          contentPadding: EdgeInsets.all(0),
+          content: SizedBox(
+            height: 450,
+            width: 500,
+            child: Stack(
+              children: [
+                const BackgroundScreenLogin(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 20,
+                          horizontal: 30,
+                        ),
+                        child: MainHeading(title: "Information"),
+                      ),
+                      DialogCard(message: child),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget? getHttpOpe(String name) {
     if (name == 'get') {
       return getChip(Text('GET'), color: Colors.green, height: 27);
@@ -80,23 +172,47 @@ mixin class WidgetModelHelper {
   }) {
     // if (true) return child;
 
-    return Tooltip(
-      verticalOffset: 4,
-      //triggerMode: TooltipTriggerMode.manual,
-      showDuration: const Duration(milliseconds: 2500),
-      waitDuration: const Duration(milliseconds: 500),
-
-      richMessage: WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: Container(
+    final controller = SuperTooltipController();
+    return MouseRegion(
+      onEnter: (event) {
+        controller.showTooltip();
+      },
+      onExit: (event) {
+        controller.hideTooltip();
+      },
+      child: SuperTooltip(
+        popupDirectionBuilder: () {
+          return TooltipDirection.down;
+        },
+        showBarrier: false,
+        controller: controller,
+        content: Container(
           padding: const EdgeInsets.all(10),
           constraints: const BoxConstraints(maxWidth: 500),
-          child: Column(children: toolContent),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: toolContent),
         ),
+
+        child: child,
       ),
-      child: child,
     );
+
+    // return Tooltip(
+    //   verticalOffset: 4,
+    //   //triggerMode: TooltipTriggerMode.manual,
+    //   showDuration: const Duration(milliseconds: 2500),
+    //   waitDuration: const Duration(milliseconds: 500),
+
+    //   richMessage: WidgetSpan(
+    //     alignment: PlaceholderAlignment.baseline,
+    //     baseline: TextBaseline.alphabetic,
+    //     child: Container(
+    //       padding: const EdgeInsets.all(10),
+    //       constraints: const BoxConstraints(maxWidth: 500),
+    //       child: Column(children: toolContent),
+    //     ),
+    //   ),
+    //   child: child,
+    // );
   }
 
   void addWidgetMasterId(NodeAttribut attr, List<Widget> row) {
@@ -121,5 +237,35 @@ mixin class WidgetModelHelper {
     } else {
       row.add(getChip(Text(master.toString()), color: null));
     }
+  }
+}
+
+class PositionedDialogBelow extends StatelessWidget {
+  final GlobalKey targetKey;
+  final Widget child;
+
+  const PositionedDialogBelow({
+    super.key,
+    required this.targetKey,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (targetKey.currentContext?.mounted == true) {
+      final renderBox =
+          targetKey.currentContext?.findRenderObject() as RenderBox?;
+
+      if (renderBox == null) return Container();
+      final position = renderBox.localToGlobal(Offset.zero);
+      final size = renderBox.size;
+
+      return Positioned(
+        left: position.dx,
+        top: position.dy + size.height,
+        child: child,
+      );
+    }
+    return Container();
   }
 }

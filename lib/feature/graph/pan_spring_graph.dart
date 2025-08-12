@@ -9,8 +9,8 @@ import 'package:jsonschema/feature/graph/domain_painter.dart';
 import 'package:jsonschema/feature/graph/edge_painter.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/main.dart';
-import 'package:jsonschema/widget_state/widget_md_doc.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:yaml/yaml.dart';
 import 'package:collection/collection.dart';
 
@@ -49,10 +49,10 @@ class _PanModelGraphState extends State<PanModelGraph> {
 
   @override
   void initState() {
-    initGraph(currentCompany.listModel);
-    initGraph(currentCompany.listComponent);
-    initGraph(currentCompany.listRequest);
-    initGraph(currentCompany.listAPI);
+    initGraph(currentCompany.listModel!);
+    // initGraph(currentCompany.listComponent);
+    // initGraph(currentCompany.listRequest);
+    initGraph(currentCompany.listAPI!);
 
     timer = Timer.periodic(const Duration(milliseconds: 30), (_) {
       _applyForces();

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 
 abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     extends JsonBrowser<T> {

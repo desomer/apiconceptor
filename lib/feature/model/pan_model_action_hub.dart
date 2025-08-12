@@ -27,9 +27,9 @@ class PanModelActionHub extends StatelessWidget {
             style: style,
             label: Text('New Model'),
           ),
-          ElevatedButton(onPressed: () {}, child: Text('New component')),
-          ElevatedButton(onPressed: () {}, child: Text('New DTO')),
-          ElevatedButton(onPressed: () {}, child: Text('New ORM Entity')),
+          // ElevatedButton(onPressed: () {}, child: Text('New component')),
+          // ElevatedButton(onPressed: () {}, child: Text('New DTO')),
+          // ElevatedButton(onPressed: () {}, child: Text('New ORM Entity')),
         ],
       ),
     );

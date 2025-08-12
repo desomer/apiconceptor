@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/feature/api/pan_api_selector.dart';
+import 'package:jsonschema/feature/api/deprecated/pan_api_selector.dart';
 
 class PanApiActionHub extends StatelessWidget {
   const PanApiActionHub({super.key, required this.selector});

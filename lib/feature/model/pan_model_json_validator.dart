@@ -7,7 +7,7 @@ import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 
 class WidgetJsonValidator extends StatefulWidget {
   const WidgetJsonValidator({super.key});
@@ -18,7 +18,7 @@ class WidgetJsonValidator extends StatefulWidget {
 
 class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   late dynamic jsonSchema;
-  late TextConfig textConfig;
+  late YamlEditorConfig textConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                   children: [
                     TextButton(
                       onPressed: () {
-                        textConfig.doRebind();
+                        textConfig.repaintYaml();
                       },
                       child: Text('Generate fake data'),
                     ),
@@ -64,11 +64,11 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     }
     return TextEditor(
       header: "JSON Schema",
-      config: TextConfig(
+      config: YamlEditorConfig(
         mode: json,
         readOnly: true,
         notifError: errorParse,
-        onChange: (String json, TextConfig config) {},
+        onChange: (String json, YamlEditorConfig config) {},
         getText: () {
           return export.prettyPrintJson(export.json);
         },
@@ -85,10 +85,10 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       return Text('select model first');
     }
 
-    textConfig = TextConfig(
+    textConfig = YamlEditorConfig(
       mode: json,
       notifError: error,
-      onChange: (String json, TextConfig config) {
+      onChange: (String json, YamlEditorConfig config) {
         try {
           if (json != '' && jsonValidator != null) {
             var jsonMap = jsonDecode(removeComments(json));

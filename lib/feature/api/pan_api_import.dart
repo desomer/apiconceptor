@@ -4,7 +4,7 @@ import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/import/url2api.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_api.dart';
 
@@ -28,12 +28,12 @@ class PanAPIImport extends StatelessWidget {
 
   Widget _getURLImport(Url2Api import) {
     return TextEditor(
-      config: TextConfig(
+      config: YamlEditorConfig(
         mode: markdown,
         getText: () {
           return '';
         },
-        onChange: (String json, TextConfig config) {
+        onChange: (String json, YamlEditorConfig config) {
           import.raw = json;
         },
         notifError: ValueNotifier(''),
@@ -60,11 +60,11 @@ class PanAPIImport extends StatelessWidget {
       category: Category.selector,
       headerName: 'Select Models',
       id: 'model',
-      infoManager: currentCompany.listModel.infoManager,
+      infoManager: currentCompany.listModel!.infoManager,
     );
     model.autoSaveProperties = false;
-    model.mapModelYaml = currentCompany.listModel.mapModelYaml;
-    model.modelProperties = currentCompany.listModel.modelProperties;
+    model.mapModelYaml = currentCompany.listModel!.mapModelYaml;
+    model.modelProperties = currentCompany.listModel!.modelProperties;
 
     Size size = MediaQuery.of(context).size;
     double width = size.width * 0.8;
@@ -89,7 +89,7 @@ class PanAPIImport extends StatelessWidget {
           child: const Text('Import'),
           onPressed: () {
             if (tabImport.index == 0) {
-              var modelSchemaDetail = currentCompany.listAPI;
+              var modelSchemaDetail = currentCompany.listAPI!;
               modelSchemaDetail.modelYaml =
                   import.doImportJSON(modelSchemaDetail).yaml.toString();
 

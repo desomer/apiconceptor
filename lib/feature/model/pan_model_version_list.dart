@@ -17,7 +17,7 @@ class PanModelVersionList extends StatefulWidget {
 }
 
 class _PanModelVersionListState extends State<PanModelVersionList>
-    with WidgetModelHelper {
+    with WidgetHelper {
   late ScrollController _scrollController;
 
   @override
@@ -74,7 +74,7 @@ class _PanModelVersionListState extends State<PanModelVersionList>
             getChip(Text(version.data['versionTxt']), color: null),
             Text('by ${version.data['by']}'),
             Spacer(),
-            InkWell(child: WidgetVersionState(margeVertical: 5,)),
+            InkWell(child: WidgetVersionState(margeVertical: 5)),
           ],
         ),
       ),

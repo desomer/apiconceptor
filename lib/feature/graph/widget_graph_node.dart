@@ -1,8 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
 abstract class Node {
@@ -17,12 +16,11 @@ abstract class Node {
   Widget getWidget();
 }
 
-class ApiNode extends Node with WidgetModelHelper {
+class ApiNode extends Node with WidgetHelper {
   ApiNode(super.x, super.y, super.name, super.info);
 
   @override
   Widget getWidget() {
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.black54,
@@ -91,5 +89,5 @@ class ModelNode extends Node {
         child: child,
       ),
     );
-  }  
+  }
 }

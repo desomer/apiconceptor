@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/widget/widget_keep_alive.dart';
+import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/model/pan_model_selector.dart';
+import 'package:jsonschema/feature/model/pan_model_trashcan.dart';
+import 'package:jsonschema/json_browser/browse_api.dart';
+import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget_state/state_model.dart';
+import 'package:yaml/yaml.dart';
 
-class WidgetModelMain extends StatelessWidget with WidgetModelHelper {
+class WidgetModelMain extends StatelessWidget with WidgetHelper {
   const WidgetModelMain({super.key});
 
   @override
@@ -13,38 +22,96 @@ class WidgetModelMain extends StatelessWidget with WidgetModelHelper {
   }
 
   Widget getBrowser(BuildContext context) {
+    PanModelSelector panModelSelector = PanModelSelector(
+      getSchemaFct: () async {
+        await Future.delayed(Duration(milliseconds: gotoDelay));
+        currentCompany.listModel = await loadSchema(
+          TypeMD.listmodel,
+          'model',
+          'Business models',
+          TypeModelBreadcrumb.businessmodel,
+          namespace: currentCompany.currentNameSpace,
+        );
+        return currentCompany.listModel!;
+      },
+    );
+
+    // pour import
+    stateModel.panModelSelector = panModelSelector;
+
     return WidgetTab(
       onInitController: (TabController tab) {
-        stateModel.tabSubModel = tab;
+        // stateModel.tabSubModel = tab;
         tab.addListener(() {
-          stateModel.setTab();
+          // stateModel.setTab();
         });
       },
       listTab: [
         Tab(text: 'Business models'),
-        Tab(text: 'Components'),
-        Tab(text: 'DTO'),
-        Tab(text: 'ORM Entities'),
+        //  Tab(text: 'ORM Entities'),
+        Tab(text: 'Trashcan'),
       ],
       listTabCont: [
-        KeepAliveWidget(child: stateModel.modelSelector),
-        KeepAliveWidget(child: stateModel.componentSelector),
-        KeepAliveWidget(child: stateModel.requestSelector),
-
-        // WidgetTab(
-        //   listTab: [Tab(text: 'Request'), Tab(text: 'Response')],
-        //   listTabCont: [
-        //     WidgetModelSelector(
-        //       listModel: currentCompany.listRequest,
-        //       typeModel: TypeModelBreadcrumb.request,
-        //     ),
-        //     Container(),
-        //   ],
-        //   heightTab: 40,
-        // ),
-        Container(),
+        panModelSelector,
+        // KeepAliveWidget(child: stateModel.panDtoSelector),
+        // KeepAliveWidget(child: stateModel.panComponentSelector),
+        getTrashcan(context),
       ],
       heightTab: 40,
+    );
+  }
+
+  Widget getTrashcan(BuildContext context) {
+    return PanModelTrashcan(
+      getModelFct: () async {
+        var trash = ModelSchema(
+          category: Category.allModel,
+          headerName: 'All models',
+          id: 'model',
+          infoManager: InfoManagerTrashAPI(),
+        );
+        trash.autoSaveProperties = false;
+
+        await bddStorage.getTrashSupabase(trash, 'model', 'trash model');
+
+        StringBuffer yamlTrash = StringBuffer();
+        yamlTrash.writeln('trash model:');
+        for (var trashElem in trash.mapInfoByTreePath.entries) {
+          yamlTrash.writeln(
+            ' ${trashElem.value.masterID} : ${trashElem.value.path}',
+          );
+        }
+
+        // trash.mapInfoByTreePath.clear();
+
+        // await bddStorage.getTrashSupabase(
+        //   trash,
+        //   'component',
+        //   'trash component',
+        // );
+
+        // yamlTrash.writeln('trash component:');
+        // for (var trashElem in trash.mapInfoByTreePath.entries) {
+        //   yamlTrash.writeln(
+        //     ' ${trashElem.value.masterID} : ${trashElem.value.path}',
+        //   );
+        // }
+        // trash.mapInfoByTreePath.clear();
+
+        // await bddStorage.getTrashSupabase(trash, 'request', 'trash request');
+
+        // yamlTrash.writeln('trash request:');
+        // for (var trashElem in trash.mapInfoByTreePath.entries) {
+        //   yamlTrash.writeln(
+        //     ' ${trashElem.value.masterID} : ${trashElem.value.path}',
+        //   );
+        // }
+        // trash.mapInfoByTreePath.clear();
+
+        trash.mapModelYaml = loadYaml(yamlTrash.toString(), recover: true);
+
+        return trash;
+      },
     );
   }
 }

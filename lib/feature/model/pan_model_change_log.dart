@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:markdown_widget/widget/markdown.dart';
 
 class PanModelChangeLog extends StatefulWidget {

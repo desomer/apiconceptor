@@ -16,7 +16,7 @@ class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
   @override
   Widget build(BuildContext context) {
     if (!widget.stateResponse.callInProgress &&
-        widget.stateResponse.aResponse == null) {
+        widget.stateResponse.widget.apiCallInfo.aResponse == null) {
       return Container();
     }
 
@@ -29,7 +29,7 @@ class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
       );
     }
 
-    var aResponse = widget.stateResponse.aResponse;
+    var aResponse = widget.stateResponse.widget.apiCallInfo.aResponse;
     var httpState = aResponse?.reponse?.statusCode??500;
     var duration = aResponse?.duration;
     var size = aResponse?.size ?? 0;

@@ -9,9 +9,7 @@ class WidgetJsonRow extends StatefulWidget {
     required this.node,
     required this.schema,
     required this.fctGetRow,
-  }) {
-    first = fctGetRow(node, schema);
-  }
+  });
 
   final NodeAttribut node;
   final ModelSchema schema;
@@ -26,7 +24,9 @@ class WidgetJsonRow extends StatefulWidget {
 class WidgetJsonRowState extends State<WidgetJsonRow> {
   @override
   Widget build(BuildContext context) {
-    widget.node.widgetRowState = this;
+    widget.first ??= widget.fctGetRow(widget.node, widget.schema, context);
+
+    widget.node.info.widgetRowState = this;
     if (widget.first != null) {
       var r = widget.first!;
       widget.first = null;

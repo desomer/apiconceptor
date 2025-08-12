@@ -1,8 +1,8 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/main.dart' show stateOpenFactor;
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
+import 'package:jsonschema/start_core.dart' show stateOpenFactor;
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 
 class WidgetZoomSelector extends StatefulWidget {
   const WidgetZoomSelector({super.key, required this.zoom});

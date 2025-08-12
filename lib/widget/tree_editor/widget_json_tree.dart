@@ -1,18 +1,40 @@
+import 'dart:async';
+
 import 'package:animated_tree_view/animated_tree_view.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_list.dart';
-import 'package:jsonschema/main.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_list.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_row.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 
 class JsonBrowserWidget extends JsonBrowser {
   late JsonListEditorState state;
   late TreeNode<NodeAttribut> rootTree;
 
+  List<String>? pathFilter;
+
   double maxSize = 300;
+
+  void gotoPath(ModelSchema model, String path) {
+    AttributInfo? node;
+    for (var element in model.useAttributInfo) {
+      var p = element.path.replaceAll('>$constTypeAnyof', '');
+      if (p == path) {
+        node = element;
+        break;
+      }
+    }
+
+    if (node != null) {
+      var n = findNode(node);
+      if (n != null) {
+        state.modelInfo.treeController?.scrollToItem(n);
+      }
+    }
+  }
 
   void reloadAll(NodeAttribut? node) {
     node?.repaint();
@@ -48,6 +70,17 @@ class JsonBrowserWidget extends JsonBrowser {
 
   @override
   dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+    if (pathFilter != null) {
+      var find = false;
+      for (var element in pathFilter!) {
+        if (element.startsWith(node.info.path)) {
+          find = true;
+          break;
+        }
+      }
+      if (!find) return null;
+    }
+
     double sizeType = node.info.type.length * 9 * (zoom.value / 100);
     double size =
         (node.info.name.length * 10 * (zoom.value / 100)) +
@@ -66,7 +99,6 @@ class JsonBrowserWidget extends JsonBrowser {
       (parent as TreeNode).add(treeNode);
 
       // gestion du chargemnt différé des enfants
-
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Node? n = findNode(parentNode.info);
         n as TreeNode;
@@ -80,13 +112,6 @@ class JsonBrowserWidget extends JsonBrowser {
             state.keyJsonList.currentState?.setState(() {});
           });
         });
-
-        //n?.add(treeNode);
-        //state.setState(() {});
-        // print("later");
-        // if (parent.isExpanded) {
-        //   state.modelInfo.treeController!.toggleExpansion(parent);
-        // }
       });
     }
     return treeNode;
@@ -116,8 +141,6 @@ class JsonBrowserWidget extends JsonBrowser {
   void onRowTypeChange(ModelSchema model, NodeAttribut node) {
     super.onRowTypeChange(model, node);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // var attr = state.keyJsonList.currentState?.getNodeAttribut(node);
-      // attr?.repaint();
       if (node.info.cacheRowWidget is WidgetJsonRow) {
         (node.info.cacheRowWidget as WidgetJsonRow).cache = null;
         (node.info.cacheRowWidget as WidgetJsonRow).node.repaint();
@@ -141,8 +164,8 @@ class JsonListEditorState extends State<JsonListEditor>
   late AutoScrollController _scrollController;
 
   TreeListLink modelInfo = TreeListLink();
-  var keyJsonList = GlobalKey<JsonListState>();
-  GlobalKey keyTree = GlobalKey();
+  var keyJsonList = GlobalKey<JsonListState>(debugLabel: 'keyJsonList');
+  GlobalKey keyTree = GlobalKey(debugLabel: 'keyTree');
 
   @override
   initState() {
@@ -168,6 +191,10 @@ class JsonListEditorState extends State<JsonListEditor>
     super.dispose();
   }
 
+  String queryFilter = '';
+  List<String>? pathFilter;
+  Timer? _debounce;
+
   @override
   Widget build(BuildContext context) {
     stateOpenFactor?.setList(this);
@@ -177,26 +204,87 @@ class JsonListEditorState extends State<JsonListEditor>
 
     widget.config.textConfig?.treeJsonState = this;
 
-    var jsonBrowserWidget = JsonBrowserWidget()..state = this;
+    var jsonBrowserWidget =
+        JsonBrowserWidget()
+          ..state = this
+          ..pathFilter = pathFilter;
 
-    ModelBrower browser = jsonBrowserWidget.browse(model, true);
+    NodeBrower browser = jsonBrowserWidget.browse(model, true);
     model.lastBrowser = browser;
     model.lastJsonBrowser = jsonBrowserWidget;
     repaintListView(0, 'build');
 
-    return getWidget(model, browser, jsonBrowserWidget);
+    return Column(
+      children: [
+        Row(children: [getFilter(model)]),
+        Expanded(child: getWidget(model, browser, jsonBrowserWidget)),
+      ],
+    );
+  }
+
+  void _onSearchChanged(ModelSchema model, String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      setState(() {
+        queryFilter = query;
+        if (query == '') {
+          pathFilter = null;
+        } else {
+          pathFilter = [];
+          List<String> filters = query.split(' ');
+          for (var element in model.useAttributInfo) {
+            for (var f in filters) {
+              f = f.trim();
+              if (f != '') {
+                if (element.name.toLowerCase().contains(f.toLowerCase())) {
+                  pathFilter!.add(element.path);
+                } else if (element.properties != null) {
+                  for (var propValue in element.properties!.values.toList()) {
+                    if (propValue.toString().toLowerCase().contains(
+                      f.toLowerCase(),
+                    )) {
+                      pathFilter!.add(element.path);
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          keyTree = GlobalKey(); // change le widget en change la key
+        }
+      });
+    });
+  }
+
+  Widget getFilter(ModelSchema model) {
+    return SizedBox(
+      width: 300,
+      height: 30,
+      child: TextField(
+        onChanged: (value) {
+          _onSearchChanged(model, value);
+        },
+        decoration: InputDecoration(
+          contentPadding: EdgeInsets.all(0),
+          hintText: 'Filtrer',
+          prefixIcon: Icon(Icons.search),
+        ),
+      ),
+    );
   }
 
   Widget getWidget(
     ModelSchema model,
-    ModelBrower browser,
+    NodeBrower browser,
     JsonBrowserWidget jsonBrowserWidget,
   ) {
     print(
       "tree nb name = ${model.mapInfoByName.length} nb path = ${model.mapInfoByJsonPath.length}  all info = ${model.allAttributInfo.length}",
     );
 
-    print(browser.nbLevelMax);
+    //print(browser.nbLevelMax);
 
     modelInfo.config = widget.config;
     return SplitView(
@@ -247,37 +335,64 @@ class JsonListEditorState extends State<JsonListEditor>
       },
       onTreeReady: (controller) {
         modelInfo.treeController = controller;
-        repaintListView(0, 'onTreeReady');
-        // chargement aprés le scroll du TAB
-        Future.delayed(Duration(milliseconds: 500)).then((value) {
-          var nbLevelFromTop = doToogleNode(
-            0,
-            controller.tree,
-            0,
-            max: openFactor.value.toInt(),
-          );
-          repaintListView(nbLevelFromTop, 'doToogleNode onTreeReady');
-        });
+        toogleAllNode(controller);
       },
       builder: (context, node) {
         if (node.data!.info.cacheHeaderWidget == null ||
             node.data!.info.cacheHeight != rowHeight) {
-          node.data!.info.cacheHeaderWidget = getRow(node, aModel);
+          node.data!.info.cacheHeaderWidget = getRow(node, aModel, context);
         }
         return node.data!.info.cacheHeaderWidget!;
       },
     );
   }
 
-  Widget getRow(TreeNode<NodeAttribut> node, ModelSchema aModel) {
+  void toogleAllNode(
+    TreeViewController<NodeAttribut, TreeNode<NodeAttribut>> controller,
+  ) {
+    repaintListView(0, 'onTreeReady');
+    // chargement aprés le scroll du TAB
+    Future.delayed(Duration(milliseconds: 500)).then((value) {
+      var nbLevelFromTop = doToogleNode(
+        0,
+        controller.tree,
+        0,
+        max: openFactor.value.toInt(),
+      );
+      repaintListView(nbLevelFromTop, 'doToogleNode onTreeReady');
+    });
+  }
+
+  void openAllNode() {
+    repaintListView(0, 'onTreeReady');
+    // chargement aprés le scroll du TAB
+    Future.delayed(Duration(milliseconds: 500)).then((value) {
+      ModelSchema? model = (widget.config.getModel() as ModelSchema?);
+      var jb = model!.lastJsonBrowser as JsonBrowserWidget;
+
+      var nbLevelFromTop = doOpenNode(
+        0,
+        jb.rootTree,
+        0,
+        max: openFactor.value.toInt(),
+      );
+      repaintListView(nbLevelFromTop, 'doToogleNode onTreeReady');
+    });
+  }
+
+  Widget getRow(
+    TreeNode<NodeAttribut> node,
+    ModelSchema aModel,
+    BuildContext context,
+  ) {
     node.data!.info.cacheHeight = rowHeight;
     var canDoubleTap = (!node.isLeaf || widget.config.onDoubleTap != null);
 
     return InkWell(
       key: ObjectKey(node.data),
       onTap: () {
-        if (widget.config.onTap != null) {
-          var ret = widget.config.onTap!(node.data);
+        if (widget.config.onTap != null && node.data != null) {
+          var ret = widget.config.onTap!(node.data!, context);
           if (ret == true) {
             repaintListView(0, 'onTap');
           }
@@ -304,7 +419,7 @@ class JsonListEditorState extends State<JsonListEditor>
         height: rowHeight,
         child: Row(
           children: [
-            aModel.infoManager.getAttributHeader(node),
+            aModel.infoManager.getAttributHeaderOLD(node),
             Spacer(),
             getWidgetType(node.data!),
             SizedBox(width: 40),
@@ -384,6 +499,34 @@ class JsonListEditorState extends State<JsonListEditor>
     return levelFormTop;
   }
 
+  int doOpenNode(
+    int levelFormTop,
+    TreeNode<NodeAttribut> node,
+    int level, {
+    int max = -1,
+  }) {
+    if (max >= 0 && level >= max) return levelFormTop;
+
+    int delay = levelFormTop;
+    if (!node.isExpanded && node.children.isNotEmpty) {
+      for (var element in node.childrenAsList) {
+        if (!(element as TreeNode).isExpanded && element.children.isNotEmpty) {
+          levelFormTop++;
+          levelFormTop = doOpenNode(
+            levelFormTop,
+            (element as TreeNode<NodeAttribut>),
+            level + 1,
+            max: max,
+          );
+        }
+      }
+    }
+    Future.delayed(Duration(milliseconds: delay * 500)).then((_) {
+      if (mounted) modelInfo.treeController!.expandNode(node);
+    });
+    return levelFormTop;
+  }
+
   Widget getWidgetType(NodeAttribut attr) {
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
     hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
@@ -404,6 +547,10 @@ class JsonListEditorState extends State<JsonListEditor>
   }
 }
 
+typedef OnTap = bool Function(NodeAttribut attr, BuildContext context);
+typedef GetRow =
+    void Function(NodeAttribut attr, ModelSchema schema, BuildContext context);
+
 class JsonTreeConfig {
   JsonTreeConfig({
     required this.textConfig,
@@ -413,12 +560,13 @@ class JsonTreeConfig {
   });
   Function getModel;
   late Function getJson;
-  late Function getRow;
+  late GetRow getRow;
   // int widthTree = 350;
-  Function? onTap;
+  OnTap? onTap;
   Function? onDoubleTap;
-  TextConfig? textConfig;
+  YamlEditorConfig? textConfig;
 }
+
 //-------------------------------------------------------------------------------------------
 
 class TreeListLink {

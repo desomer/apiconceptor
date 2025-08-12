@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:core';
 
 import 'package:diff_match_patch/diff_match_patch.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show VoidCallback;
+import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:supabase/supabase.dart';
 
 DataAcces bddStorage = DataAcces();
@@ -79,7 +81,6 @@ class DataAcces {
         .order('update_at', ascending: false);
     var ret2 = await queryattr;
     if (ret2.isNotEmpty) {
-      print('ret');
       model.modelProperties = {};
       for (var element in ret2) {
         AttributInfo info = AttributInfo();
@@ -105,17 +106,17 @@ class DataAcces {
     ModelVersion? version,
   ) async {
     if (id.startsWith('json/')) {
-      print("load prop from bdd $id");
+      //print("load prop from bdd $id");
       var queryattr = supabase
           .from('attributs')
           .select('*')
           .eq('version', version?.version ?? '1')
           .eq('company_id', currentCompany.companyId)
+          .eq('namespace', model.namespace ?? currentCompany.currentNameSpace)
           .eq('schema_id', id.substring(5))
           .eq('state', 'R');
       var ret2 = await queryattr;
       if (ret2.isNotEmpty) {
-        print('ret');
         model.modelProperties = {};
         for (var element in ret2) {
           AttributInfo info = AttributInfo();
@@ -129,17 +130,22 @@ class DataAcces {
         return model.modelProperties;
       }
     } else {
-      print("load yaml from bdd $id");
+      //print("load yaml from bdd $id");
       var query = supabase
           .from('models')
-          .select('json')
+          .select('json, namespace')
+          .eq('namespace', model.namespace ?? currentCompany.currentNameSpace)
           .eq('compagny_id', currentCompany.companyId)
           .eq('model_id', id)
           .eq('version', version?.version ?? '1');
 
       var ret = await query;
       if (ret.isNotEmpty) {
+        model.namespace =
+            ret.first['namespace'] ?? currentCompany.currentNameSpace;
         return ret.first['json'];
+      } else {
+        model.namespace = currentCompany.currentNameSpace;
       }
     }
 
@@ -165,6 +171,7 @@ class DataAcces {
     required String id,
     required ModelVersion? version,
     required int delay,
+    required bool setcache,
   }) {
     if (delay == -1) {
       String cacheId = getCacheId(id, version);
@@ -172,17 +179,25 @@ class DataAcces {
         return local[cacheId]!.value;
       }
     }
-    return _getItemAsync(model: model, id: id, version: version);
+    return _getItemAsync(
+      model: model,
+      id: id,
+      version: version,
+      setcache: setcache,
+    );
   }
 
   Future<dynamic> _getItemAsync({
     required ModelSchema model,
     required String id,
     required ModelVersion? version,
+    required bool setcache,
   }) async {
     var ret = await _getFromModelSupabase(model, id, version);
-    String cacheId = getCacheId(id, version);
-    _setCache(cacheId, ret);
+    if (setcache) {
+      String cacheId = getCacheId(id, version);
+      _setCache(cacheId, ret);
+    }
     return ret;
   }
 
@@ -216,7 +231,7 @@ class DataAcces {
   void dispatchChangeProperties(
     ModelSchema model,
     dynamic patch,
-    TextConfig textConfig,
+    YamlEditorConfig textConfig,
     String version,
   ) {
     var element = patch['payload'];
@@ -266,7 +281,7 @@ class DataAcces {
 
         var payload = {
           'company_id': currentCompany.companyId,
-          'namespace': 'main',
+          'namespace': model.namespace ?? currentCompany.currentNameSpace,
           'category': model.category.name,
           'schema_id': model.id,
           'version': model.getVersionId(),
@@ -291,13 +306,27 @@ class DataAcces {
       }
     }
 
+    var modelVerif = ModelSchema(
+      category: model.category,
+      headerName: '',
+      id: '',
+      infoManager: model.infoManager,
+    );
+    modelVerif.namespace = model.namespace;
+
+    await _getFromModelSupabase(
+      modelVerif,
+      'json/${model.id}',
+      model.currentVersion,
+    );
+
     for (var attr in saveAttr) {
       if (attr.masterID != null && !attr.isInitByRef && attr.action != 'R') {
         attr.action = 'R';
 
         var payload = {
           'company_id': currentCompany.companyId,
-          'namespace': 'main',
+          'namespace': model.namespace ?? currentCompany.currentNameSpace,
           'category': model.category.name,
           'schema_id': model.id,
           'version': model.getVersionId(),
@@ -316,9 +345,20 @@ class DataAcces {
           data: payload,
         );
 
-        _sendMessage({'typeEvent': 'PROP', 'id': model.id, 'payload': payload});
+        var old = modelVerif.mapInfoByJsonPath[attr.path];
+        if (old != null && old.masterID != attr.masterID) {
+          print('pb ********** double master id **************');
+          print('json/${model.id} path = ${attr.path}');
+          showError('double master id on ${attr.path}');
+        } else {
+          _sendMessage({
+            'typeEvent': 'PROP',
+            'id': model.id,
+            'payload': payload,
+          });
 
-        storeManager.add(save);
+          storeManager.add(save);
+        }
       }
     }
   }
@@ -351,10 +391,11 @@ class DataAcces {
         .select('*')
         .eq('company_id', currentCompany.companyId)
         .eq('model_id', id);
+
     var ret2 = await queryattr;
+
     var listVersion = <ModelVersion>[];
     if (ret2.isNotEmpty) {
-      print('ret');
       for (var element in ret2) {
         ModelVersion version = ModelVersion(
           id: id,
@@ -412,7 +453,7 @@ class DataAcces {
     String id,
   ) async {
     var apiid = model.id;
-    print("load param api from bdd $apiid");
+    //print("load param api from bdd $apiid");
     var queryattr = supabase
         .from('api_params')
         .select('*')
@@ -436,10 +477,14 @@ class DataAcces {
   void setYaml(ModelSchema model, dynamic value, ModelVersion? version) async {
     String cacheId = getCacheId(model.id, version);
     _setCache(cacheId, value);
-    await _set(model, value, version);
+    await _setYaml(model, value, version);
   }
 
-  Future _set(ModelSchema model, dynamic value, ModelVersion? version) async {
+  Future _setYaml(
+    ModelSchema model,
+    dynamic value,
+    ModelVersion? version,
+  ) async {
     print("save models yaml ${model.id}");
 
     var save = SaveEvent(
@@ -449,7 +494,7 @@ class DataAcces {
       table: 'models',
       data: {
         'compagny_id': currentCompany.companyId,
-        // 'namespace': 'main',
+        'namespace': model.namespace ?? currentCompany.currentNameSpace,
         'model_id': model.id,
         'version': version?.version ?? '1',
         'json': value,
@@ -498,7 +543,7 @@ class DataAcces {
 //--------------------------------------------------------------------------
 
 class StoreManager {
-  Debouncer debouncer = Debouncer(milliseconds: 1000);
+  Debouncer debouncer = Debouncer(milliseconds: 3000);
   Map<String, SaveEvent> toStore = {};
   void add(SaveEvent event) {
     toStore[event.id] = event;

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
 // ignore: must_be_immutable
-class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
+class WidgetModelLink extends StatelessWidget with WidgetHelper {
   WidgetModelLink({super.key, required this.listModel});
   final ModelSchema listModel;
 
@@ -22,7 +22,7 @@ class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
         JsonTreeConfig(
             textConfig: null,
             getModel: () => listModel,
-            onTap: (NodeAttribut node) {
+            onTap: (NodeAttribut node, BuildContext context) {
               listModel.changeSelected(node);
               print('tap ${node.hashCode}');
               if (node.info.type == 'model') {
@@ -46,7 +46,7 @@ class WidgetModelLink extends StatelessWidget with WidgetModelHelper {
     return modelSelector;
   }
 
-  Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchema schema) {
+  Widget _getWidgetModelInfo(NodeAttribut attr, ModelSchema schema, BuildContext context) {
     if (attr.info.type == 'root') {
       return Container(height: rowHeight);
     }

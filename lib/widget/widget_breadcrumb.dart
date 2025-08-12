@@ -1,7 +1,15 @@
 import 'package:assorted_layout_widgets/assorted_layout_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/list_editor/widget_choise.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
 
 class BreadCrumbNavigator extends StatefulWidget {
+  static GlobalKey keyBreadcrumb = GlobalKey(debugLabel: 'keyBreadcrumb');
+
   const BreadCrumbNavigator({super.key, required this.getList});
   final Function getList;
 
@@ -11,36 +19,92 @@ class BreadCrumbNavigator extends StatefulWidget {
   }
 }
 
-class BreadNode {
-  BreadNode({required this.name});
-  String name;
-  String? tooltip;
-  Function? onTap;
-}
+// class BreadNode {
+//   BreadNode({required this.name});
+//   String name;
+//   String? tooltip;
+//   Function? onTap;
+// }
 
-class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator> {
+const _textStyle = TextStyle(color: Colors.white, fontSize: 15);
+
+class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
+    with WidgetHelper {
   @override
   Widget build(BuildContext context) {
-    List<RouteCmp> currentPathOnStack = [];
-    List<String> listPath = widget.getList();
+    List<BreadNode> currentPathOnStack = [];
+    List<BreadNode> listPath = widget.getList();
     int i = 0;
     for (var element in listPath) {
-      currentPathOnStack.add(
-        RouteCmp(
-          type: RouteCmpType.widget,
-          idx: i,
-          settings: RouteSettings(name: element),
-        ),
-      );
+      currentPathOnStack.add(element..idx = i);
       i++;
     }
 
     List<Widget> widgets = [];
     int index = 0;
-    for (RouteCmp route in currentPathOnStack) {
-      var btn = _BreadButton(route.type, listPath[index], index == 0);
+    for (BreadNode route in currentPathOnStack) {
+      Widget? child;
 
-      widgets.add(Tooltip(message: "ddd", child: btn));
+      if (route.type == BreadNodeType.domain) {
+        GlobalKey keyDomain = GlobalKey();
+        child = InkWell(
+          onTap: () {
+            dialogBuilderBelow(
+              context,
+              WidgetChoise(
+                model: currentCompany.listDomain,
+                onSelected: (AttributInfo sel) {
+                  currentCompany.listDomain.setCurrentAttr(sel);
+                  Navigator.of(context).pop();
+                  Future.delayed(Duration(milliseconds: 200)).then((timeStamp) {
+                    // attend fermeture du popup
+                    forcePage = 2;
+                    // ignore: use_build_context_synchronously
+                    context.pushReplacement(
+                      '${Pages.models.urlpath}?id=${currentCompany.currentNameSpace}',
+                    );
+                  });
+                  //setState(() {});
+                },
+              ),
+              keyDomain,
+            );
+          },
+          child: SizedBox(
+            key: keyDomain,
+            height: 18,
+            child: Row(
+              spacing: 5,
+              children: [
+                Icon(Icons.domain, size: 18),
+                Text(
+                  currentCompany.listDomain.currentAttr?.info.name ?? '?',
+                  style: _textStyle,
+                ),
+                Icon(Icons.arrow_drop_down, size: 20),
+              ],
+            ),
+          ),
+        );
+      }
+
+      Widget btn = _BreadButton(
+        route.type,
+        currentPathOnStack[index].settings.name ?? '',
+        index == 0,
+        child: child,
+      );
+
+      if (route.onTap != null) {
+        btn = InkWell(
+          onTap: () {
+            route.onTap!();
+          },
+          child: btn,
+        );
+      }
+
+      widgets.add(Tooltip(message: route.tooltip ?? 'help', child: btn));
 
       index++;
     }
@@ -53,18 +117,28 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator> {
   }
 }
 
-enum RouteCmpType { widget, layout }
+enum BreadNodeType { widget, domain }
 
-class RouteCmp extends Route {
-  RouteCmp({required this.idx, super.settings, required this.type});
-  int idx;
-  RouteCmpType type;
+class BreadNode extends Route {
+  BreadNode({
+    super.settings,
+    required this.type,
+    this.icon,
+    this.path,
+    this.onTap,
+  });
+  int idx = 0;
+  Icon? icon;
+  BreadNodeType type;
+  String? tooltip;
+  String? path;
+  Function? onTap;
 }
 
 class _BreadButton extends StatelessWidget {
   final String text;
   final bool isFirstButton;
-  final RouteCmpType type;
+  final BreadNodeType type;
   final Widget? child;
 
   // ignore: unused_element_parameter
@@ -76,8 +150,8 @@ class _BreadButton extends StatelessWidget {
       clipper: TriangleClipper(!isFirstButton),
       child: Container(
         color:
-            type == RouteCmpType.layout
-                ? Colors.deepOrangeAccent
+            type == BreadNodeType.domain
+                ? Colors.blue
                 : Theme.of(context).highlightColor,
         child: Padding(
           padding: EdgeInsetsDirectional.only(
@@ -86,12 +160,7 @@ class _BreadButton extends StatelessWidget {
             top: 8,
             bottom: 8,
           ),
-          child:
-              child ??
-              Text(
-                text,
-                style: const TextStyle(color: Colors.white, fontSize: 15),
-              ),
+          child: child ?? Text(text, style: _textStyle),
         ),
       ),
     );

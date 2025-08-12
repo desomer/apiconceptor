@@ -33,11 +33,6 @@ class CallerApi {
     }
   }
 
-  String? getEscapeUrl(String? param) {
-    if (param == null) return null;
-    return Uri.encodeComponent(param);
-  }
-
   Future<APIResponse> call(APICallInfo info, CancelToken cancelToken) async {
     final options = BaseOptions(
       connectTimeout: Duration(seconds: 30),
@@ -46,19 +41,7 @@ class CallerApi {
     final aDio = Dio(options);
 
     String url = info.url;
-    int nbPathParam = 0;
-    for (var element in info.params) {
-      if (element.type == 'path') {
-        url = url.replaceAll('{${element.name}}', getEscapeUrl(element.value) ?? '');
-      } else if (element.type == 'query' && element.toSend) {
-        if (nbPathParam == 0) {
-          url = '$url?${element.name}=${getEscapeUrl(element.value)}';
-        } else {
-          url = '$url&${element.name}=${getEscapeUrl(element.value)}';
-        }
-        nbPathParam++;
-      }
-    }
+    url = info.addParametersOnUrl(url);
 
     var stopWatch = Stopwatch();
     stopWatch.start();
@@ -76,6 +59,8 @@ class CallerApi {
         options: Options(
           method: info.httpOperation,
           contentType: 'application/json',
+          headers:
+              info.body != null ? {'Content-Type': 'application/json'} : null,
           //responseType: ResponseType.plain,
           validateStatus: (status) {
             return status != null && status >= 200 && status < 300;

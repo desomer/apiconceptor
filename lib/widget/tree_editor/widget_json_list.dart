@@ -3,9 +3,9 @@ import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/main.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_tree.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_row.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 
 class JsonList extends StatefulWidget {
   const JsonList({super.key, required this.modelInfo});
@@ -15,7 +15,7 @@ class JsonList extends StatefulWidget {
 }
 
 class JsonListState extends State<JsonList> {
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>(debugLabel: 'listKey');
   late ListModel<NodeAttribut> _list;
 
   @override
@@ -196,10 +196,10 @@ class JsonListState extends State<JsonList> {
       if (all.isEmpty && modelSchemaDetail.modelYaml.isNotEmpty) {
         print("************* not change on error ****************");
       } else {
-        modelSchemaDetail.reorgPropertiesPath(all);
-        print(
-          'nb list rows = ${result.length} prop = ${modelSchemaDetail.useAttributInfo.length}',
-        );
+        modelSchemaDetail.reorgModelPropertiesPath(all);
+        // print(
+        //   'nb list rows = ${result.length} prop = ${modelSchemaDetail.useAttributInfo.length}',
+        // );
       }
     }
 

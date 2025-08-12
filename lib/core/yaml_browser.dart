@@ -56,8 +56,14 @@ class YamlDoc {
     YamlMap val = v.value ?? YamlMap();
     var allLine = doc.split('\n');
     int i = 0;
+    int nbChar = 0;
     for (var element in allLine) {
-      listYamlLine.add(YamlLine(index: i, endIndex: i, text: element));
+      int nbCharLine = element.length + 1;
+      var yamlLine = YamlLine(index: i, endIndex: i, text: element);
+      yamlLine.idxCharStart = nbChar;
+      yamlLine.idxCharStop = nbChar + nbCharLine;
+      listYamlLine.add(yamlLine);
+      nbChar = nbChar + nbCharLine;
       i++;
     }
 
@@ -319,12 +325,14 @@ class YamlLine {
   dynamic value;
   YamlLine? parent;
   List<YamlLine>? child;
+  int idxCharStart = 0;
+  int idxCharStop = 0;
 }
 
 class ParseYamlManager {
   Map? mapYaml;
 
-  bool doParseYaml(String yaml, TextConfig? config) {
+  bool doParseYaml(String yaml, YamlEditorConfig? config) {
     bool parseOk = false;
     try {
       var r = loadYaml(yaml);

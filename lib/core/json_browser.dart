@@ -4,8 +4,9 @@ import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 
-import 'package:jsonschema/main.dart';
-import 'package:jsonschema/widget/json_editor/widget_json_row.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/tree_editor/tree_view.dart';
+import 'package:jsonschema/widget/tree_editor/widget_json_row.dart';
 import 'package:uuid/uuid.dart';
 // import 'package:nanoid/async.dart';
 
@@ -21,7 +22,7 @@ class JsonBrowser<T> {
   void onReady(ModelSchema model) {}
   void onRowTypeChange(ModelSchema model, NodeAttribut node) {}
 
-  Future<ModelBrower> browseSync(
+  Future<NodeBrower> browseSync(
     ModelSchema model,
     bool unknowedMode,
     int antiloop,
@@ -30,14 +31,14 @@ class JsonBrowser<T> {
     if (ret.wait != null && antiloop < 20) {
       //await Future.delayed(Duration(milliseconds: 300));
       await ret.wait;
-      ret = await browseSync(model, unknowedMode, antiloop+1);
+      ret = await browseSync(model, unknowedMode, antiloop + 1);
     }
     return ret;
   }
 
-  ModelBrower browse(ModelSchema model, bool unknowedMode) {
+  NodeBrower browse(ModelSchema model, bool unknowedMode) {
     int time = DateTime.now().millisecondsSinceEpoch;
-    ModelBrower browser = ModelBrower()..time = time;
+    NodeBrower browser = NodeBrower()..time = time;
     browser.selectedPath = model.lastBrowser?.selectedPath;
     browser.unknowedMode = unknowedMode;
 
@@ -135,7 +136,7 @@ class JsonBrowser<T> {
     }
   }
 
-  void doSetUnknowNode(ModelSchema model, ModelBrower browser) {
+  void doSetUnknowNode(ModelSchema model, NodeBrower browser) {
     //List<BrowserAttrInfo> newAttribut = [];
 
     if (model.first) {
@@ -360,8 +361,10 @@ class JsonBrowser<T> {
         headerName: refName,
         id: masterIdRef,
         infoManager: model.infoManager,
-      );    
-      modelRef.currentVersion = bddStorage.lastVersionByMaster[masterIdRef]; // recupére la derniere version charger
+      );
+      modelRef.currentVersion =
+          bddStorage
+              .lastVersionByMaster[masterIdRef]; // recupére la derniere version charger
       var ret = modelRef.getItemSync(-1);
       if (ret == null) {
         if (browserAttrInfo.ref == null ||
@@ -564,7 +567,7 @@ class JsonBrowser<T> {
     }
   }
 
-  void _initNotUseAttr(ModelBrower browser, ModelSchema model, int date) {
+  void _initNotUseAttr(NodeBrower browser, ModelSchema model, int date) {
     model.notUseAttributInfo.clear();
     model.useAttributInfo.clear();
     for (var element in model.allAttributInfo.entries) {
@@ -592,7 +595,7 @@ class JsonBrowser<T> {
   }
 }
 
-class ModelBrower {
+class NodeBrower {
   late int time;
   bool propertiesChanged = false;
   int nbNode = 0;
@@ -620,17 +623,20 @@ class NodeAttribut {
   int level = 0;
   String? addChildOn;
   String addInAttr = "";
+
   State? widgetSelectState;
-  WidgetJsonRowState? widgetRowState;
+
   bool addChildAsync = false;
   Color? bgcolor;
 
   void repaint() {
-    //info.cacheRowWidget = null;
-    if (widgetRowState?.mounted ?? false) {
-      widgetRowState?.widget.cache = null;
-      // ignore: invalid_use_of_protected_member
-      widgetRowState?.setState(() {});
+    info.repaint();
+  }
+
+  void repaintChild() {
+    for (var element in child) {
+      element.repaint();
+      element.repaintChild();
     }
   }
 }
@@ -647,15 +653,34 @@ class AttributInfo {
   Map<String, dynamic>? properties;
   Map<EnumErrorType, AttributError>? error;
   String? tooltipError;
+
   Widget? cacheRowWidget;
   Widget? cacheHeaderWidget;
+  Widget? cacheIndicatorWidget;
+  State? widgetRowState; // pour repaint
   double? cacheHeight;
-  DateTime? timeLastUpdate;
+
+  DateTime? timeLastUpdate; // update en base
+  DateTime? timeLastChange; // mise a jour des properties
 
   bool isInitByRef = false;
   bool firstLoad = false;
   String? action;
   int numUpdateForKey = 0;
+  bool selected = false;
+
+  void repaint() {
+    timeLastChange = DateTime.now();
+
+    if (widgetRowState?.mounted ?? false) {
+      if (widgetRowState is WidgetJsonRowState) {
+        (widgetRowState as WidgetJsonRowState).widget.cache = null;
+      }
+      print("reload state $widgetRowState");
+      // ignore: invalid_use_of_protected_member
+      widgetRowState?.setState(() {});
+    }
+  }
 
   AttributInfo clone() {
     return AttributInfo()
@@ -679,6 +704,27 @@ class AttributInfo {
       ..action = action
       ..numUpdateForKey = numUpdateForKey;
   }
+
+  String getJsonPath() {
+    StringBuffer curPath = StringBuffer("root");
+    List<String> pathJson = path.split(">");
+    bool nextIsTypeOf = false;
+    for (var i = 1; i < pathJson.length; i++) {
+      var p = pathJson[i];
+      if (p == constRefOn) continue;
+
+      if (p == constTypeAnyof) {
+        nextIsTypeOf = true;
+        continue;
+      } else if (nextIsTypeOf) {
+        nextIsTypeOf = false;
+        // l'objet est uniquement le type
+        continue;
+      }
+      curPath.write('.$p');
+    }
+    return curPath.toString();
+  }
 }
 
 class BrowserAttrInfo {
@@ -692,7 +738,7 @@ class BrowserAttrInfo {
   String yamlPathAttr;
   NodeAttribut nodeAttribut;
   String aJsonPath;
-  ModelBrower browser;
+  NodeBrower browser;
   int level = 0;
 
   bool unkwown = false;
@@ -710,6 +756,7 @@ class AttributError {
 }
 
 abstract class InfoManager {
+  /// permet egalement d'affecter une couleur de fond node.bgcolor
   String getTypeTitle(NodeAttribut node, String name, dynamic type);
 
   InvalidInfo? isTypeValid(
@@ -719,12 +766,19 @@ abstract class InfoManager {
     String typeTitle,
   );
 
-  void getAttributRow(
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node);
+  void addRowWidget(
     NodeAttribut attr,
     ModelSchema schema,
     List<Widget> row,
+    BuildContext context,
   ) {}
-  Widget getAttributHeader(TreeNode<NodeAttribut> node);
+
+  /// permet de personnaliser l'affichage de l'entête d'un attribut (icon + text )
+  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node);
+
+  /// permet de faire des actions sur le noeud
+  /// par exemple pour les $ref, on affecte l'url sur le parent
   void onNode(NodeAttribut? parent, NodeAttribut child) {}
 }
 

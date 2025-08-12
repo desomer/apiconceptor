@@ -4,15 +4,20 @@ import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
 
 class CompanyModelSchema {
-  late ModelSchema listModel;
-  late ModelSchema listComponent;
-  late ModelSchema listRequest;
+  bool isInit = false;
+
+
+  ModelSchema? listModel;
+  late ModelSchema listEnv;
+  late ModelSchema listDomain;
+  // late ModelSchema listComponent;
+  // late ModelSchema listRequest;
 
   ModelSchema? currentModel;
   NodeAttribut? currentModelSel;
   String? currentType;
 
-  late ModelSchema listAPI;
+  ModelSchema? listAPI;
   ModelSchema? currentAPIResquest;
   ModelSchema? currentAPIResponse;
   APICallInfo? apiCallInfo;
@@ -22,7 +27,14 @@ class CompanyModelSchema {
 
   GlossaryManager glossaryManager = GlossaryManager();
 
-  String companyId = 'test';
+  String companyId = 'test2';
+  String get currentNameSpace {
+    if (isInit && listDomain.currentAttr != null) {
+      return listDomain.currentAttr!.info.masterID!;
+    }
+    return 'default';
+  }
+
   String userId = 'gdesomer';
 }
 
@@ -30,4 +42,14 @@ class CompanyModelSchema {
 ///
 enum ChangeOpe { change, clear, rename, path, move, add, remove }
 
-enum Category { allModel, model, selector, allApi, api, allGlossary, exampleApi }
+enum Category {
+  allModel,
+  model,
+  selector,
+  allApi,
+  api,
+  allGlossary,
+  exampleApi,
+  env,
+  domain,
+}
