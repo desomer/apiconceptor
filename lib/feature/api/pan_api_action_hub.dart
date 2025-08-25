@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/feature/api/deprecated/pan_api_selector.dart';
+import 'package:jsonschema/start_core.dart';
+
+import 'pan_api_selector.dart';
 
 class PanApiActionHub extends StatelessWidget {
   const PanApiActionHub({super.key, required this.selector});
@@ -22,7 +24,9 @@ class PanApiActionHub extends StatelessWidget {
           ElevatedButton.icon(
             icon: Icon(Icons.add_box_outlined),
             onPressed: () {
-              selector.showImportDialog(context);
+              if (currentCompany.listAPI!=null) {
+                selector.showImportDialog(context);
+              }
             },
             style: style,
             label: Text('New API'),

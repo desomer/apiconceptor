@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/feature/model/pan_model_import_dialog.dart';
+import 'package:jsonschema/feature/model/pan_model_selector.dart';
 
 class PanModelActionHub extends StatelessWidget {
-  const PanModelActionHub({super.key});
+  const PanModelActionHub({super.key, required this.panModelSelector});
 
+  final PanModelSelector panModelSelector;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +23,7 @@ class PanModelActionHub extends StatelessWidget {
           ElevatedButton.icon(
             icon: Icon(Icons.add_box_outlined),
             onPressed: () {
-              showImportDialog(context);
+              panModelSelector.showImportDialog(context);
             },
             style: style,
             label: Text('New Model'),
@@ -34,15 +35,4 @@ class PanModelActionHub extends StatelessWidget {
       ),
     );
   }
-
-  Future<void> showImportDialog(BuildContext ctx) async {
-    return showDialog<void>(
-      context: ctx,
-      barrierDismissible: false, // user must tap button!
-      builder: (BuildContext context) {
-        return PanModelImportDialog();
-      },
-    );
-  }
-
 }

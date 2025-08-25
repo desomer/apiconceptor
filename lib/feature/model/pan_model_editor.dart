@@ -82,7 +82,7 @@ class _PanModelEditorMainState extends State<PanModelEditorMain> {
       color: Colors.black87,
       child: PanModelEditor(
         getSchemaFct: () async {
-          return GoTo().initModel(widget.idModel);
+          return GoTo().getModel(widget.idModel);
         },
       ),
     );
@@ -116,7 +116,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
               Container(),
               Container(),
             ],
-            heightTab: 40,
+            heightTab: 30,
           ),
         ),
         Expanded(child: super.getLoader()),
@@ -145,7 +145,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
     BuildContext context,
   ) async {
     if (node.children?.isNotEmpty ?? false) {
-      node.doToogle();
+      node.doToogleChild();
     } else {
       doShowAttrEditor(node.data);
     }
@@ -195,7 +195,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         DocEditor(),
         Container(),
       ],
-      heightTab: 40,
+      heightTab: 30,
     );
   }
 
@@ -208,7 +208,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         Tab(text: 'Delete use cases'),
       ],
       listTabCont: [Container(), Container(), Container()],
-      heightTab: 40,
+      heightTab: 30,
     );
   }
 
@@ -234,7 +234,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         getVersionTab(),
         Container(),
       ],
-      heightTab: 40,
+      heightTab: 30,
     );
   }
 
@@ -298,7 +298,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
   }
 
   Widget getInfoForm() {
-    var info = currentCompany.listModel!.currentAttr!;
+    var info = currentCompany.listModel!.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(

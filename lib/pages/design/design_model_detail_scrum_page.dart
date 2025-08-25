@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState, GoRouterHelper;
-import 'package:jsonschema/feature/model/pan_model_json_validator.dart';
+import 'package:jsonschema/feature/documentation/pan_scrum.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
 
-class DesignModelDetailJsonPage extends GenericPageStateless {
-  const DesignModelDetailJsonPage({super.key});
+class DesignModelDetailScrumPage extends GenericPageStateless {
+  const DesignModelDetailScrumPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return WidgetJsonValidator();
+    return PanScrum();
   }
 
   @override
@@ -42,6 +42,14 @@ class DesignModelDetailJsonPage extends GenericPageStateless {
           settings: const RouteSettings(name: 'Graph view'),
           type: BreadNodeType.widget,
         ),
+
+        BreadNode(
+          icon: const Icon(Icons.airplane_ticket),
+          settings: const RouteSettings(name: 'Scrum'),
+          type: BreadNodeType.widget,
+          path: Pages.modelScrum.urlpath
+        ),
+
       ]
       ..breadcrumbs = [
         BreadNode(
@@ -54,6 +62,7 @@ class DesignModelDetailJsonPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
+          path: Pages.models.urlpath
         ),
         BreadNode(
           settings: RouteSettings(

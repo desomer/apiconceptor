@@ -10,13 +10,6 @@ mixin GenericPage {
     BuildContext context,
     PageInit? pageInit, 
   );
-}
-
-abstract class PageInit with GenericPage {
-}
-
-abstract class GenericPageStateless extends StatelessWidget with GenericPage {
-  const GenericPageStateless({super.key});
 
   Widget getBackground(int num, Widget child) {
     return Stack(
@@ -25,6 +18,19 @@ abstract class GenericPageStateless extends StatelessWidget with GenericPage {
         Container(color: Colors.black87, child: child),
       ],
     );
+  }
+
+}
+
+abstract class PageInit with GenericPage {
+}
+
+abstract class GenericPageStateless extends StatelessWidget with GenericPage {
+  const GenericPageStateless({super.key});
+
+  void setIdx(int idx)
+  {
+       
   }
 
 }
@@ -64,6 +70,16 @@ abstract class GenericPageState<T extends StatefulWidget> extends State<T>
     routeObserver.unsubscribe(this);
     super.dispose();
   }
+
+  Widget getBackground(int num, Widget child) {
+    return Stack(
+      children: [
+        BackgroundScreen(num: num),
+        Container(color: Colors.black87, child: child),
+      ],
+    );
+  }
+
 }
 
 class NavigationInfo {

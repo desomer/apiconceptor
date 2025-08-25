@@ -2,14 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/core/api/call_manager.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_value_viewer.dart';
 
 class PanResponseMapper extends StatefulWidget {
   const PanResponseMapper({super.key, required this.apiCallInfo});
-  final APICallInfo apiCallInfo;
+  final APICallManager apiCallInfo;
 
   @override
   State<PanResponseMapper> createState() => _PanResponseMapperState();

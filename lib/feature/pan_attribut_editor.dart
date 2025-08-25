@@ -26,16 +26,16 @@ class _EditorPropertiesState extends State<EditorProperties> {
     return WidgetTab(
       listTab: [Tab(text: 'Info')],
       listTabCont: [SingleChildScrollView(child: getInfoForm(model))],
-      heightTab: 40,
+      heightTab: 30,
     );
   }
 
   Widget getInfoForm(ModelSchema? model) {
-    if (model?.currentAttr == null) {
+    if (model?.selectedAttr == null) {
       return Container();
     }
 
-    var info = model!.currentAttr!;
+    var info = model!.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -62,6 +62,15 @@ class _EditorPropertiesState extends State<EditorProperties> {
             ),
             inArray: false,
           ),
+          CellEditor(
+            key: ValueKey('shortname#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: 'short name',
+            ),
+            inArray: false,
+          ),          
         ],
       ),
     );

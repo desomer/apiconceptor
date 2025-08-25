@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/model/pan_model_action_hub.dart';
 import 'package:jsonschema/feature/model/pan_model_selector.dart';
 import 'package:jsonschema/feature/model/pan_model_trashcan.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
@@ -10,7 +11,6 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:yaml/yaml.dart';
 
 class WidgetModelMain extends StatelessWidget with WidgetHelper {
@@ -37,27 +37,32 @@ class WidgetModelMain extends StatelessWidget with WidgetHelper {
     );
 
     // pour import
-    stateModel.panModelSelector = panModelSelector;
+    // stateModel.panModelSelector = panModelSelector;
 
-    return WidgetTab(
-      onInitController: (TabController tab) {
-        // stateModel.tabSubModel = tab;
-        tab.addListener(() {
-          // stateModel.setTab();
-        });
-      },
-      listTab: [
-        Tab(text: 'Business models'),
-        //  Tab(text: 'ORM Entities'),
-        Tab(text: 'Trashcan'),
+    return Column(
+      children: [
+        PanModelActionHub(panModelSelector: panModelSelector),
+        Expanded(child: WidgetTab(
+          onInitController: (TabController tab) {
+            // stateModel.tabSubModel = tab;
+            tab.addListener(() {
+              // stateModel.setTab();
+            });
+          },
+          listTab: [
+            Tab(text: 'Business models'),
+            //  Tab(text: 'ORM Entities'),
+            Tab(text: 'Trashcan'),
+          ],
+          listTabCont: [
+            panModelSelector,
+            // KeepAliveWidget(child: stateModel.panDtoSelector),
+            // KeepAliveWidget(child: stateModel.panComponentSelector),
+            getTrashcan(context),
+          ],
+          heightTab: 40,
+        )),
       ],
-      listTabCont: [
-        panModelSelector,
-        // KeepAliveWidget(child: stateModel.panDtoSelector),
-        // KeepAliveWidget(child: stateModel.panComponentSelector),
-        getTrashcan(context),
-      ],
-      heightTab: 40,
     );
   }
 
@@ -69,6 +74,7 @@ class WidgetModelMain extends StatelessWidget with WidgetHelper {
           headerName: 'All models',
           id: 'model',
           infoManager: InfoManagerTrashAPI(),
+          ref: currentCompany.listModel,
         );
         trash.autoSaveProperties = false;
 

@@ -1,29 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 
 var stateApi = StateAPI();
 
 class StateAPI {
-  GlobalKey keyListAPIYaml = GlobalKey();
-  GlobalKey<JsonListEditorState> keyListAPIInfo = GlobalKey();
+  //GlobalKey keyListAPIYaml = GlobalKey(debugLabel: 'keyListAPIYaml');
+  //GlobalKey<JsonListEditorState> keyListAPIInfo = GlobalKey( debugLabel: 'keyListAPIInfo');
 
 
-  GlobalKey keyTab = GlobalKey();
-  Set<int> tabDisable = {1};
+  //GlobalKey keyTab = GlobalKey(debugLabel: 'keyTab');
 
 
-  List<String> urlParam = [];
 
-  TabController? tabApi;
+  // Set<int> tabDisable = {1};
+  // TabController? tabApi;
   TabController? tabSubApi;
 
-  GlobalKey keyResponseStatus = GlobalKey();
 
 
-  void repaintListAPI() {
-    // ignore: invalid_use_of_protected_member
-    keyListAPIYaml.currentState?.setState(() {});
-    // ignore: invalid_use_of_protected_member
-    keyListAPIInfo.currentState?.setState(() {});
-  }
+  // void repaintListAPI() {
+  //   // ignore: invalid_use_of_protected_member
+  //   keyListAPIYaml.currentState?.setState(() {});
+  //   // ignore: invalid_use_of_protected_member
+  //   keyListAPIInfo.currentState?.setState(() {});
+  // }
 }

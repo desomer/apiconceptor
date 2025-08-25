@@ -46,7 +46,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
       Widget? child;
 
       if (route.type == BreadNodeType.domain) {
-        GlobalKey keyDomain = GlobalKey();
+        GlobalKey keyDomain = GlobalKey(debugLabel: 'keyDomain');
         child = InkWell(
           onTap: () {
             dialogBuilderBelow(
@@ -54,14 +54,17 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
               WidgetChoise(
                 model: currentCompany.listDomain,
                 onSelected: (AttributInfo sel) {
+                  
+                  prefs.setString("currentDomain", sel.masterID!);
                   currentCompany.listDomain.setCurrentAttr(sel);
                   Navigator.of(context).pop();
+                  
                   Future.delayed(Duration(milliseconds: 200)).then((timeStamp) {
                     // attend fermeture du popup
                     forcePage = 2;
                     // ignore: use_build_context_synchronously
                     context.pushReplacement(
-                      '${Pages.models.urlpath}?id=${currentCompany.currentNameSpace}',
+                      '${route.path}?id=${currentCompany.currentNameSpace}',
                     );
                   });
                   //setState(() {});
@@ -78,7 +81,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
               children: [
                 Icon(Icons.domain, size: 18),
                 Text(
-                  currentCompany.listDomain.currentAttr?.info.name ?? '?',
+                  currentCompany.listDomain.selectedAttr?.info.name ?? '?',
                   style: _textStyle,
                 ),
                 Icon(Icons.arrow_drop_down, size: 20),

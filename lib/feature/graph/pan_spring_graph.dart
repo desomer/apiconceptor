@@ -116,6 +116,7 @@ class _PanModelGraphState extends State<PanModelGraph> {
       infoManager: InfoManagerModel(typeMD: TypeMD.model),
       headerName: value.name,
       id: key,
+      ref: currentCompany.listModel,
     );
     node.model = model;
     model.loadYamlAndProperties(cache: false, withProperties: false).then((
@@ -149,6 +150,7 @@ class _PanModelGraphState extends State<PanModelGraph> {
       infoManager: InfoManagerAPI(),
       headerName: value.name,
       id: '$prefix$key',
+      ref: currentCompany.listModel,
     );
     node.model = model;
     model.loadYamlAndProperties(cache: false, withProperties: false).then((

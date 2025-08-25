@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:jsonschema/widget/widget_hover.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 
 class TreeNodeData<T> {
   List<TreeNodeData<T>>? children;
@@ -46,11 +49,11 @@ class TreeNodeData<T> {
     _reinitChild();
   }
 
-  void doTap() {
-    tree.doTap(this);
+  void doTapHeader() {
+    tree.doTapHeader(this);
   }
 
-  void doToogle() {
+  void doToogleChild() {
     tree.doToogle(this);
   }
 
@@ -80,6 +83,12 @@ typedef GetNode<T> = TreeViewData<T> Function();
 typedef GetWidget<Y> = Widget Function(TreeNodeData<Y> node);
 typedef OnTap<T> = void Function(TreeNodeData<T> node, BuildContext ctx);
 typedef OnBuild<T> = void Function(TreeViewState<T> state, BuildContext ctx);
+typedef IsSelected<T> =
+    bool Function(
+      TreeNodeData<T> node,
+      State? current,
+      State? oldSelectedState,
+    );
 
 class TreeViewData<T> {
   final List<TreeNodeData<T>> nodes;
@@ -93,16 +102,18 @@ class TreeView<T> extends StatefulWidget {
     super.key,
     required this.getNodes,
     required this.getHeader,
-    required this.getRow,
+    required this.getDataRow,
     this.onBuild,
-    this.onTap,
+    this.onTapHeader,
+    required this.isSelected,
   });
 
   final GetNode<T> getNodes;
   final GetWidget<T> getHeader;
-  final GetWidget<T> getRow;
-  final OnTap<T>? onTap;
+  final GetWidget<T> getDataRow;
+  final OnTap<T>? onTapHeader;
   final OnBuild<T>? onBuild;
+  final IsSelected<T> isSelected;
 
   @override
   State<TreeView> createState() => TreeViewState<T>();
@@ -125,6 +136,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
   final ScrollController _scrollController = ScrollController();
   late BuildContext ctx;
   int repaintInProgess = 0;
+  int dragInProgess = 0;
 
   @override
   void initState() {
@@ -139,15 +151,18 @@ class TreeViewState<T> extends State<TreeView<T>> {
     }
 
     TreeViewData<T> data = widget.getNodes();
-    if (headerSize == -1) {
+    timeChange = DateTime.now().millisecondsSinceEpoch;
+
+    if (headerSize == -1 ||
+        (headerSize < data.headerSize && dragInProgess == 0)) {
       headerSize = data.headerSize;
+      repaintInProgess = timeChange;
       if (headerSize < 200) headerSize = 200;
     }
     List<TreeNodeData<T>> nodes = data.nodes;
 
     NodeStack stack = NodeStack();
     List<TreeNodeData<T>> list = _flattenNodeTree(stack, 0, nodes);
-    timeChange = DateTime.now().millisecondsSinceEpoch;
 
     var ret = Scrollbar(
       controller: _scrollController,
@@ -160,7 +175,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
         itemBuilder: (context, index) {
           var node = list[index];
           node.tree = this;
-          var row = _getAnimatedRow(
+          var row = _getAnimatedHeightRow(
             node,
             _buildNode(context, node),
             ValueKey('${node.hashCode}#header'),
@@ -201,8 +216,32 @@ class TreeViewState<T> extends State<TreeView<T>> {
     return result;
   }
 
-  void doTap(TreeNodeData<T> node) {
-    if (widget.onTap case final OnTap<T> on) {
+  State? rowSelectedState;
+
+  Widget getHover(TreeNodeData<T> attr, Widget child) {
+    return HoverableCard(
+      isSelected: (State state) {
+        bool isSelected = widget.isSelected(attr, state, rowSelectedState);
+        if (isSelected) {
+          if (state != rowSelectedState) {
+            var old = rowSelectedState;
+            SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+              if (rowSelectedState?.mounted == true) {
+                // ignore: invalid_use_of_protected_member
+                old?.setState(() {});
+              }
+            });
+          }
+          rowSelectedState = state;
+        }
+        return isSelected;
+      },
+      child: child,
+    );
+  }
+
+  void doTapHeader(TreeNodeData<T> node) {
+    if (widget.onTapHeader case final OnTap<T> on) {
       on(node, ctx);
     }
   }
@@ -240,20 +279,15 @@ class TreeViewState<T> extends State<TreeView<T>> {
   // }
 
   Widget _buildNode(BuildContext context, TreeNodeData<T> node) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        Stack(
-          children: [
-            _getRowCached(node),
-            if (node.depth > 0)
-              Positioned(
-                left: 0,
-                top: 0,
-                child: TreeConnector(node: node, indentInfo: indent),
-              ),
-          ],
-        ),
+        getHover(node, _getRowCached(node)),
+        if (node.depth > 0)
+          Positioned(
+            left: 0,
+            top: 0,
+            child: TreeConnector(node: node, indentInfo: indent),
+          ),
       ],
     );
   }
@@ -274,7 +308,8 @@ class TreeViewState<T> extends State<TreeView<T>> {
       height: height,
       //width:  300,
       padding: EdgeInsets.only(left: indent.indent * node.depth, right: 10),
-      child: Row(
+      child: NoOverflowErrorFlex(
+        direction: Axis.horizontal,
         children: [
           SizedBox(
             width: headerSize - indent.indent * node.depth,
@@ -282,7 +317,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
           ),
           _getBtnToogle(node, node.isExpanded),
           _getDrag(height),
-          Expanded(child: widget.getRow(node)),
+          Expanded(child: widget.getDataRow(node)),
         ],
       ),
     );
@@ -293,6 +328,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
       onDragUpdate: (details) {
         setState(() {
           repaintInProgess = DateTime.now().millisecondsSinceEpoch;
+          dragInProgess = DateTime.now().millisecondsSinceEpoch;
           headerSize = headerSize + details.delta.dx;
           if (headerSize < 100) {
             headerSize = 100;
@@ -344,7 +380,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
     );
   }
 
-  Widget _getAnimatedRow(TreeNodeData node, Widget child, Key key) {
+  Widget _getAnimatedHeightRow(TreeNodeData node, Widget child, Key key) {
     if (timeChange - node.timeChange < 500) {
       node.timeChange = 0;
       if (node.isToogleRequested) {

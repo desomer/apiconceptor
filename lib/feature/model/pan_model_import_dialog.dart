@@ -9,13 +9,14 @@ import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:yaml/yaml.dart';
 
 // ignore: must_be_immutable
 class PanModelImportDialog extends StatelessWidget {
-  PanModelImportDialog({super.key});
+  PanModelImportDialog({super.key, required this.yamlEditorConfig});
+
+  final CodeEditorConfig yamlEditorConfig;
 
   late TabController tabImport;
   JsonToSchemaYaml import = JsonToSchemaYaml();
@@ -94,12 +95,13 @@ class PanModelImportDialog extends StatelessWidget {
               var newYaml = docYaml.getDoc();
               modelSchemaDetail.modelYaml = newYaml;
               modelSchemaDetail.doChangeAndRepaintYaml(
-                stateModel.panModelSelector?.getYamlConfig(),
+                yamlEditorConfig,
                 true,
                 'import',
               );
 
               WidgetsBinding.instance.addPostFrameCallback((_) {
+                // save du json du model
                 var newModel =
                     modelSchemaDetail
                         .mapInfoByJsonPath['root>$domainKey>$nameKey'];
@@ -109,6 +111,7 @@ class PanModelImportDialog extends StatelessWidget {
                   infoManager: InfoManagerModel(typeMD: TypeMD.model),
                   headerName: nameKey,
                   id: id,
+                  ref: currentCompany.listModel,
                 );
                 aModel.modelYaml = yaml;
                 aModel.doChangeAndRepaintYaml(null, true, 'import');
@@ -136,12 +139,12 @@ class PanModelImportDialog extends StatelessWidget {
 
   Widget _getJsonImport(JsonToSchemaYaml import) {
     return TextEditor(
-      config: YamlEditorConfig(
+      config: CodeEditorConfig(
         mode: json,
         getText: () {
           return '';
         },
-        onChange: (String json, YamlEditorConfig config) {
+        onChange: (String json, CodeEditorConfig config) {
           import.rawJson = json;
         },
         notifError: ValueNotifier(''),

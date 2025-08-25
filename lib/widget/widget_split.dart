@@ -5,10 +5,12 @@ class SplitView extends StatefulWidget {
   const SplitView({
     super.key,
     required this.children,
-    required this.primaryWidth,
+    required this.primaryWidth, this.flex1 = 1, this.flex2 =1,
   });
   final List<Widget> children;
   final double primaryWidth;
+  final double flex1;
+  final double flex2;
 
   @override
   SplitViewState createState() => SplitViewState();
@@ -21,7 +23,7 @@ class SplitViewState extends State<SplitView> {
   void initState() {
     super.initState();
     if (widget.primaryWidth == -1) {
-      _controller.areas = [Area(data: 0, flex: 1), Area(data: 1, flex: 1)];
+      _controller.areas = [Area(data: 0, flex: widget.flex1), Area(data: 1, flex: widget.flex2)];
     } else {
       _controller.areas = [
         Area(data: 0, size: widget.primaryWidth, min: 50, max: 1000),

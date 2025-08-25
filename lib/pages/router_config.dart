@@ -4,15 +4,18 @@ import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
+import 'package:jsonschema/core/api/call_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/pages/call_api_detail_page.dart';
-import 'package:jsonschema/pages/design_api_page.dart';
-import 'package:jsonschema/pages/design_model_detail_json_page.dart';
-import 'package:jsonschema/pages/design_model_detail_page.dart';
-import 'package:jsonschema/pages/design_model_detail_scrum_page.dart';
-import 'package:jsonschema/pages/design_model_graph_page.dart';
-import 'package:jsonschema/pages/design_model_page.dart';
+import 'package:jsonschema/pages/browse_api_page.dart';
+import 'package:jsonschema/pages/design/design_api_detail_page.dart';
+import 'package:jsonschema/pages/design/design_api_page.dart';
+import 'package:jsonschema/pages/design/design_model_detail_json_page.dart';
+import 'package:jsonschema/pages/design/design_model_detail_page.dart';
+import 'package:jsonschema/pages/design/design_model_detail_scrum_page.dart';
+import 'package:jsonschema/pages/design/design_model_graph_page.dart';
+import 'package:jsonschema/pages/design/design_model_page.dart';
 import 'package:jsonschema/pages/domain_page.dart';
 import 'package:jsonschema/pages/env_page.dart';
 import 'package:jsonschema/pages/glossary_page.dart';
@@ -21,8 +24,6 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
-import 'package:jsonschema/widget_state/state_api.dart';
-import 'package:yaml/yaml.dart';
 import 'router_layout.dart';
 import 'home_page.dart';
 import 'about_page.dart';
@@ -39,7 +40,8 @@ enum Pages {
   modelScrum('/models/scrum'),
 
   api("/apis"),
-  apiByTree("/apis/doc-by-tree"),
+  apiBrowser("/apis/browser"),
+  //apiByTree("/apis/doc-by-tree"),
   apiDetail("/apis/detail"),
   env('/env');
 
@@ -48,6 +50,10 @@ enum Pages {
 
   String id(String id) {
     return '$urlpath?id=$id';
+  }
+
+  String idx(int idx) {
+    return '$urlpath?idx=$idx';
   }
 
   void goto(BuildContext ctx) {
@@ -74,9 +80,19 @@ GoRoute addRouteBy(Pages path, GenericPage page, {PageInit? init}) {
   return route;
 }
 
+GoRoute addRouteByIndexed(
+  Pages path,
+  Widget Function(BuildContext ctx, GoRouterState state) builder, {
+  PageInit? init,
+}) {
+  var route = GoRoute(path: path.urlpath, pageBuilder: getPageNoAnim);
+  allroute[route.path] = RouteManager(builder: builder);
+  return route;
+}
+
 //bool isPageInit = false;
 
-String? last;
+String? lastPagePath;
 int forcePage = 0;
 
 Widget getPage(BuildContext context, GoRouterState state) {
@@ -87,20 +103,23 @@ Widget getPage(BuildContext context, GoRouterState state) {
   //   }
   // }
   var path = state.uri.path;
-  if (last == path && forcePage > 0) {
+  if (lastPagePath == path && forcePage > 0) {
     forcePage = forcePage - 1;
     allroute[path]!.cache = null;
   } else {
     forcePage = 0;
   }
 
-  last = path;
+  lastPagePath = path;
   if (allroute.containsKey(path)) {
     allroute[path]!.cache ??= allroute[path]!.builder(context, state);
     return allroute[path]!.cache!;
   }
   return const HomePage();
 }
+
+CustomTransitionPage getPageNoAnim(BuildContext context, GoRouterState state) =>
+    NoTransitionPage(child: getPage(context, state));
 
 CustomTransitionPage getPageAnim(BuildContext context, GoRouterState state) {
   Widget page = getPage(context, state);
@@ -171,7 +190,7 @@ final GoRouter router = GoRouter(
   redirect: (context, state) async {
     if (state.fullPath != Pages.home.urlpath &&
         state.fullPath != Pages.domain.urlpath &&
-        currentCompany.listDomain.currentAttr == null) {
+        currentCompany.listDomain.selectedAttr == null) {
       await Dialog().doMustDomainFirst();
       return Pages.domain.urlpath;
     }
@@ -220,6 +239,14 @@ final GoRouter router = GoRouter(
         addRouteBy(Pages.apiDetail, CallAPIPageDetail()),
         addRouteBy(Pages.env, const EnvPage()),
 
+        //----------------------------------------------------------------
+        addRouteByIndexed(Pages.apiBrowser, (ctx, state) {
+          final namespace =
+              state.uri.queryParameters['id'] ??
+              currentCompany.currentNameSpace;
+          return BrowseAPIPage(namespace: namespace);
+        }),
+
         // addRoute(
         //   GoRoute(path: Pages.api.urlpath, pageBuilder: getPageAnim),
         //   (context, state) => DesignAPIPage(),
@@ -239,6 +266,7 @@ final GoRouter router = GoRouter(
   ],
 );
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 int gotoDelay = 100;
 
 class GoTo {
@@ -262,9 +290,9 @@ class GoTo {
     return modelPath;
   }
 
-  Future<ModelSchema> initModel(String idModel) async {
+  Future<ModelSchema> getModel(String idModel) async {
     var attr = currentCompany.listModel!.nodeByMasterId[idModel]!;
-    currentCompany.listModel!.currentAttr = attr;
+    currentCompany.listModel!.selectedAttr = attr;
 
     await Future.delayed(Duration(milliseconds: gotoDelay));
 
@@ -273,6 +301,7 @@ class GoTo {
       infoManager: InfoManagerModel(typeMD: TypeMD.model),
       headerName: attr.info.name,
       id: idModel,
+      ref: currentCompany.listModel!,
     );
     currentCompany.currentModelSel = attr;
     //currentCompany.currentModel!.currentAttr = attr;
@@ -285,45 +314,70 @@ class GoTo {
     return currentCompany.currentModel!;
   }
 
-  Future<ModelSchema> initApiRequest(String idApi) async {
-    await Future.delayed(Duration(milliseconds: gotoDelay));
+  Future<ModelSchema> getApiRequestModel(
+    APICallManager call,
+    String idApi, {
+    required bool withDelay,
+  }) async {
+    if (withDelay) {
+      await Future.delayed(Duration(milliseconds: gotoDelay));
+    }
 
-    //currentCompany.listAPI!.currentAttr = null;
     var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
+    var key = attr.info.properties![constMasterID];
 
     currentCompany.listModel = await loadSchema(
       TypeMD.listmodel,
       'model',
       'Business models',
       TypeModelBreadcrumb.businessmodel,
-      namespace: currentCompany.currentNameSpace,
+      namespace: currentCompany.listAPI!.namespace,
     );
 
-    var key = attr.info.properties![constMasterID];
-    currentCompany.currentAPIResquest = ModelSchema(
+    currentCompany.listModel = await loadSchema(
+      TypeMD.listmodel,
+      'model',
+      'Business models',
+      TypeModelBreadcrumb.businessmodel,
+      namespace: currentCompany.listAPI!.namespace,
+    );
+
+    var currentAPIResquest = ModelSchema(
       category: Category.api,
       infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
       headerName: "Parameters query, header, cookies, body",
       id: key,
+      ref: currentCompany.listModel,
     );
 
-    await currentCompany.currentAPIResquest!.loadYamlAndProperties(
+    await currentAPIResquest.loadYamlAndProperties(
       cache: false,
       withProperties: true,
     );
 
-    currentCompany.currentAPIResquest!.onChange = (change) {
-      currentCompany.apiCallInfo?.params.clear();
+    currentAPIResquest.onChange = (change) {
+      // si changement de param
+      call.params.clear();
       repaintManager.doRepaint(ChangeTag.apiparam);
     };
 
-    initApiParam();
+    call.initApiParamIfEmpty(currentAPIResquest);
 
-    return currentCompany.currentAPIResquest!;
+    BrowseAPI().browse(currentAPIResquest, false);
+
+    currentCompany.currentAPIResquest = currentAPIResquest;
+    call.currentAPIRequest = currentAPIResquest;
+    return currentAPIResquest;
   }
 
-  Future<ModelSchema> initApiResponse(String idApi) async {
-    await Future.delayed(Duration(milliseconds: gotoDelay));
+  Future<ModelSchema> getApiResponseModel(
+    APICallManager call,
+    String idApi, {
+    required bool withDelay,
+  }) async {
+    if (withDelay) {
+      await Future.delayed(Duration(milliseconds: gotoDelay));
+    }
 
     var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
     var key = attr.info.properties![constMasterID];
@@ -333,7 +387,10 @@ class GoTo {
       infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiresponse),
       headerName: '200, 404, ...',
       id: 'response/$key',
+      ref: currentCompany.listModel,
     );
+
+    call.currentAPIResponse = currentCompany.currentAPIResponse!;
 
     await currentCompany.currentAPIResponse!.loadYamlAndProperties(
       cache: false,
@@ -345,35 +402,5 @@ class GoTo {
     return currentCompany.currentAPIResponse!;
   }
 
-  void initApiParam() {
-    if (currentCompany.currentAPIResquest!.modelYaml.isEmpty) {
-      StringBuffer urlparam = StringBuffer();
-      for (var element in stateApi.urlParam) {
-        urlparam.writeln('  $element : string');
-      }
 
-      currentCompany.currentAPIResquest!.modelYaml = '''
-path:
-${urlparam}query:
-header:        
-cookies:        
-body :
-''';
-      currentCompany.currentAPIResquest!.mapModelYaml = loadYaml(
-        currentCompany.currentAPIResquest!.modelYaml,
-        recover: true,
-      );
-    }
-  }
 }
-
-// class NavigationService {
-
-//   static Future<void> push(String routeName) {
-//     return navigatorKey.currentContext!.push(routeName);
-//   }
-
-//   static void pop() {
-//     navigatorKey.currentContext?.pop();
-//   }
-// }

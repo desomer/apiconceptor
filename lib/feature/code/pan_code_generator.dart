@@ -28,12 +28,12 @@ class _PanCodeGeneratorState extends State<PanCodeGenerator> {
 
   Widget _getCode(String code) {
     return TextEditor(
-      config: YamlEditorConfig(
+      config: CodeEditorConfig(
         mode: typescript,
         getText: () {
           return code;
         },
-        onChange: (String json, YamlEditorConfig config) {},
+        onChange: (String json, CodeEditorConfig config) {},
         notifError: ValueNotifier(''),
       ),
       header: 'code',

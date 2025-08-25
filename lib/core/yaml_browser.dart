@@ -332,7 +332,7 @@ class YamlLine {
 class ParseYamlManager {
   Map? mapYaml;
 
-  bool doParseYaml(String yaml, YamlEditorConfig? config) {
+  bool doParseYaml(String yaml, CodeEditorConfig? config) {
     bool parseOk = false;
     try {
       var r = loadYaml(yaml);

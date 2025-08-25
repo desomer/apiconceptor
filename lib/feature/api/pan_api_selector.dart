@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/api/pan_api_import.dart';
 import 'package:jsonschema/feature/pan_attribut_editor.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
@@ -11,7 +12,21 @@ import 'package:jsonschema/widget/widget_version_state.dart';
 
 // ignore: must_be_immutable
 class PanAPISelector extends PanYamlTree {
-  PanAPISelector({super.key, required super.getSchemaFct});
+  PanAPISelector(
+{
+    required this.onSelModel,
+    required this.browseOnly,
+    super.key,
+    required super.getSchemaFct,
+  });
+
+  final bool browseOnly;
+  final Function? onSelModel;
+
+  @override
+  bool withEditor() {
+    return !browseOnly;
+  }
 
   @override
   void addRowWidget(
@@ -83,7 +98,21 @@ class PanAPISelector extends PanYamlTree {
     var sel = getSchema().nodeByMasterId[attr.info.masterID]!;
 
     if (sel.info.type == 'ope') {
-      context.push(Pages.apiDetail.id(sel.info.masterID!));
+      if (onSelModel != null) {
+        onSelModel!(sel.info.masterID!);
+      } else {
+        context.push(Pages.apiDetail.id(sel.info.masterID!));
+      }
     }
+  }
+
+  Future<void> showImportDialog(BuildContext ctx) async {
+    return showDialog<void>(
+      context: ctx,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return PanAPIImport(yamlEditorConfig: getYamlConfig());
+      },
+    );
   }
 }

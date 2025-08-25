@@ -3,23 +3,39 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_version_state.dart';
-import 'package:jsonschema/widget_state/state_api.dart';
+
+enum ModeExample { design, browse }
+
+class ExampleConfig {
+  final ModeExample mode;
+  final Function onSelect;
+
+  ExampleConfig({required this.onSelect, required this.mode});
+}
 
 // ignore: must_be_immutable
 class PanApiExample extends PanYamlTree {
   PanApiExample({
-    required this.apiCallInfo,
+    required this.config,
+    required this.requesthelper,
     super.key,
     required super.getSchemaFct,
   });
-  final APICallInfo apiCallInfo;
+  final WidgetRequestHelper requesthelper;
+  final ExampleConfig config;
+
+  @override
+  bool withEditor() {
+    return config.mode == ModeExample.design;
+  }
 
   @override
   void onInit(BuildContext context) {
@@ -45,24 +61,26 @@ class PanApiExample extends PanYamlTree {
             node: node.data,
             schema: schema,
             propName: 'summary',
+            editable: config.mode == ModeExample.design,
           ),
         ),
       );
 
-      row.add(SizedBox(width: 10));
-      row.add(WidgetVersionState(margeVertical: 2));
-      row.add(
-        TextButton.icon(
-          icon: Icon(Icons.import_export),
-          onPressed: () async {
-            // await goToAPI(attr, 1, subtabNumber: 2, context: context);
-          },
-          label: Text('Test API'),
-        ),
-      );
+      if (config.mode == ModeExample.design) {
+        row.add(SizedBox(width: 10));
+        row.add(WidgetVersionState(margeVertical: 2));
+        row.add(
+          TextButton.icon(
+            icon: Icon(Icons.import_export),
+            onPressed: () async {
+              // await goToAPI(attr, 1, subtabNumber: 2, context: context);
+            },
+            label: Text('Test API'),
+          ),
+        );
+      }
     }
   }
-
 
   @override
   Future<void> onActionRow(
@@ -70,28 +88,27 @@ class PanApiExample extends PanYamlTree {
     BuildContext context,
   ) async {
     var attr = node.data;
-    apiCallInfo.selectedExample = attr;
+    requesthelper.apiCallInfo.selectedExample = attr.info;
     var jsonParam = await bddStorage.getAPIParam(
-      apiCallInfo.currentAPI!,
+      requesthelper.apiCallInfo.currentAPIRequest!,
       attr.info.masterID!,
     );
-    apiCallInfo.params.clear();
-    apiCallInfo.body;
-    apiCallInfo.bodyStr = '';
+
+    requesthelper.apiCallInfo.clearRequest();
 
     if (jsonParam != null) {
-      apiCallInfo.initWithJson(jsonParam);
+      requesthelper.apiCallInfo.initWithParamJson(jsonParam);
     }
     repaintManager.doRepaint(ChangeTag.apiparam);
-    stateApi.tabSubApi?.animateTo(2);
-    apiCallInfo.changeUrl.value++;
+
+    config.onSelect();
+
+    requesthelper.changeUrl.value++;
+    requesthelper.changeScript.value++;
   }
-
-
 }
 
 class InfoManagerApiExample extends InfoManager with WidgetHelper {
-
   @override
   Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
     return getChip(Text(node.data!.info.name), color: null);
@@ -126,13 +143,15 @@ class InfoManagerApiExample extends InfoManager with WidgetHelper {
 
     if (isRoot) {
       icon = Icon(Icons.business);
+      name = getKeyParamFromYaml(node.data.yamlNode.key);
     } else if (isFolder) {
       icon = Icon(Icons.folder);
     } else if (iExample) {
       icon = Icon(Icons.dataset_linked);
     }
 
-    return Row(
+    return NoOverflowErrorFlex(
+      direction: Axis.horizontal,
       children: [
         if (icon != null)
           Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
@@ -140,17 +159,12 @@ class InfoManagerApiExample extends InfoManager with WidgetHelper {
         Expanded(
           child: InkWell(
             onTap: () {
-              node.doTap();
+              node.doTapHeader();
             },
-            child: Row(
+            child: NoOverflowErrorFlex(
+              direction: Axis.horizontal,
               children: [
-                Text(
-                  name,
-                  // style:
-                  //     (iExample)
-                  //         ? const TextStyle(fontWeight: FontWeight.bold)
-                  //         : null,
-                ),
+                Text(name),
                 Spacer(),
                 getWidgetType(node.data, iExample, isRoot),
               ],
@@ -160,7 +174,6 @@ class InfoManagerApiExample extends InfoManager with WidgetHelper {
       ],
     );
   }
-
 
   Widget getWidgetType(NodeAttribut attr, bool iExample, bool isRoot) {
     if (isRoot) return Container();

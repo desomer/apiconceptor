@@ -36,8 +36,14 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
-      typeStr = node.level == 1 ? 'Service' : 'Path';
-      node.info.error = null;
+      if (name == '\$server') {
+        typeStr = "{${type.keys.firstOrNull}}";
+      }
+      // {var} ou param
+      else {
+        typeStr = node.level == 1 ? 'Service' : 'Path';
+        node.info.error = null;
+      }
     } else if (type is List) {
       // if (name.endsWith('[]')) {
       //   typeStr = 'Array';
@@ -73,7 +79,8 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
     String typeTitle,
   ) {
     if (name == '\$server') {
-      if (nodeAttribut.yamlNode.value.toString().startsWith('\$')) {
+      if (nodeAttribut.yamlNode.value is Map) {
+        //Map a = nodeAttribut.yamlNode.value;
         return null;
       } else {
         if (!UtilDart().isURL(typeTitle)) {
@@ -99,7 +106,6 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
     var isPath = type == 'Path';
 
     var key = getKeyParamFromYaml(node.data!.yamlNode.key);
-
     String name = key.toLowerCase();
 
     if (isRoot && name == 'api') {
@@ -225,7 +231,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
           Expanded(
             child: InkWell(
               onTap: () {
-                node.doTap();
+                node.doTapHeader();
               },
               child: Row(
                 children: [

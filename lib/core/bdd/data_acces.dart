@@ -231,7 +231,7 @@ class DataAcces {
   void dispatchChangeProperties(
     ModelSchema model,
     dynamic patch,
-    YamlEditorConfig textConfig,
+    CodeEditorConfig textConfig,
     String version,
   ) {
     var element = patch['payload'];
@@ -311,6 +311,7 @@ class DataAcces {
       headerName: '',
       id: '',
       infoManager: model.infoManager,
+      ref: model.ref,
     );
     modelVerif.namespace = model.namespace;
 

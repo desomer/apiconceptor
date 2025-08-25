@@ -9,7 +9,7 @@ import '../../widget/tree_editor/pan_yaml_tree.dart';
 
 // ignore: must_be_immutable
 class PanRequestApi extends PanYamlTree with PanModelEditorHelper {
-  PanRequestApi({super.key, required super.getSchemaFct});
+  PanRequestApi({super.key, required super.getSchemaFct, super.showable});
 
   @override
   void addRowWidget(

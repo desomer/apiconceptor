@@ -9,7 +9,6 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/feature/model/pan_model_link.dart';
 import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget_state/state_model.dart';
 
 // ignore: must_be_immutable
 class PanModelImport extends StatelessWidget {
@@ -43,12 +42,12 @@ class PanModelImport extends StatelessWidget {
 
   Widget _getJsonImport(JsonToSchemaYaml import) {
     return TextEditor(
-      config: YamlEditorConfig(
+      config: CodeEditorConfig(
         mode: json,
         getText: () {
           return '';
         },
-        onChange: (String json, YamlEditorConfig config) {
+        onChange: (String json, CodeEditorConfig config) {
           import.rawJson = json;
         },
         notifError: ValueNotifier(''),
@@ -76,6 +75,7 @@ class PanModelImport extends StatelessWidget {
       headerName: 'Select Models',
       id: 'model',
       infoManager: currentCompany.listModel!.infoManager,
+      ref: currentCompany.listModel,
     );
     model.autoSaveProperties = false;
     model.mapModelYaml = currentCompany.listModel!.mapModelYaml;
@@ -108,7 +108,7 @@ class PanModelImport extends StatelessWidget {
               modelSchemaDetail.modelYaml =
                   import.doImportJSON().yaml.toString();
               // ignore: invalid_use_of_protected_member
-              stateModel.keyModelYamlEditor.currentState?.setState(() {});
+              //stateModel.keyModelYamlEditor.currentState?.setState(() {});
               modelSchemaDetail.doChangeAndRepaintYaml(null, true, 'import');
             } else if (tabImport.index == 1) {
               doImportFromModel(model);
@@ -121,7 +121,7 @@ class PanModelImport extends StatelessWidget {
   }
 
   void doImportFromModel(ModelSchema model) {
-    print(model.lastBrowser?.selectedPath);
+    //print(model.lastBrowser?.selectedPath);
     for (var sel in model.lastBrowser?.selectedPath ?? {}) {
       var info = model.mapInfoByJsonPath[sel];
       var node = (model.lastJsonBrowser as JsonBrowserWidget).findNode(info!);
@@ -138,7 +138,7 @@ class PanModelImport extends StatelessWidget {
       var modelSchemaDetail = currentCompany.currentModel!;
       modelSchemaDetail.modelYaml = '${modelSchemaDetail.modelYaml}add';
       // ignore: invalid_use_of_protected_member
-      stateModel.keyModelYamlEditor.currentState?.setState(() {});
+      //stateModel.keyModelYamlEditor.currentState?.setState(() {});
       modelSchemaDetail.doChangeAndRepaintYaml(null, true, 'import');
     }
   }

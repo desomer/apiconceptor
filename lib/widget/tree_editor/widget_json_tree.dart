@@ -252,7 +252,9 @@ class JsonListEditorState extends State<JsonListEditor>
               }
             }
           }
-          keyTree = GlobalKey(); // change le widget en change la key
+          keyTree = GlobalKey(
+            debugLabel: 'keyTree',
+          ); // change le widget en change la key
         }
       });
     });
@@ -564,7 +566,7 @@ class JsonTreeConfig {
   // int widthTree = 350;
   OnTap? onTap;
   Function? onDoubleTap;
-  YamlEditorConfig? textConfig;
+  CodeEditorConfig? textConfig;
 }
 
 //-------------------------------------------------------------------------------------------

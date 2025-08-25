@@ -23,7 +23,7 @@ class WidgetGlossary extends StatelessWidget with WidgetHelper {
   final GlobalKey keyYaml = GlobalKey();
   final GlobalKey keyListInfo = GlobalKey();
   final String typeModel;
-  late YamlEditorConfig textConfig;
+  late CodeEditorConfig textConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +47,7 @@ class WidgetGlossary extends StatelessWidget with WidgetHelper {
       }
     };
 
-    void onYamlChange(String yaml, YamlEditorConfig config) {
+    void onYamlChange(String yaml, CodeEditorConfig config) {
       if (schemaGlossary.modelYaml != yaml) {
         schemaGlossary.modelYaml = yaml;
         schemaGlossary.doChangeAndRepaintYaml(config, true, 'change');
@@ -58,7 +58,7 @@ class WidgetGlossary extends StatelessWidget with WidgetHelper {
       return schemaGlossary.modelYaml;
     }
 
-    textConfig = YamlEditorConfig(
+    textConfig = CodeEditorConfig(
       mode: yaml,
       notifError: ValueNotifier<String>(''),
       onChange: onYamlChange,
@@ -163,7 +163,7 @@ class WidgetGlossary extends StatelessWidget with WidgetHelper {
           key: ObjectKey(attr),
           margin: EdgeInsets.all(1),
           child: getToolTip(
-            toolContent: getTooltipFromAttr(attr),
+            toolContent: getTooltipFromAttr(attr.info),
             child: Row(children: row),
           ),
         ),

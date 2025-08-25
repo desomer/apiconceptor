@@ -1,27 +1,25 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_env.dart';
-import 'package:jsonschema/feature/code/pan_code_generator.dart';
 import 'package:jsonschema/feature/domain/pan_domain.dart';
-import 'package:jsonschema/feature/graph/pan_service_info.dart';
-import 'package:jsonschema/feature/graph/pan_spring_graph.dart';
+import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
-import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
-import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 bool withBdd = true;
 
+late final SharedPreferences prefs;
+
 Future<void> startCore() async {
-
-
   const isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
   print('isRunningWithWasm $isRunningWithWasm');
 
@@ -31,10 +29,12 @@ Future<void> startCore() async {
     try {
       await bddStorage.init();
     } on Exception catch (e) {
-      print("$e");
+      //print("$e");
       startError.add("$e");
     }
   }
+
+  prefs = await SharedPreferences.getInstance();
 
   currentCompany.listEnv = await loadSchema(
     TypeMD.env,
@@ -56,9 +56,22 @@ Future<void> startCore() async {
     browser: b,
   );
   if (b.root.isNotEmpty) {
-    currentCompany.listDomain.setCurrentAttr(b.root.first.info);
-  }
+    var currentDomain = prefs.getString("currentDomain");
 
+    if (currentDomain == null) {
+      currentCompany.listDomain.setCurrentAttr(b.root.first.info);
+      prefs.setString("currentDomain", b.root.first.info.masterID!);
+    } else {
+      var cur = b.root.firstWhereOrNull(
+        (element) => element.info.masterID == currentDomain,
+      );
+      if (cur == null) {
+        currentCompany.listDomain.setCurrentAttr(b.root.first.info);
+      } else {
+        currentCompany.listDomain.setCurrentAttr(cur.info);
+      }
+    }
+  }
 
   currentCompany.listGlossary = await loadGlossary('glossary', 'Glossary');
   currentCompany.listGlossarySuffixPrefix = await loadGlossary(
@@ -67,7 +80,51 @@ Future<void> startCore() async {
   );
 
   currentCompany.isInit = true;
-  //runApp(ApiArchitecEditor());
+}
+
+Future<ModelSchema> loadAPI({required String id, String? namespace}) async {
+  var currentAPIResquest = ModelSchema(
+    category: Category.api,
+    infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
+    headerName: "Parameters query, header, cookies, body",
+    id: id,
+    ref: null, // currentCompany.listModel,
+  );
+
+  currentAPIResquest.namespace = namespace;
+
+  await currentAPIResquest.loadYamlAndProperties(
+    cache: false,
+    withProperties: true,
+  );
+
+  return currentAPIResquest;
+}
+
+Future<ModelSchema> loadAllAPI({String? namespace}) async {
+  var allApi = ModelSchema(
+    category: Category.allApi,
+    headerName: 'API Route Path',
+    id: 'api',
+    infoManager: InfoManagerAPI(),
+    ref: null,
+  );
+  allApi.namespace = namespace ?? currentCompany.currentNameSpace;
+
+  if (withBdd) {
+    try {
+      await allApi.loadYamlAndProperties(cache: false, withProperties: true);
+      BrowseAPI().browse(allApi, false);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  return allApi;
+}
+
+Future<void> loadAllAPIGlobal({String? namespace}) async {
+  currentCompany.listAPI = await loadAllAPI(namespace: namespace);
 }
 
 Future<ModelSchema> loadGlossary(String id, String name) async {
@@ -76,6 +133,7 @@ Future<ModelSchema> loadGlossary(String id, String name) async {
     headerName: name,
     id: id,
     infoManager: InfoManagerGlossary(),
+    ref: null,
   );
 
   if (withBdd) {
@@ -98,13 +156,14 @@ Future<ModelSchema> loadSchema(
   Category? category,
   InfoManager? infoManager,
   JsonBrowser? browser,
-  String? namespace
+  String? namespace,
 }) async {
   var m = ModelSchema(
     category: category ?? Category.allModel,
     headerName: name,
     id: id,
     infoManager: infoManager ?? InfoManagerModel(typeMD: type),
+    ref: null,
   );
   m.namespace ??= namespace;
   m.typeBreabcrumb = typeBread;
@@ -137,11 +196,11 @@ WidgetZoomSelectorState? stateOpenFactor;
 final ValueNotifier<int> zoom = ValueNotifier(100);
 int timezoom = 0;
 
-GlobalKey keyAPIEditor = GlobalKey();
+//GlobalKey keyAPIEditor = GlobalKey();
 
 // ignore: must_be_immutable
-class ApiArchitecEditor extends StatelessWidget {
-  const ApiArchitecEditor({super.key});
+class ApiArchitecEditor {
+  const ApiArchitecEditor();
 
   //   ApiArchitecEditor({super.key});
   //   bool showLoginDialog = true;
@@ -275,27 +334,27 @@ class ApiArchitecEditor extends StatelessWidget {
   //     );
   //   }
 
-  Widget getBreadcrumbModel() {
-    return SizedBox(
-      height: 40,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Row(
-          children: [
-            BreadCrumbNavigator(
-              key: stateModel.keyBreadcrumb,
-              getList: () {
-                return stateModel.path;
-              },
-            ),
-            Spacer(),
-            Text('Open factor '),
-            WidgetZoomSelector(zoom: openFactor),
-          ],
-        ),
-      ),
-    );
-  }
+  // Widget getBreadcrumbModel() {
+  //   return SizedBox(
+  //     height: 40,
+  //     child: Align(
+  //       alignment: Alignment.centerLeft,
+  //       child: Row(
+  //         children: [
+  //           BreadCrumbNavigator(
+  //             key: stateModel.keyBreadcrumb,
+  //             getList: () {
+  //               return stateModel.path;
+  //             },
+  //           ),
+  //           Spacer(),
+  //           Text('Open factor '),
+  //           WidgetZoomSelector(zoom: openFactor),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   // Widget _getApiTab() {
   //   var panAPISelector = PanAPISelector();
@@ -363,62 +422,62 @@ class ApiArchitecEditor extends StatelessWidget {
   //   );
   // }
 
-  Widget getTabSeparator(Widget tab) {
-    return Stack(
-      fit: StackFit.loose,
-      children: [
-        Positioned(
-          right: 0,
-          top: 10,
-          child: Container(
-            height: 20,
-            width: 1,
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(
-                  color: Colors.white38,
-                  width: 1,
-                  style: BorderStyle.solid,
-                ),
-              ),
-            ),
-          ),
-        ),
-        Container(
-          height: 40,
-          padding: EdgeInsets.fromLTRB(0, 0, 40, 0),
-          child: tab,
-        ),
-      ],
-    );
-  }
+  // Widget getTabSeparator(Widget tab) {
+  //   return Stack(
+  //     fit: StackFit.loose,
+  //     children: [
+  //       Positioned(
+  //         right: 0,
+  //         top: 10,
+  //         child: Container(
+  //           height: 20,
+  //           width: 1,
+  //           decoration: BoxDecoration(
+  //             border: Border(
+  //               right: BorderSide(
+  //                 color: Colors.white38,
+  //                 width: 1,
+  //                 style: BorderStyle.solid,
+  //               ),
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //       Container(
+  //         height: 40,
+  //         padding: EdgeInsets.fromLTRB(0, 0, 40, 0),
+  //         child: tab,
+  //       ),
+  //     ],
+  //   );
+  // }
 
-  Widget getEventTab() {
-    return WidgetTab(
-      listTab: [Tab(text: 'Avro'), Tab(text: 'Protobuf')],
-      listTabCont: [Container(), Container()],
-      heightTab: 40,
-    );
-  }
+  // Widget getEventTab() {
+  //   return WidgetTab(
+  //     listTab: [Tab(text: 'Avro'), Tab(text: 'Protobuf')],
+  //     listTabCont: [Container(), Container()],
+  //     heightTab: 40,
+  //   );
+  // }
 
-  Widget getCodeTab() {
-    return WidgetTab(
-      listTab: [Tab(text: 'DTO'), Tab(text: 'SQL'), Tab(text: 'Mongo')],
-      listTabCont: [PanCodeGenerator(), Container(), Container()],
-      heightTab: 40,
-    );
-  }
+  // Widget getCodeTab() {
+  //   return WidgetTab(
+  //     listTab: [Tab(text: 'DTO'), Tab(text: 'SQL'), Tab(text: 'Mongo')],
+  //     listTabCont: [PanCodeGenerator(), Container(), Container()],
+  //     heightTab: 40,
+  //   );
+  // }
 
-  Widget getServiceTab(BuildContext context) {
-    return WidgetTab(
-      listTab: [Tab(text: 'Graph'), Tab(text: 'Statistic')],
-      listTabCont: [
-        PanModelGraph(),
-        Column(children: [Expanded(child: PanServiceInfo())]),
-      ],
-      heightTab: 40,
-    );
-  }
+  // Widget getServiceTab(BuildContext context) {
+  //   return WidgetTab(
+  //     listTab: [Tab(text: 'Graph'), Tab(text: 'Statistic')],
+  //     listTabCont: [
+  //       PanModelGraph(),
+  //       Column(children: [Expanded(child: PanServiceInfo())]),
+  //     ],
+  //     heightTab: 40,
+  //   );
+  // }
 
   // Future<void> _dialogBuilder(BuildContext context) {
   //   return showDialog<void>(
@@ -551,30 +610,30 @@ class ApiArchitecEditor extends StatelessWidget {
   //   );
   // }
 
-  Widget getNamingTab() {
-    return WidgetTab(
-      onInitController: (TabController tab) {},
-      listTab: [
-        Tab(text: 'Model'),
-        Tab(text: 'API'),
-        Tab(text: 'Event'),
-        Tab(text: 'DB SQL'),
-        Tab(text: 'DB Document'),
-      ],
-      listTabCont: [
-        Container(),
-        Container(),
-        Container(),
-        Container(),
-        Container(),
-      ],
-      heightTab: 40,
-    );
-  }
+  // Widget getNamingTab() {
+  //   return WidgetTab(
+  //     onInitController: (TabController tab) {},
+  //     listTab: [
+  //       Tab(text: 'Model'),
+  //       Tab(text: 'API'),
+  //       Tab(text: 'Event'),
+  //       Tab(text: 'DB SQL'),
+  //       Tab(text: 'DB Document'),
+  //     ],
+  //     listTabCont: [
+  //       Container(),
+  //       Container(),
+  //       Container(),
+  //       Container(),
+  //       Container(),
+  //     ],
+  //     heightTab: 40,
+  //   );
+  // }
 
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
-  }
+  // @override
+  // Widget build(BuildContext context) {
+  //   // TODO: implement build
+  //   throw UnimplementedError();
+  // }
 }

@@ -18,7 +18,7 @@ class WidgetJsonValidator extends StatefulWidget {
 
 class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   late dynamic jsonSchema;
-  late YamlEditorConfig textConfig;
+  late CodeEditorConfig textConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                   children: [
                     TextButton(
                       onPressed: () {
-                        textConfig.repaintYaml();
+                        textConfig.repaintCode();
                       },
                       child: Text('Generate fake data'),
                     ),
@@ -64,11 +64,11 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     }
     return TextEditor(
       header: "JSON Schema",
-      config: YamlEditorConfig(
+      config: CodeEditorConfig(
         mode: json,
         readOnly: true,
         notifError: errorParse,
-        onChange: (String json, YamlEditorConfig config) {},
+        onChange: (String json, CodeEditorConfig config) {},
         getText: () {
           return export.prettyPrintJson(export.json);
         },
@@ -85,10 +85,10 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       return Text('select model first');
     }
 
-    textConfig = YamlEditorConfig(
+    textConfig = CodeEditorConfig(
       mode: json,
       notifError: error,
-      onChange: (String json, YamlEditorConfig config) {
+      onChange: (String json, CodeEditorConfig config) {
         try {
           if (json != '' && jsonValidator != null) {
             var jsonMap = jsonDecode(removeComments(json));

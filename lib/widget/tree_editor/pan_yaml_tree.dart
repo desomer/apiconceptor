@@ -6,10 +6,10 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
-import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 
 // ignore: must_be_immutable
@@ -21,7 +21,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   Widget? _cacheContent;
   late ModelSchema _schema;
-  YamlEditorConfig? _yamlConfig;
+  CodeEditorConfig? _yamlConfig;
 
   final ValueNotifier<double> _showAttrEditor = ValueNotifier(0);
 
@@ -29,6 +29,8 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   final GlobalKey keyAttrEditor = GlobalKey(debugLabel: 'keyAttrEditor');
 
   final TreeViewBrowserWidget jsonBrowserWidget = TreeViewBrowserWidget();
+
+  // State? rowSelectedState;
 
   void onInit(BuildContext context) {}
 
@@ -77,12 +79,14 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return true;
   }
 
+  bool actionRowOnTapDetail = false;
+
   Widget _getContent(BuildContext context) {
     getYaml() {
       return _schema.modelYaml;
     }
 
-    _yamlConfig ??= YamlEditorConfig(
+    _yamlConfig ??= CodeEditorConfig(
       mode: yaml,
       notifError: ValueNotifier<String>(''),
       onChange: _getOnChange(),
@@ -101,6 +105,8 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
           WidgetHiddenBox(showNotifier: _showAttrEditor, child: attributProp),
         ],
       );
+    } else {
+      actionRowOnTapDetail = true;
     }
 
     if (withEditor()) {
@@ -130,7 +136,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return _schema;
   }
 
-  YamlEditorConfig getYamlConfig() {
+  CodeEditorConfig getYamlConfig() {
     return _yamlConfig!;
   }
 
@@ -148,9 +154,15 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     //    TypeModelBreadcrumb.valString(_schema.typeBreabcrumb);
   }
 
+  State? selectedState;
+
   Widget getTree(BuildContext context) {
     return TreeView<NodeAttribut>(
       key: keyTreeEditor,
+      isSelected: (node, cur, old) {
+        selectedState = old;
+        return node.data == _schema.selectedAttr;
+      },
       onBuild: (state, ctx) {
         _yamlConfig?.treeJsonState = state;
         jsonBrowserWidget.repaintRowState = state;
@@ -174,42 +186,46 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
       getHeader: (node) {
         return _schema.infoManager.getRowHeader(node);
       },
-      getRow: (node) {
+      getDataRow: (node) {
         var ret = <Widget>[];
         addRowWidget(node, _schema, ret, context);
         return GestureDetector(
           onTap: () {
-            doShowAttrEditor(node.data);
+            if (actionRowOnTapDetail) {
+              doSelectedRow(node.data);
+              onActionRow(node, context);
+            } else {
+              doShowAttrEditor(node.data);
+            }
           },
-          child: getHover(
-            node.data,
-            getToolTip(
-              toolContent: getTooltipFromAttr(node.data),
-              child: Row(children: ret),
+          child: getToolTip(
+            toolContent: getTooltipFromAttr(node.data.info),
+            child: NoOverflowErrorFlex(
+              direction: Axis.horizontal,
+              children: ret,
             ),
           ),
         );
       },
-      onTap: (node, ctx) async {
+      onTapHeader: (node, ctx) async {
+        doSelectedRow(node.data);
         await onActionRow(node, ctx);
       },
     );
   }
 
-  State? rowSelected;
-  Widget getHover(NodeAttribut attr, Widget child) {
-    return HoverableCard(
-      isSelected: (State state) {
-        //attr.widgetSelectState = state;
-        bool isSelected = _schema.currentAttr == attr;
-        if (isSelected) {
-          rowSelected = state;
-        }
-        return isSelected;
-      },
-      child: child,
-    );
-  }
+  // Widget getHover(NodeAttribut attr, Widget child) {
+  //   return HoverableCard(
+  //     isSelected: (State state) {
+  //       bool isSelected = _schema.selectedAttr == attr;
+  //       if (isSelected) {
+  //         rowSelectedState = state;
+  //       }
+  //       return isSelected;
+  //     },
+  //     child: child,
+  //   );
+  // }
 
   Widget getYamlEditor() {
     var doc = getDoc();
@@ -240,42 +256,47 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   }
 
   Function _getOnChange() {
-    return (String yaml, YamlEditorConfig config) {
+    return (String yaml, CodeEditorConfig config) {
       var model = _schema;
       if (model.modelYaml != yaml) {
         model.modelYaml = yaml;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           onYamlChange();
 
-          // ignore: invalid_use_of_protected_member
-          keyTreeEditor.currentState?.setState(() {});
-
           model.doChangeAndRepaintYaml(
             config,
             model.autoSaveProperties,
             'change',
           );
+
+          // ignore: invalid_use_of_protected_member
+          keyTreeEditor.currentState?.setState(() {});
         });
       }
     };
   }
 
   void doShowAttrEditor(NodeAttribut attr) {
-    if (_schema.currentAttr == attr && _showAttrEditor.value == 300) {
+    doSelectedRow(attr);
+
+    if (_schema.selectedAttr == attr && _showAttrEditor.value == 300) {
       _showAttrEditor.value = 0;
     } else {
       _showAttrEditor.value = 300;
     }
-    _schema.currentAttr = attr;
     //ignore: invalid_use_of_protected_member
     keyAttrEditor.currentState?.setState(() {});
 
-    if (rowSelected?.mounted == true) {
-      // ignore: invalid_use_of_protected_member
-      rowSelected?.setState(() {});
-    }
     // // ignore: invalid_use_of_protected_member
     // attr.widgetSelectState?.setState(() {});
+  }
+
+  void doSelectedRow(NodeAttribut attr) {
+    _schema.selectedAttr = attr;
+    if (selectedState?.mounted == true) {
+      // ignore: invalid_use_of_protected_member
+      selectedState?.setState(() {});
+    }
   }
 
   //--------------------------------------------------------------
@@ -316,6 +337,7 @@ class TreeViewBrowserWidget extends JsonBrowser {
   @override
   dynamic getRoot(NodeAttribut node) {
     rootTree ??= TreeNodeData<NodeAttribut>(data: node, children: []);
+    rootTree!.data = node;
     rootTree!.reinitRoot();
     rootTree!.setCache(
       '${node.info.name}%${node.info.type}%${node.info.timeLastChange}',
@@ -330,6 +352,7 @@ class TreeViewBrowserWidget extends JsonBrowser {
       return e.info;
     });
 
+    newNode.data = node;
     if (pathFilter != null) {
       var find = false;
       for (var element in pathFilter!) {

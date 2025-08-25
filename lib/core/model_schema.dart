@@ -5,8 +5,10 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
+import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:yaml/yaml.dart';
 
@@ -47,9 +49,11 @@ class ModelSchema {
     required this.headerName,
     required this.id,
     required this.infoManager,
+    required this.ref,
   });
 
   final String id;
+  final ModelSchema? ref;
 
   int loadingTime = 0;
 
@@ -84,15 +88,15 @@ class ModelSchema {
   bool isEmpty = false;
   bool autoSaveProperties = true;
 
-  NodeAttribut? currentAttr;
+  NodeAttribut? selectedAttr;
 
   void setCurrentAttr(AttributInfo? attr) {
     if (attr == null) {
-      currentAttr = null;
+      selectedAttr = null;
       return;
     }
     attr.selected = true;
-    currentAttr = NodeAttribut(
+    selectedAttr = NodeAttribut(
       info: attr,
       parent: null,
       yamlNode: const MapEntry('', null),
@@ -114,10 +118,10 @@ class ModelSchema {
     if (category == Category.api) {
       // aModelByName = currentCompany.listRequest.mapInfoByName[refName];
       // aModelByName ??= currentCompany.listComponent.mapInfoByName[refName];
-      aModelByName ??= currentCompany.listModel!.mapInfoByName[refName];
+      aModelByName ??= ref?.mapInfoByName[refName];
     } else {
       //aModelByName = currentCompany.listComponent.mapInfoByName[refName];
-      aModelByName ??= currentCompany.listModel!.mapInfoByName[refName];
+      aModelByName ??= ref?.mapInfoByName[refName];
       //aModelByName ??= currentCompany.listRequest.mapInfoByName[refName];
     }
     return aModelByName;
@@ -160,7 +164,7 @@ class ModelSchema {
   //   stateModel.keyBreadcrumb.currentState?.setState(() {});
   // }
 
-  void initEventListener(YamlEditorConfig textConfig) {
+  void initEventListener(CodeEditorConfig textConfig) {
     bddStorage.doEventListner[id] = OnEvent(
       id: id,
       onPatch: (patch) {
@@ -231,10 +235,15 @@ class ModelSchema {
       'by': 'my',
       if (master != null) 'master': master,
     };
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      onChange?.call(histo);
-    });
+
     histories.add(histo);
+
+    Future.delayed(Duration(milliseconds: 100)).then((value) {
+      // attend que le browse soit terminer
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        onChange?.call(histo);
+      });
+    });
   }
 
   dynamic _getMdValue(dynamic v) {
@@ -432,7 +441,7 @@ class ModelSchema {
         return this;
       }
 
-      if (savedYamlModel != null) {
+      if (savedYamlModel != null && savedYamlModel != "") {
         modelYaml = savedYamlModel;
         try {
           mapModelYaml = loadYaml(modelYaml, recover: true);
@@ -564,7 +573,7 @@ class ModelSchema {
   }
 
   bool doChangeAndRepaintYaml(
-    YamlEditorConfig? config,
+    CodeEditorConfig? config,
     bool save,
     String action,
   ) {
@@ -578,9 +587,9 @@ class ModelSchema {
       }
 
       if (action == 'event' || action == 'import') {
-        if (config?.textYamlState?.mounted ?? false) {
+        if (config?.codeEditorState?.mounted ?? false) {
           // ignore: invalid_use_of_protected_member
-          config?.textYamlState!.setState(() {});
+          config?.codeEditorState!.setState(() {});
         }
         if (config?.treeJsonState?.mounted ?? false) {
           // ignore: invalid_use_of_protected_member
@@ -649,5 +658,50 @@ class ModelSchema {
     }
     if (isDependency && sel != null) notUseAttributInfo.remove(sel);
     return sel;
+  }
+
+  ModelSchema? validateSchema({
+    required dynamic subNode,
+    required Function validateFct,
+  }) {
+    ModelSchema? aSchema;
+    var mapModel = mapModelYaml[subNode];
+    if (mapModel != null) {
+      if (mapModel is String) {
+        if (mapModel.startsWith('\$')) {
+          var refName = mapModel.substring(1);
+          var aModelByName = getModelByRefName(refName);
+
+          if (aModelByName != null) {
+            String masterIdRef = aModelByName.first.properties?[constMasterID];
+            aSchema = ModelSchema(
+              category: Category.model,
+              headerName: refName,
+              id: masterIdRef,
+              infoManager: InfoManagerModel(typeMD: TypeMD.model),
+              ref: ref,
+            );
+            aSchema.autoSaveProperties = false;
+            aSchema
+                .loadYamlAndProperties(cache: false, withProperties: true)
+                .then((value) {
+                  validateFct(aSchema!);
+                });
+          }
+        }
+      } else {
+        aSchema = ModelSchema(
+          id: '?',
+          category: Category.model,
+          headerName: '',
+          infoManager: InfoManagerModel(typeMD: TypeMD.model),
+          ref: ref,
+        )..autoSaveProperties = false;
+
+        aSchema.loadSubSchema(subNode, this);
+        validateFct(aSchema);
+      }
+    }
+    return aSchema;
   }
 }

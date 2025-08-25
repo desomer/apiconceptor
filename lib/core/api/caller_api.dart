@@ -1,7 +1,7 @@
 import 'dart:io';
-
 import 'package:dio/dio.dart';
-import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/core/core_expression.dart';
+import 'package:jsonschema/core/api/call_manager.dart';
 
 class CallerApi {
   dynamic callGraph() async {
@@ -33,34 +33,53 @@ class CallerApi {
     }
   }
 
-  Future<APIResponse> call(APICallInfo info, CancelToken cancelToken) async {
+  Future<APIResponse> call(APICallManager info, CancelToken cancelToken) async {
+    String url = info.url;
+    url = info.addParametersOnUrl(url);
+    url = info.replaceVarInRequest(url);
+    url = url.trim();
+
+    info.logs.add('[SEND] <${info.httpOperation.toUpperCase()}><$url>');
+    var ret = await sendApi(info.httpOperation, url, info.body, cancelToken);
+    var httpState = ret.reponse?.statusCode ?? 500;
+    var duration = ret.duration;
+    var size = ret.size;
+    info.logs.add(
+      '[RESPONSE] statusCode $httpState ; $size bytes (${getFileSizeString(bytes: size, decimals: 2)}) ; $duration ms',
+    );
+    return ret;
+  }
+
+  Future<APIResponse> sendApi(
+    String httpOperation,
+    String url,
+    dynamic body,
+    CancelToken cancelToken,
+  ) async {
     final options = BaseOptions(
       connectTimeout: Duration(seconds: 30),
       receiveTimeout: Duration(seconds: 30),
     );
     final aDio = Dio(options);
 
-    String url = info.url;
-    url = info.addParametersOnUrl(url);
-
     var stopWatch = Stopwatch();
     stopWatch.start();
     late APIResponse apiResponse;
     int size = 0;
+
     try {
       final response = await aDio.request(
         url,
-        data: info.body,
+        data: body,
         cancelToken: cancelToken,
         onReceiveProgress: (actualBytes, totalBytes) {
           print('$actualBytes /  $totalBytes');
           size = actualBytes;
         },
         options: Options(
-          method: info.httpOperation,
+          method: httpOperation,
           contentType: 'application/json',
-          headers:
-              info.body != null ? {'Content-Type': 'application/json'} : null,
+          headers: body != null ? {'Content-Type': 'application/json'} : null,
           //responseType: ResponseType.plain,
           validateStatus: (status) {
             return status != null && status >= 200 && status < 300;
@@ -71,7 +90,14 @@ class CallerApi {
       apiResponse = APIResponse(reponse: response);
       apiResponse.size = size;
       apiResponse.duration = stopWatch.elapsed.inMilliseconds;
-      print('h ${response.headers}');
+
+      response.headers.forEach((key, value) {
+        for (final e in value) {
+          apiResponse.headers.add({'key': key, 'value': e});
+        }
+      });
+
+      //print('h ${response.headers}');
       //return apiResponse;
     } on DioException catch (e) {
       stopWatch.stop();
@@ -95,7 +121,7 @@ class CallerApi {
       } else {
         print(e.requestOptions);
         print(e.message);
-        apiResponse.toDisplay = {'message': e.message};
+        apiResponse.toDisplayError = {'message': e.message};
         // return apiResponse;
       }
     }
@@ -110,10 +136,41 @@ class CallerApi {
 
 class APIResponse {
   final Response? reponse;
-  dynamic toDisplay;
+  dynamic toDisplayError;
   int duration = 0;
   int size = 0;
   ContentType? contentType;
+  List<Map<String, String>> headers = [];
 
   APIResponse({required this.reponse});
+}
+
+class CallScript {
+  Future<dynamic> callPreRequest(APICallManager info) async {
+    if (info.preRequestStr.isNotEmpty) {
+      CoreExpression run = CoreExpression();
+      dynamic r;
+
+      info.requestVariableValue.clear();
+
+      try {
+        run.init(info.preRequestStr, logs: info.logs);
+        r = await run.eval(
+          logs: info.logs,
+          variables: info.requestVariableValue,
+        );
+        print('script return =  $r');
+      } catch (e) {
+        print(e);
+      }
+
+      // for (var element in info.logs) {
+      //   print(element);
+      // }
+      info.logs.add('[VARIABLES] ${info.requestVariableValue}');
+
+      return r;
+    }
+    return null;
+  }
 }

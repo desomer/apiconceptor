@@ -3,8 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/login/login_screen.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
+import 'package:jsonschema/widget/widget_global_zoom.dart';
+import 'package:jsonschema/widget/widget_show_error.dart';
+import 'package:jsonschema/widget/widget_zoom_selector.dart';
 
 bool showLoginDialog = true;
 
@@ -26,7 +30,8 @@ class _LayoutState extends State<Layout> {
 
     GenericPage page = (getPage(context, widget.routerState) as GenericPage);
 
-    var navigationInfo = page.initNavigation(widget.routerState, context, null)!;
+    var navigationInfo =
+        page.initNavigation(widget.routerState, context, null)!;
 
     if (showLoginDialog) {
       showLoginDialog = false;
@@ -83,6 +88,8 @@ class _LayoutState extends State<Layout> {
                 children: [BackButton(), getBreadcrumb(navigationInfo)],
               ),
               actions: [
+                Text('Open factor '),
+                WidgetZoomSelector(zoom: openFactor),
                 IconButton(
                   icon: const Icon(Icons.search),
                   tooltip: 'Rechercher',
@@ -101,7 +108,10 @@ class _LayoutState extends State<Layout> {
             ),
             body: Row(
               children: [
-                SizedBox( width: 100, child:  getNavigationItem(navigationInfo, location, context)),
+                SizedBox(
+                  width: 100,
+                  child: getNavigationItem(navigationInfo, location, context),
+                ),
                 const VerticalDivider(thickness: 1, width: 1),
                 Expanded(
                   child:
@@ -109,6 +119,19 @@ class _LayoutState extends State<Layout> {
                           .navChild, //  IndexedStack(index: 0, children: pages),
                   //child: widget.navChild,
                 ),
+              ],
+            ),
+            bottomNavigationBar: Row(
+              children: [
+                WidgetShowError(),
+                SizedBox(width: 10),
+                // InkWell(child: Icon(Icons.undo)),
+                // SizedBox(width: 5),
+                // InkWell(child: Icon(Icons.redo)),
+                // SizedBox(width: 5),
+                SizedBox(height: 20, child: WidgetGlobalZoom()),
+                Spacer(),
+                Text('API Architect by Desomer G. V0.2.14'),
               ],
             ),
           ),
@@ -147,6 +170,10 @@ class _LayoutState extends State<Layout> {
     BuildContext context,
   ) {
     int selectedIndex = 0;
+    var loc = location.split('?');
+    if (loc.length == 2) {
+      location = loc[0];
+    }
     for (var element in navigationInfo.navLeft) {
       if (element.path == location) {
         selectedIndex = navigationInfo.navLeft.indexOf(element) + 1;

@@ -3,8 +3,8 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/login/background_screen_login.dart';
 import 'package:jsonschema/widget/login/heading_text.dart';
+import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'package:jsonschema/widget/widget_dialog_card.dart';
-import 'package:super_tooltip/super_tooltip.dart';
 
 mixin class WidgetHelper {
   Future<void> dialogBuilderBelow(
@@ -131,10 +131,10 @@ mixin class WidgetHelper {
     return w;
   }
 
-  List<Widget> getTooltipFromAttr(NodeAttribut attr) {
+  List<Widget> getTooltipFromAttr(AttributInfo? info) {
     List<Widget> tooltip = [];
-    if (attr.info.properties != null) {
-      for (var element in attr.info.properties!.entries) {
+    if (info?.properties != null) {
+      for (var element in info!.properties!.entries) {
         if (!element.key.startsWith('\$\$')) {
           tooltip.add(
             Text(
@@ -172,28 +172,9 @@ mixin class WidgetHelper {
   }) {
     // if (true) return child;
 
-    final controller = SuperTooltipController();
-    return MouseRegion(
-      onEnter: (event) {
-        controller.showTooltip();
-      },
-      onExit: (event) {
-        controller.hideTooltip();
-      },
-      child: SuperTooltip(
-        popupDirectionBuilder: () {
-          return TooltipDirection.down;
-        },
-        showBarrier: false,
-        controller: controller,
-        content: Container(
-          padding: const EdgeInsets.all(10),
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: toolContent),
-        ),
-
-        child: child,
-      ),
+    return AnimatedTooltip(
+      content: Column(children: toolContent),
+      child: child,
     );
 
     // return Tooltip(

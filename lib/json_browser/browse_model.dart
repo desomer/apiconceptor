@@ -6,6 +6,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 
 import '../widget/widget_md_doc.dart';
 
@@ -190,7 +191,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       icon = Icon(Icons.type_specimen_outlined);
     }
 
-    return GetRowWidget(
+    return GetHeaderRowWidget(
       icon: icon,
       name: name,
       isObject: isObject,
@@ -234,7 +235,8 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       icon = Icon(Icons.type_specimen_outlined);
     }
 
-    return Row(
+    return NoOverflowErrorFlex(
+      direction: Axis.horizontal,
       children: [
         if (icon != null)
           Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
@@ -242,7 +244,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
         Expanded(
           child: InkWell(
             onTap: () {
-              node.doTap();
+              node.doTapHeader();
             },
             child: Row(
               children: [
@@ -288,8 +290,8 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
   }
 }
 
-class GetRowWidget extends StatelessWidget {
-  const GetRowWidget({
+class GetHeaderRowWidget extends StatelessWidget {
+  const GetHeaderRowWidget({
     super.key,
     required this.icon,
     required this.name,
@@ -307,7 +309,8 @@ class GetRowWidget extends StatelessWidget {
     return IntrinsicWidth(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-        child: Row(
+        child: NoOverflowErrorFlex(
+          direction: Axis.horizontal,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),

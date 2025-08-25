@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
 import 'package:jsonschema/feature/home/background_screen.dart';
-import 'package:jsonschema/feature/model/pan_model_action_hub.dart';
 import 'package:jsonschema/feature/model/pan_model_main.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
@@ -15,12 +14,7 @@ class DesignModelPage extends GenericPageStateless {
     return Stack(
       children: [
         const BackgroundScreen(num: 1),
-        Container(
-          color: Colors.black87,
-          child: Column(
-            children: [PanModelActionHub(), Expanded(child: WidgetModelMain())],
-          ),
-        ),
+        Container(color: Colors.black87, child: WidgetModelMain()),
       ],
     );
   }
@@ -100,6 +94,7 @@ class DesignModelPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
+          path: Pages.models.urlpath,
         ),
       ];
   }

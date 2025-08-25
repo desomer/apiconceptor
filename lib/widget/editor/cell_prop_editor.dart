@@ -253,7 +253,7 @@ class CellCheckEditorState extends State<CellCheckEditor> {
     return SwitchListTile(
       title: Text(widget.acces.getName()),
       value: widget.acces.get() ?? false,
-      activeColor: Colors.blue,
+      activeThumbColor: Colors.blue,
       onChanged: (bool value) {
         // This is called when the user toggles the switch.
         if (widget.acces.isEditable()) {
@@ -269,7 +269,7 @@ class CellCheckEditorState extends State<CellCheckEditor> {
     return Switch(
       // This bool value toggles the switch.
       value: widget.acces.get() ?? false,
-      activeColor: Colors.blue,
+      activeThumbColor: Colors.blue,
       onChanged: (bool value) {
         if (widget.acces.isEditable()) {
           setState(() {

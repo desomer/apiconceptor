@@ -1,12 +1,11 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:jsonschema/feature/api/pan_api_call.dart';
+import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
 
 class PanApiResponseStatus extends StatefulWidget {
-  const PanApiResponseStatus({super.key, required this.stateResponse});
+  const PanApiResponseStatus({super.key, required this.requestHelper});
 
-  final WidgetApiCallState stateResponse;
+  final WidgetRequestHelper requestHelper;
 
   @override
   State<PanApiResponseStatus> createState() => _PanApiResponseStatusState();
@@ -15,13 +14,14 @@ class PanApiResponseStatus extends StatefulWidget {
 class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
   @override
   Widget build(BuildContext context) {
-    if (!widget.stateResponse.callInProgress &&
-        widget.stateResponse.widget.apiCallInfo.aResponse == null) {
+    if (!widget.requestHelper.callInProgress &&
+        widget.requestHelper.apiCallInfo.aResponse == null) {
       return Container();
     }
 
-    if (widget.stateResponse.callInProgress) {
-      return Row( spacing: 10,
+    if (widget.requestHelper.callInProgress) {
+      return Row(
+        spacing: 10,
         children: [
           Chip(label: Text('In progress')),
           SizedBox(width: 20, height: 20, child: CircularProgressIndicator()),
@@ -29,21 +29,21 @@ class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
       );
     }
 
-    var aResponse = widget.stateResponse.widget.apiCallInfo.aResponse;
-    var httpState = aResponse?.reponse?.statusCode??500;
+    var aResponse = widget.requestHelper.apiCallInfo.aResponse;
+    var httpState = aResponse?.reponse?.statusCode ?? 500;
     var duration = aResponse?.duration;
     var size = aResponse?.size ?? 0;
 
     var colorHttp = Colors.green;
-    if (httpState>299) {
+    if (httpState > 299) {
       colorHttp = Colors.yellow;
-    } 
-    if (httpState>399) {
+    }
+    if (httpState > 399) {
       colorHttp = Colors.orange;
-    }   
-    if (httpState>499) {
+    }
+    if (httpState > 499) {
       colorHttp = Colors.red;
-    }             
+    }
 
     return Row(
       spacing: 10,
@@ -59,10 +59,4 @@ class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
     );
   }
 
-  static String getFileSizeString({required int bytes, int decimals = 0}) {
-    const suffixes = ["b", "kb", "mb", "gb", "tb"];
-    if (bytes == 0) return '0 ${suffixes[0]}';
-    var i = (log(bytes) / log(1024)).floor();
-    return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
-  }
 }

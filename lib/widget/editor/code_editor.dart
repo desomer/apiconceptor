@@ -6,6 +6,7 @@ import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/widget/widget_error_banner.dart';
 // ignore: implementation_imports
 import 'package:flutter_code_editor/src/code_field/actions/tab.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:yaml/yaml.dart';
 
 class TextEditor extends StatefulWidget {
@@ -17,7 +18,7 @@ class TextEditor extends StatefulWidget {
     this.onHelp,
     this.onSelection,
   });
-  final YamlEditorConfig config;
+  final CodeEditorConfig config;
   final String header;
   final List<Widget>? actions;
   final Function? onHelp;
@@ -73,7 +74,7 @@ class TextEditorState extends State<TextEditor> {
 
   @override
   Widget build(BuildContext context) {
-    widget.config.textYamlState = this;
+    widget.config.codeEditorState = this;
 
     var aText = widget.config.getText();
     if (aText == null) {
@@ -92,7 +93,8 @@ class TextEditorState extends State<TextEditor> {
           color: Colors.grey.shade800,
           height: 25,
           width: double.infinity,
-          child: Row(
+          child: NoOverflowErrorFlex(
+            direction: Axis.horizontal,
             children: [
               Expanded(child: Center(child: Text(widget.header))),
               ...widget.actions ?? [],
@@ -175,8 +177,8 @@ class TextEditorState extends State<TextEditor> {
   }
 }
 
-class YamlEditorConfig {
-  YamlEditorConfig({
+class CodeEditorConfig {
+  CodeEditorConfig({
     required this.mode,
     required this.getText,
     required this.onChange,
@@ -189,11 +191,13 @@ class YamlEditorConfig {
   late ValueNotifier<String> notifError;
   bool readOnly;
 
-  TextEditorState? textYamlState;
+  TextEditorState? codeEditorState;
   State? treeJsonState;
 
-  void repaintYaml() {
-    // ignore: invalid_use_of_protected_member
-    textYamlState?.setState(() {});
+  void repaintCode() {
+    if (codeEditorState?.mounted ?? false) {
+      // ignore: invalid_use_of_protected_member
+      codeEditorState?.setState(() {});
+    }
   }
 }

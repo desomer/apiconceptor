@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/json.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
-import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/core/api/call_manager.dart';
 import 'package:jsonschema/feature/model/pan_model_import_dialog.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
@@ -12,7 +12,7 @@ import 'package:uuid/uuid.dart';
 class PanSaveParam extends StatefulWidget {
   const PanSaveParam(this.api, this.jsonParam, {super.key});
   final dynamic jsonParam;
-  final APICallInfo api;
+  final APICallManager api;
 
   @override
   State<PanSaveParam> createState() => _PanSaveParamState();
@@ -35,8 +35,8 @@ class _PanSaveParamState extends State<PanSaveParam> {
           child: const Text('save'),
           onPressed: () {
             bddStorage.addApiParam(
-              widget.api.currentAPI!,
-              widget.api.selectedExample!.info.masterID!,
+              widget.api.currentAPIRequest!,
+              widget.api.selectedExample!.masterID!,
               'test',
               widget.jsonParam,
             );
@@ -86,11 +86,11 @@ class _PanSaveParamState extends State<PanSaveParam> {
         ),
         Flexible(
           child: TextEditor(
-            config: YamlEditorConfig(
+            config: CodeEditorConfig(
               readOnly: true,
               mode: json,
               getText: () => text,
-              onChange: (String json, YamlEditorConfig config) {
+              onChange: (String json, CodeEditorConfig config) {
                 // Handle changes if needed
               },
               notifError: ValueNotifier(''),

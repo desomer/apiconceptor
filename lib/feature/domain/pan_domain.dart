@@ -14,7 +14,7 @@ class PanDomain extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     currentCompany.listDomain.onChange = (_) {
-      if (currentCompany.listDomain.currentAttr == null &&
+      if (currentCompany.listDomain.selectedAttr == null &&
           currentCompany.listDomain.useAttributInfo.isNotEmpty) {
         currentCompany.listDomain.setCurrentAttr(
           currentCompany.listDomain.useAttributInfo.first,

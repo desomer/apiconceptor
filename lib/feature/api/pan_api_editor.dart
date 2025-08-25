@@ -1,17 +1,21 @@
-import 'dart:convert';
+import 'dart:convert' show JsonEncoder;
 
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:highlight/languages/json.dart';
+import 'package:jmespath/jmespath.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/core/caller_api.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
+import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
-import 'package:jsonschema/feature/api/widget_api_param.dart';
+import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
@@ -33,34 +37,18 @@ class PanApiEditor extends StatefulWidget {
 }
 
 class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
-  AttributInfo? displayedSchema;
   String? url;
+  late WidgetRequestHelper requestHelper;
 
   @override
   Widget build(BuildContext context) {
-    repaintManager.addTag(ChangeTag.apichange, "_PanApiEditorState", this, () {
-      currentCompany.apiCallInfo = getAPICall(
-        currentCompany.listAPI!.currentAttr!,
-      );
-      if (url != currentCompany.apiCallInfo!.url) {
-        url = currentCompany.apiCallInfo!.url;
-        return true;
-      }
-
-      return displayedSchema != currentCompany.listAPI!.currentAttr?.info;
-    });
-
-    // if (currentCompany.listAPI.currentAttr == null) return Container();
-    // if (currentCompany.currentAPIResquest!.loadingTime != 0) return Center();
-
-    //displayedSchema = currentCompany.listAPI.currentAttr!.info;
-    //initNewApi();
-
     var attr = currentCompany.listAPI!.nodeByMasterId[widget.idApi]!;
-    currentCompany.listAPI!.currentAttr = attr;
-    currentCompany.apiCallInfo ??= getAPICall(
-      currentCompany.listAPI!.currentAttr!,
+    currentCompany.listAPI!.selectedAttr = attr;
+    requestHelper = WidgetRequestHelper(
+      apiCallInfo: getAPICall(currentCompany.listAPI!.selectedAttr!),
     );
+
+    // callInfo = currentCompany.currentAPICallInfo!;
 
     return WidgetTab(
       onInitController: (TabController tab) {
@@ -78,12 +66,12 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
           child: Row(
             spacing: 10,
             children: [
-              Text('Test API & check compliant'),
+              Text('Test & check compliant'),
               GlowingHalo(child: Icon(Icons.play_circle_outline)),
             ],
           ),
         ),
-        Tab(text: 'Validate Model'),
+        Tab(text: 'Browse response'),
         Tab(text: 'Mock responses'),
         Tab(text: 'Documentation'),
       ],
@@ -91,112 +79,165 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            currentCompany.apiCallInfo!.getAPIWidgetPath(context, 'view'),
+            requestHelper.getAPIWidgetPath(context, 'view'),
             Expanded(child: getDefinitionApiTab()),
           ],
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            currentCompany.apiCallInfo!.getAPIWidgetPath(context, 'view'),
+            requestHelper.getAPIWidgetPath(context, 'view'),
             Expanded(child: getExampleTab()),
           ],
         ),
-        Container(),
-        // Column(
-        //   crossAxisAlignment: CrossAxisAlignment.start,
-        //   children: [
-        //     currentCompany.apiCallInfo!.getAPIWidgetPath(context, 'preview'),
-        //     Expanded(
-        //       child: KeepAliveWidget(
-        //         child: WidgetApiCall(
-        //           key: ObjectKey(currentCompany.listAPI.currentAttr),
-        //           apiCallInfo: currentCompany.apiCallInfo!,
-        //         ),
-        //       ),
-        //     ),
-        //   ],
-        // ),
-        Container(),
-        // PanResponseMapper(
-        //   key: ObjectKey(currentCompany.listAPI.currentAttr),
-        //   apiCallInfo: currentCompany.apiCallInfo!,
-        // ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            requestHelper.getAPIWidgetPath(context, 'preview'),
+            Expanded(
+              child: KeepAliveWidget(
+                child: WidgetApiCall(
+                  idApi: widget.idApi,
+                  key: ObjectKey(attr),
+                  requestHelper: requestHelper,
+                ),
+              ),
+            ),
+          ],
+        ),
+        //        Container(),
+        getBrowseModel(),
         Container(),
         Container(),
+      ],
+      heightTab: 40,
+    );
+  }
+
+  Widget getBrowseModel() {
+    TextEditingController ctrl = TextEditingController();
+
+    CodeEditorConfig conf = CodeEditorConfig(
+      getText: () {
+        var encoder = JsonEncoder.withIndent("  ");
+        var json = requestHelper.apiCallInfo.aResponse?.reponse?.data ?? {};
+        var result = json;
+        if (ctrl.text.isNotEmpty) {
+          try {
+            var r = search(ctrl.text, json);
+            if (r != null) {
+              result = r;
+            }
+          } catch (e) {
+            print("$e");
+          }
+        }
+        var response = encoder.convert(result);
+        return response;
+      },
+      mode: json,
+      onChange: (String json, CodeEditorConfig config) {},
+      notifError: ValueNotifier<String>(''),
+    );
+
+    ctrl.addListener(() {
+      conf.repaintCode();
+    });
+
+    return WidgetTab(
+      listTab: [Tab(text: 'jmse search'), Tab(text: 'form viewer')],
+      listTabCont: [
+        Column(
+          children: [
+            Row(
+              spacing: 20,
+              children: [
+                Icon(Icons.search),
+                Expanded(
+                  child: TextField(
+                    controller: ctrl,
+                    decoration: InputDecoration(
+                      labelText: 'jmsepath expression',
+                    ),
+                  ),
+                ),
+                Icon(Icons.help),
+              ],
+            ),
+            Expanded(child: TextEditor(config: conf, header: 'search')),
+          ],
+        ),
+        PanResponseMapper(
+          //key: ObjectKey(currentCompany.listAPI.selectedAttr),
+          apiCallInfo: requestHelper.apiCallInfo,
+        ),
       ],
       heightTab: 40,
     );
   }
 
   Widget getExampleTab() {
-    return WidgetTab(
-      onInitController: (TabController tab) {},
-      listTab: [
-        Tab(text: 'Temporary'),
-        Tab(text: 'Saved'),
-        Tab(text: 'Shared'),
-        Tab(text: 'History'),
-      ],
-      listTabCont: [
-        KeepAliveWidget(
-          child: PanApiExample(
-            key: ValueKey(currentCompany.apiCallInfo),
-            apiCallInfo: currentCompany.apiCallInfo!,
-            getSchemaFct: () async {
-              var model = ModelSchema(
-                category: Category.exampleApi,
-                headerName: 'example',
-                id: 'example/temp/${widget.idApi}',
-                infoManager: InfoManagerApiExample(),
-              );
-              await model.loadYamlAndProperties(
-                cache: false,
-                withProperties: true,
-              );
-              return model;
-            },
-          ),
-        ),
-        Container(),
-        Container(),
-        Container(),
-      ],
-      heightTab: 40,
+    return PanApiExample(
+      config: ExampleConfig(
+        mode: ModeExample.design,
+        onSelect: () {
+          stateApi.tabSubApi?.animateTo(2);
+        },
+      ),
+      requesthelper: requestHelper,
+      getSchemaFct: () async {
+        var model = ModelSchema(
+          category: Category.exampleApi,
+          headerName: 'example',
+          id: 'example/temp/${widget.idApi}',
+          infoManager: InfoManagerApiExample(),
+          ref: null,
+        );
+        await model.loadYamlAndProperties(cache: false, withProperties: true);
+        return model;
+      },
     );
   }
 
-  APICallInfo getAPICall(NodeAttribut attr) {
-    String httpOpe = attr.yamlNode.key.toString().toLowerCase();
+  APICallManager getAPICall(NodeAttribut attr) {
+    String httpOpe = attr.info.name.toLowerCase();
 
-    var apiCallInfo = APICallInfo(
-      currentAPI: currentCompany.currentAPIResquest,
-      currentAPIResponse: currentCompany.currentAPIResponse,
-      httpOperation: httpOpe,
-    );
+    var apiCallInfo = APICallManager(api: attr.info, httpOperation: httpOpe);
 
     return apiCallInfo;
   }
 
   Widget getDefinitionApiTab() {
     return WidgetTab(
-      listTab: [Tab(text: 'Request'), Tab(text: 'Responses')],
+      listTab: [
+        Tab(text: 'Request'),
+        Tab(text: 'Responses'),
+        Tab(text: 'DTO Version'),
+      ],
       listTabCont: [
         PanRequestApi(
           getSchemaFct: () async {
-            return await GoTo().initApiRequest(widget.idApi);
+            return await GoTo().getApiRequestModel(
+              requestHelper.apiCallInfo,
+              widget.idApi,
+              withDelay: false,
+            );
           },
         ),
 
         PanRequestApi(
           getSchemaFct: () async {
-            return await GoTo().initApiResponse(widget.idApi);
+            return await GoTo().getApiResponseModel(
+              requestHelper.apiCallInfo,
+              widget.idApi,
+              withDelay: false,
+            );
           },
         ),
 
-        //PanResponseApi(response: currentCompany.currentAPIResponse),
+        Container(),
       ],
-      heightTab: 40,
+      heightTab: 30,
     );
   }
 
@@ -212,7 +253,7 @@ class InfoManagerAPIParam extends InfoManagerModel with WidgetHelper {
     var isParam = node.data.info.type == 'param';
     if (isParam) {
       String name = node.data.info.name;
-      return GetRowWidget(
+      return GetHeaderRowWidget(
         icon: Icon(Icons.input),
         name: name,
         isObject: false,
@@ -347,332 +388,5 @@ class InfoManagerAPIParam extends InfoManagerModel with WidgetHelper {
     };
 
     return statusMessages[code] ?? '';
-  }
-
-  // @override
-  // Widget getAttributHeader(TreeNode<NodeAttribut> node) {
-  //   Widget icon = Container();
-  //   var isRoot = node.isRoot;
-  //   var type = node.data!.info.type;
-  //   var isPath = type == 'Path';
-  //   String name = node.data!.yamlNode.key.toString().toLowerCase();
-  //   var isRef = node.data!.info.type == '\$ref';
-
-  //   if (isRoot && name == 'api') {
-  //     icon = Icon(Icons.business);
-  //   } else if (isPath) {
-  //     if (node.data!.info.properties!['\$server'] != null) {
-  //       icon = Icon(Icons.dns_outlined);
-  //     } else {
-  //       icon = Icon(Icons.lan_outlined);
-  //     }
-  //   } else if (name == ('\$server')) {
-  //     icon = Icon(Icons.http_outlined);
-  //     name = 'URL';
-  //   } else if (isRef) {
-  //     icon = Icon(Icons.link);
-  //     name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
-  //   }
-
-  //   late Widget? w = getHttpOpe(name);
-  //   if (w == null) {
-  //     List<Widget> wpath = [];
-  //     if (isRef) {
-  //       wpath.add(Text(name));
-  //     } else if (isPath) {
-  //       List<String> path = node.data!.yamlNode.key.toString().split('/');
-  //       int i = 0;
-  //       for (var element in path) {
-  //         bool isLast = i == path.length - 1;
-  //         if (element.startsWith('{')) {
-  //           String v = element.substring(1, element.length - 1);
-  //           wpath.add(getChip(Text(v), color: null));
-  //           if (!isLast) {
-  //             wpath.add(Text('/'));
-  //           }
-  //         } else {
-  //           wpath.add(Text(element + (!isLast ? '/' : '')));
-  //         }
-  //         i++;
-  //       }
-  //     } else {
-  //       wpath.add(Text(node.data!.yamlNode.key.toString()));
-  //     }
-  //     w = Row(children: wpath);
-  //   }
-
-  //   bool isAPI = node.data!.info.type == 'ope';
-  //   String bufPath = getTooltip(node, isAPI, name);
-
-  //   return Tooltip(
-  //     message: bufPath.toString(),
-  //     child: IntrinsicWidth(
-  //       //width: 180,
-  //       child: Padding(
-  //         padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
-  //         child: Row(
-  //           children: [
-  //             Padding(padding: EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
-  //             w,
-  //           ],
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
-  // String getTooltip(TreeNode<NodeAttribut> node, bool isAPI, String name) {
-  //   String bufPath = '';
-  //   NodeAttribut? nd = node.data!;
-
-  //   if (isAPI) {
-  //     nd = nd.parent;
-  //   }
-  //   while (nd != null) {
-  //     var sep = '';
-  //     var n = nd.yamlNode.key.toString().toLowerCase();
-  //     var isServer = nd.info.properties?['\$server'];
-  //     if (isServer != null) {
-  //       n = '<$isServer>';
-  //     }
-  //     if (!n.endsWith('/') && !bufPath.startsWith('/')) sep = '/';
-  //     bufPath = n + sep + bufPath;
-  //     if (nd.info.properties?['\$server'] != null) {
-  //       break;
-  //     }
-  //     nd = nd.parent;
-  //   }
-  //   if (isAPI) {
-  //     bufPath = '[${name.toUpperCase()}] $bufPath';
-  //   }
-  //   return bufPath;
-  // }
-}
-
-class APICallInfo with WidgetHelper {
-  APICallInfo({
-    required this.currentAPI,
-    required this.currentAPIResponse,
-    required this.httpOperation,
-  });
-
-  final String httpOperation;
-  final ModelSchema? currentAPI;
-  final ModelSchema? currentAPIResponse;
-
-  NodeAttribut? selectedExample;
-  String url = '';
-  List<String> urlParamId = [];
-  List<APIParamInfo> params = [];
-
-  dynamic body;
-  String bodyStr = '';
-
-  ValueNotifier<int> changeUrl = ValueNotifier(0);
-
-  APIResponse? aResponse;
-  ModelSchema? responseSchema;
-
-  Widget getAPIWidgetPath(BuildContext context, String mode) {
-    return ValueListenableBuilder(
-      valueListenable: changeUrl,
-      builder: (context, value, child) {
-        var attr = currentCompany.listAPI!.currentAttr;
-        if (attr != null) {
-          String httpOpe = attr.yamlNode.key.toString().toLowerCase();
-          url = '';
-          List<Widget> wpath = [];
-          Widget wOpe = getHttpOpe(httpOpe) ?? Container();
-
-          wpath.add(wOpe);
-
-          var nd = attr.parent;
-
-          stateApi.urlParam.clear();
-          while (nd != null) {
-            var n = nd.info.name; // getKeyParamFromYaml(nd.yamlNode.key);
-            if (nd.info.properties?['\$server'] != null) {
-              var urlserv = nd.info.properties?['\$server'];
-              url = '$urlserv$url';
-              wpath.insert(
-                1,
-                Padding(
-                  padding: EdgeInsets.fromLTRB(10, 0, 0, 0),
-                  child: Text(urlserv, style: TextStyle(color: Colors.white60)),
-                ),
-              );
-              break;
-            }
-            var path = _getPathWidgetFormNode(n);
-
-            wpath.insertAll(1, path);
-            if (!n.endsWith('/')) {
-              url = '/$url';
-              wpath.insert(1, Text('/'));
-            }
-
-            nd = nd.parent;
-          }
-
-          wpath.add(WidgetApiParam(apiCallInfo: this));
-
-          wpath.add(
-            Padding(
-              padding: EdgeInsetsGeometry.symmetric(horizontal: 10),
-              child: IconButton.filledTonal(
-                onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: addParametersOnUrl(url)),
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('URL copied to clipboard')),
-                  );
-                },
-                icon: Icon(Icons.copy),
-              ),
-            ),
-          );
-
-          return Card(
-            elevation: 10,
-            child: ListTile(
-              leading: Icon(Icons.api),
-              title: Row(children: wpath),
-            ),
-          );
-        } else {
-          return Container();
-        }
-      },
-    );
-  }
-
-  List<Widget> _getPathWidgetFormNode(String name) {
-    List<Widget> wpath = [];
-    List<String> path = name.split('/');
-    StringBuffer urlStr = StringBuffer();
-    int i = 0;
-    for (var element in path) {
-      bool isLast = i == path.length - 1;
-      if (element.startsWith('{')) {
-        String v = element.substring(1, element.length - 1);
-        wpath.add(getChip(Text(v), color: null));
-        stateApi.urlParam.insert(0, v);
-        urlParamId.insert(0, v);
-        urlStr.write(element);
-        if (!isLast) {
-          wpath.add(Text('/'));
-          urlStr.write('/');
-        }
-      } else {
-        if (element != '') {
-          wpath.add(
-            Text(
-              element + (!isLast ? '/' : ''),
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-          );
-          urlStr.write(element + (!isLast ? '/' : ''));
-        }
-      }
-      i++;
-    }
-    url = urlStr.toString() + url;
-    return wpath;
-  }
-
-  dynamic toJson() {
-    Map<String, dynamic> json = {};
-    int pos = 0;
-    for (var element in params) {
-      var type = element.type;
-      Map<String, dynamic>? tj = json[type];
-      if (tj == null) {
-        tj = {};
-        json[type] = tj;
-      }
-      tj[element.name] = {
-        'pos': pos,
-        'send': element.toSend,
-        'value': element.value,
-      };
-      pos++;
-    }
-    if (bodyStr.isNotEmpty) {
-      json['body'] = {'send': true, 'value': body};
-    }
-    print('$json');
-    return json;
-  }
-
-  void initWithJson(Map<String, dynamic> json) {
-    List<APIParamInfo> aParams = [];
-
-    for (var element in json.entries) {
-      var type = element.key;
-      if (type == 'body') {
-        body = element.value['value'];
-        const JsonEncoder encoder = JsonEncoder.withIndent('  ');
-        bodyStr = encoder.convert(body);
-      } else {
-        Map<String, dynamic> listParam = element.value;
-        for (var aParam in listParam.entries) {
-          var apiParamInfo = APIParamInfo(
-            name: aParam.key,
-            type: type,
-            info: null,
-          );
-          apiParamInfo.pos = aParam.value['pos'];
-          apiParamInfo.toSend = aParam.value['send'];
-          apiParamInfo.value = aParam.value['value'];
-          aParams.add(apiParamInfo);
-        }
-      }
-    }
-    aParams.sort();
-    // print(aParams);
-    params = aParams;
-  }
-
-  String addParametersOnUrl(String urlstr) {
-    int nbPathParam = 0;
-    for (var element in params) {
-      if (element.type == 'path') {
-        urlstr = urlstr.replaceAll(
-          '{${element.name}}',
-          getEscapeUrl(element.value) ?? '',
-        );
-      } else if (element.type == 'query' && element.toSend) {
-        if (nbPathParam == 0) {
-          urlstr = '$urlstr?${element.name}=${getEscapeUrl(element.value)}';
-        } else {
-          urlstr = '$urlstr&${element.name}=${getEscapeUrl(element.value)}';
-        }
-        nbPathParam++;
-      }
-    }
-    return urlstr;
-  }
-
-  String? getEscapeUrl(String? param) {
-    if (param == null) return null;
-    return Uri.encodeComponent(param);
-  }
-}
-
-class APIParamInfo implements Comparable<APIParamInfo> {
-  int pos = 0;
-  bool toSend = true;
-  AttributInfo? info;
-  final String type;
-  final String name;
-  dynamic value;
-  bool exist = false;
-
-  APIParamInfo({required this.type, required this.name, required this.info});
-
-  @override
-  int compareTo(APIParamInfo other) {
-    return pos.compareTo(other.pos);
   }
 }

@@ -11,7 +11,7 @@ import 'package:uuid/uuid.dart';
 // import 'package:nanoid/async.dart';
 
 String getKeyParamFromYaml(dynamic key) {
-  return (key is Map ? '{${key.keys.first}}' : key).toString();
+  return (key is Map ? '{${key.keys.firstOrNull}}' : key).toString();
 }
 
 class JsonBrowser<T> {
@@ -361,6 +361,7 @@ class JsonBrowser<T> {
         headerName: refName,
         id: masterIdRef,
         infoManager: model.infoManager,
+        ref : model.ref
       );
       modelRef.currentVersion =
           bddStorage

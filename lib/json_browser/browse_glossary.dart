@@ -51,15 +51,15 @@ class StackElem<T> {
   String toString() => 'List :$items';
 
   void push(T item) {
-    this.items.add(item);
+    items.add(item);
   }
 
   T pull() {
-    return this.items.removeLast();
+    return items.removeLast();
   }
 
   bool isEmpty() {
-    if (this.items == []) {
+    if (items == []) {
       return true;
     } else {
       return false;

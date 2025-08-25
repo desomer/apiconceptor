@@ -27,6 +27,7 @@ class HomePage extends GenericPageStateless {
                 getMenuArchitect(context),
               ),
               getExpansible("For developer", getMenuDevelopper(context)),
+              getExpansible("For content manager", getMenuCM(context)),
               getExpansible("For quality assurance", getMenuQA(context)),
               getExpansible("For administrator", getMenuAdmin(context)),
             ],
@@ -134,11 +135,12 @@ class HomePage extends GenericPageStateless {
           WidgetMenuBtn(
             label: 'Browse documentation',
             icon: Icons.insert_drive_file_outlined,
+            route: Pages.apiBrowser,
           ),
           WidgetMenuBtn(
             label: 'Call API',
             icon: Icons.call_end_outlined,
-            route: Pages.apiByTree,
+            // route: Pages.apiByTree,
           ),
           WidgetMenuBtn(label: 'Mock API', icon: Icons.av_timer),
           WidgetMenuBtn(label: 'Proxy API', icon: Icons.call_merge_outlined),
@@ -150,6 +152,27 @@ class HomePage extends GenericPageStateless {
           WidgetMenuBtn(
             label: 'Validation Workflow',
             icon: Icons.wechat_rounded,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget getMenuCM(BuildContext context) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Wrap(
+        spacing: 5, // espace horizontal entre les blocs
+        runSpacing: 5, // espace vertical entre les lignes
+        alignment: WrapAlignment.start,
+        children: [
+          WidgetMenuBtn(
+            label: 'Create content',
+            icon: Icons.content_paste_rounded,
+          ),
+          WidgetMenuBtn(
+            label: 'Browse content',
+            icon: Icons.content_paste_search,
           ),
         ],
       ),
@@ -209,7 +232,7 @@ class HomePage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
-    PageInit? pageInit
+    PageInit? pageInit,
   ) {
     return NavigationInfo()
       ..navLeft = [

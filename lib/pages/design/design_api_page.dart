@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/api/pan_api_action_hub.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
 import 'package:jsonschema/feature/api/pan_api_trashcan.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
@@ -10,9 +11,7 @@ import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
-import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget_state/state_api.dart';
 import 'package:yaml/yaml.dart';
 
 class DesignAPIPage extends GenericPageStateless {
@@ -23,31 +22,12 @@ class DesignAPIPage extends GenericPageStateless {
   @override
   Widget build(BuildContext context) {
     var panAPISelector = PanAPISelector(
-      //   key: keySel,
+      browseOnly: false,
+      onSelModel: null,
       getSchemaFct: () async {
         await Future.delayed(Duration(milliseconds: gotoDelay));
 
-        currentCompany.listAPI = ModelSchema(
-          category: Category.allApi,
-          headerName: 'API Route Path',
-          id: 'api',
-          infoManager: InfoManagerAPI(),
-        );
-        currentCompany.listAPI!.namespace = currentCompany.currentNameSpace;
-
-        if (withBdd) {
-          try {
-            await currentCompany.listAPI!.loadYamlAndProperties(
-              cache: false,
-              withProperties: true,
-            );
-            BrowseAPI().browse(currentCompany.listAPI!, false);
-          } on Exception catch (e) {
-            print("$e");
-            startError.add("$e");
-          }
-        }
-
+        await loadAllAPIGlobal();
         return currentCompany.listAPI!;
       },
     );
@@ -55,13 +35,14 @@ class DesignAPIPage extends GenericPageStateless {
     return getBackground(
       2,
       WidgetTab(
-        key: stateApi.keyTab,
-        onInitController: (TabController tab) {},
+        onInitController: (TabController tab) {
+          //stateApi.tabApi = tab;
+        },
         listTab: [Tab(text: 'API Browser'), Tab(text: 'Trashcan')],
         listTabCont: [
           Column(
             children: [
-              //PanApiActionHub(selector: panAPISelector),
+              PanApiActionHub(selector: panAPISelector),
               Expanded(child: panAPISelector),
             ],
           ),
@@ -72,6 +53,7 @@ class DesignAPIPage extends GenericPageStateless {
                 headerName: 'All trash',
                 id: 'api',
                 infoManager: InfoManagerTrashAPI(),
+                ref: null,
               );
               trash.autoSaveProperties = false;
 
@@ -136,6 +118,7 @@ class DesignAPIPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
+          path: Pages.api.urlpath,
         ),
       ];
   }

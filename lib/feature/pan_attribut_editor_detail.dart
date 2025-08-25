@@ -38,16 +38,16 @@ class _AttributPropertiesState extends State<AttributProperties> {
         if (widget.typeAttr == TypeAttr.detailmodel) Container(),
         if (widget.typeAttr == TypeAttr.detailmodel) Container(),
       ],
-      heightTab: 40,
+      heightTab: 30,
     );
   }
 
   Widget getTypeValidator(ModelSchema? model) {
-    if (model?.currentAttr == null) {
+    if (model?.selectedAttr == null) {
       return Container();
     }
 
-    String type = model!.currentAttr!.info.type.toLowerCase();
+    String type = model!.selectedAttr!.info.type.toLowerCase();
 
     if (type == 'string') {
       return getValidatorStringForm(model);
@@ -63,7 +63,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
   }
 
   Widget getValidatorArrayForm(ModelSchema model) {
-    var info = model.currentAttr!;
+    var info = model.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -130,7 +130,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
   }
 
   Widget getValidatorNumberForm(ModelSchema model) {
-    var info = model.currentAttr!;
+    var info = model.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -246,7 +246,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
   }
 
   Widget getValidatorStringForm(ModelSchema model) {
-    var info = model.currentAttr!;
+    var info = model.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -356,7 +356,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
   }
 
   Widget getValidatorBoolForm(ModelSchema? model) {
-    var info = model!.currentAttr!;
+    var info = model!.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -394,11 +394,11 @@ class _AttributPropertiesState extends State<AttributProperties> {
   }
 
   Widget getInfoForm(ModelSchema? model) {
-    if (model?.currentAttr == null) {
+    if (model?.selectedAttr == null) {
       return Container();
     }
 
-    var info = model!.currentAttr!;
+    var info = model!.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(

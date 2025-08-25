@@ -68,6 +68,7 @@ class DesignModelDetailPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
+          path: Pages.models.urlpath
         ),
         BreadNode(
           settings: RouteSettings(

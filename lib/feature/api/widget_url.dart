@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/core/api/call_manager.dart';
 
 class WidgetApiParam extends StatefulWidget {
   const WidgetApiParam({super.key, required this.apiCallInfo});
-  final APICallInfo apiCallInfo;
+  final APICallManager apiCallInfo;
 
   @override
   State<WidgetApiParam> createState() => _WidgetApiParamState();

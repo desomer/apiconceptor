@@ -56,6 +56,7 @@ Future<Response> _echoRequest(Request request) async {
       infoManager: InfoManagerModel(typeMD: TypeMD.model),
       headerName: apiInfo.name,
       id: 'response/$key',
+      ref: currentCompany.listAPI!.ref
     );
     if (withBdd) {
       await currentModel.loadYamlAndProperties(

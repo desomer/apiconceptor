@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/markdown.dart';
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/import/url2api.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget_state/state_api.dart';
 
 // ignore: must_be_immutable
 class PanAPIImport extends StatelessWidget {
-  PanAPIImport({super.key});
+  PanAPIImport({super.key, required this.yamlEditorConfig});
 
   late TabController tabImport;
+  final CodeEditorConfig yamlEditorConfig;
 
-  Widget _getImportTab(Url2Api import, ModelSchema model, BuildContext ctx) {
+  Widget _getImportTab(Url2Api import, ModelSchema? model, BuildContext ctx) {
     return WidgetTab(
       onInitController: (TabController tab) {
         tabImport = tab;
@@ -28,12 +27,12 @@ class PanAPIImport extends StatelessWidget {
 
   Widget _getURLImport(Url2Api import) {
     return TextEditor(
-      config: YamlEditorConfig(
+      config: CodeEditorConfig(
         mode: markdown,
         getText: () {
           return '';
         },
-        onChange: (String json, YamlEditorConfig config) {
+        onChange: (String json, CodeEditorConfig config) {
           import.raw = json;
         },
         notifError: ValueNotifier(''),
@@ -42,7 +41,7 @@ class PanAPIImport extends StatelessWidget {
     );
   }
 
-  Widget _getAttrSelector(ModelSchema model) {
+  Widget _getAttrSelector(ModelSchema? model) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -56,15 +55,16 @@ class PanAPIImport extends StatelessWidget {
   Widget build(BuildContext context) {
     Url2Api import = Url2Api();
 
-    ModelSchema model = ModelSchema(
-      category: Category.selector,
-      headerName: 'Select Models',
-      id: 'model',
-      infoManager: currentCompany.listModel!.infoManager,
-    );
-    model.autoSaveProperties = false;
-    model.mapModelYaml = currentCompany.listModel!.mapModelYaml;
-    model.modelProperties = currentCompany.listModel!.modelProperties;
+    // ModelSchema model = ModelSchema(
+    //   category: Category.selector,
+    //   headerName: 'Select Models',
+    //   id: 'model',
+    //   infoManager: currentCompany.listModel!.infoManager,
+    //   ref: currentCompany.listModel!,
+    // );
+    // model.autoSaveProperties = false;
+    // model.mapModelYaml = currentCompany.listModel!.mapModelYaml;
+    // model.modelProperties = currentCompany.listModel!.modelProperties;
 
     Size size = MediaQuery.of(context).size;
     double width = size.width * 0.8;
@@ -76,7 +76,7 @@ class PanAPIImport extends StatelessWidget {
         width: width,
         height: height,
 
-        child: _getImportTab(import, model, context),
+        child: _getImportTab(import, null, context),
       ),
       actions: <Widget>[
         TextButton(
@@ -93,9 +93,13 @@ class PanAPIImport extends StatelessWidget {
               modelSchemaDetail.modelYaml =
                   import.doImportJSON(modelSchemaDetail).yaml.toString();
 
-              stateApi.repaintListAPI();
+              //stateApi.repaintListAPI();
 
-              modelSchemaDetail.doChangeAndRepaintYaml(null, true, 'import');
+              modelSchemaDetail.doChangeAndRepaintYaml(
+                yamlEditorConfig,
+                true,
+                'import',
+              );
 
               // WidgetsBinding.instance.addPostFrameCallback((_) {
               //   var newModel =

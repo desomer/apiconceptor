@@ -13,13 +13,12 @@ import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
-import 'package:jsonschema/widget_state/state_model.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 
 // ignore: must_be_immutable
 class PanModelTrashcan extends StatelessWidget with WidgetHelper {
   PanModelTrashcan({super.key, required this.getModelFct});
-  YamlEditorConfig? textConfig;
+  CodeEditorConfig? textConfig;
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
   State? rowSelected;
   final GlobalKey keyAttrEditor = GlobalKey(
@@ -37,7 +36,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
       return modelToDisplay?.modelYaml;
     }
 
-    textConfig ??= YamlEditorConfig(
+    textConfig ??= CodeEditorConfig(
       mode: yaml,
       notifError: ValueNotifier<String>(''),
       onChange: () {},
@@ -171,7 +170,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
         child: HoverableCard(
           isSelected: (State state) {
             attr.widgetSelectState = state;
-            bool isSelected = schema.currentAttr == attr;
+            bool isSelected = schema.selectedAttr == attr;
             if (isSelected) {
               rowSelected = state;
             }
@@ -192,21 +191,21 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
   }
 
   void _doShowAttrEditor(ModelSchema schema, NodeAttribut attr) {
-    if (schema.currentAttr == attr && showAttrEditor.value == 300) {
+    if (schema.selectedAttr == attr && showAttrEditor.value == 300) {
       showAttrEditor.value = 0;
     } else {
       showAttrEditor.value = 300;
     }
-    schema.currentAttr = attr;
+    schema.selectedAttr = attr;
     //ignore: invalid_use_of_protected_member
     keyAttrEditor.currentState?.setState(() {});
   }
 
   Future<void> _goToModel(NodeAttribut attr, int tabNumber) async {
     if (attr.info.type == 'model') {
-      stateModel.tabDisable.clear();
-      // ignore: invalid_use_of_protected_member
-      stateModel.keyTab.currentState?.setState(() {});
+      // stateModel.tabDisable.clear();
+      // // ignore: invalid_use_of_protected_member
+      // stateModel.keyTab.currentState?.setState(() {});
 
       var key = attr.info.properties![constMasterID];
       currentCompany.currentModel = ModelSchema(
@@ -214,6 +213,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
         infoManager: InfoManagerModel(typeMD: TypeMD.model),
         headerName: attr.info.name,
         id: key,
+        ref: currentCompany.listModel,
       );
       currentCompany.currentModelSel = attr;
       //listModel.currentAttr = attr;
@@ -238,7 +238,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
 
       //stateModel.tabModel.animateTo(tabNumber);
       // ignore: invalid_use_of_protected_member
-      stateModel.keyModelEditor.currentState?.setState(() {});
+      //stateModel.keyModelEditor.currentState?.setState(() {});
     }
   }
 }

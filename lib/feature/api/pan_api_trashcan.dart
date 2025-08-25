@@ -20,11 +20,15 @@ import 'package:jsonschema/widget/widget_md_doc.dart';
 // ignore: must_be_immutable
 class PanAPITrashcan extends StatelessWidget with WidgetHelper {
   PanAPITrashcan({super.key, required this.getModelFct});
-  YamlEditorConfig? textConfig;
+  CodeEditorConfig? textConfig;
   final ValueNotifier<double> showAttrEditor = ValueNotifier(0);
   State? rowSelected;
-  final GlobalKey keyAttrEditor = GlobalKey();
-  final GlobalKey treeEditor = GlobalKey();
+  final GlobalKey keyAttrEditor = GlobalKey(
+    debugLabel: 'PanAPITrashcankeyAttrEditor',
+  );
+  final GlobalKey treeEditor = GlobalKey(
+    debugLabel: 'PanAPITrashcankeyAttrEditor',
+  );
   final Function getModelFct;
   ModelSchema? modelToDisplay;
 
@@ -36,7 +40,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
       return modelToDisplay?.modelYaml;
     }
 
-    textConfig ??= YamlEditorConfig(
+    textConfig ??= CodeEditorConfig(
       mode: yaml,
       notifError: ValueNotifier<String>(''),
       onChange: () {},
@@ -163,7 +167,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
         child: HoverableCard(
           isSelected: (State state) {
             attr.widgetSelectState = state;
-            bool isSelected = schema.currentAttr == attr;
+            bool isSelected = schema.selectedAttr == attr;
             if (isSelected) {
               rowSelected = state;
             }
@@ -184,12 +188,12 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
   }
 
   void _doShowAttrEditor(ModelSchema schema, NodeAttribut attr) {
-    if (schema.currentAttr == attr && showAttrEditor.value == 300) {
+    if (schema.selectedAttr == attr && showAttrEditor.value == 300) {
       showAttrEditor.value = 0;
     } else {
       showAttrEditor.value = 300;
     }
-    schema.currentAttr = attr;
+    schema.selectedAttr = attr;
     //ignore: invalid_use_of_protected_member
     keyAttrEditor.currentState?.setState(() {});
   }
@@ -200,9 +204,9 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
     int subtabNumber = -1,
   }) async {
     if (attr.level == 2) {
-      stateApi.tabDisable.clear();
+      //stateApi.tabDisable.clear();
       // ignore: invalid_use_of_protected_member
-      stateApi.keyTab.currentState?.setState(() {});
+      // stateApi.keyTab.currentState?.setState(() {});
 
       NodeAttribut? n = attr.parent;
       var modelPath = [];
@@ -220,7 +224,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
       // // ignore: invalid_use_of_protected_member
       // stateApi.keyBreadcrumb.currentState?.setState(() {});
 
-      currentCompany.listAPI!.currentAttr = attr;
+      currentCompany.listAPI!.selectedAttr = attr;
 
       var key = attr.info.name;
       currentCompany.currentAPIResquest = ModelSchema(
@@ -228,6 +232,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
         infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
         headerName: 'trashcan/${attr.info.type}',
         id: key,
+        ref: currentCompany.listModel,
       );
 
       await currentCompany.currentAPIResquest!.loadYamlAndProperties(
@@ -235,7 +240,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
         withProperties: true,
       );
       currentCompany.currentAPIResquest!.onChange = (change) {
-        currentCompany.apiCallInfo?.params.clear();
+        //currentCompany.currentAPICallInfo?.params.clear();
         repaintManager.doRepaint(ChangeTag.apiparam);
       };
 
@@ -244,6 +249,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
         infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
         headerName: attr.info.name,
         id: 'response/$key',
+        ref: currentCompany.listModel,
       );
 
       await currentCompany.currentAPIResponse!.loadYamlAndProperties(
@@ -253,7 +259,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
 
       repaintManager.doRepaint(ChangeTag.apichange);
 
-      stateApi.tabApi?.index = tabNumber;
+      //stateApi.tabApi?.index = tabNumber;
       Future.delayed(Duration(milliseconds: 100)).then((value) {
         stateApi.tabSubApi?.index = 0; // charge l'ordre des params
         Future.delayed(Duration(milliseconds: 100)).then((value) {

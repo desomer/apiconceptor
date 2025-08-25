@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/model/pan_model_import_dialog.dart';
 import 'package:jsonschema/feature/pan_attribut_editor.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
@@ -45,7 +46,7 @@ class PanModelSelector extends PanYamlTree {
       row.add(
         TextButton.icon(
           onPressed: () async {
-            node.doTap();
+            node.doTapHeader();
           },
           label: Icon(Icons.remove_red_eye),
         ),
@@ -55,7 +56,7 @@ class PanModelSelector extends PanYamlTree {
           icon: Icon(Icons.import_export),
           onPressed: () async {
             if (attr.info.type == 'model') {
-              node.doTap();
+              node.doTapHeader();
             }
           },
           label: Text('Json schemas'),
@@ -78,7 +79,7 @@ class PanModelSelector extends PanYamlTree {
 
       //context.push(Pages.modelDetail.url);
     } else {
-      node.doToogle();
+      node.doToogleChild();
     }
   }
 
@@ -89,6 +90,16 @@ class PanModelSelector extends PanYamlTree {
       key: keyAttrEditor,
       getModel: () {
         return getSchema();
+      },
+    );
+  }
+
+  Future<void> showImportDialog(BuildContext ctx) async {
+    return showDialog<void>(
+      context: ctx,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return PanModelImportDialog(yamlEditorConfig: getYamlConfig());
       },
     );
   }
