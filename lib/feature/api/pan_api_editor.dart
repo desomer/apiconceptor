@@ -12,6 +12,8 @@ import 'package:jsonschema/core/api/call_manager.dart';
 import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
+import 'package:jsonschema/feature/api/pan_api_mock.dart';
+import 'package:jsonschema/feature/transform/pan_repsonse_viewer.dart';
 import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
@@ -25,6 +27,7 @@ import 'package:jsonschema/widget_state/state_api.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 
+import '../../widget/editor/doc_editor.dart';
 import 'pan_api_request.dart';
 
 class PanApiEditor extends StatefulWidget {
@@ -54,26 +57,28 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
       onInitController: (TabController tab) {
         stateApi.tabSubApi = tab;
         tab.addListener(() {
-          if (tab.index == 2) {
+          if (tab.index == 4) {
             repaintManager.doRepaint(ChangeTag.apiparam);
           }
         });
       },
       listTab: [
         Tab(text: 'Definition'),
+        Tab(text: 'Documentation'),
         Tab(text: 'Call examples'),
+        Tab(text: 'Mock responses'),
         Tab(
           child: Row(
             spacing: 10,
             children: [
               Text('Test & check compliant'),
-              GlowingHalo(child: Icon(Icons.play_circle_outline)),
+              RepaintBoundary(
+                child: GlowingHalo(child: Icon(Icons.play_circle_outline)),
+              ),
             ],
           ),
         ),
         Tab(text: 'Browse response'),
-        Tab(text: 'Mock responses'),
-        Tab(text: 'Documentation'),
       ],
       listTabCont: [
         Column(
@@ -83,6 +88,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
             Expanded(child: getDefinitionApiTab()),
           ],
         ),
+        WidgetDoc(),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -93,12 +99,25 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            requestHelper.getAPIWidgetPath(context, 'view'),
+            Expanded(
+              child: WidgetApiMock(
+                idApi: widget.idApi,
+                // key: ObjectKey(attr),
+                requestHelper: requestHelper,
+              ),
+            ),
+          ],
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             requestHelper.getAPIWidgetPath(context, 'preview'),
             Expanded(
               child: KeepAliveWidget(
                 child: WidgetApiCall(
                   idApi: widget.idApi,
-                  key: ObjectKey(attr),
+                  // key: ObjectKey(attr),
                   requestHelper: requestHelper,
                 ),
               ),
@@ -107,8 +126,6 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
         ),
         //        Container(),
         getBrowseModel(),
-        Container(),
-        Container(),
       ],
       heightTab: 40,
     );
@@ -145,7 +162,11 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
     });
 
     return WidgetTab(
-      listTab: [Tab(text: 'jmse search'), Tab(text: 'form viewer')],
+      listTab: [
+        Tab(text: 'jmse search'),
+        Tab(text: 'UI'),
+        Tab(text: 'form viewer'),
+      ],
       listTabCont: [
         Column(
           children: [
@@ -167,6 +188,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
             Expanded(child: TextEditor(config: conf, header: 'search')),
           ],
         ),
+        PanRepsonseViewer(apiCallInfo: requestHelper.apiCallInfo),
         PanResponseMapper(
           //key: ObjectKey(currentCompany.listAPI.selectedAttr),
           apiCallInfo: requestHelper.apiCallInfo,
@@ -180,8 +202,11 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
     return PanApiExample(
       config: ExampleConfig(
         mode: ModeExample.design,
-        onSelect: () {
-          stateApi.tabSubApi?.animateTo(2);
+        onSelectHeader: () {
+          stateApi.tabSubApi?.animateTo(4);
+        },
+        onSelectMock: () {
+          stateApi.tabSubApi?.animateTo(3);
         },
       ),
       requesthelper: requestHelper,

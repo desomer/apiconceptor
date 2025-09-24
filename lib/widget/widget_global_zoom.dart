@@ -23,7 +23,7 @@ class _WidgetGlobalZoomState extends State<WidgetGlobalZoom> {
         activeBackgroundColor: Colors.blueGrey,
       ),
       didChangeCount: (count) {
-        if (count < 80 || count > 130) return;
+        if (count < 80 || count > 110) return;
         setState(() {
           zoom.value = count;
           timezoom = DateTime.now().millisecondsSinceEpoch;

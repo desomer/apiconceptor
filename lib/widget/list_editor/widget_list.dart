@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
+import 'package:jsonschema/widget/widget_hover.dart';
+
+typedef IsSelected<T> =
+    bool Function(T node, State? current, State? oldSelectedState);
 
 class WidgetList<T extends NodeAttribut> extends StatefulWidget {
   const WidgetList({
@@ -10,12 +15,18 @@ class WidgetList<T extends NodeAttribut> extends StatefulWidget {
     required this.loadAll,
     required this.onSave,
     required this.model,
+    required this.isSelected,
+    this.onSelectRow,
+    this.withSpacer=true,
   });
 
   final Function getNewAttribut;
   final Function loadAll;
   final Function onSave;
   final ModelSchema model;
+  final IsSelected<T> isSelected;
+  final Function? onSelectRow;
+  final bool withSpacer;
 
   @override
   State<WidgetList<T>> createState() => _WidgetListState();
@@ -52,12 +63,23 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
     super.initState();
   }
 
+  void doSelectedRow(T attr) {
+    widget.model.selectedAttr = attr;
+    if (rowSelectedState?.mounted == true) {
+      // ignore: invalid_use_of_protected_member
+      rowSelectedState?.setState(() {});
+    }
+    if (widget.onSelectRow != null) {
+      widget.onSelectRow!();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     _choices.clear();
     _choices.addAll(widget.loadAll());
 
-    var ret = <Widget>[];
+    var listRows = <Widget>[];
     for (int index = 0; index < _choices.length; index++) {
       var choice = _choices[index];
       var cells = <Widget>[
@@ -76,8 +98,14 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
           ),
         ),
       ];
-      widget.model.infoManager.addRowWidget(choice, widget.model, cells, context);
-      cells.add(Spacer());
+      widget.model.infoManager.addRowWidget(
+        choice,
+        widget.model,
+        cells,
+        context,
+      );
+      if (widget.withSpacer) cells.add(Spacer());
+      if (!widget.withSpacer) cells.add(SizedBox(width: 20,));
       cells.add(
         Padding(
           padding: EdgeInsets.only(right: 50),
@@ -88,15 +116,17 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
         ),
       );
 
-      ret.add(
-        Container(
-          key: ValueKey(_choices[index].info),
-          // decoration: BoxDecoration(
-          //   border: BoxBorder.fromLTRB(
-          //     bottom: BorderSide(color: Colors.grey, width: 1),
-          //   ),
-          // ),
-          child: Row(children: cells),
+      listRows.add(
+        getHover(
+          ValueKey(_choices[index].info),
+          _choices[index],
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              doSelectedRow(_choices[index]);
+            },
+            child: Row(children: cells),
+          ),
         ),
       );
     }
@@ -112,7 +142,10 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
                 top: BorderSide(color: Colors.grey, width: 1),
               ),
             ),
-            child: ReorderableListView(onReorder: _onReorder, children: ret),
+            child: ReorderableListView(
+              onReorder: _onReorder,
+              children: listRows,
+            ),
           ),
         ),
       ],
@@ -135,6 +168,31 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
         _addChoice();
       },
       label: Text('Add'),
+    );
+  }
+
+  State? rowSelectedState;
+
+  Widget getHover(Key key, T attr, Widget child) {
+    return HoverableCard(
+      key: key,
+      isSelected: (State state) {
+        bool isSelected = widget.isSelected(attr, state, rowSelectedState);
+        if (isSelected) {
+          if (state != rowSelectedState) {
+            var old = rowSelectedState;
+            SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+              if (rowSelectedState?.mounted == true) {
+                // ignore: invalid_use_of_protected_member
+                old?.setState(() {});
+              }
+            });
+          }
+          rowSelectedState = state;
+        }
+        return isSelected;
+      },
+      child: child,
     );
   }
 }

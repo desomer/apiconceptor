@@ -34,7 +34,7 @@ class BrowseGlossary<T extends Map> extends JsonBrowser<T> {
   }
 
   @override
-  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
     return parent;
   }
 

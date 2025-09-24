@@ -69,7 +69,7 @@ class JsonBrowserWidget extends JsonBrowser {
   }
 
   @override
-  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
     if (pathFilter != null) {
       var find = false;
       for (var element in pathFilter!) {

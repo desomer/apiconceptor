@@ -38,6 +38,13 @@ class DesignModelDetailScrumPage extends GenericPageStateless {
         ),
 
         BreadNode(
+          icon: const Icon(Icons.airplane_ticket),
+          settings: const RouteSettings(name: 'UI Design'),
+          type: BreadNodeType.widget,
+          path: Pages.modelUI.urlpath,
+        ),
+
+        BreadNode(
           icon: const Icon(Icons.bubble_chart),
           settings: const RouteSettings(name: 'Graph view'),
           type: BreadNodeType.widget,

@@ -10,7 +10,7 @@ class WidgetTab extends StatefulWidget {
     this.onInitController,
     super.key,
     this.heightContent,
-    this.tabDisable
+    this.tabDisable,
   });
 
   final List<Widget> listTab;
@@ -53,8 +53,6 @@ class _WidgetTabState extends State<WidgetTab>
     });
   }
 
-
-
   @override
   void dispose() {
     super.dispose();
@@ -63,18 +61,18 @@ class _WidgetTabState extends State<WidgetTab>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints viewportConstraints) {
-        double heightTab = widget.heightTab * (zoom.value / 100);
-        if (widget.heightContent == true) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              getTabActionLayout(widget.listTab, heightTab),
-              widget.listTabCont[controllerTab.index],
-            ],
-          );
-        } else {
+    double heightTab = widget.heightTab * (zoom.value / 100);
+    if (widget.heightContent == true) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          getTabActionLayout(widget.listTab, heightTab),
+          widget.listTabCont[controllerTab.index],
+        ],
+      );
+    } else {
+      return LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints viewportConstraints) {
           var heightContent = viewportConstraints.maxHeight - heightTab - 2;
 
           return Column(
@@ -95,9 +93,9 @@ class _WidgetTabState extends State<WidgetTab>
               ),
             ],
           );
-        }
-      },
-    );
+        },
+      );
+    }
   }
 
   bool isDisable(int idx) {

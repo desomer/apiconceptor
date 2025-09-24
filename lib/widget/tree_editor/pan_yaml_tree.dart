@@ -5,7 +5,6 @@ import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
-import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:flutter/material.dart';
@@ -98,12 +97,20 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     var attributProp = getAttributProperties(context);
 
     if (attributProp != null) {
-      attrViewer = Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: getTree(context)),
-          WidgetHiddenBox(showNotifier: _showAttrEditor, child: attributProp),
-        ],
+      attrViewer = ValueListenableBuilder(
+        valueListenable: _showAttrEditor,
+        builder: (context, value, child) {
+          return SplitView(
+            key: ValueKey(value),
+            secondaryWidth: _showAttrEditor.value,
+            primaryWidth: -1,
+            children: [
+              getTree(context),
+              attributProp,
+              //WidgetHiddenBox(showNotifier: _showAttrEditor, child: attributProp),
+            ],
+          );
+        },
       );
     } else {
       actionRowOnTapDetail = true;
@@ -168,11 +175,6 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         jsonBrowserWidget.repaintRowState = state;
       },
       getNodes: () {
-        // stateOpenFactor?.setList(this);
-        //_textConfig?.treeJsonState = this;
-        //..state = this
-        //..pathFilter = pathFilter
-
         NodeBrower browser = jsonBrowserWidget.browse(_schema, true);
         _schema.lastBrowser = browser;
         _schema.lastJsonBrowser = jsonBrowserWidget;
@@ -195,6 +197,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
               doSelectedRow(node.data);
               onActionRow(node, context);
             } else {
+              doSelectedRow(node.data);
               doShowAttrEditor(node.data);
             }
           },
@@ -277,13 +280,12 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   }
 
   void doShowAttrEditor(NodeAttribut attr) {
-    doSelectedRow(attr);
-
-    if (_schema.selectedAttr == attr && _showAttrEditor.value == 300) {
+    if (oldSelected == attr && _showAttrEditor.value == 300) {
       _showAttrEditor.value = 0;
     } else {
       _showAttrEditor.value = 300;
     }
+
     //ignore: invalid_use_of_protected_member
     keyAttrEditor.currentState?.setState(() {});
 
@@ -291,7 +293,10 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     // attr.widgetSelectState?.setState(() {});
   }
 
+  NodeAttribut? oldSelected;
+
   void doSelectedRow(NodeAttribut attr) {
+    oldSelected = _schema.selectedAttr;
     _schema.selectedAttr = attr;
     if (selectedState?.mounted == true) {
       // ignore: invalid_use_of_protected_member
@@ -329,8 +334,10 @@ class TreeViewBrowserWidget extends JsonBrowser {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       repaintRowState!.headerSize = -1;
       repaintRowState!.repaintInProgess = DateTime.now().millisecondsSinceEpoch;
-      // ignore: invalid_use_of_protected_member
-      repaintRowState!.setState(() {});
+      if (repaintRowState!.mounted) {
+        // ignore: invalid_use_of_protected_member
+        repaintRowState!.setState(() {});
+      }
     });
   }
 
@@ -346,7 +353,12 @@ class TreeViewBrowserWidget extends JsonBrowser {
   }
 
   @override
-  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     TreeNodeData<NodeAttribut> pn = parent as TreeNodeData<NodeAttribut>;
     TreeNodeData<NodeAttribut> newNode = pn.exist(node, (NodeAttribut e) {
       return e.info;

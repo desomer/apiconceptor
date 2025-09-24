@@ -1,12 +1,18 @@
 import 'dart:convert';
 
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';
 
 abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     extends JsonBrowser<T> {
   @override
-  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     doClean(node);
     String type = node.info.type.toLowerCase();
     String name = node.info.name;
@@ -30,15 +36,37 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
       } else if (node.child.length == 1 &&
           node.child.first.info.name == constRefOn) {
         toAdd = doArrayOfType(name, node.child.first.info.type, node);
+        if (parent != null && (toAdd.loop ?? 0) > 0) {
+          for (var i = 0; i < (toAdd.loop ?? 0); i++) {
+            dynamic c = getChild(model, parentNode, node, null);
+            if (c != null) {
+              doTree(model, node, c[0]);
+            }
+            (toAdd.value as List).add(c[0]);
+          }
+        }
       } else {
         toAdd = doArrayOfObject(name, node);
+        // gestion des ajout ramdom des enfants d'un tableau d'object
+        if (parent != null && (toAdd.loop ?? 0) > 0) {
+          for (var i = 0; i < (toAdd.loop ?? 0); i++) {
+            dynamic c = getChild(model, parentNode, node, null);
+            if (c != null) {
+              doTree(model, node, c[0]);
+            }
+            (toAdd.value as List).add(c[0]);
+          }
+        }
       }
     } else if (type == '\$anyof') {
       toAdd = doAnyOf(name, node);
     } else if (type == '\$ref') {
       toAdd = doRefOf(name, node);
     } else if (type == 'object') {
-      if (node.info.isRef != null) {
+      if (node.child.length == 1 &&
+          node.child.first.info.name == constTypeAnyof) {
+        toAdd = doObjectWithAnyOf(name, node);
+      } else if (node.info.isRef != null) {
         toAdd = doRef(name, node);
       } else {
         toAdd = doObject(name, node);
@@ -47,7 +75,14 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
       toAdd = doAttr(name, type, node);
     }
 
+    if (parent == null) return toAdd.value; // cas ramdom des enfants
+
     if (!toAdd.add) {
+      if (toAdd.name == '') {
+        // node canceled
+        return null;
+      }
+
       // node invisible
       return parent;
     }
@@ -64,7 +99,9 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
         parent[parentNode.addInAttr] ??= {};
         parent[parentNode.addInAttr][name] = value;
       } else {
-        parent[name] = value;
+        if (name != '') {
+          parent[name] = value;
+        }
       }
     }
     return toAdd.parentOfChild ?? value;
@@ -75,6 +112,8 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
   NodeJson doArrayOfType(String name, String type, NodeAttribut node);
 
   NodeJson doArrayWithAnyOf(String name, NodeAttribut node);
+
+  NodeJson doObjectWithAnyOf(String name, NodeAttribut node);
 
   NodeJson doAnyOf(String name, NodeAttribut node);
 
@@ -88,7 +127,9 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
 
   void doClean(NodeAttribut node) {
     node.addChildOn = null;
-    node.addInAttr = "";
+    if (node.addInAttr != '##__choised__##') {
+      node.addInAttr = "";
+    }
   }
 
   @override
@@ -110,6 +151,8 @@ class NodeJson {
   dynamic value;
   dynamic parentOfChild;
   bool add = true;
+  int? anyIdx;
+  int? loop;
 }
 
 

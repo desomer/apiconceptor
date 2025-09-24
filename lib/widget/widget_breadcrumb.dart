@@ -54,11 +54,10 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
               WidgetChoise(
                 model: currentCompany.listDomain,
                 onSelected: (AttributInfo sel) {
-                  
                   prefs.setString("currentDomain", sel.masterID!);
                   currentCompany.listDomain.setCurrentAttr(sel);
                   Navigator.of(context).pop();
-                  
+
                   Future.delayed(Duration(milliseconds: 200)).then((timeStamp) {
                     // attend fermeture du popup
                     forcePage = 2;
@@ -71,6 +70,8 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
                 },
               ),
               keyDomain,
+              Offset.zero,
+              (BuildContext ctx) {},
             );
           },
           child: SizedBox(

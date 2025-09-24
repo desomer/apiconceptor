@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/start_core.dart';
 
 class APICallManager {
   APICallManager({required this.api, required this.httpOperation});
@@ -24,6 +26,9 @@ class APICallManager {
 
   dynamic body;
   String bodyStr = '';
+
+  dynamic mock;
+  String mockStr = '';
 
   String preRequestStr = '';
   String postResponseStr = '';
@@ -79,6 +84,20 @@ body :
     return nbBody > 0;
   }
 
+  Future<void> fillVar() async {
+    var idDomain = currentCompany.listDomain.selectedAttr!.info.masterID!;
+    var idEnv = currentCompany.listEnv.selectedAttr!.info.masterID!;
+
+    var envVar = await loadVarEnv(idDomain, idEnv, "variables", true);
+    var browseSingle = BrowseSingle();
+    browseSingle.browse(envVar, true);
+
+    for (var element in browseSingle.root) {
+      requestVariableValue[element.info.name] =
+          element.info.properties?['value'] ?? "";
+    }
+  }
+
   int _getNbParam(String type) {
     ModelSchema api = currentAPIRequest!;
     AttributInfo? query = api.mapInfoByJsonPath['root>$type'];
@@ -131,15 +150,15 @@ body :
 
   void initUsedVariables() {
     variablesId.clear();
-    variablesId.addAll(_extractParameters(url, true));
-    variablesId.addAll(_extractParameters(url, false));
+    variablesId.addAll(extractParameters(url, true));
+    variablesId.addAll(extractParameters(url, false));
     for (var element in params) {
       variablesId.addAll(
-        _extractParameters(element.value?.toString() ?? '', false),
+        extractParameters(element.value?.toString() ?? '', false),
       );
     }
     if (bodyStr.isNotEmpty) {
-      variablesId.addAll(_extractParameters(bodyStr, false));
+      variablesId.addAll(extractParameters(bodyStr, false));
     }
 
     print("var $variablesId");
@@ -148,7 +167,7 @@ body :
   final regexDoubleQuote = RegExp(r'{{\s*(\w+)\s*}}');
   final regexSimpleQuote = RegExp(r'{\s*(\w+)\s*}');
 
-  List<String> _extractParameters(String input, bool simpleQuote) {
+  List<String> extractParameters(String input, bool simpleQuote) {
     var regex = simpleQuote ? regexSimpleQuote : regexDoubleQuote;
 
     return regex.allMatches(input).map((match) => match.group(1)!).toList();
@@ -157,12 +176,14 @@ body :
   String replaceVarInRequest(String aUrl) {
     var result = aUrl.replaceAllMapped(RegExp(r'{{(\w+)}}'), (match) {
       final key = match.group(1);
-      return requestVariableValue[key] ?? match.group(0)!; // garde {{key}} si non trouvé
+      return requestVariableValue[key]?.toString() ??
+          match.group(0)!; // garde {{key}} si non trouvé
     });
 
     result = result.replaceAllMapped(RegExp(r'{(\w+)}'), (match) {
       final key = match.group(1);
-      return requestVariableValue[key] ?? match.group(0)!; // garde {{key}} si non trouvé
+      return requestVariableValue[key]?.toString() ??
+          match.group(0)!; // garde {{key}} si non trouvé
     });
 
     return result;
@@ -232,7 +253,10 @@ body :
       pos++;
     }
     if (bodyStr.isNotEmpty) {
-      json['body'] = {'send': true, 'value': body};
+      json['body'] = {'send': true, 'value': bodyStr};
+    }
+    if (mockStr.isNotEmpty) {
+      json['mock'] = {'send': true, 'value': mockStr};
     }
     json['preRequestScript'] = preRequestStr;
     json['postResponseScript'] = postResponseStr;
@@ -250,9 +274,33 @@ body :
       } else if (type == 'postResponseScript') {
         postResponseStr = element.value;
       } else if (type == 'body') {
-        body = element.value['value'];
-        const JsonEncoder encoder = JsonEncoder.withIndent('  ');
-        bodyStr = encoder.convert(body);
+        var v = element.value['value'];
+        if (v is String) {
+          bodyStr = v;
+          try {
+            body = jsonDecode(v);
+          } catch (e) {
+            // TODO
+          }
+        } else {
+          body = v;
+          const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+          bodyStr = encoder.convert(body);
+        }
+      } else if (type == 'mock') {
+        var v = element.value['value'];
+        if (v is String) {
+          mockStr = v;
+          try {
+            mock = jsonDecode(v);
+          } catch (e) {
+            // TODO
+          }
+        } else {
+          mock = v;
+          const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+          mockStr = encoder.convert(body);
+        }
       } else {
         Map<String, dynamic> listParam = element.value;
         for (var aParam in listParam.entries) {
@@ -294,7 +342,7 @@ body :
   }
 
   String? getEscapeUrl(String? param) {
-    if (param == null) return null;
+    if (param == null) return '';
     if (param.startsWith("{{")) return param;
     return Uri.encodeComponent(param);
   }

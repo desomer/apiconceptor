@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jsonschema/core/export/export2dto_nestjs.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/start_core.dart';
@@ -23,12 +24,21 @@ class _PanScrumState extends State<PanScrum> {
 
     StringBuffer md = jsonSchemaToMarkdown(exportSchema.json);
 
-    var exportFake =
-        Export2FakeJson()..browse(currentCompany.currentModel!, false);
+    var exportFake = Export2FakeJson(
+      modeArray: ModeArrayEnum.anyInstance,
+      mode: ModeEnum.fake,
+    )..browse(currentCompany.currentModel!, false);
     var json = exportFake.prettyPrintJson(exportFake.json);
 
     md.writeln('# 📘 exemple JSON\n');
-    md.writeln("```json\n$json```");
+    md.writeln("```json\n$json");
+    md.writeln("```");
+
+    var exportJS = Export2DtoNestjs().jsonSchemaToNestDto(exportSchema.json);
+    md.writeln('---');
+    md.writeln('# 📘 exemple DTO\n');
+    md.writeln("```typescript\n$exportJS");
+    md.writeln("```");    
 
     return Column(
       children: [

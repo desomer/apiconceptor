@@ -13,7 +13,7 @@ class PanApiEnv extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WidgetListEditor(model: currentCompany.listEnv);
+    return WidgetListEditor(model: currentCompany.listEnv, change: ValueNotifier(0));
   }
 }
 

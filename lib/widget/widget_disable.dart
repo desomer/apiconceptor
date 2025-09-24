@@ -6,10 +6,12 @@ class WidgetToggleDisabled extends StatefulWidget {
     required this.child,
     required this.toogle,
     required this.onTapForEnable,
+    this.childOnDisabled,
   });
   final Widget child;
   final ValueNotifier<bool> toogle;
   final Function onTapForEnable;
+  final Widget? childOnDisabled;
 
   @override
   State<WidgetToggleDisabled> createState() => _WidgetToggleDisabledState();
@@ -27,6 +29,7 @@ class _WidgetToggleDisabledState extends State<WidgetToggleDisabled> {
         return DisabledOverlay(
           isDisabled: isDisabled,
           onTap: widget.onTapForEnable,
+          childOnDisabled: widget.childOnDisabled,
           child: widget.child,
         );
       },
@@ -38,6 +41,7 @@ class _WidgetToggleDisabledState extends State<WidgetToggleDisabled> {
 class DisabledOverlay extends StatelessWidget {
   final Function onTap;
   final Widget child;
+  final Widget? childOnDisabled;
   final bool isDisabled;
   final double overlayOpacity;
   final Duration animationDuration;
@@ -49,6 +53,7 @@ class DisabledOverlay extends StatelessWidget {
     this.overlayOpacity = 0.5,
     this.animationDuration = const Duration(milliseconds: 300),
     required this.onTap,
+    this.childOnDisabled,
   });
 
   @override
@@ -67,6 +72,7 @@ class DisabledOverlay extends StatelessWidget {
                 color: Colors.black54,
                 // borderRadius: BorderRadius.circular(12),
               ),
+              child: childOnDisabled,
             ),
           ),
 

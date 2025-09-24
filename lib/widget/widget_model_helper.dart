@@ -11,14 +11,18 @@ mixin class WidgetHelper {
     BuildContext context,
     Widget child,
     GlobalKey targetKey,
+    Offset? offset,
+    Function getCtx,
   ) {
     return showDialog(
       context: context,
       //barrierColor: Colors.transparent, // Pour éviter le fond sombre
       builder: (context) {
+        getCtx(context);
         return Stack(
           children: [
             PositionedDialogBelow(
+              pos: offset ?? Offset(0, 0),
               targetKey: targetKey,
               child: AlertDialog(
                 contentPadding: EdgeInsets.all(5),
@@ -118,6 +122,21 @@ mixin class WidgetHelper {
     return null;
   }
 
+  Color? getColor(String name) {
+    if (name == 'get') {
+      return Colors.green;
+    } else if (name == 'post') {
+      return Colors.yellow;
+    } else if (name == 'put') {
+      return Colors.blue;
+    } else if (name == 'patch') {
+      return Colors.indigoAccent;
+    } else if (name == 'delete') {
+      return Colors.redAccent.shade100;
+    }
+    return null;
+  }
+
   Widget getChip(Widget content, {required Color? color, double? height}) {
     var w = Chip(
       labelPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 5),
@@ -129,6 +148,26 @@ mixin class WidgetHelper {
       return SizedBox(height: height, child: w);
     }
     return w;
+  }
+
+  List<Widget> getHeaderPath(String name, TextStyle? style) {
+    List<String> path = name.split('/');
+    List<Widget> wpath = [];
+    int i = 0;
+    for (var element in path) {
+      bool isLast = i == path.length - 1;
+      if (element.startsWith('{')) {
+        String v = element.substring(1, element.length - 1);
+        wpath.add(getChip(Text(v, style: style), color: null));
+        if (!isLast) {
+          wpath.add(Text('/', style: style));
+        }
+      } else {
+        wpath.add(Text(element + (!isLast ? '/' : ''), style: style));
+      }
+      i++;
+    }
+    return wpath;
   }
 
   List<Widget> getTooltipFromAttr(AttributInfo? info) {
@@ -224,11 +263,13 @@ mixin class WidgetHelper {
 class PositionedDialogBelow extends StatelessWidget {
   final GlobalKey targetKey;
   final Widget child;
+  final Offset pos;
 
   const PositionedDialogBelow({
     super.key,
     required this.targetKey,
     required this.child,
+    required this.pos,
   });
 
   @override
@@ -242,8 +283,8 @@ class PositionedDialogBelow extends StatelessWidget {
       final size = renderBox.size;
 
       return Positioned(
-        left: position.dx,
-        top: position.dy + size.height,
+        left: position.dx + pos.dx,
+        top: position.dy + size.height + pos.dy,
         child: child,
       );
     }

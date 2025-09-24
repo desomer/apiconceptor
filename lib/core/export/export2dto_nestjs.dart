@@ -181,7 +181,7 @@ class Export2DtoNestjs {
         classBuffer.writeln('  $decorator');
       }
 
-      classBuffer.writeln('  ${isRequired ? '' : '?'}$key: $tsType;\n');
+      classBuffer.writeln('  ${isRequired ? '' : ''}$key: $tsType;\n');
     });
 
     classBuffer.writeln('}');

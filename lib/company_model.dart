@@ -4,6 +4,7 @@ import 'package:jsonschema/json_browser/browse_glossary.dart';
 
 class CompanyModelSchema {
   bool isInit = false;
+  List<String> log = [];
 
   late ModelSchema listEnv;
   late ModelSchema listDomain;
@@ -50,4 +51,5 @@ enum Category {
   exampleApi,
   env,
   domain,
+  variable,
 }

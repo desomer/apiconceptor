@@ -51,7 +51,7 @@ class BrowseModel<T extends Map> extends JsonBrowser<T> {
   }
 
   @override
-  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
     return parent;
   }
 
@@ -69,7 +69,7 @@ class BrowseSingle<T extends Map> extends JsonBrowser<T> {
   }
 
   @override
-  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
     root.add(node);
     return parent;
   }
@@ -89,8 +89,9 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
         typeStr = '\$ref';
       } else if (name.startsWith(constTypeAnyof)) {
         typeStr = '\$anyOf';
+        node.bgcolor = Colors.orange.withAlpha(100);
       } else if (name.endsWith('[]')) {
-        node.bgcolor = Colors.blue.withAlpha(50);
+        node.bgcolor = Colors.blue.withAlpha(100);
         typeStr = 'Array';
       } else {
         node.bgcolor = Colors.blueGrey.withAlpha(50);
@@ -102,7 +103,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
         node.bgcolor = Colors.blue.withAlpha(50);
       } else {
         node.bgcolor = Colors.blue.withAlpha(50);
-        typeStr = 'Array';
+        typeStr = 'Object';
       }
     } else if (type is int) {
       typeStr = 'number';

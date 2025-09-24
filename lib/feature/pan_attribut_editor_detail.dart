@@ -23,22 +23,33 @@ class _AttributPropertiesState extends State<AttributProperties> {
   Widget build(BuildContext context) {
     ModelSchema? model = widget.getModel();
 
-    return WidgetTab(
-      listTab: [
-        Tab(text: 'Info'),
-        Tab(text: 'Validator'),
-        if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Fake'),
-        if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Bdd'),
-        if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Tag'),
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(3),
+          color: Colors.blue,
+          child: Center(child: Text(model?.selectedAttr?.info.name ?? '')),
+        ),
+        Expanded(
+          child: WidgetTab(
+            listTab: [
+              Tab(text: 'Info'),
+              Tab(text: 'Validator'),
+              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Fake'),
+              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Bdd'),
+              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Tag'),
+            ],
+            listTabCont: [
+              SingleChildScrollView(child: getInfoForm(model)),
+              SingleChildScrollView(child: getTypeValidator(model)),
+              if (widget.typeAttr == TypeAttr.detailmodel) Container(),
+              if (widget.typeAttr == TypeAttr.detailmodel) Container(),
+              if (widget.typeAttr == TypeAttr.detailmodel) Container(),
+            ],
+            heightTab: 30,
+          ),
+        ),
       ],
-      listTabCont: [
-        SingleChildScrollView(child: getInfoForm(model)),
-        SingleChildScrollView(child: getTypeValidator(model)),
-        if (widget.typeAttr == TypeAttr.detailmodel) Container(),
-        if (widget.typeAttr == TypeAttr.detailmodel) Container(),
-        if (widget.typeAttr == TypeAttr.detailmodel) Container(),
-      ],
-      heightTab: 30,
     );
   }
 
@@ -48,18 +59,27 @@ class _AttributPropertiesState extends State<AttributProperties> {
     }
 
     String type = model!.selectedAttr!.info.type.toLowerCase();
+    List<Widget>? listProp;
 
-    if (type == 'string') {
-      return getValidatorStringForm(model);
-    } else if (type == 'number') {
-      return getValidatorNumberForm(model);
-    } else if (type == 'boolean') {
-      return getValidatorBoolForm(model);
-    } else if (type == 'array') {
-      return getValidatorArrayForm(model);
+    if (type.endsWith('[]')) {
+      type = type.substring(0, type.length - 2);
+      listProp = [getValidatorArrayForm(model)];
     }
-
-    return Container();
+    Widget? ret;
+    if (type == 'string') {
+      ret = getValidatorStringForm(model, listProp == null);
+    } else if (type == 'number') {
+      ret = getValidatorNumberForm(model, listProp == null);
+    } else if (type == 'boolean') {
+      ret = getValidatorBoolForm(model, listProp == null);
+    } else if (type == 'array') {
+      ret = getValidatorArrayForm(model);
+    }
+    if (ret == null) return Container();
+    if (listProp != null) {
+      return Column(children: [...listProp, ret]);
+    }
+    return ret;
   }
 
   Widget getValidatorArrayForm(ModelSchema model) {
@@ -129,7 +149,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getValidatorNumberForm(ModelSchema model) {
+  Widget getValidatorNumberForm(ModelSchema model, bool withRequired) {
     var info = model.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
@@ -140,25 +160,27 @@ class _AttributPropertiesState extends State<AttributProperties> {
         children: [
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
-          CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'required',
+          if (withRequired)
+            CellCheckEditor(
+              key: ValueKey('required#${info.hashCode}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: model,
+                propName: 'required',
+              ),
+              inArray: false,
             ),
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'dependentRequired',
+          if (withRequired)
+            CellEditor(
+              key: ValueKey('dependentRequired#${info.hashCode}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: model,
+                propName: 'dependentRequired',
+              ),
+              line: 5,
+              inArray: false,
             ),
-            line: 5,
-            inArray: false,
-          ),
 
           CellEditor(
             key: ValueKey('pattern#${info.hashCode}'),
@@ -245,7 +267,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getValidatorStringForm(ModelSchema model) {
+  Widget getValidatorStringForm(ModelSchema model, bool withRequired) {
     var info = model.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
@@ -256,25 +278,27 @@ class _AttributPropertiesState extends State<AttributProperties> {
         children: [
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
-          CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'required',
+          if (withRequired)
+            CellCheckEditor(
+              key: ValueKey('required#${info.hashCode}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: model,
+                propName: 'required',
+              ),
+              inArray: false,
             ),
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'dependentRequired',
+          if (withRequired)
+            CellEditor(
+              key: ValueKey('dependentRequired#${info.hashCode}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: model,
+                propName: 'dependentRequired',
+              ),
+              line: 5,
+              inArray: false,
             ),
-            line: 5,
-            inArray: false,
-          ),
 
           CellEditor(
             key: ValueKey('pattern#${info.hashCode}'),
@@ -355,7 +379,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
-  Widget getValidatorBoolForm(ModelSchema? model) {
+  Widget getValidatorBoolForm(ModelSchema? model, bool withRequired) {
     var info = model!.selectedAttr!;
     return Padding(
       padding: EdgeInsets.all(10),
@@ -366,25 +390,27 @@ class _AttributPropertiesState extends State<AttributProperties> {
         children: [
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
-          CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'required',
+          if (withRequired)
+            CellCheckEditor(
+              key: ValueKey('required#${info.hashCode}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: model,
+                propName: 'required',
+              ),
+              inArray: false,
             ),
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'dependentRequired',
+          if (withRequired)
+            CellEditor(
+              key: ValueKey('dependentRequired#${info.hashCode}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: model,
+                propName: 'dependentRequired',
+              ),
+              line: 5,
+              inArray: false,
             ),
-            line: 5,
-            inArray: false,
-          ),
 
           // "contentEncoding": "base64",
           // "contentMediaType": "image/png"

@@ -192,7 +192,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         //   },
         // ),
         _getChangeLogTab(),
-        DocEditor(),
+        WidgetDoc(),
         Container(),
       ],
       heightTab: 30,

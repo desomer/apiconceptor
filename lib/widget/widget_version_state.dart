@@ -1,5 +1,6 @@
 import 'package:assorted_layout_widgets/assorted_layout_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
 
 class WidgetVersionState extends StatefulWidget {
   const WidgetVersionState({super.key, required this.margeVertical});
@@ -9,35 +10,87 @@ class WidgetVersionState extends StatefulWidget {
   State<WidgetVersionState> createState() => _WidgetVersionStateState();
 }
 
-class _WidgetVersionStateState extends State<WidgetVersionState> {
+class _WidgetVersionStateState extends State<WidgetVersionState>
+    with WidgetHelper {
   @override
   Widget build(BuildContext context) {
+    GlobalKey k = GlobalKey();
+
+   // BuildContext aCtx;
+
     return RowSuper(
       mainAxisSize: MainAxisSize.min,
       innerDistance: -1,
       children: [
-        _BreadButton(
-          'W',
-          true,
-          margeVertical: widget.margeVertical,
-          child: Icon(Icons.construction, size: 20),
+        GestureDetector(
+          onTap: () {
+            dialogBuilderBelow(
+              context,
+              SizedBox(
+                width: 110,
+                height: 200,
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Icon(Icons.tips_and_updates),
+                      title: Text('Idea'),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.work_history),
+                      title: Text('Design In Progress'),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.sports_score),
+                      title: Text('Design Finish'),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),                    
+                  ],
+                ),
+              ),
+              k,
+              Offset(-40, -20),
+              (BuildContext ctx) {
+                //aCtx = ctx;
+              },
+            );
+          },
+          child: _BreadButton(
+            key: k,
+            'W',
+            true,
+            margeVertical: widget.margeVertical,
+            color: Colors.greenAccent,
+            child: Icon(Icons.construction, size: 20),
+          ),
         ),
+
         _BreadButton(
           'C',
           false,
           margeVertical: widget.margeVertical,
+          color: Colors.orangeAccent,
           child: Icon(Icons.check_circle, size: 20),
         ),
         _BreadButton(
           'I',
           false,
           margeVertical: widget.margeVertical,
+          color: Colors.grey,
           child: Icon(Icons.code, size: 20),
         ),
         _BreadButton(
           'F',
           false,
           margeVertical: widget.margeVertical,
+          color: Colors.grey,
           child: Icon(Icons.sports_score, size: 20),
         ),
       ],
@@ -50,13 +103,16 @@ class _BreadButton extends StatelessWidget {
   final bool isFirstButton;
   final Widget? child;
   final double margeVertical;
+  final Color color;
 
   // ignore: unused_element_parameter
   const _BreadButton(
     this.text,
     this.isFirstButton, {
+    super.key,
     this.child,
     required this.margeVertical,
+    required this.color,
   });
 
   @override
@@ -64,7 +120,7 @@ class _BreadButton extends StatelessWidget {
     return ClipPath(
       clipper: TriangleClipper(!isFirstButton),
       child: Container(
-        color: Colors.grey,
+        color: color,
         child: Padding(
           padding: EdgeInsetsDirectional.only(
             start: isFirstButton ? 5 : 8,

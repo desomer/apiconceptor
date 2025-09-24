@@ -4,9 +4,18 @@ import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/start_core.dart';
 
+enum ModeArrayEnum { anyInstance, randomInstance }
+
+enum ModeEnum { fake, empty }
+
 class Export2FakeJson<T extends Map<String, dynamic>>
     extends JsonBrowser2generic<T> {
+  final ModeArrayEnum modeArray;
+  final ModeEnum mode;
+
   Map<String, dynamic> json = {};
+
+  Export2FakeJson({required this.modeArray, required this.mode});
 
   @override
   T getRoot(NodeAttribut node) {
@@ -18,12 +27,26 @@ class Export2FakeJson<T extends Map<String, dynamic>>
   NodeJson doArrayOfObject(String name, NodeAttribut node) {
     var obj = {};
     var child = [obj];
-    return NodeJson(name: name, value: child)..parentOfChild = obj;
+
+    int? loop;
+    if (modeArray == ModeArrayEnum.randomInstance) {
+      loop = faker.randomGenerator.integer(10);
+    }
+
+    return NodeJson(name: name, value: child)
+      ..parentOfChild = obj
+      ..loop = loop;
   }
 
   @override
   NodeJson doArrayWithAnyOf(String name, NodeAttribut node) {
     var child = [];
+    return NodeJson(name: name, value: child);
+  }
+
+  @override
+  NodeJson doObjectWithAnyOf(String name, NodeAttribut node) {
+    Map<String, dynamic> child = {};
     return NodeJson(name: name, value: child);
   }
 
@@ -34,6 +57,19 @@ class Export2FakeJson<T extends Map<String, dynamic>>
 
   @override
   NodeJson doAnyOf(String name, NodeAttribut node) {
+    bool mustChoise = node.parent?.info.type == 'Object';
+    if (mustChoise) {
+      int i = faker.randomGenerator.integer(node.child.length);
+      node.child[i].addInAttr = '##__choised__##';
+    } else if (modeArray == ModeArrayEnum.randomInstance) {
+      int nbRow = faker.randomGenerator.integer(10);
+      var nbTemplate = node.child.length;
+      node.childExtends = [];
+      for (var i = 0; i < nbRow; i++) {
+        int i = faker.randomGenerator.integer(nbTemplate);
+        node.childExtends!.add(node.child[i]);
+      }
+    }
     return NodeJson(name: name, value: null)..add = false;
   }
 
@@ -46,7 +82,18 @@ class Export2FakeJson<T extends Map<String, dynamic>>
   @override
   NodeJson doObject(String name, NodeAttribut node) {
     Map<String, dynamic> child = {};
-    return NodeJson(name: name, value: child);
+    bool addName = true;
+    bool parentAnyOf = node.parent?.info.name == constTypeAnyof;
+    if (parentAnyOf) {
+      bool mustChoise = node.parent?.parent?.info.type == 'Object';
+      addName = !mustChoise;
+      if (mustChoise && node.addInAttr != '##__choised__##') {
+        // pas ajouter
+        name = '';
+      }
+      node.addInAttr = '';
+    }
+    return NodeJson(name: name, value: child)..add = addName;
   }
 
   @override
@@ -80,6 +127,10 @@ class Export2FakeJson<T extends Map<String, dynamic>>
       return getValueTyped(type, vString);
     }
 
+    if (mode == ModeEnum.empty) {
+      return getValueTyped(type, '');
+    }
+
     var lowerCase = name.toLowerCase();
 
     if (type == "number") {
@@ -107,7 +158,11 @@ class Export2FakeJson<T extends Map<String, dynamic>>
   }
 
   Object getValueTyped(String type, String vString) {
-    if (type == "number") {
+    if (mode == ModeEnum.empty) {
+      if (type == "number") return 0;
+      if (type == "boolean") return false;
+      return '';
+    } else if (type == "number") {
       int? vint = int.tryParse(vString);
       if (vint != null) return vint;
       double? vdouble = double.tryParse(vString);
@@ -122,11 +177,25 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     if (node.child.firstOrNull?.info.name == constType) {
       // sera ajouter par le type
     } else if (node.child.firstOrNull?.info.name == constRefOn) {
+      // type $ref
       var obj = {};
       var child = [obj];
-      return NodeJson(name: name, value: child)..parentOfChild = obj;
+      int? loop;
+      if (modeArray == ModeArrayEnum.randomInstance) {
+        loop = faker.randomGenerator.integer(10);
+      }
+      return NodeJson(name: name, value: child)
+        ..loop = loop
+        ..parentOfChild = obj;
     } else {
-      child.add(getValue(name, type, node));
+      if (modeArray == ModeArrayEnum.randomInstance) {
+        int nbRow = faker.randomGenerator.integer(5);
+        for (var i = 0; i < nbRow; i++) {
+          child.add(getValue(name, type, node));
+        }
+      } else {
+        child.add(getValue(name, type, node));
+      }
     }
     return NodeJson(name: name, value: child);
   }

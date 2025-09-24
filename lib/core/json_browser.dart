@@ -129,10 +129,19 @@ class JsonBrowser<T> {
 
   void doTree(ModelSchema model, NodeAttribut aNodeAttribut, dynamic r) {
     for (var element in aNodeAttribut.child) {
-      dynamic c = getChild(aNodeAttribut, element, r);
+      dynamic c = getChild(model, aNodeAttribut, element, r);
       if (c != null) {
         doTree(model, element, c);
       }
+    }
+    if (aNodeAttribut.childExtends != null) {
+      for (var element in aNodeAttribut.childExtends!) {
+        dynamic c = getChild(model, aNodeAttribut, element, r);
+        if (c != null) {
+          doTree(model, element, c);
+        }
+      }
+      aNodeAttribut.childExtends = null;
     }
   }
 
@@ -214,7 +223,12 @@ class JsonBrowser<T> {
     return null;
   }
 
-  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     return null;
   }
 
@@ -361,8 +375,9 @@ class JsonBrowser<T> {
         headerName: refName,
         id: masterIdRef,
         infoManager: model.infoManager,
-        ref : model.ref
+        ref: model.ref,
       );
+      modelRef.namespace = model.namespace;
       modelRef.currentVersion =
           bddStorage
               .lastVersionByMaster[masterIdRef]; // recupére la derniere version charger
@@ -621,6 +636,7 @@ class NodeAttribut {
   AttributInfo info;
   NodeAttribut? parent;
   List<NodeAttribut> child = [];
+  List<NodeAttribut>? childExtends;
   int level = 0;
   String? addChildOn;
   String addInAttr = "";

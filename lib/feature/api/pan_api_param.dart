@@ -25,12 +25,14 @@ enum Separator { none, left, right }
 class ApiParamConfig {
   final Separator modeSeparator;
   final bool withBtnAddMock;
-  final Widget action;
+  final bool modeMock;
+  final Widget? action;
 
   ApiParamConfig({
     required this.action,
     required this.modeSeparator,
     required this.withBtnAddMock,
+    required this.modeMock,
   });
 }
 
@@ -93,7 +95,13 @@ class _PanApiParamState extends State<PanApiParam> {
               widget.requestHelper.apiCallInfo.postResponseStr.isNotEmpty ||
               widget.requestHelper.apiCallInfo.preRequestStr.isNotEmpty;
           return hasScript
-              ? Badge(label: Text('*'), child: Text('Script & Variables'))
+              ? Badge(
+                backgroundColor: Colors.blue,
+                offset: Offset(10, -5),
+                label: Text('1'),
+                padding: EdgeInsets.all(0),
+                child: Text('Script & Variables'),
+              )
               : Text('Script & Variables');
         },
       ),
@@ -228,7 +236,10 @@ class _PanApiParamState extends State<PanApiParam> {
                 );
 
             if (aSchema != null) {
-              var export = Export2FakeJson()..browse(aSchema, false);
+              var export = Export2FakeJson(
+                modeArray: ModeArrayEnum.anyInstance,
+                mode: ModeEnum.fake,
+              )..browse(aSchema, false);
               widget.requestHelper.apiCallInfo.body = export.json;
               widget.requestHelper.apiCallInfo.bodyStr = export.prettyPrintJson(
                 export.json,
@@ -264,7 +275,7 @@ class _PanApiParamState extends State<PanApiParam> {
                         Spacer(),
                         getBtnScript(context),
                         //if (widget.config.withBtnAddMock) getBtnMockCall(),
-                        widget.config.action,
+                        if (widget.config.action != null) widget.config.action!,
                       ],
                     ),
                   ),

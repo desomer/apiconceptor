@@ -4,6 +4,7 @@ import 'package:jsonschema/feature/home/background_screen.dart';
 
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_menu_btn.dart';
 
@@ -17,20 +18,25 @@ class HomePage extends GenericPageStateless {
         const BackgroundScreen(num: 0),
         SingleChildScrollView(
           padding: EdgeInsets.all(16),
-          child: Column(
-            spacing: 40,
-            children: [
-              getExpansible("Get started", getMenuStarted(context)),
-              SizedBox(height: 30),
-              getExpansible(
-                "For architect and tech designer",
-                getMenuArchitect(context),
-              ),
-              getExpansible("For developer", getMenuDevelopper(context)),
-              getExpansible("For content manager", getMenuCM(context)),
-              getExpansible("For quality assurance", getMenuQA(context)),
-              getExpansible("For administrator", getMenuAdmin(context)),
-            ],
+          child: ValueListenableBuilder(
+            valueListenable: zoom,
+            builder: (context, value, child) {
+              return Column(
+                spacing: 40,
+                children: [
+                  getExpansible("Get started", getMenuStarted(context)),
+                  SizedBox(height: 30),
+                  getExpansible(
+                    "For architect and tech designer",
+                    getMenuArchitect(context),
+                  ),
+                  getExpansible("For developer", getMenuDevelopper(context)),
+                  getExpansible("For content manager", getMenuCM(context)),
+                  getExpansible("For quality assurance", getMenuQA(context)),
+                  getExpansible("For administrator", getMenuAdmin(context)),
+                ],
+              );
+            },
           ),
         ),
       ],
@@ -135,14 +141,18 @@ class HomePage extends GenericPageStateless {
           WidgetMenuBtn(
             label: 'Browse documentation',
             icon: Icons.insert_drive_file_outlined,
-            route: Pages.apiBrowser,
+            route: Pages.apiBrowserTag,
           ),
           WidgetMenuBtn(
-            label: 'Call API',
+            label: 'Your favorite API',
             icon: Icons.call_end_outlined,
             // route: Pages.apiByTree,
           ),
-          WidgetMenuBtn(label: 'Mock API', icon: Icons.av_timer),
+          WidgetMenuBtn(
+            label: 'Mock API',
+            icon: Icons.av_timer,
+            route: Pages.mock,
+          ),
           WidgetMenuBtn(label: 'Proxy API', icon: Icons.call_merge_outlined),
           WidgetMenuBtn(label: 'Generate Code', icon: Icons.code),
           WidgetMenuBtn(
@@ -169,6 +179,7 @@ class HomePage extends GenericPageStateless {
           WidgetMenuBtn(
             label: 'Create content',
             icon: Icons.content_paste_rounded,
+            route: Pages.content,
           ),
           WidgetMenuBtn(
             label: 'Browse content',
@@ -223,6 +234,7 @@ class HomePage extends GenericPageStateless {
           ),
           WidgetMenuBtn(label: 'Vault', icon: Icons.lock_open_outlined),
           WidgetMenuBtn(label: 'Plugins', icon: Icons.publish_outlined),
+          WidgetMenuBtn(label: 'Log', icon: Icons.article, route: Pages.log),
         ],
       ),
     );

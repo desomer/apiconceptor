@@ -14,6 +14,7 @@ import 'package:jsonschema/feature/api/widget_url.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/widget/widget_choise_env.dart';
 import 'package:jsonschema/widget/widget_float_dialog.dart';
 import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_keyvalue.dart';
@@ -40,6 +41,8 @@ class WidgetRequestHelper with WidgetHelper {
   ValueNotifier<int> changeResponse = ValueNotifier(0);
   ValueNotifier<int> changeScript = ValueNotifier(0);
 
+  int calcUrl = -1;
+
   Widget getAPIWidgetPath(BuildContext context, String mode) {
     return ValueListenableBuilder(
       valueListenable: changeUrl,
@@ -61,6 +64,21 @@ class WidgetRequestHelper with WidgetHelper {
             var n = nd.info.name; // getKeyParamFromYaml(nd.yamlNode.key);
             if (nd.info.properties?['\$server'] != null) {
               var urlserv = nd.info.properties?['\$server'];
+
+              urlserv = apiCallInfo.replaceVarInRequest(urlserv);
+              var hasParam =
+                  apiCallInfo.extractParameters(urlserv, true).isNotEmpty;
+              if (!hasParam) {
+                hasParam =
+                    apiCallInfo.extractParameters(urlserv, false).isNotEmpty;
+              }
+              if (hasParam && calcUrl != changeUrl.value) {
+                apiCallInfo.fillVar().then((value) {
+                  changeUrl.value++;
+                  calcUrl = changeUrl.value;
+                });
+              }
+
               apiCallInfo.url = '$urlserv${apiCallInfo.url}';
               wpath.insert(
                 1,
@@ -111,6 +129,7 @@ class WidgetRequestHelper with WidgetHelper {
                 direction: Axis.horizontal,
                 children: wpath,
               ),
+              trailing: IntrinsicWidth(child: WidgetChoiseEnv(widgetRequestHelper: this)),
             ),
           );
         } else {
@@ -162,7 +181,8 @@ class WidgetRequestHelper with WidgetHelper {
       children: [
         SizedBox(
           height: 30,
-          child: Row(
+          child: NoOverflowErrorFlex(
+            direction: Axis.horizontal,
             children: [
               PanApiResponseStatus(key: keyResponseStatus, requestHelper: this),
               Spacer(),

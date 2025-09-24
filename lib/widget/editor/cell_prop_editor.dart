@@ -12,11 +12,13 @@ class CellEditor extends StatefulWidget {
     required this.inArray,
     this.line,
     this.isNumber = false,
+    this.widthInfinite = false
   });
   final int? line;
   final ValueAccessor acces;
   final bool inArray;
   final bool isNumber;
+  final bool widthInfinite;
 
   @override
   State<CellEditor> createState() => CellEditorState();
@@ -98,7 +100,7 @@ class CellEditorState extends State<CellEditor> {
 
   SizedBox getWidgetModeEdit(TextStyle textStyleLabel) {
     return SizedBox(
-      width: widget.inArray ? (250 * (zoom.value / 100)) : double.infinity,
+      width: widget.inArray && !widget.widthInfinite ? (250 * (zoom.value / 100)) : double.infinity,
       height: widget.inArray ? 30 : null,
       child: TextField(
         focusNode: focus,

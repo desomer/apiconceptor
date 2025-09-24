@@ -15,7 +15,10 @@ class DesignModelDetailPage extends GenericPageStateless {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      children: [const BackgroundScreen(num: 1), PanModelEditorMain(idModel: query)],
+      children: [
+        const BackgroundScreen(num: 1),
+        PanModelEditorMain(idModel: query),
+      ],
     );
   }
 
@@ -25,8 +28,9 @@ class DesignModelDetailPage extends GenericPageStateless {
     BuildContext context,
     PageInit? pageInit,
   ) {
-    query = routerState.uri.queryParameters['id']!;
-    var attr = currentCompany.listModel!.nodeByMasterId[query]!;
+    query = routerState.uri.queryParameters['id'] ?? currentCompany.currentModel!.id;
+    var attr = currentCompany.listModel!.nodeByMasterId[query];
+    var name = attr?.info.name;
 
     return NavigationInfo()
       ..navLeft = [
@@ -42,6 +46,13 @@ class DesignModelDetailPage extends GenericPageStateless {
           settings: const RouteSettings(name: 'Json schema'),
           type: BreadNodeType.widget,
           path: Pages.modelJsonSchema.urlpath,
+        ),
+
+        BreadNode(
+          icon: const Icon(Icons.airplane_ticket),
+          settings: const RouteSettings(name: 'UI Design'),
+          type: BreadNodeType.widget,
+          path: Pages.modelUI.urlpath,
         ),
 
         BreadNode(
@@ -68,12 +79,10 @@ class DesignModelDetailPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
-          path: Pages.models.urlpath
+          path: Pages.models.urlpath,
         ),
         BreadNode(
-          settings: RouteSettings(
-            name: attr.info.name,
-          ),
+          settings: RouteSettings(name: name),
           type: BreadNodeType.widget,
         ),
       ];

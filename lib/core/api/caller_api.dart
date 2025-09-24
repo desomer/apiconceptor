@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:jsonschema/core/core_expression.dart';
 import 'package:jsonschema/core/api/call_manager.dart';
 
+
 class CallerApi {
   dynamic callGraph() async {
     final options = BaseOptions(
@@ -73,7 +74,7 @@ class CallerApi {
         data: body,
         cancelToken: cancelToken,
         onReceiveProgress: (actualBytes, totalBytes) {
-          print('$actualBytes /  $totalBytes');
+          //print('$actualBytes /  $totalBytes');
           size = actualBytes;
         },
         options: Options(
@@ -147,11 +148,13 @@ class APIResponse {
 
 class CallScript {
   Future<dynamic> callPreRequest(APICallManager info) async {
+    info.requestVariableValue.clear();
+
+    await info.fillVar();
+
     if (info.preRequestStr.isNotEmpty) {
       CoreExpression run = CoreExpression();
       dynamic r;
-
-      info.requestVariableValue.clear();
 
       try {
         run.init(info.preRequestStr, logs: info.logs);
@@ -167,10 +170,9 @@ class CallScript {
       // for (var element in info.logs) {
       //   print(element);
       // }
-      info.logs.add('[VARIABLES] ${info.requestVariableValue}');
-
       return r;
     }
+    info.logs.add('[VARIABLES] ${info.requestVariableValue}');
     return null;
   }
 }

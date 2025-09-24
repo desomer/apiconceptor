@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/start_core.dart';
 
 class WidgetMenuBtn extends StatelessWidget {
   const WidgetMenuBtn({
@@ -15,6 +16,8 @@ class WidgetMenuBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    scale = zoom.value  / 100.0;
+
     return InkWell(
       onTap: () {
         if (route != null) {
@@ -23,8 +26,8 @@ class WidgetMenuBtn extends StatelessWidget {
         }
       },
       child: Container(
-        width: 230,
-        height: 70,
+        width: 230 ,
+        height: 70 * scale,
         margin: EdgeInsets.all(5),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),

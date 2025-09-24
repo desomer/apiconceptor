@@ -21,7 +21,7 @@ class BrowseAPI<T extends Map> extends JsonBrowser<T> {
   }
 
   @override
-  dynamic getChild(NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
     return {};
   }
 
@@ -216,7 +216,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
     Widget? header = getHttpOpe(name);
 
     if (header == null) {
-      List<Widget> wpath = getHeaderPath(name);
+      List<Widget> wpath = getHeaderPath(name, null);
       header = Row(children: wpath);
     }
 
@@ -302,25 +302,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
     );
   }
 
-  List<Widget> getHeaderPath(String name) {
-    List<String> path = name.split('/');
-    List<Widget> wpath = [];
-    int i = 0;
-    for (var element in path) {
-      bool isLast = i == path.length - 1;
-      if (element.startsWith('{')) {
-        String v = element.substring(1, element.length - 1);
-        wpath.add(getChip(Text(v), color: null));
-        if (!isLast) {
-          wpath.add(Text('/'));
-        }
-      } else {
-        wpath.add(Text(element + (!isLast ? '/' : '')));
-      }
-      i++;
-    }
-    return wpath;
-  }
+
 }
 
 class InfoManagerTrashAPI extends InfoManager with WidgetHelper {

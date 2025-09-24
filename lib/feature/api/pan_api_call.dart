@@ -30,6 +30,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
         action: widget.requestHelper.getBtnExecuteCall(),
         modeSeparator: Separator.right,
         withBtnAddMock: true,
+        modeMock: true,
       ),
       requestHelper: widget.requestHelper,
     );

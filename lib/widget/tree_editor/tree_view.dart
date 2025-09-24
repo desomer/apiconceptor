@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
@@ -122,7 +123,7 @@ class TreeView<T> extends StatefulWidget {
 class TreeViewState<T> extends State<TreeView<T>> {
   double headerSize = -1;
   int animateDelay = 200;
-  double height = 30.0;
+  //double height = 30.0;
 
   IndentInfo indent = IndentInfo(
     indent: 30,
@@ -132,7 +133,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
     color: Colors.white38,
   );
 
-  int timeChange = 0;
+  int timeBuild = 0;
   final ScrollController _scrollController = ScrollController();
   late BuildContext ctx;
   int repaintInProgess = 0;
@@ -151,39 +152,46 @@ class TreeViewState<T> extends State<TreeView<T>> {
     }
 
     TreeViewData<T> data = widget.getNodes();
-    timeChange = DateTime.now().millisecondsSinceEpoch;
 
-    if (headerSize == -1 ||
-        (headerSize < data.headerSize && dragInProgess == 0)) {
-      headerSize = data.headerSize;
-      repaintInProgess = timeChange;
-      if (headerSize < 200) headerSize = 200;
-    }
     List<TreeNodeData<T>> nodes = data.nodes;
 
     NodeStack stack = NodeStack();
     List<TreeNodeData<T>> list = _flattenNodeTree(stack, 0, nodes);
 
-    var ret = Scrollbar(
-      controller: _scrollController,
-      thumbVisibility: true, // ✅ Toujours visible sur desktop
-      child: ListView.builder(
-        primary: false,
-        controller: _scrollController,
-        shrinkWrap: true,
-        itemCount: list.length,
-        itemBuilder: (context, index) {
-          var node = list[index];
-          node.tree = this;
-          var row = _getAnimatedHeightRow(
-            node,
-            _buildNode(context, node),
-            ValueKey('${node.hashCode}#header'),
-          );
-          return row;
-        },
-      ),
+    var ret = ValueListenableBuilder(
+      valueListenable: zoom,
+      // pour appel durant le changement de zoom
+      builder: (context, value, child) {
+        timeBuild = DateTime.now().millisecondsSinceEpoch;
+        if (headerSize == -1 ||
+            (headerSize < data.headerSize && dragInProgess == 0)) {
+          headerSize = data.headerSize;
+          repaintInProgess = timeBuild;
+          if (headerSize < 200) headerSize = 200;
+        }
+        return Scrollbar(
+          controller: _scrollController,
+          thumbVisibility: true, // ✅ Toujours visible sur desktop
+          child: ListView.builder(
+            primary: false,
+            controller: _scrollController,
+            shrinkWrap: true,
+            itemCount: list.length,
+            itemBuilder: (context, index) {
+              var node = list[index];
+              node.tree = this;
+              var row = _getAnimatedHeightRow(
+                node,
+                _buildNode(context, node),
+                ValueKey('${node.hashCode}#header'),
+              );
+              return row;
+            },
+          ),
+        );
+      },
     );
+
     return ret;
   }
 
@@ -226,7 +234,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
           if (state != rowSelectedState) {
             var old = rowSelectedState;
             SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-              if (rowSelectedState?.mounted == true) {
+              if (old?.mounted == true) {
                 // ignore: invalid_use_of_protected_member
                 old?.setState(() {});
               }
@@ -293,9 +301,11 @@ class TreeViewState<T> extends State<TreeView<T>> {
   }
 
   Widget _getRowCached(TreeNodeData<T> node) {
+
     if (node.rowCache == null ||
         node.stateCache != this ||
-        timeChange - repaintInProgess < 500) {
+        timeBuild - repaintInProgess < 500 ||
+        timeBuild - timezoom < 500) {
       node.stateCache = this;
       node.rowCache = _getRow(node);
     }
@@ -305,7 +315,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
   Widget _getRow(TreeNodeData<T> node) {
     return Container(
       color: node.bgColor,
-      height: height,
+      height: rowHeight,
       //width:  300,
       padding: EdgeInsets.only(left: indent.indent * node.depth, right: 10),
       child: NoOverflowErrorFlex(
@@ -316,7 +326,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
             child: widget.getHeader(node),
           ),
           _getBtnToogle(node, node.isExpanded),
-          _getDrag(height),
+          _getDrag(rowHeight),
           Expanded(child: widget.getDataRow(node)),
         ],
       ),
@@ -381,7 +391,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
   }
 
   Widget _getAnimatedHeightRow(TreeNodeData node, Widget child, Key key) {
-    if (timeChange - node.timeChange < 500) {
+    if (timeBuild - node.timeChange < 500) {
       node.timeChange = 0;
       if (node.isToogleRequested) {
         node.isToogleRequested = false;

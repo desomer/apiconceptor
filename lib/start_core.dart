@@ -6,6 +6,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_env.dart';
+import 'package:jsonschema/feature/content/pan_content_selector.dart';
 import 'package:jsonschema/feature/domain/pan_domain.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
@@ -36,6 +37,7 @@ Future<void> startCore() async {
 
   prefs = await SharedPreferences.getInstance();
 
+  var a = BrowseSingle();
   currentCompany.listEnv = await loadSchema(
     TypeMD.env,
     'env',
@@ -43,7 +45,20 @@ Future<void> startCore() async {
     TypeModelBreadcrumb.env,
     infoManager: InfoManagerEnv(),
     category: Category.env,
+    browser: a,
   );
+
+  if (a.root.isNotEmpty) {
+    var currentEnv = prefs.getString("currentEnv");
+    if (currentEnv != null) {
+      var cur = a.root.firstWhereOrNull(
+        (element) => element.info.masterID == currentEnv,
+      );
+      if (cur != null) {
+        currentCompany.listEnv.setCurrentAttr(cur.info);
+      }
+    }
+  }
 
   var b = BrowseSingle();
   currentCompany.listDomain = await loadSchema(
@@ -148,6 +163,60 @@ Future<ModelSchema> loadGlossary(String id, String name) async {
   return schema;
 }
 
+
+Future<ModelSchema> loadContent(
+  String idDomain,
+  String idEnv,
+  String name,
+  bool cache
+) async {
+
+  var schema = ModelSchema(
+    category: Category.variable,
+    headerName: name,
+    id: 'listContent/$idDomain/$idEnv',
+    infoManager: InfoManagerContent(),
+    ref: null,
+  );
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  return schema;
+}
+
+
+Future<ModelSchema> loadVarEnv(
+  String idDomain,
+  String idEnv,
+  String name,
+  bool cache
+) async {
+
+  var schema = ModelSchema(
+    category: Category.variable,
+    headerName: name,
+    id: 'var/$idDomain/$idEnv',
+    infoManager: InfoManagerDomainVariables(),
+    ref: null,
+  );
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  return schema;
+}
+
 Future<ModelSchema> loadSchema(
   TypeMD type,
   String id,
@@ -181,6 +250,7 @@ Future<ModelSchema> loadSchema(
 
 const constMasterID = '\$\$__id__';
 const constTypeAnyof = '\$\$__anyof__';
+//const constTypeOneof = '\$\$__oneOf__';
 const constRefOn = '\$\$__ref__';
 const constType = '\$\$__type__';
 

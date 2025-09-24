@@ -6,9 +6,8 @@ import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
-
-class DesignModelDetailJsonPage extends GenericPageStateless {
-  const DesignModelDetailJsonPage({super.key});
+class DesignModelJsonSchemaPage extends GenericPageStateless {
+  const DesignModelJsonSchemaPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +18,7 @@ class DesignModelDetailJsonPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
-    PageInit? pageInit
+    PageInit? pageInit,
   ) {
     return NavigationInfo()
       ..navLeft = [
@@ -27,20 +26,34 @@ class DesignModelDetailJsonPage extends GenericPageStateless {
           icon: const Icon(Icons.data_object),
           settings: const RouteSettings(name: 'Design model'),
           type: BreadNodeType.widget,
-          path: Pages.modelDetail.urlpath
+          path: Pages.modelDetail.urlpath,
         ),
 
         BreadNode(
           icon: const Icon(Icons.verified),
           settings: const RouteSettings(name: 'Json schema'),
           type: BreadNodeType.widget,
-          path: Pages.modelJsonSchema.urlpath
+          path: Pages.modelJsonSchema.urlpath,
+        ),
+
+        BreadNode(
+          icon: const Icon(Icons.airplane_ticket),
+          settings: const RouteSettings(name: 'UI Design'),
+          type: BreadNodeType.widget,
+          path: Pages.modelUI.urlpath,
         ),
 
         BreadNode(
           icon: const Icon(Icons.bubble_chart),
           settings: const RouteSettings(name: 'Graph view'),
           type: BreadNodeType.widget,
+        ),
+
+        BreadNode(
+          icon: const Icon(Icons.airplane_ticket),
+          settings: const RouteSettings(name: 'Scrum'),
+          type: BreadNodeType.widget,
+          path: Pages.modelScrum.urlpath,
         ),
       ]
       ..breadcrumbs = [
@@ -54,7 +67,7 @@ class DesignModelDetailJsonPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
-          path: Pages.models.urlpath
+          path: Pages.models.urlpath,
         ),
         BreadNode(
           settings: RouteSettings(

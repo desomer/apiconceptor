@@ -16,9 +16,14 @@ enum ModeExample { design, browse }
 
 class ExampleConfig {
   final ModeExample mode;
-  final Function onSelect;
+  final Function onSelectHeader;
+  final Function onSelectMock;
 
-  ExampleConfig({required this.onSelect, required this.mode});
+  ExampleConfig({
+    required this.onSelectMock,
+    required this.onSelectHeader,
+    required this.mode,
+  });
 }
 
 // ignore: must_be_immutable
@@ -71,9 +76,18 @@ class PanApiExample extends PanYamlTree {
         row.add(WidgetVersionState(margeVertical: 2));
         row.add(
           TextButton.icon(
+            icon: Icon(Icons.assignment_turned_in),
+            onPressed: () async {
+              await gotoTestApi(node.data, true);
+            },
+            label: Text('Mock API'),
+          ),
+        );
+        row.add(
+          TextButton.icon(
             icon: Icon(Icons.import_export),
             onPressed: () async {
-              // await goToAPI(attr, 1, subtabNumber: 2, context: context);
+              await gotoTestApi(node.data, false);
             },
             label: Text('Test API'),
           ),
@@ -88,6 +102,10 @@ class PanApiExample extends PanYamlTree {
     BuildContext context,
   ) async {
     var attr = node.data;
+    await gotoTestApi(attr, false);
+  }
+
+  Future<void> gotoTestApi(NodeAttribut attr, bool mock) async {
     requesthelper.apiCallInfo.selectedExample = attr.info;
     var jsonParam = await bddStorage.getAPIParam(
       requesthelper.apiCallInfo.currentAPIRequest!,
@@ -101,7 +119,11 @@ class PanApiExample extends PanYamlTree {
     }
     repaintManager.doRepaint(ChangeTag.apiparam);
 
-    config.onSelect();
+    if (mock) {
+      config.onSelectMock();
+    } else {
+      config.onSelectHeader();
+    }
 
     requesthelper.changeUrl.value++;
     requesthelper.changeScript.value++;

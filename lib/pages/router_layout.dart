@@ -131,7 +131,7 @@ class _LayoutState extends State<Layout> {
                 // SizedBox(width: 5),
                 SizedBox(height: 20, child: WidgetGlobalZoom()),
                 Spacer(),
-                Text('API Architect by Desomer G. V0.2.14'),
+                Text('API Architect by Desomer G. V0.3.3'),
               ],
             ),
           ),

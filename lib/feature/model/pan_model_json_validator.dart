@@ -5,6 +5,7 @@ import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
+import 'package:jsonschema/feature/model/widget_example_choiser.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/start_core.dart';
@@ -19,6 +20,7 @@ class WidgetJsonValidator extends StatefulWidget {
 class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   late dynamic jsonSchema;
   late CodeEditorConfig textConfig;
+  ExampleManager exampleManager = ExampleManager();
 
   @override
   Widget build(BuildContext context) {
@@ -32,12 +34,16 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                 height: 30,
                 child: Row(
                   children: [
-                    TextButton(
+                    TextButton.icon(
+                      icon: Icon(Icons.casino_outlined),
                       onPressed: () {
+                        exampleManager.jsonFake = null;
+                        exampleManager.clearSelected();
                         textConfig.repaintCode();
                       },
-                      child: Text('Generate fake data'),
+                      label: Text('Generate fake data'),
                     ),
+                    exampleManager,
                   ],
                 ),
               ),
@@ -93,6 +99,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
           if (json != '' && jsonValidator != null) {
             var jsonMap = jsonDecode(removeComments(json));
             validateJsonSchemas(jsonValidator!, jsonMap, config.notifError);
+            exampleManager.jsonFake = json;
             // ValidationResults r = jsonValidator!.validate(jsonMap);
             // // print("r= $r");
             // if (r.isValid) {
@@ -102,19 +109,28 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
             // }
           } else {
             config.notifError.value = '';
+            exampleManager.jsonFake = json;
           }
         } catch (e) {
           config.notifError.value = '$e';
         }
       },
       getText: () {
-        var export =
-            Export2FakeJson()..browse(currentCompany.currentModel!, false);
-        var json = export.prettyPrintJson(export.json);
+        if (exampleManager.jsonFake == null) {
+          var export = Export2FakeJson(
+            modeArray: ModeArrayEnum.anyInstance,
+            mode: ModeEnum.fake,
+          )..browse(currentCompany.currentModel!, false);
+          exampleManager.jsonFake = export.prettyPrintJson(export.json);
+        }
 
-        return json;
+        return exampleManager.jsonFake;
       },
     );
+
+    exampleManager.onSelect = () {
+      textConfig.repaintCode();
+    };
 
     return TextEditor(header: "JSON example", config: textConfig);
   }

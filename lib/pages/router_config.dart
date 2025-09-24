@@ -9,16 +9,20 @@ import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/browse_api_page.dart';
+import 'package:jsonschema/pages/content_page.dart';
 import 'package:jsonschema/pages/design/design_api_detail_page.dart';
 import 'package:jsonschema/pages/design/design_api_page.dart';
-import 'package:jsonschema/pages/design/design_model_detail_json_page.dart';
+import 'package:jsonschema/pages/design/design_model_jsonschema_page.dart';
 import 'package:jsonschema/pages/design/design_model_detail_page.dart';
 import 'package:jsonschema/pages/design/design_model_detail_scrum_page.dart';
 import 'package:jsonschema/pages/design/design_model_graph_page.dart';
 import 'package:jsonschema/pages/design/design_model_page.dart';
+import 'package:jsonschema/pages/design/design_model_ui_page.dart';
 import 'package:jsonschema/pages/domain_page.dart';
 import 'package:jsonschema/pages/env_page.dart';
 import 'package:jsonschema/pages/glossary_page.dart';
+import 'package:jsonschema/pages/log_page.dart';
+import 'package:jsonschema/pages/mock_api_page.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
@@ -38,12 +42,17 @@ enum Pages {
   modelJsonSchema('/models/modelJsonSchema'),
   modelGraph('/models/graph'),
   modelScrum('/models/scrum'),
+  modelUI('/models/ui'),
 
   api("/apis"),
   apiBrowser("/apis/browser"),
+  apiBrowserTag("/apis/browserByTag"),
   //apiByTree("/apis/doc-by-tree"),
   apiDetail("/apis/detail"),
-  env('/env');
+  env('/env'),
+  log('/log'),
+  content("/content"),
+  mock("/apis/mock");
 
   const Pages(this.urlpath);
   final String urlpath;
@@ -205,10 +214,24 @@ final GoRouter router = GoRouter(
   routes: [
     ShellRoute(
       navigatorKey: navigatorKey,
-      builder: (context, state, child) {
-        return Layout(
-          routerState: state,
-          navChild: child, // 🔥 route actuelle
+      builder: (context, state, child2) {
+        return ValueListenableBuilder(
+          valueListenable: zoom,
+          builder: (context, value, child) {
+            scale = (zoom.value - 5) / 100.0;
+            rowHeight = 30 * scale;
+
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(scale + 0.05),
+                supportsShowingSystemContextMenu: true,
+              ),
+              child: Layout(
+                routerState: state,
+                navChild: child2, // 🔥 route actuelle
+              ),
+            );
+          },
         );
       },
       routes: [
@@ -230,10 +253,10 @@ final GoRouter router = GoRouter(
         //----------------------------------------------------------------
         addRouteBy(Pages.models, const DesignModelPage()),
         addRouteBy(Pages.modelDetail, DesignModelDetailPage()),
-        addRouteBy(Pages.modelJsonSchema, const DesignModelDetailJsonPage()),
+        addRouteBy(Pages.modelJsonSchema, const DesignModelJsonSchemaPage()),
         addRouteBy(Pages.modelGraph, const DesignModelGraphPage()),
         addRouteBy(Pages.modelScrum, const DesignModelDetailScrumPage()),
-
+        addRouteBy(Pages.modelUI, DesignModelUIPage()),
         //----------------------------------------------------------------
         addRouteBy(Pages.api, const DesignAPIPage()),
         addRouteBy(Pages.apiDetail, CallAPIPageDetail()),
@@ -244,9 +267,21 @@ final GoRouter router = GoRouter(
           final namespace =
               state.uri.queryParameters['id'] ??
               currentCompany.currentNameSpace;
-          return BrowseAPIPage(namespace: namespace);
+          return BrowseAPIPage(namespace: namespace, byTag: false);
         }),
 
+        addRouteByIndexed(Pages.apiBrowserTag, (ctx, state) {
+          final namespace =
+              state.uri.queryParameters['id'] ??
+              currentCompany.currentNameSpace;
+          return BrowseAPIPage(namespace: namespace, byTag: true);
+        }),
+
+        addRouteBy(Pages.mock, const MockApiPage()),
+
+        //----------------------------------------------------------------
+        addRouteBy(Pages.content, ContentPage()),
+        addRouteBy(Pages.log, LogPage()),
         // addRoute(
         //   GoRoute(path: Pages.api.urlpath, pageBuilder: getPageAnim),
         //   (context, state) => DesignAPIPage(),
@@ -401,6 +436,4 @@ class GoTo {
 
     return currentCompany.currentAPIResponse!;
   }
-
-
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -10,6 +12,20 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
 
   @override
   void onInit(ModelSchema model) {
+    List example = [];
+    var ex = currentCompany.currentModelSel?.info.properties?['#examples'];
+    if (ex is List) {
+      for (var element in ex) {
+        if (element['json'] is String) {
+          try {
+            example.add(jsonDecode(element['json']));
+          } catch (e) {
+            print(' error decode example $e');
+          }
+        }
+      }
+    }
+
     json = {
       "\$schema": "https://json-schema.org/draft/2020-12/schema",
       "\$id": model.headerName,
@@ -19,6 +35,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       "type": "object",
       "properties": {},
       "additionalProperties": false,
+      "examples": example,
     };
   }
 
@@ -44,10 +61,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     prop.remove(constMasterID);
     prop.remove('required');
     Map<String, dynamic> child = {'type': 'array', ...prop};
-    Map<String, dynamic> items = {
-      'type': 'object',
-      "additionalProperties": false,
-    };
+    Map<String, dynamic> items = {'type': 'object'};
+    addPropObject(items, node);
     child['items'] = items;
     node.addChildOn = "items";
     node.addInAttr = "properties";
@@ -59,6 +74,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     var prop = {...node.info.properties ?? {}};
     prop.remove(constMasterID);
     prop.remove('required');
+    var enumer = prop.remove('enum');
     Map<String, dynamic> child = {'type': 'array', ...prop};
     if (node.child.firstOrNull?.info.name == constType) {
       // ajoute le type et ses properties
@@ -81,6 +97,12 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
         ..parentOfChild = ref[refName]!.value;
     } else {
       Map<String, dynamic> items = {'type': type};
+      if (enumer != null) {
+        List<String> enumer = node.info.properties!['enum'].toString().split(
+          '\n',
+        );
+        items['enum'] = enumer;
+      }
       child['items'] = items;
     }
 
@@ -99,6 +121,12 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     node.addInAttr = ''; // ajoute le anyOf à la racine
     node.addChildOn = "items";
     return NodeJson(name: name, value: child);
+  }
+
+  @override
+  NodeJson doObjectWithAnyOf(String name, NodeAttribut node) {
+    node.addInAttr = ''; // ajoute le anyOf à la racine
+    return NodeJson(name: name, value: {});
   }
 
   @override
