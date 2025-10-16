@@ -220,7 +220,11 @@ class HomePage extends GenericPageStateless {
         runSpacing: 5, // espace vertical entre les lignes
         alignment: WrapAlignment.start,
         children: [
-          WidgetMenuBtn(label: 'Manage user', icon: Icons.person),
+          WidgetMenuBtn(
+            label: 'Manage user',
+            icon: Icons.person,
+            route: Pages.user,
+          ),
           WidgetMenuBtn(
             label: 'Manage domain',
             icon: Icons.domain,

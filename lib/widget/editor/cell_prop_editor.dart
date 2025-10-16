@@ -382,6 +382,8 @@ class ModelAccessorAttr extends ValueAccessor {
   @override
   void set(dynamic value) {
     var path = '${node.info.path}.prop.$propName';
+    if (node.info.properties?[propName] == value) return;
+    
     var propChangeValue = node.info.properties?[propName];
     schema.addHistory(node, path, ChangeOpe.change, propChangeValue, value);
     node.info.properties?[propName] = value;

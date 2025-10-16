@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+//import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 //import '../../config/logging/logging.dart';
 
@@ -15,7 +15,7 @@ class KeyValueStorageBase {
   static SharedPreferences? _sharedPrefs;
 
   /// Instance of flutter secure storage
-  static FlutterSecureStorage? _secureStorage;
+  //static FlutterSecureStorage? _secureStorage;
 
   /// Singleton instance of KeyValueStorage Helper
   static const instance = KeyValueStorageBase._();
@@ -29,10 +29,10 @@ class KeyValueStorageBase {
   /// when possible.
   static Future<void> init() async {
     _sharedPrefs ??= await SharedPreferences.getInstance();
-    const windowOptions = WindowsOptions(
-      //encryptedSharedPreferences: true,
-    );
-    _secureStorage ??= const FlutterSecureStorage(wOptions: windowOptions);
+    // const windowOptions = WindowsOptions(
+    //   //encryptedSharedPreferences: true,
+    // );
+    // _secureStorage ??= const FlutterSecureStorage(wOptions: windowOptions);
   }
 
   /// Reads the value for the key from common preferences storage
@@ -53,14 +53,14 @@ class KeyValueStorageBase {
   }
 
   /// Reads the decrypted value for the key from secure storage
-  Future<String?> getEncrypted(String key) {
-    try {
-      return _secureStorage!.read(key: key);
-    } on PlatformException catch (ex) {
-      appLogger.debug('$ex');
-      return Future<String?>.value();
-    }
-  }
+  // Future<String?> getEncrypted(String key) {
+  //   try {
+  //     return _secureStorage!.read(key: key);
+  //   } on PlatformException catch (ex) {
+  //     appLogger.debug('$ex');
+  //     return Future<String?>.value();
+  //   }
+  // }
 
   /// Sets the value for the key to common preferences storage
   Future<bool> setCommon<T>(String key, T value) {
@@ -76,33 +76,33 @@ class KeyValueStorageBase {
   }
 
   /// Sets the encrypted value for the key to secure storage
-  Future<bool> setEncrypted(String key, String value) {
-    try {
-      _secureStorage!.write(key: key, value: value);
-      return Future.value(true);
-    } on PlatformException catch (ex) {
-      appLogger.debug('$ex');
-      return Future.value(false);
-    }
-  }
+  // Future<bool> setEncrypted(String key, String value) {
+  //   try {
+  //     _secureStorage!.write(key: key, value: value);
+  //     return Future.value(true);
+  //   } on PlatformException catch (ex) {
+  //     appLogger.debug('$ex');
+  //     return Future.value(false);
+  //   }
+  // }
 
   Future<bool> removeCommon(String key) => _sharedPrefs!.remove(key);
 
-  Future<void> removeEncrypted(String key) => _secureStorage!.delete(key: key);
+  //Future<void> removeEncrypted(String key) => _secureStorage!.delete(key: key);
 
   /// Erases common preferences keys
   Future<bool> clearCommon() => _sharedPrefs!.clear();
 
   /// Erases encrypted keys
-  Future<bool> clearEncrypted() async {
-    try {
-      await _secureStorage!.deleteAll();
-      return true;
-    } on PlatformException catch (ex) {
-      appLogger.debug('$ex');
-      return false;
-    }
-  }
+  // Future<bool> clearEncrypted() async {
+  //   try {
+  //     await _secureStorage!.deleteAll();
+  //     return true;
+  //   } on PlatformException catch (ex) {
+  //     appLogger.debug('$ex');
+  //     return false;
+  //   }
+  // }
 }
 
 final appLogger = AppLogger();

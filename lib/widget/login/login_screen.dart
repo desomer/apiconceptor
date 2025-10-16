@@ -12,7 +12,8 @@ import 'package:jsonschema/widget/login/login_card.dart';
 
 class LoginScreen extends StatelessWidget {
   final String email;
-  const LoginScreen({super.key, required this.email});
+  final String pwd;
+  const LoginScreen({super.key, required this.email, required this.pwd});
   //final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -30,7 +31,7 @@ class LoginScreen extends StatelessWidget {
                   padding: EdgeInsets.symmetric(vertical: 20, horizontal: 30),
                   child: MainHeading(title: "Log in"),
                 ),
-                LoginCard(email: email),
+                LoginCard(email: email, pwd: pwd),
               ],
             ),
           ),

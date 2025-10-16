@@ -66,15 +66,15 @@ body :
     }
   }
 
-  bool initListParams() {
+  bool initListParams({Map<String, dynamic>? paramJson}) {
     Map<String, APIParamInfo> mapParam = {};
     for (var element in params) {
       // garde les parametres
       mapParam['${element.type}/${element.name}'] = element;
     }
 
-    _addParams('path', params, mapParam);
-    _addParams('query', params, mapParam);
+    _addParams('path', params, mapParam, paramJson);
+    _addParams('query', params, mapParam, paramJson);
 
     int nbBody = _getNbParam('body');
     params.removeWhere((n) => n.exist == false);
@@ -117,10 +117,12 @@ body :
     String type,
     List<APIParamInfo> params,
     Map<String, APIParamInfo> mapParam,
+    Map<String, dynamic>? paramJson,
   ) {
     ModelSchema api = currentAPIRequest!;
     AttributInfo? query = api.mapInfoByJsonPath['root>$type'];
     if (query != null) {
+      var jsonParam = paramJson != null ? paramJson[type] : null;
       var pos = query.treePosition;
       int i = 0;
       while (true) {
@@ -138,10 +140,21 @@ body :
           apiParamInfo.toSend = false;
           params.add(apiParamInfo);
           mapParam[idParam] = apiParamInfo;
+          mapParam2 = apiParamInfo;
           apiParamInfo.exist = true;
         } else {
           mapParam2.info = param;
           mapParam2.exist = true;
+        }
+        if (jsonParam != null) {
+          var v = jsonParam[param.name];
+          if (v != null) {
+            mapParam2.value = v;
+            mapParam2.toSend = true;
+          } else {
+            mapParam2.value = null;
+            mapParam2.toSend = false;
+          }
         }
         i++;
       }

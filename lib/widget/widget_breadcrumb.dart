@@ -99,10 +99,15 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
         child: child,
       );
 
-      if (route.onTap != null) {
+      if (route.onTap != null || route.path!=null) {
         btn = InkWell(
           onTap: () {
-            route.onTap!();
+            if (route.onTap != null) {
+              route.onTap!();
+            }
+            if (route.path != null) {
+              context.push(route.path!);
+            }            
           },
           child: btn,
         );

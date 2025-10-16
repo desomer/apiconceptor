@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 
@@ -47,9 +48,7 @@ class ExampleManager extends StatelessWidget {
   Future<void> showExampleDialog(BuildContext ctx) async {
     ModelAccessorAttr access = getAccessor();
     examples = access.get();
-    examples ??= [
-      {'name': 'new'},
-    ];
+    examples ??= [];
 
     return showDialog<void>(
       context: ctx,
@@ -104,10 +103,12 @@ class ExampleManager extends StatelessWidget {
   }
 
   ModelAccessorAttr getAccessor() {
-    var m = currentCompany.listModel!.selectedAttr;
+    ModelSchema model = currentCompany.currentModel!;
+    var examplesNode = model.getExtendedNode("#examples");
+
     var access = ModelAccessorAttr(
-      node: m!,
-      schema: currentCompany.listModel!,
+      node: examplesNode,
+      schema: model,
       propName: '#examples',
     );
     return access;

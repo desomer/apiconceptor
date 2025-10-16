@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill_extensions/flutter_quill_extensions.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:path/path.dart' as path;
 
 class WidgetDoc extends StatefulWidget {
-  const WidgetDoc({super.key});
+  const WidgetDoc({super.key, this.accessorAttr});
+  final ModelAccessorAttr? accessorAttr;
 
   @override
   State<WidgetDoc> createState() => _WidgetDocState();
@@ -50,6 +52,13 @@ class _WidgetDocState extends State<WidgetDoc> {
     super.initState();
     //_controller.document.toDelta().toJson();
     // Load document
+
+    var kQuillDefaultSample =
+        widget.accessorAttr?.get() ??
+        [
+          {'insert': '\n'},
+        ];
+
     _controller.document = Document.fromJson(kQuillDefaultSample);
   }
 
@@ -57,52 +66,66 @@ class _WidgetDocState extends State<WidgetDoc> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        QuillSimpleToolbar(
-          controller: _controller,
-          config: QuillSimpleToolbarConfig(
-            embedButtons: FlutterQuillEmbeds.toolbarButtons(),
-            showClipboardPaste: true,
-            customButtons: [
-              QuillToolbarCustomButtonOptions(
-                icon: const Icon(Icons.add_alarm_rounded),
-                onPressed: () {
-                  _controller.document.insert(
-                    _controller.selection.extentOffset,
-                    TimeStampEmbed(DateTime.now().toString()),
-                  );
+        Row(
+          children: [
+            ElevatedButton.icon(
+              icon: Icon(Icons.save),
+              onPressed: () {
+                // Save document
+                var content = _controller.document.toDelta().toJson();
+                widget.accessorAttr?.set(content);
+              },
+              label: Text('Save'),
+            ),
+            Spacer(),
+            QuillSimpleToolbar(
+              controller: _controller,
+              config: QuillSimpleToolbarConfig(
+                embedButtons: FlutterQuillEmbeds.toolbarButtons(),
+                showClipboardPaste: true,
+                customButtons: [
+                  QuillToolbarCustomButtonOptions(
+                    icon: const Icon(Icons.add_alarm_rounded),
+                    onPressed: () {
+                      _controller.document.insert(
+                        _controller.selection.extentOffset,
+                        TimeStampEmbed(DateTime.now().toString()),
+                      );
 
-                  _controller.updateSelection(
-                    TextSelection.collapsed(
-                      offset: _controller.selection.extentOffset + 1,
-                    ),
-                    ChangeSource.local,
-                  );
-                },
-              ),
-            ],
-            buttonOptions: QuillSimpleToolbarButtonOptions(
-              base: QuillToolbarBaseButtonOptions(
-                afterButtonPressed: () {
-                  final isDesktop = {
-                    TargetPlatform.linux,
-                    TargetPlatform.windows,
-                    TargetPlatform.macOS,
-                  }.contains(defaultTargetPlatform);
-                  if (isDesktop) {
-                    _editorFocusNode.requestFocus();
-                  }
-                },
-              ),
-              linkStyle: QuillToolbarLinkStyleButtonOptions(
-                validateLink: (link) {
-                  // Treats all links as valid. When launching the URL,
-                  // `https://` is prefixed if the link is incomplete (e.g., `google.com` → `https://google.com`)
-                  // however this happens only within the editor.
-                  return true;
-                },
+                      _controller.updateSelection(
+                        TextSelection.collapsed(
+                          offset: _controller.selection.extentOffset + 1,
+                        ),
+                        ChangeSource.local,
+                      );
+                    },
+                  ),
+                ],
+                buttonOptions: QuillSimpleToolbarButtonOptions(
+                  base: QuillToolbarBaseButtonOptions(
+                    afterButtonPressed: () {
+                      final isDesktop = {
+                        TargetPlatform.linux,
+                        TargetPlatform.windows,
+                        TargetPlatform.macOS,
+                      }.contains(defaultTargetPlatform);
+                      if (isDesktop) {
+                        _editorFocusNode.requestFocus();
+                      }
+                    },
+                  ),
+                  linkStyle: QuillToolbarLinkStyleButtonOptions(
+                    validateLink: (link) {
+                      // Treats all links as valid. When launching the URL,
+                      // `https://` is prefixed if the link is incomplete (e.g., `google.com` → `https://google.com`)
+                      // however this happens only within the editor.
+                      return true;
+                    },
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
         Expanded(
           child: QuillEditor(
@@ -178,8 +201,3 @@ class TimeStampEmbedBuilder extends EmbedBuilder {
     );
   }
 }
-
-const kQuillDefaultSample = [
-  {'insert': 'Documentation'},
-  {'insert': '\n'},
-];

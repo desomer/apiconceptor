@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart' show GoRouterState, GoRouterHelper;
+import 'package:go_router/go_router.dart' show GoRouterState;
 import 'package:jsonschema/feature/model/pan_model_json_validator.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
+// ignore: must_be_immutable
 class DesignModelJsonSchemaPage extends GenericPageStateless {
-  const DesignModelJsonSchemaPage({super.key});
+  DesignModelJsonSchemaPage({super.key});
+  String query = '';
 
   @override
   Widget build(BuildContext context) {
-    return WidgetJsonValidator();
+    return WidgetJsonValidator(idModel: query);
   }
 
   @override
@@ -20,6 +22,12 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
     BuildContext context,
     PageInit? pageInit,
   ) {
+
+    query = routerState.uri.queryParameters['id'] ?? currentCompany.currentModel!.id;
+    var attr = currentCompany.listModel!.nodeByMasterId[query];
+    var name = attr?.info.name;
+
+
     return NavigationInfo()
       ..navLeft = [
         BreadNode(
@@ -37,7 +45,7 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
         ),
 
         BreadNode(
-          icon: const Icon(Icons.airplane_ticket),
+          icon: const Icon(Icons.devices),
           settings: const RouteSettings(name: 'UI Design'),
           type: BreadNodeType.widget,
           path: Pages.modelUI.urlpath,
@@ -60,9 +68,7 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'List model'),
           type: BreadNodeType.widget,
-          onTap: () {
-            context.pop();
-          },
+          path: Pages.models.urlpath,
         ),
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
@@ -71,7 +77,7 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
         ),
         BreadNode(
           settings: RouteSettings(
-            name: '${currentCompany.currentModel?.headerName}',
+            name: name,
           ),
           type: BreadNodeType.widget,
         ),

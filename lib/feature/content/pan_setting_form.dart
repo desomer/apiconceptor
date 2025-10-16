@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 
-class PanSetting extends StatefulWidget {
-  const PanSetting({super.key, required this.data});
+class PanSettingForm extends StatefulWidget {
+  const PanSettingForm({super.key, required this.data});
   final List<WidgetTyped> data;
 
   @override
-  State<PanSetting> createState() => _PanSettingState();
+  State<PanSettingForm> createState() => _PanSettingFormState();
 }
 
-class _PanSettingState extends State<PanSetting> {
+class _PanSettingFormState extends State<PanSettingForm> {
   final List<String> options = ['Flow', 'Tab', 'OtherTab', 'Invisible'];
 
   @override
@@ -30,10 +30,25 @@ class _PanSettingState extends State<PanSetting> {
           margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: ListTile(
             title: Row(
+              spacing: 20,
               children: [
                 Expanded(child: Text(ligne.name)),
                 Expanded(child: Text(ligne.type.name)),
-                SizedBox( width: 200,
+                SizedBox( width: 200, child: TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Height px (-1=auto)',
+                  ),
+                  keyboardType: TextInputType.number,
+                  controller:
+                      TextEditingController(text: ligne.height.toString()),
+                  onChanged: (value) {
+                    //setState(() {
+                      ligne.height = int.tryParse(value) ?? -1;
+                    //});
+                  },
+                )),
+                SizedBox(
+                  width: 200,
                   child: DropdownButton<String>(
                     value: ligne.layout,
                     items:
@@ -45,13 +60,13 @@ class _PanSettingState extends State<PanSetting> {
                         }).toList(),
                     onChanged: (String? choise) {
                       setState(() {
-                       ligne.layout = choise!;
+                        ligne.layout = choise!;
                       });
                     },
                   ),
                 ),
               ],
-            )
+            ),
           ),
         );
       }),

@@ -12,7 +12,7 @@ import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:yaml/yaml.dart';
 
-int nbtesterror = -37;
+//int nbtesterror = -37;
 
 class ModelVersion implements Comparable<ModelVersion> {
   ModelVersion({required this.id, required this.version, required this.data});
@@ -83,12 +83,32 @@ class ModelSchema {
   final List<AttributInfo> useAttributInfo = [];
   final Map<String, NodeAttribut> nodeByMasterId = {};
 
+  final Map<String, NodeAttribut> nodeExtended = {};
+
   int lastNbNode = 0;
   bool first = true;
   bool isEmpty = false;
   bool autoSaveProperties = true;
 
   NodeAttribut? selectedAttr;
+
+  NodeAttribut getExtendedNode(String id) {
+    NodeAttribut? exampleExtended = nodeExtended[id];
+    if (exampleExtended == null) {
+      AttributInfo info = AttributInfo();
+      info.masterID = id;
+      info.path = id;
+      info.action = 'R';
+      info.properties = {};
+      nodeExtended[id] = NodeAttribut(
+        parent: null,
+        yamlNode: MapEntry('extended', 'extended'),
+        info: info,
+      );
+      exampleExtended = nodeExtended[id];
+    }
+    return exampleExtended!;
+  }
 
   void setCurrentAttr(AttributInfo? attr) {
     if (attr == null) {
@@ -419,12 +439,12 @@ class ModelSchema {
 
       await _initVersion();
 
-      nbtesterror--;
-      if (nbtesterror == 0) {
-        nbtesterror = 19;
-        dynamic a;
-        a.padLeft(4);
-      }
+      //nbtesterror--;
+      // if (nbtesterror == 0) {
+      //   nbtesterror = 19;
+      //   dynamic a;
+      //   a.padLeft(4);
+      // }
 
       dynamic savedYamlModel = bddStorage.getItem(
         model: this,
@@ -484,7 +504,7 @@ class ModelSchema {
         );
         versions.add(version);
         currentVersion = version;
-        bddStorage.addVersion(this, version);
+        bddStorage.storeVersion(this, version);
       } else {
         currentVersion ??= versions.first;
       }
@@ -705,5 +725,40 @@ class ModelSchema {
     return aSchema;
   }
 
-  
+  Future<ModelSchema?> getSubSchema({required dynamic subNode}) async {
+    ModelSchema? aSchema;
+    var mapModel = mapModelYaml[subNode];
+    if (mapModel != null) {
+      if (mapModel is String) {
+        if (mapModel.startsWith('\$')) {
+          var refName = mapModel.substring(1);
+          var aModelByName = getModelByRefName(refName);
+
+          if (aModelByName != null) {
+            String masterIdRef = aModelByName.first.properties?[constMasterID];
+            aSchema = ModelSchema(
+              category: Category.model,
+              headerName: refName,
+              id: masterIdRef,
+              infoManager: InfoManagerModel(typeMD: TypeMD.model),
+              ref: ref,
+            );
+            aSchema.autoSaveProperties = false;
+            await aSchema.loadYamlAndProperties(cache: false, withProperties: true);
+          }
+        }
+      } else {
+        aSchema = ModelSchema(
+          id: '?',
+          category: Category.model,
+          headerName: '',
+          infoManager: InfoManagerModel(typeMD: TypeMD.model),
+          ref: ref,
+        )..autoSaveProperties = false;
+
+        aSchema.loadSubSchema(subNode, this);
+      }
+    }
+    return aSchema;
+  }
 }

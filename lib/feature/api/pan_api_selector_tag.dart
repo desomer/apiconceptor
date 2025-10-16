@@ -6,7 +6,6 @@ import 'package:jsonschema/widget/widget_expansive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_version_state.dart';
-import 'package:markdown_widget/config/extensions.dart';
 
 class PanApiSelectorTag extends StatefulWidget {
   const PanApiSelectorTag({
@@ -129,7 +128,7 @@ class _PanApiSelectorTagState extends State<PanApiSelectorTag>
     );
 
     pathWidget.add(Spacer());
-    pathWidget.add(WidgetVersionState(margeVertical: 2,));
+    pathWidget.add(WidgetVersionState(margeVertical: 2, version: null,));
 
     return ListTile(
       title: Container(
@@ -137,7 +136,7 @@ class _PanApiSelectorTagState extends State<PanApiSelectorTag>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.all(Radius.circular(7)),
           border: Border.all(color: getColor(tag.name) ?? Colors.black),
-          color: (getColor(tag.name) ?? Colors.black).toOpacity(0.1),
+          color: (getColor(tag.name) ?? Colors.black).withValues(alpha: 0.1),
         ),
         child: ClipRect(
           clipBehavior: Clip.hardEdge,

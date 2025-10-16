@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
+import 'package:jsonschema/widget/widget_tag_selector.dart';
 
 enum TypeAttr { detailmodel, detailapi }
 
@@ -74,6 +75,8 @@ class _AttributPropertiesState extends State<AttributProperties> {
       ret = getValidatorBoolForm(model, listProp == null);
     } else if (type == 'array') {
       ret = getValidatorArrayForm(model);
+    } else if (type == 'object') {
+      ret = getValidatorObjectForm(model);
     }
     if (ret == null) return Container();
     if (listProp != null) {
@@ -372,6 +375,17 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
 
+        
+          CellEditor(
+            key: ValueKey('link#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: '#link',
+            ),
+            inArray: false,
+          ),          
+
           // "contentEncoding": "base64",
           // "contentMediaType": "image/png"
         ],
@@ -434,6 +448,18 @@ class _AttributPropertiesState extends State<AttributProperties> {
         children: [
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
+
+          TagSelector(
+            key: ValueKey('tag#${info.hashCode}'),
+            availableTags: ['In future', 'Technical debt', 'Computed'],
+            initialSelected: [],
+            accessor: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: '#tag',
+            ),
+          ),
+
           CellEditor(
             key: ValueKey('description#${info.hashCode}'),
             acces: ModelAccessorAttr(
@@ -496,6 +522,41 @@ class _AttributPropertiesState extends State<AttributProperties> {
               node: info,
               schema: model,
               propName: '\$comment',
+            ),
+            line: 5,
+            inArray: false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget getValidatorObjectForm(ModelSchema model) {
+    var info = model.selectedAttr!;
+    return Padding(
+      padding: EdgeInsets.all(10),
+      child: Column(
+        spacing: 10,
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (info.info.isInitByRef)
+            TextButton(onPressed: () {}, child: Text("Go to definition")),
+          CellCheckEditor(
+            key: ValueKey('required#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: 'required',
+            ),
+            inArray: false,
+          ),
+          CellEditor(
+            key: ValueKey('dependentRequired#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: 'dependentRequired',
             ),
             line: 5,
             inArray: false,

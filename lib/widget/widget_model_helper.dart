@@ -174,7 +174,7 @@ mixin class WidgetHelper {
     List<Widget> tooltip = [];
     if (info?.properties != null) {
       for (var element in info!.properties!.entries) {
-        if (!element.key.startsWith('\$\$')) {
+        if (!element.key.startsWith('\$\$') && !element.key.startsWith('#')) {
           tooltip.add(
             Text(
               '${element.key} = ${element.value}',
@@ -182,6 +182,7 @@ mixin class WidgetHelper {
             ),
           );
         } else if (element.key == constMasterID) {
+          // cas du master id
           tooltip.insert(
             0,
             Container(

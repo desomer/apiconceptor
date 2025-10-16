@@ -15,7 +15,7 @@ import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
 import 'package:jsonschema/feature/api/pan_api_selector_tag.dart';
-import 'package:jsonschema/feature/transform/pan_repsonse_viewer.dart';
+import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
@@ -345,7 +345,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
         Tab(text: 'jmse search'),
       ],
       listTabCont: [
-        PanRepsonseViewer(apiCallInfo: requestHelper!.apiCallInfo),
+        PanResponseViewer(apiCallInfo: requestHelper!.apiCallInfo),
         PanResponseMapper(
           //key: ObjectKey(currentCompany.listAPI.selectedAttr),
           apiCallInfo: requestHelper!.apiCallInfo,

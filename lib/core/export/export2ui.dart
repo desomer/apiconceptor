@@ -23,6 +23,11 @@ class Export2UI<T> extends JsonBrowser<T> {
     String type = node.info.type.toLowerCase();
     String name = node.info.name;
 
+    if (type == 'param') {
+      type = 'object';
+      node.info.type = 'object';
+    }
+
     NodeJson toAdd;
 
     if (type.endsWith('[]')) {

@@ -17,6 +17,11 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     String type = node.info.type.toLowerCase();
     String name = node.info.name;
 
+    if (type == 'param') {
+      type = 'object';
+      node.info.type = 'object';
+    }
+
     NodeJson toAdd;
 
     if (type.endsWith('[]')) {
@@ -139,8 +144,7 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
   }
 
   String prettyPrintJson(dynamic input) {
-    //const JsonDecoder decoder = JsonDecoder();
-    const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+    const JsonEncoder encoder = JsonEncoder.withIndent('   ');
     return encoder.convert(input);
   }
 }

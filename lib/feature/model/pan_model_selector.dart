@@ -33,7 +33,7 @@ class PanModelSelector extends PanYamlTree {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey(attr.info.numUpdateForKey),
+        key: ValueKey('${attr.info.name}%${attr.info.numUpdateForKey}'),
         acces: ModelAccessorAttr(node: attr, schema: schema, propName: 'title'),
       ),
     );
@@ -42,7 +42,23 @@ class PanModelSelector extends PanYamlTree {
 
     if (attr.info.type == 'model') {
       row.add(SizedBox(width: 10));
-      row.add(WidgetVersionState(margeVertical: 2));
+      row.add(
+        WidgetVersionState(
+          margeVertical: 2,
+          version: null,
+          model: getSchema(),
+          attr: attr,
+        ),
+      );
+      row.add(
+        Padding(
+          padding: EdgeInsetsGeometry.fromLTRB(5, 0, 0, 0),
+          child: getChip(
+            Text(attr.info.properties?['#version'] ?? ''),
+            color: null,
+          ),
+        ),
+      );
       row.add(
         TextButton.icon(
           onPressed: () async {
@@ -56,7 +72,10 @@ class PanModelSelector extends PanYamlTree {
           icon: Icon(Icons.import_export),
           onPressed: () async {
             if (attr.info.type == 'model') {
-              node.doTapHeader();
+              var key = attr.info.properties![constMasterID];
+
+              // ignore: use_build_context_synchronously
+              context.push(Pages.modelJsonSchema.id(key));
             }
           },
           label: Text('Json schemas'),

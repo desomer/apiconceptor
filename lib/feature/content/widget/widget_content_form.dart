@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:highlight/languages/json.dart';
+import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_expansive.dart';
@@ -16,9 +17,11 @@ class WidgetContentForm extends StatefulWidget {
     super.key,
     required this.children,
     required this.info,
+    required this.ctx,
   });
   final GetChild children;
   final WidgetConfigInfo info;
+  final UIParamContext ctx;
 
   @override
   State<WidgetContentForm> createState() => _WidgetContentFormState();
@@ -38,7 +41,6 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
           aScrollController.position.maxScrollExtent - 100) {
         if (initial < max) {
           setState(() {
-            print("eeee");
             initial = min(initial + delta, max);
           });
         }
@@ -86,7 +88,7 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
       }
       childrenByRowOfN = widget.children(pathValue);
 
-      if (widget.info.name == 'root') {
+      if (widget.ctx.parentType == WidgetType.root) {
         if (conf == null) {
           conf = CodeEditorConfig(
             mode: json,
@@ -111,7 +113,7 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
     var headers = <Widget>[
       Text(widget.info.name),
       Spacer(),
-      if (widget.info.name == 'root')
+      if (widget.ctx.parentType == WidgetType.root)
         InkWell(
           onTap: () async {
             // view data
@@ -153,7 +155,7 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
         }
       });
 
-      return Column( 
+      return Column(
         children: [
           Container(
             color: Colors.grey.shade700,

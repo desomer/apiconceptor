@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_form.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_expansive.dart';
+import 'package:jsonschema/widget/widget_tag_selector.dart';
 
 typedef GetChildRow =
     Widget Function(
@@ -18,16 +21,19 @@ class WidgetContentArray extends StatefulWidget {
     required this.getRow,
     required this.info,
     required this.children,
+    required this.ctx,
   });
   final GetChildRow getRow;
   final WidgetConfigInfo info;
   final GetChild children;
+  final UIParamContext ctx;
 
   @override
   State<WidgetContentArray> createState() => _WidgetContentArrayState();
 }
 
-class _WidgetContentArrayState extends State<WidgetContentArray> {
+class _WidgetContentArrayState extends State<WidgetContentArray>
+    with WidgetAnyOfHelper {
   @override
   void initState() {
     widget.info.json2ui.stateMgr.addContainer(widget.info.pathValue!, this);
@@ -48,9 +54,43 @@ class _WidgetContentArrayState extends State<WidgetContentArray> {
       items = dataContainer.jsonData[widget.info.name];
     }
 
+    var key = '${widget.info.pathValue}[0]';
+    var template = widget.info.json2ui.stateMgr.stateTemplate[key];
+    if (template == null) {
+      var i =
+          WidgetConfigInfo(json2ui: widget.info.json2ui, name: widget.info.name)
+            ..inArrayValue = true
+            ..setPathValue(widget.info.pathValue!)
+            ..setPathData(widget.info.pathValue!);
+
+      var v = getInputDesc(i);
+
+      if (v.choiseItem != null) {
+        // template non défini donc tableau de String, Bool, int, double
+        return Padding(
+          padding: EdgeInsetsGeometry.all(10),
+          child: Row(
+            spacing: 20,
+            children: [
+              Text(widget.info.name),
+              TagSelector(
+                key: ObjectKey(items),
+                availableTags: v.choiseItem!,
+                initialSelected: [],
+                accessor: InfoAccess(initialSelected: items!),
+              ),
+              Spacer(),
+            ],
+          ),
+        );
+      }
+    }
+
     List<Widget> children = [];
+
     if (items != null) {
       for (var i = 0; i < items.length; i++) {
+        // recupération des données
         children.add(
           widget.getRow(widget.info.pathValue!, items[i], i, null, () {
             setState(() {
@@ -59,12 +99,55 @@ class _WidgetContentArrayState extends State<WidgetContentArray> {
           }),
         );
       }
-      // bouton d'ajout
-      var addWidget = SizedBox(
-        height: 30,
-        child: Row(
-          children: [
-            GestureDetector(
+    }
+    if (widget.ctx.layoutArray!.nbRowPerPage > 0) {
+      double nextPreview = 20.0; 
+
+      Widget scroll = SizedBox(
+        height: (widget.ctx.layoutArray!.nbRowPerPage * 47) + nextPreview,
+        child: SingleChildScrollView(
+          primary: false,
+          child: Column(children: children),
+        ),
+      );
+      children = [scroll];
+    }
+
+    // bouton d'ajout
+    SizedBox addWidget = getAddBtn(items);
+    children.add(addWidget);
+
+    return WidgetExpansive(
+      color: Colors.blue,
+      headers: [
+        Text(widget.info.name),
+        Spacer(),
+        InkWell(
+          onTap: () async {
+            if (widget.info.onTapSetting != null) {
+              widget.info.onTapSetting!();
+            }
+          },
+          child: Icon(Icons.tune), //settings
+        ),
+      ],
+      child: Column(
+        spacing: 5,
+        mainAxisSize: MainAxisSize.max,
+        children: [...children, SizedBox(height: 1)],
+      ),
+    );
+  }
+
+  SizedBox getAddBtn(List<dynamic>? items) {
+    // bouton d'ajout
+    var addWidget = SizedBox(
+      height: 30,
+      child: Row(
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
               onTap: () {
                 setState(() {
                   dynamic newRow = {};
@@ -72,7 +155,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray> {
                   var template =
                       widget.info.json2ui.stateMgr.stateTemplate[key];
                   if (template != null) {
-                    newRow = getValueFromPath(
+                    newRow = getNewRowFromPath(
                       widget.info.json2ui.stateMgr.dataEmpty,
                       key.substring(1),
                     );
@@ -96,38 +179,16 @@ class _WidgetContentArrayState extends State<WidgetContentArray> {
                 child: Center(child: Icon(Icons.add_circle_outline)),
               ),
             ),
-            Spacer(),
-          ],
-        ),
-      );
-      children.add(addWidget);
-    }
-
-    return WidgetExpansive(
-      //key : ValueKey(widget.info.pathValue!),
-      color: Colors.blue,
-      headers: [
-        Text(widget.info.name),
-        Spacer(),
-        InkWell(
-          onTap: () async {
-            if (widget.info.onTapSetting != null) {
-              widget.info.onTapSetting!();
-            }
-          },
-          child: Icon(Icons.tune), //settings
-        ),
-      ],
-      child: Column(
-        spacing: 5,
-        mainAxisSize: MainAxisSize.max,
-        children: [...children, SizedBox(height: 1)],
+          ),
+          Spacer(),
+        ],
       ),
     );
+    return addWidget;
   }
 
-  dynamic getValueFromPath(Map<String, dynamic> json, String path) {
-    final regex = RegExp(r'([^[.\]]+)|\[(\d+)\]');
+  dynamic getNewRowFromPath(Map<String, dynamic> json, String path) {
+    final regex = RegExp(r'([^/\[\]]+)|\[(\d+)\]');
     dynamic current = json;
 
     for (final match in regex.allMatches(path)) {
@@ -151,5 +212,35 @@ class _WidgetContentArrayState extends State<WidgetContentArray> {
     }
 
     return current;
+  }
+}
+
+class InfoAccess extends ValueAccessor {
+  final List initialSelected;
+
+  InfoAccess({required this.initialSelected});
+
+  @override
+  dynamic get() {
+    return initialSelected;
+  }
+
+  @override
+  String getName() {
+    return "";
+  }
+
+  @override
+  bool isEditable() {
+    return true;
+  }
+
+  @override
+  void remove() {}
+
+  @override
+  void set(value) {
+    initialSelected.clear();
+    initialSelected.addAll(value);
   }
 }

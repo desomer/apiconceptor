@@ -17,5 +17,6 @@ class _PanModelChangeLogState extends State<PanModelChangeLog> {
     final md = modelSchemaDetail.getHistory(toMarkdown: true);
 
     return MarkdownWidget(data: md);
+
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart' show GoRouterState, GoRouterHelper;
-import 'package:jsonschema/feature/content/pan_content_selector.dart';
+import 'package:go_router/go_router.dart' show GoRouterState;
+import 'package:jsonschema/feature/content/pan_content_viewer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -13,7 +13,7 @@ class DesignModelUIPage extends GenericPageStateless {
 
   @override
   Widget build(BuildContext context) {
-    return PanContentSelector(masterIdModel: model);
+    return PanContentViewer(masterIdModel: model);
   }
 
   @override
@@ -45,7 +45,7 @@ class DesignModelUIPage extends GenericPageStateless {
         ),
 
         BreadNode(
-          icon: const Icon(Icons.airplane_ticket),
+          icon: const Icon(Icons.devices),
           settings: const RouteSettings(name: 'UI Design'),
           type: BreadNodeType.widget,
           path: Pages.modelUI.urlpath,
@@ -68,9 +68,7 @@ class DesignModelUIPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'List model'),
           type: BreadNodeType.widget,
-          onTap: () {
-            context.pop();
-          },
+          path: Pages.models.urlpath,
         ),
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),

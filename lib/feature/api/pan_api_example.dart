@@ -73,7 +73,7 @@ class PanApiExample extends PanYamlTree {
 
       if (config.mode == ModeExample.design) {
         row.add(SizedBox(width: 10));
-        row.add(WidgetVersionState(margeVertical: 2));
+        row.add(WidgetVersionState(margeVertical: 2, version: null,));
         row.add(
           TextButton.icon(
             icon: Icon(Icons.assignment_turned_in),

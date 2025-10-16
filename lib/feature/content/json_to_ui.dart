@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/feature/content/pan_setting.dart';
+import 'package:jsonschema/feature/content/pan_setting_array.dart';
+import 'package:jsonschema/feature/content/pan_setting_form.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_array.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_form.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_object_anyof.dart';
+import 'package:jsonschema/feature/content/widget/widget_content_row.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 enum WidgetType { root, form, list, input }
@@ -18,16 +20,55 @@ class WidgetTyped {
   final String name;
   final Widget widget;
   final WidgetType type;
+
   final dynamic content;
+  int height;
 
   String layout = 'Flow';
 
   WidgetTyped({
+    required this.height,
     required this.name,
     required this.content,
     required this.type,
     required this.widget,
   });
+}
+
+class UIParamContext {
+  dynamic data;
+  final String pathData;
+  final String path;
+  final String attrName;
+  final WidgetType parentType;
+  final List<WidgetTyped> rowTab;
+
+  List<ConfigContainer>? layoutConfiguration;
+  ConfigArrayContainer? layoutArray;
+  InfoTemplate? infoTemplate;
+
+  UIParamContext({
+    required this.pathData,
+    required this.path,
+    required this.attrName,
+    required this.parentType,
+    required this.rowTab,
+  });
+
+  //clone
+  UIParamContext clone({String? aPath, String? aPathData, String? aAttrName}) {
+    return UIParamContext(
+        pathData: aPathData ?? pathData,
+        path: aPath ?? path,
+        attrName: aAttrName ?? attrName,
+        parentType: parentType,
+        rowTab: rowTab,
+      )
+      ..layoutConfiguration = layoutConfiguration
+      ..layoutArray = layoutArray
+      ..infoTemplate = infoTemplate
+      ..data = data;
+  }
 }
 
 class JsonToUi with WidgetAnyOfHelper {
@@ -39,6 +80,9 @@ class JsonToUi with WidgetAnyOfHelper {
   bool haveTemplate = false;
   bool modeTemplate = false;
   ModelSchema? model;
+  ModelSchema? saveOnModel;
+
+  bool saveUIOnModel = false;
 
   void loadData(dynamic data) {
     stateMgr.data = data;
@@ -59,7 +103,7 @@ class JsonToUi with WidgetAnyOfHelper {
     return last;
   }
 
-  void addStateTreeData(String pathData, StateContainer container) {
+  void _addStateTreeData(String pathData, StateContainer container) {
     //print('==>> addStateTreeData $pathData ${container.hashCode}');
     var p = pathData.split('/');
     StateContainer? last;
@@ -76,26 +120,26 @@ class JsonToUi with WidgetAnyOfHelper {
 
   void loadDataInContainer(dynamic json, {String pathData = ''}) {
     if (json is Map) {
-      addStateTreeData(pathData, StateContainerObject()..jsonData = json);
+      _addStateTreeData(pathData, StateContainerObject()..jsonData = json);
       json.forEach((key, value) {
         final currentPath = '$pathData/$key';
         loadDataInContainer(value, pathData: currentPath);
       });
-      doReloadContainer(pathData);
+      _doReloadContainer(pathData);
     } else if (json is List) {
-      addStateTreeData(pathData, StateContainerArray()..jsonData = json);
+      _addStateTreeData(pathData, StateContainerArray()..jsonData = json);
       for (int i = 0; i < json.length; i++) {
         final currentPath = '$pathData[$i]';
         loadDataInContainer(json[i], pathData: currentPath);
       }
-      doReloadContainer(pathData);
+      _doReloadContainer(pathData);
     } else {
       // Valeur primitive
-      initInputControleur(pathData, json, 0);
+      _initInputControleur(pathData, json, 0);
     }
   }
 
-  void doReloadContainer(String pathData) {
+  void _doReloadContainer(String pathData) {
     var containerState = stateMgr.listContainer[pathData];
     if (containerState?.mounted ?? false) {
       // ignore: invalid_use_of_protected_member
@@ -103,7 +147,7 @@ class JsonToUi with WidgetAnyOfHelper {
     }
   }
 
-  void initInputControleur(String pathData, var json, int antiLoop) {
+  void _initInputControleur(String pathData, var json, int antiLoop) {
     if (antiLoop > 3) {
       //print("********** no visible pathData: $pathData $antiLoop");
       return;
@@ -121,7 +165,7 @@ class JsonToUi with WidgetAnyOfHelper {
           // print("no visible pathData: $pathData $antiLoop > $json");
           antiLoop++;
 
-          initInputControleur(pathData, json, antiLoop);
+          _initInputControleur(pathData, json, antiLoop);
         }
       } catch (e) {
         print("erreur pathData: $pathData => $e");
@@ -129,7 +173,7 @@ class JsonToUi with WidgetAnyOfHelper {
     });
   }
 
-  String replaceAllIndexes(String input) {
+  String _replaceAllIndexes(String input) {
     return input.replaceAllMapped(RegExp(r'\[\d+\]'), (match) => '[*]');
   }
 
@@ -141,165 +185,61 @@ class JsonToUi with WidgetAnyOfHelper {
     required WidgetType parentType,
   }) {
     List<ConfigContainer>? layoutConfiguration =
-        stateMgr.configLayout[replaceAllIndexes(path)];
+        stateMgr.configLayout[_replaceAllIndexes(path)];
     var rowTab = <WidgetTyped>[];
 
+    UIParamContext ctx =
+        UIParamContext(
+            pathData: pathData,
+            path: path,
+            attrName: attrName,
+            parentType: parentType,
+            rowTab: rowTab,
+          )
+          ..data = data
+          ..layoutConfiguration = layoutConfiguration;
+
     if (data is Map) {
-      return doObjectMap(
-        data,
-        path,
-        pathData,
-        attrName,
-        parentType,
-        layoutConfiguration,
-        rowTab,
-      );
+      return _doObjectMap(ctx);
     } else if (data is List) {
-      return getObjectArray(
-        data,
-        path,
-        pathData,
-        attrName,
-        layoutConfiguration,
-        rowTab,
-      );
+      return _getObjectArray(ctx);
     } else {
-      return getObjectInput(data, path, pathData, attrName, parentType);
+      return getObjectInput(ctx);
     }
   }
 
-  WidgetTyped getObjectInput(
-    dynamic data,
-    String path,
-    String pathData,
-    String attrName,
-    WidgetType parentType,
-  ) {
-    // if (parentType == WidgetType.list) {
-    //   return WidgetTyped(
-    //     name: attrName,
-    //     content: data,
-    //     type: WidgetType.input,
-    //     widget: Container(
-    //       decoration: BoxDecoration(
-    //         border: Border.all(color: Colors.grey, width: 1),
-    //       ),
-    //       child: Text('$data'),
-    //     ),
-    //   );
-    // } else {
+  WidgetTyped getObjectInput(UIParamContext ctx) {
     return WidgetTyped(
-      name: attrName,
-      content: data,
+      name: ctx.attrName,
+      content: ctx.data,
       type: WidgetType.input,
+      height: -1,
       widget: WidgetContentInput(
-        key: ObjectKey(data), // obligatoire pour les onglets
+        key: ObjectKey(ctx.data), // obligatoire pour les onglets
         info:
-            WidgetConfigInfo(json2ui: this, name: attrName)
-              ..inArrayValue = (parentType == WidgetType.list)
-              ..setPathValue(path)
-              ..setPathData(pathData),
+            WidgetConfigInfo(json2ui: this, name: ctx.attrName)
+              ..inArrayValue = (ctx.parentType == WidgetType.list)
+              ..setPathValue(ctx.path)
+              ..setPathData(ctx.pathData),
       ),
     );
-    //   }
   }
 
-  WidgetTyped? getObjectArray(
-    List<dynamic> data,
-    String path,
-    String pathData,
-    String attrName,
-    List<ConfigContainer>? layoutConfiguration,
-    List<WidgetTyped> rowTab,
-  ) {
+  WidgetTyped? _getObjectArray(UIParamContext ctx) {
     var lw = <Widget>[];
 
-    WidgetContentArray wid = WidgetContentArray(
-      info:
-          WidgetConfigInfo(name: attrName, json2ui: this)
-            ..setPathValue(path)
-            ..setPathData(pathData)
-            ..onTapSetting = () async {
-              // await showSettingDialog(context!, path, listContentBloc);
-              // // ignore: invalid_use_of_protected_member
-              // state.setState(() {
-              //   // change config
-              // });
-            },
-      children: (pathData) {
-        lw.clear();
-        var lwt = <WidgetTyped>[];
-        for (int i = 0; i < data.length; i++) {
-          var row = browseJsonToWidget(
-            'row $i',
-            data[i],
-            path: '$path[$i]',
-            pathData: pathData,
-            parentType: WidgetType.list,
-          );
-          if (row != null) {
-            lwt.add(row);
-          }
-        }
+    var p = _replaceAllIndexes(ctx.path);
 
-        for (int i = 0; i < lwt.length; i++) {
-          lw.add(getArrayItem(i, lwt[i].widget, data[i], null, () {}));
-        }
+    var confLayoutArray = stateMgr.configArray[p];
+    confLayoutArray ??= ConfigArrayContainer(name: p);
+    ctx.layoutArray = confLayoutArray;
 
-        return lw;
-      },
-      getRow: (pathData2, rowData, i, k, onDelete) {
-        Widget wid;
-        var pathTemplate = calcPathTemplate(
-          WidgetConfigInfo(json2ui: this, name: attrName),
-          pathData2,
-        );
-        bool anyOfItem = pathTemplate.anyOf;
-        if (anyOfItem) {
-          wid = WidgetContentObjectAnyOf(
-            children: (pathData, data2) {
-              List<WidgetTyped> listContentBloc = [];
-              var wid = getTemplateObject(
-                rowData,
-                '$path[$i]',
-                pathData,
-                layoutConfiguration,
-                rowTab,
-                listContentBloc,
-              );
-              return wid;
-            },
-            info:
-                WidgetConfigInfo(json2ui: this, name: "choise items")
-                  ..inArrayValue = rowData
-                  ..setPathValue('$path[$i]')
-                  ..setPathData('$path[$i]'),
-          );
-        } else {
-          var row = browseJsonToWidget(
-            '$i',
-            rowData,
-            path: '$path[$i]',
-            pathData: pathData2,
-            parentType: WidgetType.list,
-          );
-          if (row == null) return SizedBox();
-          wid = row.widget;
-        }
-
-        return getArrayItem(i, wid, rowData, k, onDelete);
-      },
-    );
-
-    if (modeTemplate) {
-      // charge les templates mais ne les affiche pas
-      wid.children(pathData);
-      lw.clear();
-    }
+    Widget wid = getArrayOfForm(lw, ctx);
 
     var widgetTyped = WidgetTyped(
-      name: attrName,
-      content: data,
+      height: -1,
+      name: ctx.attrName,
+      content: ctx.data,
       type: WidgetType.list,
       widget: Container(
         //key: ObjectKey(data),
@@ -311,9 +251,11 @@ class JsonToUi with WidgetAnyOfHelper {
       ),
     );
 
-    var confLayout = layoutConfiguration?.firstWhereOrNull((element) {
-      return element.name == attrName;
-    });
+    var confLayout =
+        ctx.layoutConfiguration?.firstWhereOrNull((element) {
+              return element.name == ctx.attrName;
+            })
+            as ConfigFormContainer?;
 
     String layout = 'Flow';
     if (confLayout != null) {
@@ -321,13 +263,13 @@ class JsonToUi with WidgetAnyOfHelper {
     }
     widgetTyped.layout = layout;
     if (layout == 'Flow') {
-      addTabIn(rowTab, lw);
+      addTabIn(ctx.rowTab, lw);
     } else if (layout == 'Tab') {
-      rowTab.add(widgetTyped);
+      ctx.rowTab.add(widgetTyped);
       return null;
     } else if (layout == 'OtherTab') {
-      addTabIn(rowTab, lw);
-      rowTab.add(widgetTyped);
+      addTabIn(ctx.rowTab, lw);
+      ctx.rowTab.add(widgetTyped);
       return null;
     }
     lw.add(wid);
@@ -335,7 +277,136 @@ class JsonToUi with WidgetAnyOfHelper {
     return widgetTyped;
   }
 
-  Widget getArrayItem(
+  WidgetContentArray getArrayOfForm(
+    List<Widget> listWidget,
+    UIParamContext ctx,
+  ) {
+    var path = ctx.path;
+
+    WidgetContentArray wid = WidgetContentArray(
+      ctx: ctx,
+      info:
+          WidgetConfigInfo(name: ctx.attrName, json2ui: this)
+            ..setPathValue(ctx.path)
+            ..setPathData(ctx.pathData)
+            ..onTapSetting = () async {
+              if (await showSettingArrayDialog(
+                context!,
+                ctx.path,
+                ctx.layoutArray!,
+              )) {
+                // ignore: invalid_use_of_protected_member
+                state.setState(() {
+                  // change config
+                });
+              }
+            },
+      children: (pathData) {
+        // mode template sans données
+        listWidget.clear();
+        var lwt = <WidgetTyped>[];
+        for (int i = 0; i < ctx.data.length; i++) {
+          var row = browseJsonToWidget(
+            'row $i',
+            ctx.data[i],
+            path: '$path[$i]',
+            pathData: pathData,
+            parentType: WidgetType.list,
+          );
+          if (row != null) {
+            lwt.add(row);
+          }
+        }
+
+        for (int i = 0; i < lwt.length; i++) {
+          listWidget.add(
+            _getArrayItemAction(i, lwt[i].widget, ctx.data[i], null, () {}),
+          );
+        }
+
+        return listWidget;
+      },
+      getRow: (pathDataRow, rowData, i, k, onDelete) {
+        var infoTemplate = calcPathTemplate(
+          WidgetConfigInfo(json2ui: this, name: ctx.attrName),
+          pathDataRow,
+        );
+
+        UIParamContext ctxRow =
+            UIParamContext(
+                pathData: pathDataRow,
+                path: path,
+                attrName: ctx.attrName,
+                parentType: ctx.parentType,
+                rowTab: ctx.rowTab,
+              )
+              ..data = rowData
+              ..infoTemplate = infoTemplate
+              ..layoutConfiguration = ctx.layoutConfiguration;
+
+        if (ctx.layoutArray!.listOfRow) {
+          Widget wid = WidgetContentRow(
+            ctxRow: ctxRow,
+            rowIdx: i,
+            info:
+                WidgetConfigInfo(json2ui: this, name: ctx.attrName)
+                  ..setPathValue('$path[$i]')
+                  ..setPathData('$path[$i]'),
+          );
+
+          return _getArrayItemAction(i, wid, rowData, k, onDelete);
+        } else {
+          bool anyOfItem = infoTemplate.anyOf;
+
+          Widget wid = getFormOfRow(anyOfItem, i, ctxRow);
+
+          return _getArrayItemAction(i, wid, rowData, k, onDelete);
+        }
+      },
+    );
+
+    if (modeTemplate) {
+      // charge les templates mais ne les affiche pas
+      wid.children(ctx.pathData);
+      listWidget.clear();
+    }
+    return wid;
+  }
+
+  Widget getFormOfRow(bool anyOfItem, int i, UIParamContext ctx) {
+    Widget wid;
+    var path = ctx.path;
+    if (anyOfItem) {
+      wid = WidgetContentObjectAnyOf(
+        children: (pathDataRow, data2) {
+          List<WidgetTyped> listContentBloc = [];
+          var cloneCtx = ctx.clone(aPath: '$path[$i]', aPathData: pathDataRow);
+          return getTemplateObject(cloneCtx, listContentBloc);
+        },
+        info:
+            WidgetConfigInfo(json2ui: this, name: "choise items")
+              ..inArrayValue = ctx.data
+              ..setPathValue('$path[$i]')
+              ..setPathData('$path[$i]'),
+      );
+    } else {
+      var row = browseJsonToWidget(
+        '$i',
+        ctx.data,
+        path: '$path[$i]',
+        pathData: ctx.pathData,
+        parentType: WidgetType.list,
+      );
+      if (row == null) {
+        wid = SizedBox();
+      } else {
+        wid = row.widget;
+      }
+    }
+    return wid;
+  }
+
+  Widget _getArrayItemAction(
     int i,
     Widget w,
     dynamic rowData,
@@ -353,11 +424,14 @@ class JsonToUi with WidgetAnyOfHelper {
             color: Colors.blue,
             child: Row(
               children: [
-                GestureDetector(
-                  onTap: () {
-                    onDelete();
-                  },
-                  child: Icon(Icons.delete),
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      onDelete();
+                    },
+                    child: Icon(Icons.delete),
+                  ),
                 ),
                 Expanded(child: Center(child: Text('$i'))),
               ],
@@ -369,64 +443,43 @@ class JsonToUi with WidgetAnyOfHelper {
     );
   }
 
-  String cleanPath(String path) {
-    var path2 = path.replaceAll('\$\$__ref__>', '');
-    path2 = path2.replaceAll('\$\$__anyof__>', '');
-    return path2;
-  }
+  // String _cleanPath(String path) {
+  //   var path2 = path.replaceAll('\$\$__ref__>', '');
+  //   path2 = path2.replaceAll('\$\$__anyof__>', '');
+  //   return path2;
+  // }
 
-  WidgetTyped? doObjectMap(
-    Map<dynamic, dynamic> data,
-    String path,
-    String pathData,
-    String attrName,
-    WidgetType parentType,
-    List<ConfigContainer>? layoutConfiguration,
-    List<WidgetTyped> rowTab,
-  ) {
+  WidgetTyped? _doObjectMap(UIParamContext ctx) {
+    var data = ctx.data;
     if (data[cstType] != null && data[cstContent] != null) {
       // gestion des type array ou input ou any
       var listData = data[cstContent];
 
       if (data[cstType] == 'array' && modeTemplate) {
-        stateMgr.stateTemplate[path] ??=
+        stateMgr.stateTemplate[ctx.path] ??=
             StateContainerArray()..jsonTemplate = listData;
       } else if (data[cstType] == 'arrayAnyOf') {
         print("arrayAnyOf");
       } else if (data[cstType] == 'objectAnyOf') {
-        return doObjectAnyOf(
-          path,
-          listData,
-          attrName,
-          pathData,
-          layoutConfiguration,
-          rowTab,
-          data,
-        );
+        return _doObjectAnyOf(ctx, listData);
       }
 
       WidgetTyped? wid = browseJsonToWidget(
-        path: path,
-        pathData: pathData,
-        attrName,
+        path: ctx.path,
+        pathData: ctx.pathData,
+        ctx.attrName,
         listData,
-        parentType: parentType,
+        parentType: ctx.parentType,
       );
 
       return wid;
     }
 
-    Widget wid = getContentMap(
-      attrName,
-      path,
-      pathData,
-      data,
-      layoutConfiguration,
-      rowTab,
-    );
+    Widget wid = _getContentMap(ctx);
 
     return WidgetTyped(
-      name: attrName,
+      height: -1,
+      name: ctx.attrName,
       content: data,
       type: WidgetType.form,
       widget: Container(
@@ -440,124 +493,92 @@ class JsonToUi with WidgetAnyOfHelper {
     );
   }
 
-  WidgetContentForm getContentMap(
-    String attrName,
-    String path,
-    String pathData,
-    Map<dynamic, dynamic> data,
-    List<ConfigContainer>? conf,
-    List<WidgetTyped> rowTab,
-  ) {
-    List<WidgetTyped> listContentBloc = [];
+  WidgetContentForm _getContentMap(UIParamContext ctx) {
+    List<WidgetTyped> listContentBlocForConfig = [];
+
     WidgetContentForm wid = WidgetContentForm(
+      ctx: ctx,
       info:
-          WidgetConfigInfo(name: attrName, json2ui: this)
-            ..setPathValue(path)
-            ..setPathData(pathData)
+          WidgetConfigInfo(name: ctx.attrName, json2ui: this)
+            ..setPathValue(ctx.path)
+            ..setPathData(ctx.pathData)
             ..onTapSetting = () async {
-              await showSettingDialog(context!, path, listContentBloc);
-              // ignore: invalid_use_of_protected_member
-              state.setState(() {
-                // change config
-              });
+              if (await showSettingFormDialog(
+                context!,
+                ctx.path,
+                listContentBlocForConfig,
+              )) {
+                // ignore: invalid_use_of_protected_member
+                state.setState(() {
+                  // change config
+                });
+              }
             },
       children: (pathDataComp) {
-        listContentBloc.clear();
-        return getTemplateObject(
-          data,
-          path,
-          pathDataComp,
-          conf,
-          rowTab,
-          listContentBloc,
-        );
+        listContentBlocForConfig.clear();
+        var ctxClone = ctx.clone(aPathData: pathDataComp);
+
+        return getTemplateObject(ctxClone, listContentBlocForConfig);
       },
     );
 
     if (modeTemplate) {
-      wid.children(pathData);
+      wid.children(ctx.pathData);
     }
     return wid;
   }
 
-  WidgetTyped doObjectAnyOf(
-    String path,
-    listData,
-    String attrName,
-    String pathData,
-    List<ConfigContainer>? conf,
-    List<WidgetTyped> rowTab,
-    Map<dynamic, dynamic> data,
-  ) {
+  WidgetTyped _doObjectAnyOf(UIParamContext ctx, dynamic listTemplate) {
     if (modeTemplate) {
-      var replaceAll = path.replaceAll("/##__choise__##", '');
+      var replaceAll = ctx.path.replaceAll("/##__choise__##", '');
       stateMgr.stateTemplate[replaceAll] =
-          StateContainerObjectAny()..jsonTemplate = listData;
+          StateContainerObjectAny()..jsonTemplate = listTemplate;
     }
 
-    WidgetContentObjectAnyOf wid = _getWidgetObjectAnyOf(
-      attrName,
-      path,
-      pathData,
-      listData,
-      conf,
-      rowTab,
-    );
+    WidgetContentObjectAnyOf wid = _getWidgetObjectAnyOf(ctx, listTemplate);
 
     if (modeTemplate) {
-      wid.children(pathData, null);
+      wid.children(ctx.pathData, null);
     }
 
     return WidgetTyped(
-      name: attrName,
-      content: data,
+      height: -1,
+      name: ctx.attrName,
+      content: ctx.data,
       type: WidgetType.form,
       widget: wid,
     );
   }
 
   WidgetContentObjectAnyOf _getWidgetObjectAnyOf(
-    String attrName,
-    String path,
-    String pathData,
-    listData,
-    List<ConfigContainer>? conf,
-    List<WidgetTyped> rowTab,
+    UIParamContext ctx,
+    dynamic listTemplateModel,
   ) {
     var wid = WidgetContentObjectAnyOf(
       //key: ObjectKey(listData),
       info:
-          WidgetConfigInfo(name: attrName, json2ui: this)
-            ..setPathValue(path.replaceAll("/##__choise__##", ''))
-            ..setPathData(pathData),
+          WidgetConfigInfo(name: ctx.attrName, json2ui: this)
+            ..setPathValue(ctx.path.replaceAll("/##__choise__##", ''))
+            ..setPathData(ctx.pathData),
       children: (pathDataComp, data) {
         List<WidgetTyped> listContentBloc = [];
         if (data == null && modeTemplate) {
           //charge les templates
           List<Widget> ret = [];
-          List listTemplate = (listData as Map).values.toList();
-          var replaceAll = path.replaceAll("/##__choise__##", '');
+          List listTemplate = (listTemplateModel as Map).values.toList();
+          var pathTemplate = ctx.path.replaceAll("/##__choise__##", '');
           for (var i = 0; i < listTemplate.length; i++) {
-            var r = getTemplateObject(
-              listTemplate[i],
-              '$replaceAll[$i]',
-              pathDataComp,
-              conf,
-              rowTab,
-              listContentBloc,
-            );
+            var ctx2 = ctx.clone(
+              aPath: '$pathTemplate[$i]',
+              aPathData: pathDataComp,
+            )..data = listTemplate[i];
+            var r = getTemplateObject(ctx2, listContentBloc);
             ret.addAll(r);
           }
           return ret;
         } else if (data != null) {
-          return getTemplateObject(
-            data,
-            path,
-            pathDataComp,
-            conf,
-            rowTab,
-            listContentBloc,
-          );
+          var ctx2 = ctx.clone(aPathData: pathDataComp);
+          return getTemplateObject(ctx2, listContentBloc);
         } else {
           return [Text('Empty')];
         }
@@ -567,30 +588,25 @@ class JsonToUi with WidgetAnyOfHelper {
   }
 
   List<Widget> getTemplateObject(
-    Map<dynamic, dynamic> data,
-    String path,
-    String pathData,
-    List<ConfigContainer>? conf,
-    List<WidgetTyped> rowTab,
+    UIParamContext ctx,
     List<WidgetTyped> listContentBloc,
   ) {
     var lwt = <WidgetTyped>[];
 
     if (modeTemplate) {
-      stateMgr.stateTemplate[path] ??=
-          StateContainerObject()..jsonTemplate = data;
+      stateMgr.stateTemplate[ctx.path] ??=
+          StateContainerObject()..jsonTemplate = ctx.data;
     }
 
-    data.forEach((key, value) {
-      //print('$tabSpace$key:');
+    ctx.data.forEach((key, value) {
       if (key == cstProp) {
         // gestion prop du formulaire
       } else {
         var w = browseJsonToWidget(
           key,
           value,
-          path: '$path/$key',
-          pathData: pathData,
+          path: '${ctx.path}/$key',
+          pathData: ctx.pathData,
           parentType: WidgetType.form,
         );
         if (w != null) {
@@ -603,13 +619,19 @@ class JsonToUi with WidgetAnyOfHelper {
     var rowInput = <Widget>[];
     const margeHoriz = 20.0;
     bool prevIsContainerTab = false;
+    var rowTab = ctx.rowTab;
 
     for (var i = 0; i < lwt.length; i++) {
+      // type list ou form
       if (lwt[i].type != WidgetType.input) {
-        // type list ou form
-        var confLayout = conf?.firstWhereOrNull((element) {
-          return element.name == lwt[i].name;
-        });
+        // cherche la configuration de mise en page
+        var confLayout =
+            ctx.layoutConfiguration?.firstWhereOrNull((element) {
+                  return (element as ConfigFormContainer).name == lwt[i].name;
+                })
+                as ConfigFormContainer?;
+
+        lwt[i].height = confLayout?.height ?? -1;
 
         bool nextIsContainer = false;
         if (i < lwt.length - 1) {
@@ -619,11 +641,10 @@ class JsonToUi with WidgetAnyOfHelper {
         }
 
         String layout =
-            (((pathData == '' && i == 0) || !nextIsContainer) &&
+            (((ctx.pathData == '' && i == 0) || !nextIsContainer) &&
                     !prevIsContainerTab)
                 ? 'Flow'
                 : 'Tab';
-        //String layout = 'Flow';
 
         if (confLayout != null) {
           layout = confLayout.layout;
@@ -661,9 +682,14 @@ class JsonToUi with WidgetAnyOfHelper {
         }
       }
     }
+
     addTabIn(rowTab, lw);
     if (rowInput.isNotEmpty) {
-      // ajout la derniére ligne d'input 
+      int l = rowInput.length;
+      // ajout la derniére ligne d'input
+      for (var i = l; i < 4; i++) {
+        rowInput.add(Flexible(child: Container()));
+      }
       lw.add(Row(spacing: margeHoriz, children: rowInput));
       rowInput = [];
     }
@@ -744,14 +770,16 @@ class JsonToUi with WidgetAnyOfHelper {
   //   );
   // }
 
-  Future<void> showSettingDialog(
+  Future<bool> showSettingFormDialog(
     BuildContext ctx,
     String path,
     List<WidgetTyped> data,
   ) async {
-    var setting = PanSetting(data: data);
+    var setting = PanSettingForm(data: data);
 
-    return showDialog<void>(
+    var result = false;
+
+    await showDialog<void>(
       context: ctx,
       barrierDismissible: true, // user must tap button!
       builder: (BuildContext context) {
@@ -762,25 +790,92 @@ class JsonToUi with WidgetAnyOfHelper {
           content: SizedBox(width: width, height: height, child: setting),
           actions: [
             TextButton(
+              child: const Text('cancel'),
+              onPressed: () {
+                result = false;
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
               child: const Text('change layout'),
               onPressed: () {
+                result = true;
                 Navigator.of(context).pop();
-                List<ConfigContainer> confs = [];
+                List<ConfigFormContainer> confs = [];
                 for (var i = 0; i < data.length; i++) {
                   confs.add(
-                    ConfigContainer(
+                    ConfigFormContainer(
+                      height: data[i].height,
                       pos: i,
                       name: data[i].name,
                       layout: data[i].layout,
                     ),
                   );
                 }
-                stateMgr.configLayout[replaceAllIndexes(path)] = confs;
+                stateMgr.configLayout[_replaceAllIndexes(path)] = confs;
+
+                if (saveUIOnModel) {
+                  stateMgr.storeConfigLayout(model!);
+                } else if (saveOnModel != null) {
+                  stateMgr.storeConfigLayout(saveOnModel!);
+                }
               },
             ),
           ],
         );
       },
     );
+
+    return result;
+  }
+
+  Future<bool> showSettingArrayDialog(
+    BuildContext ctx,
+    String path,
+    ConfigArrayContainer data,
+  ) async {
+    var setting = PanSettingArray(config: data);
+
+    var result = false;
+
+    await showDialog<void>(
+      context: ctx,
+      barrierDismissible: true, // user must tap button!
+      builder: (BuildContext context) {
+        Size size = MediaQuery.of(ctx).size;
+        double width = size.width * 0.9;
+        double height = size.height * 0.8;
+        return AlertDialog(
+          content: SizedBox(width: width, height: height, child: setting),
+          actions: [
+            //cancel
+            TextButton(
+              child: const Text('cancel'),
+              onPressed: () {
+                result = false;
+                Navigator.of(context).pop();
+              },
+            ),
+
+            TextButton(
+              child: const Text('change layout'),
+              onPressed: () {
+                result = true;
+                Navigator.of(context).pop();
+                stateMgr.configArray[_replaceAllIndexes(path)] = data;
+
+                if (saveUIOnModel) {
+                  stateMgr.storeConfigLayout(model!);
+                } else if (saveOnModel != null) {
+                  stateMgr.storeConfigLayout(saveOnModel!);
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    return result;
   }
 }

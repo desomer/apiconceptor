@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart' show GoRouterState, GoRouterHelper;
+import 'package:go_router/go_router.dart' show GoRouterState;
 import 'package:jsonschema/feature/home/background_screen.dart';
 import 'package:jsonschema/feature/model/pan_model_editor.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -49,7 +49,7 @@ class DesignModelDetailPage extends GenericPageStateless {
         ),
 
         BreadNode(
-          icon: const Icon(Icons.airplane_ticket),
+          icon: const Icon(Icons.devices),
           settings: const RouteSettings(name: 'UI Design'),
           type: BreadNodeType.widget,
           path: Pages.modelUI.urlpath,
@@ -72,9 +72,7 @@ class DesignModelDetailPage extends GenericPageStateless {
         BreadNode(
           settings: const RouteSettings(name: 'List model'),
           type: BreadNodeType.widget,
-          onTap: () {
-            context.pop();
-          },
+          path: Pages.models.urlpath,
         ),
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),

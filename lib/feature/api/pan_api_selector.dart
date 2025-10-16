@@ -12,8 +12,7 @@ import 'package:jsonschema/widget/widget_version_state.dart';
 
 // ignore: must_be_immutable
 class PanAPISelector extends PanYamlTree {
-  PanAPISelector(
-{
+  PanAPISelector({
     required this.onSelModel,
     required this.browseOnly,
     super.key,
@@ -40,7 +39,7 @@ class PanAPISelector extends PanYamlTree {
       row.add(
         CellEditor(
           inArray: true,
-          key: ValueKey(info.numUpdateForKey),
+          key: ValueKey('${info.name}%${info.numUpdateForKey}'),
           acces: ModelAccessorAttr(
             node: node.data,
             schema: schema,
@@ -50,7 +49,9 @@ class PanAPISelector extends PanYamlTree {
       );
 
       row.add(SizedBox(width: 10));
-      row.add(WidgetVersionState(margeVertical: 2));
+      row.add(
+        WidgetVersionState(margeVertical: 2, version: null),
+      );
       row.add(
         TextButton.icon(
           onPressed: () async {

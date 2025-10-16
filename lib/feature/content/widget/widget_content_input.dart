@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
-import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/content/state_manager.dart';
+import 'package:jsonschema/feature/content/pan_content_viewer.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
+import 'package:jsonschema/start_core.dart';
 
-enum InputType { text, num, bool, choise, date }
+enum InputType { text, num, bool, choise, date, link }
 
 class WidgetContentInput extends StatefulWidget {
   const WidgetContentInput({super.key, required this.info});
@@ -39,79 +38,13 @@ class WidgetContentInputState extends State<WidgetContentInput>
     widget.info.json2ui.stateMgr.addControler(ctrlName, this);
 
     ctrl.addListener(() {
-      int idx = -1;
-      var pathData = pathDataContainer;
-      if (pathData.endsWith(']')) {
-        pathData = pathData.substring(0, pathData.length - 1);
-        int end = pathData.lastIndexOf('[');
-        String idxTxt = pathData.substring(end + 1);
-        pathData = pathData.substring(0, end);
-        idx = int.parse(idxTxt);
-      }
-
-      var dataContainer = widget.info.json2ui.getState(pathData);
-      if (dataContainer != null) {
-        var data = dataContainer.jsonData;
-        dynamic row;
-        dynamic val;
-        if (data is List) {
-          if (idx >= 0) {
-            row = data[idx];
-          }
-          if (row is Map) {
-            idx = -1;
-            data = row;
-            val = data[widget.info.name];
-          } else {
-            // cas de liste de String, int
-            val = row;
-          }
-        } else {
-          val = data[widget.info.name];
-        }
-
-        if (ctrl.text != val?.toString()) {
-          if (idx >= 0) {
-            data[idx] = ctrl.text;
-          } else {
-            data[widget.info.name] = ctrl.text;
-          }
-        }
-      }
-      //   if (data is Map || data is List) {
-      //     if (idx >= 0) {
-      //       data = data[idx];
-      //     }
-      //     if (data is Map) {
-      //       val = data[widget.info.name];
-      //     } else {
-      //       val = data;
-      //     }
-      //   } else {
-      //     val = data;
-      //   }
-      // }
+      setValue(widget.info, typeInput, pathDataContainer, ctrl.text);
     });
 
     super.initState();
   }
 
-  dynamic getValue(String val) {
-    switch (typeInput) {
-      case InputType.bool:
-        return val.toLowerCase() == 'true';
-      case InputType.num:
-        return int.tryParse(val) ?? double.tryParse(val);
-      default:
-        return val;
-    }
-  }
-
   String initValueDisplayed() {
-    // if (widget.info.pathValue == '/orderCategory/isSolvency') {
-    //   print("object");
-    // }
-
     var pathDataContainer = widget.info.pathData;
     if (widget.info.inArrayValue == true) {
       pathDataContainer = widget.info.pathValue;
@@ -158,7 +91,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
         typeInput = InputType.text;
     }
 
-    print('${widget.info.pathValue}  $typeInput');
+    //print('${widget.info.pathValue}  $typeInput');
 
     return pathDataContainer;
   }
@@ -183,81 +116,9 @@ class WidgetContentInputState extends State<WidgetContentInput>
 
   @override
   Widget build(BuildContext context) {
-    String messageTooltip = '';
-    List<String>? choiseItem;
+    InputDesc inputDesc = getInputDesc(widget.info);
 
-    var pathData = widget.info.pathData!;
-    pathData = pathData.replaceAll("/##__choise__##", '');
-
-    StateContainer? dataTemplate;
-
-    if (widget.info.json2ui.modeTemplate) {
-      dataTemplate = widget.info.json2ui.stateMgr.stateTemplate[pathData];
-    }
-
-    var stateWidget = widget.info.json2ui.getState(pathData);
-    var displayData = stateWidget?.jsonData;
-    var pathTemplate = pathData;
-    var attrName = widget.info.name;
-
-    if (widget.info.inArrayValue == true) {
-      // gestion des tableau de String, int, etc..
-      var lastIndexOf = pathTemplate.lastIndexOf('/');
-      var p = pathTemplate.substring(0, lastIndexOf);
-      attrName = pathTemplate.substring(lastIndexOf + 1);
-      pathTemplate = p;
-      pathData = pathTemplate;
-    }
-
-    // cherche le template
-    if (widget.info.json2ui.haveTemplate && displayData != null) {
-      if (widget.info.pathTemplate == null) {
-        pathTemplate =
-            stateWidget!.currentTemplate ??
-            calcPathTemplate(widget.info, pathData).path;
-        widget.info.pathTemplate = pathTemplate;
-      } else {
-        pathTemplate = widget.info.pathTemplate!;
-      }
-
-      dataTemplate = widget.info.json2ui.stateMgr.stateTemplate[pathTemplate];
-    }
-
-    // cherche la Attribut info du template
-    var template = dataTemplate?.jsonTemplate[attrName];
-    if (template is Map) {
-      AttributInfo? propAttribut;
-      if (template[cstProp] != null) {
-        propAttribut = template[cstProp];
-        messageTooltip = propAttribut!.properties.toString();
-      }
-
-      if (propAttribut != null) {
-        switch (propAttribut.type) {
-          case 'number':
-            typeInput = InputType.num;
-            break;
-          case 'boolean':
-            typeInput = InputType.bool;
-            break;
-          default:
-            typeInput = InputType.text;
-        }
-        if (propAttribut.properties?['enum'] != null) {
-          typeInput = InputType.choise;
-          choiseItem = propAttribut.properties!['enum'].toString().split('\n');
-          if (!choiseItem.contains('')) {
-            choiseItem.insert(0, '');
-          }
-          print(choiseItem);
-        }
-      }
-    } else if (!widget.info.json2ui.modeTemplate) {
-      print("no found $pathData");
-      if (typeInput == InputType.choise) {
-        typeInput = InputType.text;
-      }
-    }
+    typeInput = inputDesc.typeInput;
 
     // // change la valeur du controleur
     // var pathDataContainer = initValueDisplayed();
@@ -269,6 +130,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
     // }
 
     Widget inputWidget;
+
     switch (typeInput) {
       case InputType.choise:
         // TextField textWidget = TextField(
@@ -286,15 +148,11 @@ class WidgetContentInputState extends State<WidgetContentInput>
           valueListenable: ctrl,
           builder: (context, value, child) {
             return DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText:  widget.info.name,
-                //border: OutlineInputBorder(),
-              ),
-
+              decoration: getInputDecorator(inputDesc.isRequired),
               isExpanded: true,
               initialValue: ctrl.text,
               items:
-                  choiseItem!.map((value) {
+                  inputDesc.choiseItem!.map((value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(value),
@@ -305,6 +163,21 @@ class WidgetContentInputState extends State<WidgetContentInput>
               },
             );
           },
+        );
+        break;
+
+      case InputType.link:
+        inputWidget = TextField(
+          decoration: getInputDecorator(
+            inputDesc.isRequired,
+            suffixIcon: IconButton(
+              icon: Icon(Icons.search),
+              onPressed: () {
+                showLinkDialog(inputDesc.link!, context);
+              },
+            ),
+          ),
+          controller: ctrl,
         );
         break;
 
@@ -331,12 +204,84 @@ class WidgetContentInputState extends State<WidgetContentInput>
 
       default:
         inputWidget = TextField(
-          decoration: InputDecoration(labelText: widget.info.name),
+          decoration: getInputDecorator(inputDesc.isRequired),
           controller: ctrl,
         );
         break;
     }
 
-    return Tooltip(message: messageTooltip, child: inputWidget);
+    return Tooltip(message: inputDesc.messageTooltip, child: inputWidget);
+  }
+
+  InputDecoration? getInputDecorator(bool isRequired, {Widget? suffixIcon}) {
+    InputDecoration? inputDecoration;
+    if (isRequired) {
+      inputDecoration = InputDecoration(
+        suffixIcon: suffixIcon,
+        label: getLabelWithAsterix(widget.info.name, Colors.deepOrange),
+      );
+    } else {
+      inputDecoration = InputDecoration(
+        suffixIcon: suffixIcon,
+        labelText: widget.info.name,
+      );
+    }
+    return inputDecoration;
+  }
+
+  Widget getLabelWithAsterix(String label, Color asteriskColor) {
+    return RichText(
+      text: TextSpan(
+        text: '$label ',
+        style: TextStyle(color: Colors.grey),
+        children: [
+          TextSpan(
+            text: '*',
+            style: TextStyle(fontSize: 16, color: asteriskColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> showLinkDialog(String link, BuildContext ctx) async {
+    var l = link.split('.');
+    var m = currentCompany.listModel!.mapInfoByName[l[0]];
+    if (m == null || m.isEmpty) return;
+
+    return showDialog<void>(
+      context: ctx,
+      barrierDismissible: true, // user must tap button!
+      builder: (BuildContext context) {
+        Size size = MediaQuery.of(ctx).size;
+        double width = size.width * 0.9;
+        double height = size.height * 0.8;
+        return AlertDialog(
+          content: SizedBox(
+            width: width,
+            height: height,
+            child: Column(
+              children: [
+                ListTile(title: Text(m.first.name)),
+                Expanded(
+                  child: Container(
+                    color: Colors.black,
+                    child: PanContentViewer(masterIdModel: m.first.masterID),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 }

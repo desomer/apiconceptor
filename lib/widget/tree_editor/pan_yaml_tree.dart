@@ -54,6 +54,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
             _schema = snapshot.data!;
 
             _cacheContent = _getContent(context);
+            _schema.initEventListener(_yamlConfig!);
 
             return _cacheContent!;
           } else if (snapshot.hasError) {
@@ -204,6 +205,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
           child: getToolTip(
             toolContent: getTooltipFromAttr(node.data.info),
             child: NoOverflowErrorFlex(
+              crossAxisAlignment: CrossAxisAlignment.end,
               direction: Axis.horizontal,
               children: ret,
             ),

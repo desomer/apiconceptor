@@ -7,34 +7,71 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:supabase/supabase.dart';
 
 DataAcces bddStorage = DataAcces();
+User? user;
 
 class DataAcces {
+  SupabaseClient? _sup;
   late SupabaseClient supabase;
   StoreManager storeManager = StoreManager();
 
-  Future<void> init() async {
+  Future<bool> connect(String usermail, String password) async {
+    print("connect to supabase");
     try {
-      supabase = SupabaseClient(
+      _sup ??= SupabaseClient(
         'https://oielmrsjyymltbkyeuec.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pZWxtcnNqeXltbHRia3lldWVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxODkyMzAsImV4cCI6MjA2MTc2NTIzMH0.V8uEtQAhrXjRel_VCqgRX6aWAlJXJBwLLbNF7fAn0EM',
+        'sb_publishable_e9UTDwq91xn659rSjkzhCw_Z-nO5k06',
+        authOptions: const AuthClientOptions(
+          authFlowType: AuthFlowType.implicit,
+        ),
       );
 
+      supabase = _sup!;
+ 
+      print("signInWithPassword to supabase");
       AuthResponse res = await supabase.auth.signInWithPassword(
-        email: 'gauthier.desomer@gmail.com',
-        password: 'test.archi',
+        email: usermail,
+        password: password, //'test.archi',
       );
       // ignore: unused_local_variable
       final Session? session = res.session;
-      // ignore: unused_local_variable
-      final User? user = res.user;
+      user = res.user;
+      UserAuthentication.stateConnection.value = 'Loading profile ...';
+
+      var queryattr = supabase
+          .from('user_profil')
+          .select('*')
+          .eq('uid', user!.id);
+
+      var ret2 = await queryattr;
+      if (ret2.isNotEmpty) {
+        for (var element in ret2) {
+          // liste des company
+          print(element);
+        }
+      } else {
+        UserAuthentication.stateConnection.value = 'Create ${user?.email}';
+        await supabase.from('user_profil').upsert([
+          {
+            'uid': user!.id,
+            'role': {
+              'rule': ['invit'],
+            },
+          },
+        ]);
+      }
+
+      // var l = await supabase.auth.admin.listUsers();
+      // print("l");
     } on Exception catch (e) {
       print(e);
+      return false;
     }
 
     // Listen to auth state changes
@@ -44,6 +81,7 @@ class DataAcces {
     //   // Do something when there is an auth event
     // });
 
+    print("init realtime to supabase");
     myChannel = supabase.channel('room-one'); // set your topic here
 
     // Simple function to log any messages we receive
@@ -60,6 +98,9 @@ class DataAcces {
           callback: (payload) => messageReceived(payload),
         )
         .subscribe();
+        
+    print("end connect to supabase");
+    return true;
   }
 
   late RealtimeChannel myChannel;
@@ -124,8 +165,16 @@ class DataAcces {
           info.path = element['path'];
           info.properties = element['prop'];
           info.action = element['state'];
-          model.modelProperties[info.path] = info.properties;
-          model.mapInfoByJsonPath[info.path] = info;
+          if (info.masterID?.startsWith('#') ?? false) {
+            model.nodeExtended[info.masterID!] = NodeAttribut(
+              parent: null,
+              yamlNode: MapEntry('extended', 'extended'),
+              info: info,
+            );
+          } else {
+            model.modelProperties[info.path] = info.properties;
+            model.mapInfoByJsonPath[info.path] = info;
+          }
         }
         return model.modelProperties;
       }
@@ -275,6 +324,11 @@ class DataAcces {
     var saveAttrDelete = [...model.notUseAttributInfo];
     var saveAttr = [...model.useAttributInfo];
 
+    var extendedNode = model.nodeExtended.values.toList();
+    for (var element in extendedNode) {
+      saveAttr.add(element.info);
+    }
+
     for (var attr in saveAttrDelete) {
       if (attr.masterID != null && !attr.isInitByRef && attr.action != 'D') {
         attr.action = 'D';
@@ -366,7 +420,7 @@ class DataAcces {
 
   FutureOr<Null> _sendMessage(dynamic payload) async {
     try {
-      print('send by ${payload['id']}'); // event $payload
+      print('send by ${payload['id']} $payload'); // event $payload
       //final res =
       await myChannel.sendBroadcastMessage(event: "shout", payload: payload);
       //print('call $res');
@@ -411,7 +465,7 @@ class DataAcces {
     return listVersion;
   }
 
-  Future<void> addVersion(ModelSchema model, ModelVersion version) async {
+  Future<void> storeVersion(ModelSchema model, ModelVersion version) async {
     SaveEvent event = SaveEvent(
       version: version,
       model: model,

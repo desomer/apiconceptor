@@ -1,14 +1,9 @@
 import 'dart:io';
 
-import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/api/call_manager.dart';
-import 'package:jsonschema/core/export/export2json_fake.dart';
-import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/core/model_schema.dart';
+//import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
-import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
@@ -45,7 +40,6 @@ void startServer() async {
               'http://localhost:1234/';
           url = apiCallInfo.replaceVarInRequest(url);
           appApi.add(url);
-          //loadAPI(id: api.masterID!, namespace: namespace);
         }
       });
     });
@@ -53,7 +47,7 @@ void startServer() async {
 }
 
 Future<Response> _echoRequest(Request request) async {
-  AttributInfo? apiInfo;
+  //AttributInfo? apiInfo;
 
   if (request.url.toString() == 'all/api') {
     var html = StringBuffer();

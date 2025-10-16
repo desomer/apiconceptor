@@ -11,6 +11,7 @@ import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/browse_api_page.dart';
 import 'package:jsonschema/pages/content_page.dart';
 import 'package:jsonschema/pages/design/design_api_detail_page.dart';
+import 'package:jsonschema/pages/design/design_api_detail_ui.dart';
 import 'package:jsonschema/pages/design/design_api_page.dart';
 import 'package:jsonschema/pages/design/design_model_jsonschema_page.dart';
 import 'package:jsonschema/pages/design/design_model_detail_page.dart';
@@ -24,7 +25,9 @@ import 'package:jsonschema/pages/glossary_page.dart';
 import 'package:jsonschema/pages/log_page.dart';
 import 'package:jsonschema/pages/mock_api_page.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/pages/user_page.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
@@ -49,10 +52,12 @@ enum Pages {
   apiBrowserTag("/apis/browserByTag"),
   //apiByTree("/apis/doc-by-tree"),
   apiDetail("/apis/detail"),
+  apiUI("/apis/ui"),
   env('/env'),
   log('/log'),
   content("/content"),
-  mock("/apis/mock");
+  mock("/apis/mock"),
+  user("/user");
 
   const Pages(this.urlpath);
   final String urlpath;
@@ -253,14 +258,18 @@ final GoRouter router = GoRouter(
         //----------------------------------------------------------------
         addRouteBy(Pages.models, const DesignModelPage()),
         addRouteBy(Pages.modelDetail, DesignModelDetailPage()),
-        addRouteBy(Pages.modelJsonSchema, const DesignModelJsonSchemaPage()),
+        addRouteBy(Pages.modelJsonSchema, DesignModelJsonSchemaPage()),
         addRouteBy(Pages.modelGraph, const DesignModelGraphPage()),
         addRouteBy(Pages.modelScrum, const DesignModelDetailScrumPage()),
         addRouteBy(Pages.modelUI, DesignModelUIPage()),
         //----------------------------------------------------------------
         addRouteBy(Pages.api, const DesignAPIPage()),
         addRouteBy(Pages.apiDetail, CallAPIPageDetail()),
+        addRouteBy(Pages.apiUI, CallAPIPageDetailUI()),
         addRouteBy(Pages.env, const EnvPage()),
+
+        //----------------------------------------------------------------
+        addRouteBy(Pages.user, const UserPage()),
 
         //----------------------------------------------------------------
         addRouteByIndexed(Pages.apiBrowser, (ctx, state) {
@@ -345,6 +354,13 @@ class GoTo {
         cache: false,
         withProperties: true,
       );
+
+      var accessor = ModelAccessorAttr(
+        node: currentCompany.listModel!.selectedAttr!,
+        schema: currentCompany.listModel!,
+        propName: '#version',
+      );
+      accessor.set(currentCompany.currentModel!.getVersionText());
     }
     return currentCompany.currentModel!;
   }

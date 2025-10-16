@@ -13,7 +13,7 @@ import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_mock.dart';
-import 'package:jsonschema/feature/transform/pan_repsonse_viewer.dart';
+import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
@@ -163,11 +163,16 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
 
     return WidgetTab(
       listTab: [
-        Tab(text: 'jmse search'),
         Tab(text: 'UI'),
         Tab(text: 'form viewer'),
+        Tab(text: 'jmse search'),
       ],
       listTabCont: [
+        PanResponseViewer(apiCallInfo: requestHelper.apiCallInfo),
+        PanResponseMapper(
+          //key: ObjectKey(currentCompany.listAPI.selectedAttr),
+          apiCallInfo: requestHelper.apiCallInfo,
+        ),
         Column(
           children: [
             Row(
@@ -187,11 +192,6 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
             ),
             Expanded(child: TextEditor(config: conf, header: 'search')),
           ],
-        ),
-        PanRepsonseViewer(apiCallInfo: requestHelper.apiCallInfo),
-        PanResponseMapper(
-          //key: ObjectKey(currentCompany.listAPI.selectedAttr),
-          apiCallInfo: requestHelper.apiCallInfo,
         ),
       ],
       heightTab: 40,
@@ -226,9 +226,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
 
   APICallManager getAPICall(NodeAttribut attr) {
     String httpOpe = attr.info.name.toLowerCase();
-
     var apiCallInfo = APICallManager(api: attr.info, httpOperation: httpOpe);
-
     return apiCallInfo;
   }
 

@@ -9,6 +9,7 @@ import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_global_zoom.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 bool showLoginDialog = true;
 
@@ -131,7 +132,7 @@ class _LayoutState extends State<Layout> {
                 // SizedBox(width: 5),
                 SizedBox(height: 20, child: WidgetGlobalZoom()),
                 Spacer(),
-                Text('API Architect by Desomer G. V0.3.3'),
+                Text('API Architect by Desomer G. V0.3.12'),
               ],
             ),
           ),
@@ -234,8 +235,14 @@ class _LayoutState extends State<Layout> {
     );
   }
 
-  Future<void> _dialogBuilder(BuildContext context) {
+  Future<void> _dialogBuilder(BuildContext context) async {
+    prefs = await SharedPreferences.getInstance();
+    var mail = prefs.getString("mail");
+    var pwd = prefs.getString("pwd");
+
     return showDialog<void>(
+      barrierDismissible: false,
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -243,7 +250,7 @@ class _LayoutState extends State<Layout> {
           content: SizedBox(
             width: 500,
             height: 600,
-            child: LoginScreen(email: 'gdesomer@apiarchitect.com'),
+            child: LoginScreen(email: mail ?? '', pwd: pwd ?? ''),
           ),
         );
       },
@@ -270,6 +277,56 @@ class _LayoutState extends State<Layout> {
         ),
       ),
     );
+  }
+}
+
+class UserAuthentication {
+  static ValueNotifier<String> stateConnection = ValueNotifier<String>('Connecting...');
+
+  void logIn(BuildContext context, String email, String password) async {
+    BuildContext? ctx;
+
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (c) {
+        ctx = c;
+        return AlertDialog(
+          content: Row(
+            spacing: 50,
+            children: [
+              ValueListenableBuilder(
+                valueListenable: stateConnection,
+                builder: (context, value, child) {
+                  return Text(style: TextStyle(fontSize: 20), stateConnection.value);
+                },
+              ),
+
+              CircularProgressIndicator(),
+            ],
+          ),
+        );
+      },
+    );
+
+    await Future.delayed(Duration(milliseconds: 200));
+
+    var ok = await startCore(email, password);
+    // ignore: use_build_context_synchronously
+    Navigator.of(ctx!).pop();
+    if (ok) {
+      await prefs.setString("mail", email);
+      await prefs.setString("pwd", password);
+      // ignore: use_build_context_synchronously
+      Navigator.of(context).pop();
+    } else {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login failed. Please check your credentials.'),
+        ),
+      );
+    }
   }
 }
 

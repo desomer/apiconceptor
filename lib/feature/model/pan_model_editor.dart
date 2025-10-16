@@ -37,7 +37,7 @@ mixin PanModelEditorHelper {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey(attr.info.numUpdateForKey),
+        key: ValueKey('${attr.info.name}%${attr.info.numUpdateForKey}'),
         acces: ModelAccessorAttr(node: attr, schema: schema, propName: 'title'),
       ),
     );
@@ -61,9 +61,27 @@ mixin PanModelEditorHelper {
       if (attr.info.properties?['pattern'] != null)
         getChip(Text('regex'), color: null),
       if (minmax) Icon(Icons.tune),
-      Spacer(),
-      attr.info.cacheIndicatorWidget!,
+      if (attr.info.properties?['#link'] != null)
+        getChip(Text('link'), color: Colors.blue),
     ]);
+
+    if (attr.info.properties?['#tag'] != null) {
+      List<dynamic> tags = attr.info.properties?['#tag'];
+      for (var element in tags) {
+        row.add(
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey, width: 1),
+            ),
+            padding: EdgeInsets.symmetric(vertical: 1, horizontal: 8),
+            child: Text(element),
+          ),
+        );
+      }
+    }
+
+    row.addAll(<Widget>[Spacer(), attr.info.cacheIndicatorWidget!]);
   }
 }
 
@@ -168,14 +186,16 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
       },
       listTab: [
         Tab(text: 'Schema detail'),
+        Tab(text: 'Documentation'),
+        Tab(text: 'Change log'),
         Tab(text: 'Life cycle method'),
         Tab(text: 'Mapping rules'),
-        Tab(text: 'Change log'),
-        Tab(text: 'Documentation'),
         Tab(text: 'Recommendation'),
       ],
       listTabCont: [
         viewer,
+        WidgetDoc(accessorAttr: getDocAccessor()),
+        _getChangeLogTab(),
         getLifeCycleTab(),
         Container(),
         // PanDestSelector(
@@ -191,12 +211,22 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         //     return m;
         //   },
         // ),
-        _getChangeLogTab(),
-        WidgetDoc(),
         Container(),
       ],
       heightTab: 30,
     );
+  }
+
+  ModelAccessorAttr getDocAccessor() {
+    ModelSchema model = currentCompany.currentModel!;
+    var examplesNode = model.getExtendedNode("#examples");
+
+    var access = ModelAccessorAttr(
+      node: examplesNode,
+      schema: model,
+      propName: '#examples',
+    );
+    return access;
   }
 
   Widget getLifeCycleTab() {
@@ -256,7 +286,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
             );
             model.versions!.insert(0, version);
             model.currentVersion = version;
-            await bddStorage.addVersion(model, version);
+            await bddStorage.storeVersion(model, version);
             // ignore: invalid_use_of_protected_member
             keyVersion.currentState?.setState(() {});
             String modelYaml = model.modelYaml;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:jsonschema/start_core.dart';
 
 import 'pages/router_config.dart';
 import 'package:fleather/fleather.dart';
@@ -14,7 +13,7 @@ void main() async {
   debugPaintBaselinesEnabled = false;
   debugPaintPointersEnabled = false;
 
-  await startCore();
+ // await startCore();
 
   //   CoreExpression run = CoreExpression();
   //   run.init('''

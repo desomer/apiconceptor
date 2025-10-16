@@ -28,11 +28,6 @@ abstract class PageInit with GenericPage {
 abstract class GenericPageStateless extends StatelessWidget with GenericPage {
   const GenericPageStateless({super.key});
 
-  void setIdx(int idx)
-  {
-       
-  }
-
 }
 
 abstract class GenericPageStateful extends StatefulWidget with GenericPage {

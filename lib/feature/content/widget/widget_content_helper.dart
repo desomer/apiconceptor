@@ -1,6 +1,8 @@
 import 'package:jsonschema/core/export/export2ui.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
+import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 
 class WidgetConfigInfo {
   final String name;
@@ -32,7 +34,155 @@ class InfoTemplate {
   InfoTemplate({required this.path});
 }
 
+class InputDesc {
+  String messageTooltip = '';
+  List<String>? choiseItem;
+  InputType typeInput = InputType.text;
+  bool isRequired = false;
+  String? link;
+}
+
 mixin WidgetAnyOfHelper {
+  void setValue(WidgetConfigInfo info, InputType type, String pathDataContainer, dynamic value) {
+    int idx = -1;
+    var pathData = pathDataContainer;
+    if (pathData.endsWith(']')) {
+      pathData = pathData.substring(0, pathData.length - 1);
+      int end = pathData.lastIndexOf('[');
+      String idxTxt = pathData.substring(end + 1);
+      pathData = pathData.substring(0, end);
+      idx = int.parse(idxTxt);
+    }
+
+    var dataContainer = info.json2ui.getState(pathData);
+    if (dataContainer != null) {
+      var data = dataContainer.jsonData;
+      dynamic row;
+      dynamic val;
+      if (data is List) {
+        if (idx >= 0) {
+          row = data[idx];
+        }
+        if (row is Map) {
+          idx = -1;
+          data = row;
+          val = data[info.name];
+        } else {
+          // cas de liste de String, int
+          val = row;
+        }
+      } else {
+        val = data[info.name];
+      }
+
+      if (value != val?.toString()) {
+        if (idx >= 0) {
+          data[idx] = getValue(type, value);
+        } else {
+          data[info.name] = getValue(type, value);
+        }
+      }
+    }
+  }
+
+  dynamic getValue(InputType type, String val) {
+    switch (type) {
+      case InputType.bool:
+        return val.toLowerCase() == 'true';
+      case InputType.num:
+        return int.tryParse(val) ?? double.tryParse(val);
+      default:
+        return val;
+    }
+  }
+
+  InputDesc getInputDesc(WidgetConfigInfo info) {
+    InputDesc inputDesc = InputDesc();
+
+    var pathData = info.pathData!;
+    pathData = pathData.replaceAll("/##__choise__##", '');
+
+    StateContainer? dataTemplate;
+
+    if (info.json2ui.modeTemplate) {
+      dataTemplate = info.json2ui.stateMgr.stateTemplate[pathData];
+    }
+
+    var stateWidget = info.json2ui.getState(pathData);
+    var displayData = stateWidget?.jsonData;
+    var pathTemplate = pathData;
+    var attrName = info.name;
+    inputDesc.isRequired = false;
+
+    if (info.inArrayValue == true) {
+      // gestion des tableau de String, int, etc..
+      var lastIndexOf = pathTemplate.lastIndexOf('/');
+      var p = pathTemplate.substring(0, lastIndexOf);
+      attrName = pathTemplate.substring(lastIndexOf + 1);
+      pathTemplate = p;
+      pathData = pathTemplate;
+    }
+
+    // cherche le template
+    if (info.json2ui.haveTemplate && displayData != null) {
+      if (info.pathTemplate == null) {
+        pathTemplate =
+            stateWidget!.currentTemplate ??
+            calcPathTemplate(info, pathData).path;
+        info.pathTemplate = pathTemplate;
+      } else {
+        pathTemplate = info.pathTemplate!;
+      }
+
+      dataTemplate = info.json2ui.stateMgr.stateTemplate[pathTemplate];
+    }
+
+    // cherche la Attribut info du template
+    var template = dataTemplate?.jsonTemplate[attrName];
+    if (template is Map) {
+      AttributInfo? propAttribut;
+      if (template[cstProp] != null) {
+        propAttribut = template[cstProp];
+        inputDesc.messageTooltip = propAttribut!.properties.toString();
+      }
+
+      if (propAttribut != null) {
+        switch (propAttribut.type) {
+          case 'number':
+            inputDesc.typeInput = InputType.num;
+            break;
+          case 'boolean':
+            inputDesc.typeInput = InputType.bool;
+            break;
+          default:
+            inputDesc.typeInput = InputType.text;
+        }
+        if (propAttribut.properties?['enum'] != null) {
+          inputDesc.typeInput = InputType.choise;
+          inputDesc.choiseItem = propAttribut.properties!['enum']
+              .toString()
+              .split('\n');
+          if (!inputDesc.choiseItem!.contains('')) {
+            inputDesc.choiseItem!.insert(0, '');
+          }
+        }
+        if (propAttribut.properties?['#link'] != null) {
+          inputDesc.typeInput = InputType.link;
+          inputDesc.link = propAttribut.properties?['#link'];
+        }
+        if (propAttribut.properties?['required'] == true) {
+          inputDesc.isRequired = true;
+        }
+      }
+    } else if (!info.json2ui.modeTemplate) {
+      print("no found $pathData");
+      if (inputDesc.typeInput == InputType.choise) {
+        inputDesc.typeInput = InputType.text;
+      }
+    }
+    return inputDesc;
+  }
+
   InfoTemplate calcPathTemplate(WidgetConfigInfo info, String pathData) {
     var s = pathData.split('/');
     pathData = '';

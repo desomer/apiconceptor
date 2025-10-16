@@ -13,7 +13,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   @override
   void onInit(ModelSchema model) {
     List example = [];
-    var ex = currentCompany.currentModelSel?.info.properties?['#examples'];
+    var ex = model.getExtendedNode('#examples').info.properties?['#examples'];
     if (ex is List) {
       for (var element in ex) {
         if (element['json'] is String) {
@@ -199,6 +199,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     var prop = {...node.info.properties ?? {}};
     prop.remove(constMasterID);
     prop.remove('required');
+    prop.removeWhere((key, value) {
+      return key.startsWith('#');
+    });
+
     if (node.info.properties?['enum'] != null) {
       List<String> enumer = node.info.properties!['enum'].toString().split(
         '\n',

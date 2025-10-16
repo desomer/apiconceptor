@@ -6,11 +6,12 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_env.dart';
-import 'package:jsonschema/feature/content/pan_content_selector.dart';
+import 'package:jsonschema/feature/content/pan_content_viewer.dart';
 import 'package:jsonschema/feature/domain/pan_domain.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
@@ -20,7 +21,7 @@ bool withBdd = true;
 
 late final SharedPreferences prefs;
 
-Future<void> startCore() async {
+Future<bool> startCore(String usermail, String password) async {
   const isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
   print('isRunningWithWasm $isRunningWithWasm');
 
@@ -28,15 +29,18 @@ Future<void> startCore() async {
     startError.add('no bdd');
   } else {
     try {
-      await bddStorage.init();
+      var ok = await bddStorage.connect(usermail, password);
+      if (!ok) {
+        return false;
+      }
     } on Exception catch (e) {
       //print("$e");
       startError.add("$e");
+      return false;
     }
   }
 
-  prefs = await SharedPreferences.getInstance();
-
+  UserAuthentication.stateConnection.value = 'Loading environment ...';
   var a = BrowseSingle();
   currentCompany.listEnv = await loadSchema(
     TypeMD.env,
@@ -60,6 +64,7 @@ Future<void> startCore() async {
     }
   }
 
+  UserAuthentication.stateConnection.value = 'Loading domain ...';
   var b = BrowseSingle();
   currentCompany.listDomain = await loadSchema(
     TypeMD.domain,
@@ -88,13 +93,16 @@ Future<void> startCore() async {
     }
   }
 
+  UserAuthentication.stateConnection.value = 'Loading glossary ...';
   currentCompany.listGlossary = await loadGlossary('glossary', 'Glossary');
   currentCompany.listGlossarySuffixPrefix = await loadGlossary(
     'glossarySufPre',
     'Suffix & Prefix',
   );
 
+  UserAuthentication.stateConnection.value = 'Connected...';
   currentCompany.isInit = true;
+  return true;
 }
 
 Future<ModelSchema> loadAPI({required String id, String? namespace}) async {
@@ -163,14 +171,12 @@ Future<ModelSchema> loadGlossary(String id, String name) async {
   return schema;
 }
 
-
 Future<ModelSchema> loadContent(
   String idDomain,
   String idEnv,
   String name,
-  bool cache
+  bool cache,
 ) async {
-
   var schema = ModelSchema(
     category: Category.variable,
     headerName: name,
@@ -190,14 +196,12 @@ Future<ModelSchema> loadContent(
   return schema;
 }
 
-
 Future<ModelSchema> loadVarEnv(
   String idDomain,
   String idEnv,
   String name,
-  bool cache
+  bool cache,
 ) async {
-
   var schema = ModelSchema(
     category: Category.variable,
     headerName: name,

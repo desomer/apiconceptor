@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:jsonschema/core/export/export2avro.dart';
 import 'package:jsonschema/core/export/export2dto_nestjs.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
+import 'package:jsonschema/core/export/export2mongoose_nestjs.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 
@@ -14,6 +16,11 @@ class PanScrum extends StatefulWidget {
 }
 
 class _PanScrumState extends State<PanScrum> {
+  bool full = true;
+  bool showExampleDto = true;
+  bool showExampleMongoose = true;
+  bool showExampleAvro = true;
+
   @override
   Widget build(BuildContext context) {
     if (currentCompany.currentModel == null) {
@@ -34,22 +41,87 @@ class _PanScrumState extends State<PanScrum> {
     md.writeln("```json\n$json");
     md.writeln("```");
 
-    var exportJS = Export2DtoNestjs().jsonSchemaToNestDto(exportSchema.json);
-    md.writeln('---');
-    md.writeln('# 📘 exemple DTO\n');
-    md.writeln("```typescript\n$exportJS");
-    md.writeln("```");    
+    if (showExampleDto) {
+      var exportJS = Export2DtoNestjs().jsonSchemaToNestDto(exportSchema.json);
+      md.writeln('---');
+      md.writeln('# 📘 exemple DTO\n');
+      md.writeln("```typescript\n$exportJS");
+      md.writeln("```");
+    }
+
+    if (showExampleMongoose) {
+      var exportMongoose = Export2DtoMongooseNestjs().jsonSchemaToNestMongoose(
+        exportSchema.json,
+      );
+      md.writeln('---');
+      md.writeln('# 📘 exemple Mongoose\n');
+      md.writeln("```typescript\n$exportMongoose");
+      md.writeln("```");
+    }
+
+    if (showExampleAvro) {
+      var exportAvro = Export2Avro().jsonSchemaToAvro(exportSchema.json);
+      md.writeln('---');
+      md.writeln('# 📘 exemple avro\n');
+      md.writeln("```json\n$exportAvro");
+      md.writeln("```");
+    }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextButton(
+        Row(
+          children: [
+            Checkbox(
+              value: !full,
+              onChanged: (value) {
+                setState(() {
+                  full = !(value ?? true);
+                });
+              },
+            ),
+            const Text('dense markdown table'),
+            const SizedBox(width: 20),
+            Checkbox(
+              value: showExampleDto,
+              onChanged: (value) {
+                setState(() {
+                  showExampleDto = value ?? true;
+                });
+              },
+            ),
+            const Text('Show DTO example'),
+            const SizedBox(width: 20),
+            Checkbox(
+              value: showExampleMongoose,
+              onChanged: (value) {
+                setState(() {
+                  showExampleMongoose = value ?? true;
+                });
+              },
+            ),
+            const Text('Show Mongoose example'),
+            const SizedBox(width: 20),
+            Checkbox(
+              value: showExampleAvro,
+              onChanged: (value) {
+                setState(() {
+                  showExampleAvro = value ?? true;
+                });
+              },
+            ),
+            const Text('Show Avro example'),
+          ],
+        ),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.copy),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: md.toString()));
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text('copied to clipboard')));
           },
-          child: Text('export'),
+          label: Text('Generate User story in clipboard'),
         ),
         Expanded(
           child: MarkdownWidget(
@@ -72,12 +144,21 @@ class _PanScrumState extends State<PanScrum> {
     }
 
     buffer.writeln('## 🧩 Propriétés\n');
-    buffer.writeln(
-      '| Nom | Type | Requis | Défaut | Enum | Validation | Description |',
-    );
-    buffer.writeln(
-      '|-----|------|--------|--------|------|------------|-------------|',
-    );
+    if (full) {
+      buffer.writeln(
+        '| Name | Type | Required | Default | Enum | Valid. | title | Desc. | Tags |',
+      );
+      buffer.writeln(
+        '|------|------|----------|---------|------|--------|-------|-------|------|',
+      );
+    } else {
+      buffer.writeln(
+        '| Name | Type | Required | Enum | Valid. | Title | Desc. |',
+      );
+      buffer.writeln(
+        '|------|------|----------|------|--------|-------|-------|',
+      );
+    }
 
     final globalRequired = schema['required'] ?? [];
 
@@ -90,8 +171,9 @@ class _PanScrumState extends State<PanScrum> {
     StringBuffer buffer,
     Map<dynamic, dynamic> entry,
     String name,
-    String isRequired,
-  ) {
+    String isRequired, {
+    bool isInArray = false,
+  }) {
     // Handle combinators
     if (entry.containsKey('anyOf')) {
       for (int i = 0; i < entry['anyOf'].length; i++) {
@@ -128,13 +210,26 @@ class _PanScrumState extends State<PanScrum> {
 
     final type =
         entry['type'] ?? (entry.containsKey(r'$ref') ? r'$ref' : 'inconnu');
-    final description = entry['description'] ?? '';
+    String description = entry['description'] ?? '';
+    description = description.replaceAll('\n', '<br>');
+
+    final title = entry['title'] ?? '';
     final defaultValue =
         entry.containsKey('default') ? '`${entry['default']}`' : '';
     final enumValues =
         entry.containsKey('enum')
             ? entry['enum'].map((e) => '`$e`').join(', ')
             : '';
+
+    String path = name.replaceAll(".", ">");
+    var n = currentCompany.currentModel!.mapInfoByJsonPath['root>$path'];
+    var t = n?.properties?['#tag'];
+    var tags = '';
+    if (t is List) {
+      for (var element in t) {
+        tags = '$tags[$element]';
+      }
+    }
 
     final validations = <String>[];
     for (final field in [
@@ -150,9 +245,19 @@ class _PanScrumState extends State<PanScrum> {
     }
     final validationStr = validations.join(', ');
 
-    buffer.writeln(
-      '| `$name` | `$type` | $isRequired | $defaultValue | $enumValues | $validationStr | $description |',
-    );
+    if (isInArray && type == 'object') {
+      // ajoute pas la ligne d'object
+    } else {
+      if (full) {
+        buffer.writeln(
+          '| `$name` | `$type` | $isRequired | $defaultValue | $enumValues | $validationStr | $title | $description | $tags |',
+        );
+      } else {
+        buffer.writeln(
+          '| `$name` | `$type` | $isRequired | $enumValues | $validationStr | $title | $description |',
+        );
+      }
+    }
 
     // Handle nested object
     if (type == 'object' && entry.containsKey('properties')) {
@@ -163,13 +268,13 @@ class _PanScrumState extends State<PanScrum> {
     // Handle array
     if (type == 'array' && entry.containsKey('items')) {
       Map<dynamic, dynamic> items = entry['items'];
-      processSchemaEntry(buffer, items, '$name[]', '❌ Non');
+      processSchemaEntry(buffer, items, '$name[]', '❌ No', isInArray: true);
     }
 
     // Handle $ref
     if (entry.containsKey(r'$ref')) {
       buffer.writeln(
-        '| `$name` | `\$ref` | ❌ Non |  |  |  | Référence vers `${entry[r'$ref']}` |',
+        '| `$name` | `\$ref` | ❌ No |  |  |  |  | Ref. to `${entry[r'$ref']}` |',
       );
     }
   }
@@ -183,7 +288,7 @@ class _PanScrumState extends State<PanScrum> {
     if (node.containsKey('properties')) {
       node['properties'].forEach((key, value) {
         final fullPath = path.isEmpty ? key : '$path.$key';
-        final isRequired = requiredFields.contains(key) ? '✅ Oui' : '❌ Non';
+        final isRequired = requiredFields.contains(key) ? '✅ Yes' : '❌ No';
         processSchemaEntry(buffer, value, fullPath, isRequired);
       });
     }

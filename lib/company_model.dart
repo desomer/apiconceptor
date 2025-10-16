@@ -27,6 +27,8 @@ class CompanyModelSchema {
   GlossaryManager glossaryManager = GlossaryManager();
 
   String companyId = 'test2';
+  String userId = 'gdesomer';
+  
   String get currentNameSpace {
     if (isInit && listDomain.selectedAttr != null) {
       return listDomain.selectedAttr!.info.masterID!;
@@ -34,7 +36,7 @@ class CompanyModelSchema {
     return 'default';
   }
 
-  String userId = 'gdesomer';
+
 }
 
 ///////////////////////////////////////////////////////////////////

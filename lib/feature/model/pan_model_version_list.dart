@@ -74,7 +74,7 @@ class _PanModelVersionListState extends State<PanModelVersionList>
             getChip(Text(version.data['versionTxt']), color: null),
             Text('by ${version.data['by']}'),
             Spacer(),
-            InkWell(child: WidgetVersionState(margeVertical: 5)),
+            InkWell(child: WidgetVersionState(margeVertical: 5,model: widget.schema, version: version)),
           ],
         ),
       ),

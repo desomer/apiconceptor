@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
@@ -23,6 +24,7 @@ class TreeNodeData<T> {
 
   String? rowCacheKey;
   Widget? rowCache;
+  int numUpdate = 0;
 
   TreeViewState? stateCache;
   late TreeViewState tree;
@@ -138,10 +140,18 @@ class TreeViewState<T> extends State<TreeView<T>> {
   late BuildContext ctx;
   int repaintInProgess = 0;
   int dragInProgess = 0;
+  bool isDisposed = false;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    print("dispose");
+    isDisposed = true;
+    super.dispose();
   }
 
   @override
@@ -301,11 +311,17 @@ class TreeViewState<T> extends State<TreeView<T>> {
   }
 
   Widget _getRowCached(TreeNodeData<T> node) {
+    int numUpdate = 0;
+    if (node.data is NodeAttribut) {
+      numUpdate = (node.data as NodeAttribut).info.numUpdateForKey;
+    }
 
     if (node.rowCache == null ||
         node.stateCache != this ||
         timeBuild - repaintInProgess < 500 ||
-        timeBuild - timezoom < 500) {
+        timeBuild - timezoom < 500 ||
+        numUpdate != node.numUpdate) {
+      node.numUpdate = numUpdate;
       node.stateCache = this;
       node.rowCache = _getRow(node);
     }

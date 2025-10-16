@@ -1,11 +1,14 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:jsonschema/pages/router_layout.dart';
+
 
 class LoginCard extends StatefulWidget {
-  const LoginCard({super.key, required this.email});
+  const LoginCard({super.key, required this.email, required this.pwd});
 
   final String email;
+  final String pwd;
   @override
   State<LoginCard> createState() => _LoginCardState();
 }
@@ -24,6 +27,7 @@ class _LoginCardState extends State<LoginCard> {
       ),
       child: TextField(
         controller: _mailController,
+        style: TextStyle(color: Colors.black),
         decoration: InputDecoration(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 8,
@@ -51,6 +55,7 @@ class _LoginCardState extends State<LoginCard> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: TextField(
+        style: TextStyle(color: Colors.black),
         controller: _passwordController,
         decoration: InputDecoration(
           contentPadding: const EdgeInsets.symmetric(
@@ -87,6 +92,9 @@ class _LoginCardState extends State<LoginCard> {
 
   @override
   Widget build(BuildContext context) {
+    _mailController.text = widget.email;
+    _passwordController.text = widget.pwd;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: ClipRRect(
@@ -118,7 +126,7 @@ class _LoginCardState extends State<LoginCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            "Desomer gauthier",
+                            "Welcome",
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -142,18 +150,15 @@ class _LoginCardState extends State<LoginCard> {
                   const SizedBox(height: 10),
                   getPasswordWidget(),
                   const SizedBox(height: 10),
-                  GestureDetector(
+                  MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child:  GestureDetector(
                     onTap: () {
                       // logIn(_scaffoldKey.currentContext);
-                      // final email = widget.email;
-                      // final password = _passwordController.text;
+                      final email = _mailController.text;
+                      final password = _passwordController.text;
 
-                      Navigator.of(context).pop(true);
-                      // UserAuthentication().logIn(
-                      //   context,
-                      //   email,
-                      //   password,
-                      // );
+                      UserAuthentication().logIn(context, email, password);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -176,7 +181,7 @@ class _LoginCardState extends State<LoginCard> {
                         ),
                       ),
                     ),
-                  ),
+                  )),
                   const SizedBox(height: 30),
                   GestureDetector(
                     child: const Text(
@@ -197,3 +202,5 @@ class _LoginCardState extends State<LoginCard> {
     );
   }
 }
+
+

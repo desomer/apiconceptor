@@ -7,11 +7,13 @@ import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/feature/model/widget_example_choiser.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/start_core.dart';
 
 class WidgetJsonValidator extends StatefulWidget {
-  const WidgetJsonValidator({super.key});
+  const WidgetJsonValidator({super.key, required this.idModel});
+  final String idModel;
 
   @override
   State<WidgetJsonValidator> createState() => _WidgetJsonValidatorState();
@@ -19,11 +21,25 @@ class WidgetJsonValidator extends StatefulWidget {
 
 class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   late dynamic jsonSchema;
-  late CodeEditorConfig textConfig;
+  CodeEditorConfig? textConfig;
   ExampleManager exampleManager = ExampleManager();
 
   @override
   Widget build(BuildContext context) {
+    if (widget.idModel != currentCompany.currentModel?.id) {
+      currentCompany.currentModel == null;
+      var model = GoTo().getModel(widget.idModel);
+      model.then((model) {
+        setState(() {
+          currentCompany.currentModel = model;
+          exampleManager.jsonFake = null;
+          exampleManager.clearSelected();
+          textConfig?.repaintCode();
+        });
+      });
+      return Center(child: CircularProgressIndicator());
+    }
+
     return Row(
       children: [
         Flexible(child: getViewer()),
@@ -39,7 +55,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                       onPressed: () {
                         exampleManager.jsonFake = null;
                         exampleManager.clearSelected();
-                        textConfig.repaintCode();
+                        textConfig?.repaintCode();
                       },
                       label: Text('Generate fake data'),
                     ),
@@ -129,9 +145,9 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     );
 
     exampleManager.onSelect = () {
-      textConfig.repaintCode();
+      textConfig?.repaintCode();
     };
 
-    return TextEditor(header: "JSON example", config: textConfig);
+    return TextEditor(header: "JSON example", config: textConfig!);
   }
 }
