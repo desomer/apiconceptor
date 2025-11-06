@@ -1,12 +1,14 @@
+import 'package:flutter/material.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/feature/content/browser_pan.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 
 class WidgetConfigInfo {
   final String name;
-  final JsonToUi json2ui;
+  final GenericToUi json2ui;
   Function? onTapSetting;
 
   String? pathValue;
@@ -14,6 +16,7 @@ class WidgetConfigInfo {
   String? pathTemplate;
 
   dynamic inArrayValue;
+  PanInfo? panInfo;
 
   WidgetConfigInfo({required this.json2ui, required this.name});
 
@@ -30,6 +33,7 @@ class InfoTemplate {
   String path;
   bool anyOf = false;
   bool isArray = false;
+  PanInfoObject? panInfoChoised;
 
   InfoTemplate({required this.path});
 }
@@ -42,8 +46,93 @@ class InputDesc {
   String? link;
 }
 
-mixin WidgetAnyOfHelper {
-  void setValue(WidgetConfigInfo info, InputType type, String pathDataContainer, dynamic value) {
+mixin WidgetUIHelper {
+  final StateManager stateMgr = StateManager();
+  bool haveTemplate = false; // sans jsonSchemas
+  bool modeTemplate = false; // plus utile
+
+  String replaceAllIndexes(String input) {
+    return input.replaceAllMapped(RegExp(r'\[\d+\]'), (match) => '[*]');
+  }
+
+  Widget getArrayItemAction(
+    int i,
+    Widget w,
+    dynamic rowData,
+    Key? k,
+    Function onDelete,
+  ) {
+    return IntrinsicHeight(
+      child: Row(
+        key: k,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Container(
+            width: 50,
+            color: Colors.blue,
+            child: Row(
+              children: [
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      onDelete();
+                    },
+                    child: Icon(Icons.delete),
+                  ),
+                ),
+                Expanded(child: Center(child: Text('$i'))),
+              ],
+            ),
+          ),
+          Expanded(child: w),
+        ],
+      ),
+    );
+  }
+
+  WidgetTyped getObjectInput(
+    GenericToUi genui,
+    PanInfo? panInfo,
+    UIParamContext ctx,
+  ) {
+    return WidgetTyped(
+      name: ctx.attrName,
+      content: ctx.data,
+      type: WidgetType.input,
+      height: -1,
+      widget: WidgetContentInput(
+        key: ObjectKey(ctx.data), // obligatoire pour les onglets
+        info:
+            WidgetConfigInfo(json2ui: genui, name: ctx.attrName)
+              ..inArrayValue = (ctx.parentType == WidgetType.list)
+              ..setPathValue(ctx.path)
+              ..setPathData(ctx.pathData)
+              ..panInfo = panInfo,
+      ),
+    );
+  }
+
+  StateContainer? getState(String pathData) {
+    var p = pathData.split('/');
+    StateContainer? last;
+    if (p.length == 1) {
+      return stateMgr.statesTreeData[""];
+    }
+    last = stateMgr.statesTreeData[""];
+    for (var i = 1; i < p.length; i++) {
+      last = last?.stateChild[p[i]];
+    }
+    return last;
+  }
+
+  void setValue(
+    WidgetConfigInfo info,
+    InputType type,
+    String pathDataContainer,
+    dynamic value,
+  ) {
     int idx = -1;
     var pathData = pathDataContainer;
     if (pathData.endsWith(']')) {
@@ -100,7 +189,7 @@ mixin WidgetAnyOfHelper {
     InputDesc inputDesc = InputDesc();
 
     var pathData = info.pathData!;
-    pathData = pathData.replaceAll("/##__choise__##", '');
+    pathData = pathData.replaceAll("/$cstAnyChoice", '');
 
     StateContainer? dataTemplate;
 
@@ -128,7 +217,7 @@ mixin WidgetAnyOfHelper {
       if (info.pathTemplate == null) {
         pathTemplate =
             stateWidget!.currentTemplate ??
-            calcPathTemplate(info, pathData).path;
+            getInfoTemplate(info, pathData, false).path;
         info.pathTemplate = pathTemplate;
       } else {
         pathTemplate = info.pathTemplate!;
@@ -139,6 +228,10 @@ mixin WidgetAnyOfHelper {
 
     // cherche la Attribut info du template
     var template = dataTemplate?.jsonTemplate[attrName];
+    if (info.panInfo != null) {
+      template = info.panInfo!.dataJsonSchema;
+    }
+
     if (template is Map) {
       AttributInfo? propAttribut;
       if (template[cstProp] != null) {
@@ -159,9 +252,12 @@ mixin WidgetAnyOfHelper {
         }
         if (propAttribut.properties?['enum'] != null) {
           inputDesc.typeInput = InputType.choise;
-          inputDesc.choiseItem = propAttribut.properties!['enum']
-              .toString()
-              .split('\n');
+          inputDesc.choiseItem =
+              propAttribut.properties!['enum']
+                  .toString()
+                  .split('\n')
+                  .map((e) => e.trim())
+                  .toList();
           if (!inputDesc.choiseItem!.contains('')) {
             inputDesc.choiseItem!.insert(0, '');
           }
@@ -183,70 +279,99 @@ mixin WidgetAnyOfHelper {
     return inputDesc;
   }
 
-  InfoTemplate calcPathTemplate(WidgetConfigInfo info, String pathData) {
-    var s = pathData.split('/');
-    pathData = '';
-    InfoTemplate infoTemplate = InfoTemplate(path: '');
-    var stateTemplate = info.json2ui.stateMgr.stateTemplate;
-    for (var i = 0; i < s.length; i++) {
-      String p = s[i];
-      int idx = -1;
-      if (p.endsWith(']')) {
-        p = p.substring(0, s[i].length - 1);
-        int end = p.lastIndexOf('[');
-        String idxTxt = p.substring(end + 1);
-        p = p.substring(0, end);
-        idx = int.parse(idxTxt);
-      }
-      if (p != "") {
-        infoTemplate.path = '${infoTemplate.path}/$p';
-        if (idx >= 0) {
-          pathData = '$pathData/$p[$idx]';
-        } else {
-          pathData = '$pathData/$p';
+  InfoTemplate getInfoTemplate(
+    WidgetConfigInfo info,
+    String pathData,
+    bool withChoise,
+  ) {
+    if (info.panInfo != null) {
+      // pas de template
+      var infoTemplate = InfoTemplate(path: pathData);
+      infoTemplate.isArray =
+          info.panInfo!.type == 'Array' ||
+          info.panInfo!.type == 'PrimitiveArray';
+
+      if (info.panInfo!.type == 'Array') {
+        PanInfoObject rowTemplate =
+            (info.panInfo as PanInfoObject).children.first as PanInfoObject;
+        infoTemplate.anyOf = rowTemplate.children.length > 1;
+        if (infoTemplate.anyOf && withChoise) {
+          var stateContainer = info.json2ui.getState(pathData);
+          var data = stateContainer?.jsonData;
+          infoTemplate.panInfoChoised = _getTemplateCompliant(
+            info,
+            data,
+            rowTemplate,
+          );
         }
       }
-      var stateContainer = info.json2ui.getState(pathData);
-      var data = stateContainer?.jsonData;
 
-      if (idx == -1 && data != null) {
-        StateContainer? t = stateTemplate[infoTemplate.path];
-        // y a t'il plusieur possibilite
-        if (t is StateContainerObjectAny) {
-          infoTemplate.path = _getTemplateCompliant(
-            info,
-            stateContainer,
-            infoTemplate.path,
-            data,
-          );
-          infoTemplate.isArray = true;
-        } else {
-          StateContainer? t = stateTemplate['${infoTemplate.path}[1]'];
-          if (t != null) {
-            infoTemplate.anyOf = true;
+      return infoTemplate;
+    } else {
+      var s = pathData.split('/');
+      pathData = '';
+      InfoTemplate infoTemplate = InfoTemplate(path: '');
+      var stateTemplate = info.json2ui.stateMgr.stateTemplate;
+      for (var i = 0; i < s.length; i++) {
+        String p = s[i];
+        int idx = -1;
+        if (p.endsWith(']')) {
+          p = p.substring(0, s[i].length - 1);
+          int end = p.lastIndexOf('[');
+          String idxTxt = p.substring(end + 1);
+          p = p.substring(0, end);
+          idx = int.parse(idxTxt);
+        }
+        if (p != "") {
+          infoTemplate.path = '${infoTemplate.path}/$p';
+          if (idx >= 0) {
+            pathData = '$pathData/$p[$idx]';
+          } else {
+            pathData = '$pathData/$p';
           }
         }
-      } else if (idx >= 0 && data != null) {
-        // y a t'il plusieur possibilite
-        StateContainer? t = stateTemplate['${infoTemplate.path}[1]'];
-        if (t != null) {
-          //plusieur choix possible dans le tableau
-          infoTemplate.path = _getTemplateCompliant(
-            info,
-            stateContainer,
-            infoTemplate.path,
-            data,
-          );
-          infoTemplate.anyOf = true;
-        } else {
+        var stateContainer = info.json2ui.getState(pathData);
+        var data = stateContainer?.jsonData;
+
+        if (idx == -1 && data != null) {
+          StateContainer? t = stateTemplate[infoTemplate.path];
+          // y a t'il plusieur possibilite
+          if (t is StateContainerObjectAny) {
+            infoTemplate.path = _getTemplateCompliantByJson(
+              info,
+              stateContainer,
+              infoTemplate.path,
+              data,
+            );
+            infoTemplate.isArray = true;
+          } else {
+            StateContainer? t = stateTemplate['${infoTemplate.path}[1]'];
+            if (t != null) {
+              infoTemplate.anyOf = true;
+            }
+          }
+        } else if (idx >= 0 && data != null) {
+          // y a t'il plusieur possibilite
+          StateContainer? t = stateTemplate['${infoTemplate.path}[1]'];
+          if (t != null) {
+            //plusieur choix possible dans le tableau
+            infoTemplate.path = _getTemplateCompliantByJson(
+              info,
+              stateContainer,
+              infoTemplate.path,
+              data,
+            );
+            infoTemplate.anyOf = true;
+          } else {
+            infoTemplate.path = '${infoTemplate.path}[0]';
+          }
+        } else if (idx >= 0) {
           infoTemplate.path = '${infoTemplate.path}[0]';
         }
-      } else if (idx >= 0) {
-        infoTemplate.path = '${infoTemplate.path}[0]';
       }
-    }
 
-    return infoTemplate;
+      return infoTemplate;
+    }
   }
 
   void setContainerTemplate(StateContainer t, String pathTemplate) {
@@ -256,7 +381,35 @@ mixin WidgetAnyOfHelper {
     // });
   }
 
-  String _getTemplateCompliant(
+  PanInfoObject _getTemplateCompliant(
+    WidgetConfigInfo info,
+    dynamic data,
+    PanInfoObject rowTemplate,
+  ) {
+    for (var element in rowTemplate.children) {
+      if (element is PanInfoObject) {
+        var jsonTemplate = element.dataJsonSchema;
+        if (jsonTemplate is Map && data is Map) {
+          bool ok = true;
+          for (var k in data.keys) {
+            if (k == cstProp) continue;
+            var kt = jsonTemplate[k];
+            if (kt == null) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) {
+            //print('found compliant template ${element.name}');
+            return element;
+          }
+        }
+      }
+    }
+    return rowTemplate.children[0] as PanInfoObject;
+  }
+
+  String _getTemplateCompliantByJson(
     WidgetConfigInfo info,
     StateContainer? stateWidget,
     String pathTemplate,

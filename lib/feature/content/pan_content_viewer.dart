@@ -110,7 +110,7 @@ class _PanContentViewerState extends State<PanContentViewer> {
       json2ui.stateMgr.dispose();
 
       await exportUI.browseSync(modelLoaded!, false, 0);
-
+      json2ui.stateMgr.jsonUI = exportUI.json;
       json2ui.context = context;
       json2ui.modeTemplate = true;
       json2ui.model = modelLoaded;
@@ -135,9 +135,9 @@ class _PanContentViewerState extends State<PanContentViewer> {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
         json2ui.haveTemplate = true;
         json2ui.modeTemplate = false;
-        for (var element in json2ui.stateMgr.stateTemplate.entries) {
-          print("template ${element.key} ${element.value}");
-        }
+        // for (var element in json2ui.stateMgr.stateTemplate.entries) {
+        //   print("template ${element.key} ${element.value}");
+        // }
         var data = json2ui.stateMgr.data;
         if (data != null) {
           // recharge les bonnes datas

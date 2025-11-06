@@ -23,12 +23,13 @@ import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget_state/state_api.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 
 import '../../widget/editor/doc_editor.dart';
 import 'pan_api_request.dart';
+
+TabController? tabSubApi;
 
 class PanApiEditor extends StatefulWidget {
   const PanApiEditor({super.key, required this.idApi});
@@ -55,7 +56,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
 
     return WidgetTab(
       onInitController: (TabController tab) {
-        stateApi.tabSubApi = tab;
+        tabSubApi = tab;
         tab.addListener(() {
           if (tab.index == 4) {
             repaintManager.doRepaint(ChangeTag.apiparam);
@@ -65,7 +66,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
       listTab: [
         Tab(text: 'Definition'),
         Tab(text: 'Documentation'),
-        Tab(text: 'Call examples'),
+        Tab(text: 'Parameters examples'),
         Tab(text: 'Mock responses'),
         Tab(
           child: Row(
@@ -203,10 +204,10 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
       config: ExampleConfig(
         mode: ModeExample.design,
         onSelectHeader: () {
-          stateApi.tabSubApi?.animateTo(4);
+          tabSubApi?.animateTo(4);
         },
         onSelectMock: () {
-          stateApi.tabSubApi?.animateTo(3);
+          tabSubApi?.animateTo(3);
         },
       ),
       requesthelper: requestHelper,

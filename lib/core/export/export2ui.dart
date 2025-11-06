@@ -15,6 +15,7 @@ class NodeJson {
 var cstType = '\$\$__type\$\$__';
 var cstContent = '\$\$__content\$\$__';
 var cstProp = '\$\$__prop\$\$__';
+var cstAnyChoice = '##__choise__##';
 
 class Export2UI<T> extends JsonBrowser<T> {
   @override
@@ -134,7 +135,7 @@ class Export2UI<T> extends JsonBrowser<T> {
       Map<String, dynamic> map = {cstType: 'objectAnyOf', cstContent: obj};
       dynamic child = mustChoise ? map : null;
 
-      return NodeJson(name: '##__choise__##', value: child)
+      return NodeJson(name: cstAnyChoice, value: child)
         ..parentOfChild = obj;
     } else {
       return NodeJson(name: name, value: null)..add = false;

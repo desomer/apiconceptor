@@ -375,7 +375,6 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
 
-        
           CellEditor(
             key: ValueKey('link#${info.hashCode}'),
             acces: ModelAccessorAttr(
@@ -384,7 +383,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
               propName: '#link',
             ),
             inArray: false,
-          ),          
+          ),
 
           // "contentEncoding": "base64",
           // "contentMediaType": "image/png"
@@ -486,6 +485,15 @@ class _AttributPropertiesState extends State<AttributProperties> {
               node: info,
               schema: model,
               propName: 'const',
+            ),
+            inArray: false,
+          ),
+          CellCheckEditor(
+            key: ValueKey('nullable#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: '#nullable',
             ),
             inArray: false,
           ),

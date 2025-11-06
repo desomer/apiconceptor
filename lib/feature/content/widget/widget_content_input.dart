@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/feature/content/pan_content_viewer.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
 import 'package:jsonschema/start_core.dart';
@@ -15,7 +16,7 @@ class WidgetContentInput extends StatefulWidget {
 }
 
 class WidgetContentInputState extends State<WidgetContentInput>
-    with WidgetAnyOfHelper {
+    with WidgetUIHelper {
   dynamic dataDisplayed;
   String ctrlName = '';
   late TextEditingController ctrl;
@@ -29,7 +30,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
     ctrlName = '$pathDataContainer/${widget.info.name}';
     if (widget.info.inArrayValue == true) {
       pathDataContainer = widget.info.pathValue!;
-      pathDataContainer = pathDataContainer.replaceAll("/##__choise__##", '');
+      pathDataContainer = pathDataContainer.replaceAll("/$cstAnyChoice", '');
       // cas des tableau de String, int, etc...
       ctrlName = pathDataContainer;
       print("init ctrl $ctrlName");
@@ -48,20 +49,21 @@ class WidgetContentInputState extends State<WidgetContentInput>
     var pathDataContainer = widget.info.pathData;
     if (widget.info.inArrayValue == true) {
       pathDataContainer = widget.info.pathValue;
-      // cas des tableau de Sting, int, etc...
+      // cas des tableau de String, int, etc...
     }
 
-    pathDataContainer = pathDataContainer!.replaceAll("/##__choise__##", '');
+    pathDataContainer = pathDataContainer!.replaceAll("/$cstAnyChoice", '');
     var pathData = pathDataContainer;
     int idx = -1;
     if (pathData.endsWith(']')) {
+      // cas des tableau de xxxx
       pathData = pathData.substring(0, pathData.length - 1);
       int end = pathData.lastIndexOf('[');
       String idxTxt = pathData.substring(end + 1);
       pathData = pathData.substring(0, end);
       idx = int.parse(idxTxt);
     }
-    var dataContainer = widget.info.json2ui.getState(pathData);
+    var dataContainer  = widget.info.json2ui.getState(pathData);
     dynamic val = '';
     if (dataContainer != null) {
       var data = dataContainer.jsonData;
@@ -99,16 +101,15 @@ class WidgetContentInputState extends State<WidgetContentInput>
   @override
   void dispose() {
     var pathDataContainer = widget.info.pathData;
-    pathDataContainer = pathDataContainer!.replaceAll("/##__choise__##", '');
+    pathDataContainer = pathDataContainer!.replaceAll("/$cstAnyChoice", '');
     var ctrlName = '$pathDataContainer/${widget.info.name}';
     if (widget.info.inArrayValue == true) {
       // cas des tableau de Sting, int, etc...
       pathDataContainer = widget.info.pathValue!;
-      pathDataContainer = pathDataContainer.replaceAll("/##__choise__##", '');
+      pathDataContainer = pathDataContainer.replaceAll("/$cstAnyChoice", '');
       ctrlName = pathDataContainer;
-
-      //print("dispose ctrl $ctrlName");
     }
+
     widget.info.json2ui.stateMgr.removeControler(ctrlName, this);
     ctrl.dispose();
     super.dispose();
@@ -119,15 +120,6 @@ class WidgetContentInputState extends State<WidgetContentInput>
     InputDesc inputDesc = getInputDesc(widget.info);
 
     typeInput = inputDesc.typeInput;
-
-    // // change la valeur du controleur
-    // var pathDataContainer = initValueDisplayed();
-    // ctrl.text = dataDisplayed.toString();
-
-    // var name = '$pathDataContainer/${widget.info.name}';
-    // if (name != ctrlName) {
-    //   print("object");
-    // }
 
     Widget inputWidget;
 
@@ -147,15 +139,22 @@ class WidgetContentInputState extends State<WidgetContentInput>
         inputWidget = ValueListenableBuilder(
           valueListenable: ctrl,
           builder: (context, value, child) {
+            // print('c<${ctrl.text}>');
+            // var v =
+            //     inputDesc.choiseItem!.map((value) {
+            //       print('i<$value>');
+            //     }).toList();
+
             return DropdownButtonFormField<String>(
               decoration: getInputDecorator(inputDesc.isRequired),
               isExpanded: true,
               initialValue: ctrl.text,
               items:
                   inputDesc.choiseItem!.map((value) {
+                    var trim = value;
                     return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
+                      value: trim,
+                      child: Text(trim),
                     );
                   }).toList(),
               onChanged: (newValue) {

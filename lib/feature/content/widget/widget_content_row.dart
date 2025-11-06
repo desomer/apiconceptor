@@ -41,6 +41,7 @@ class _WidgetContentRowState extends State<WidgetContentRow> {
             widget.ctxRow.infoTemplate?.anyOf ?? false,
             widget.rowIdx,
             widget.ctxRow,
+            widget.info.panInfo,
           );
           showDetailDialog(w, context);
         },
@@ -87,7 +88,16 @@ class _WidgetContentRowState extends State<WidgetContentRow> {
       )..data = v;
 
       cells.add(
-        Flexible(child: widget.info.json2ui.getObjectInput(ctxCell).widget),
+        Flexible(
+          child:
+              widget.info.json2ui
+                  .getObjectInput(
+                    widget.info.json2ui,
+                    widget.info.panInfo,
+                    ctxCell,
+                  )
+                  .widget,
+        ),
       );
     }
 

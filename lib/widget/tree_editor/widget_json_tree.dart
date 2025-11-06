@@ -69,7 +69,12 @@ class JsonBrowserWidget extends JsonBrowser {
   }
 
   @override
-  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     if (pathFilter != null) {
       var find = false;
       for (var element in pathFilter!) {
@@ -209,7 +214,7 @@ class JsonListEditorState extends State<JsonListEditor>
           ..state = this
           ..pathFilter = pathFilter;
 
-    NodeBrower browser = jsonBrowserWidget.browse(model, true);
+    NodeBrowser browser = jsonBrowserWidget.browse(model, true);
     model.lastBrowser = browser;
     model.lastJsonBrowser = jsonBrowserWidget;
     repaintListView(0, 'build');
@@ -279,7 +284,7 @@ class JsonListEditorState extends State<JsonListEditor>
 
   Widget getWidget(
     ModelSchema model,
-    NodeBrower browser,
+    NodeBrowser browser,
     JsonBrowserWidget jsonBrowserWidget,
   ) {
     print(

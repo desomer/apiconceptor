@@ -148,7 +148,11 @@ body :
         }
         if (jsonParam != null) {
           var v = jsonParam[param.name];
-          if (v != null) {
+          bool isEmpty =
+              (v is String && v.isEmpty) ||
+              (v is num && v == 0) ||
+              (v is bool && !v);
+          if (v != null && !isEmpty) {
             mapParam2.value = v;
             mapParam2.toSend = true;
           } else {
@@ -354,10 +358,10 @@ body :
     return urlstr;
   }
 
-  String? getEscapeUrl(String? param) {
+  String? getEscapeUrl(dynamic param) {
     if (param == null) return '';
-    if (param.startsWith("{{")) return param;
-    return Uri.encodeComponent(param);
+    if (param.toString().startsWith("{{")) return param;
+    return Uri.encodeComponent(param.toString());
   }
 }
 

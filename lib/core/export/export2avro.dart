@@ -44,7 +44,7 @@ class Export2Avro {
   }
 
   dynamic _mapJsonTypeToAvro(
-    Map<String, dynamic> value,
+    Map<dynamic, dynamic> value,
     String key,
     Map<String, Map<String, dynamic>> types,
   ) {

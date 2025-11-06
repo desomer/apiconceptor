@@ -14,7 +14,6 @@ import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
-import 'package:jsonschema/widget_state/state_api.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 
 // ignore: must_be_immutable
@@ -200,9 +199,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
 
   Future<void> _goToAPI(
     NodeAttribut attr,
-    int tabNumber, {
-    int subtabNumber = -1,
-  }) async {
+    int tabNumber) async {
     if (attr.level == 2) {
       //stateApi.tabDisable.clear();
       // ignore: invalid_use_of_protected_member
@@ -260,15 +257,15 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
       repaintManager.doRepaint(ChangeTag.apichange);
 
       //stateApi.tabApi?.index = tabNumber;
-      Future.delayed(Duration(milliseconds: 100)).then((value) {
-        stateApi.tabSubApi?.index = 0; // charge l'ordre des params
-        Future.delayed(Duration(milliseconds: 100)).then((value) {
-          if (subtabNumber >= 0) {
-            // exemple : aller sur le test d'api
-            stateApi.tabSubApi?.index = subtabNumber;
-          }
-        });
-      });
+      // Future.delayed(Duration(milliseconds: 100)).then((value) {
+      //   stateApi.tabSubApi?.index = 0; // charge l'ordre des params
+      //   Future.delayed(Duration(milliseconds: 100)).then((value) {
+      //     if (subtabNumber >= 0) {
+      //       // exemple : aller sur le test d'api
+      //       stateApi.tabSubApi?.index = subtabNumber;
+      //     }
+      //   });
+      // });
     }
   }
 }

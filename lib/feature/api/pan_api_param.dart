@@ -280,6 +280,7 @@ class _PanApiParamState extends State<PanApiParam> {
                     ),
                   ),
                   WidgetArrayParam(
+                    config: widget.config,
                     constraints: constraints,
                     key: keyResquestParam,
                     requestHelper: widget.requestHelper,

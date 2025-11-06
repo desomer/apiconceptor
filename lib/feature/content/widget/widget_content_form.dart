@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:highlight/languages/json.dart';
+import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
@@ -58,7 +59,7 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
   }
 
   String getPathValue() {
-    var pathValue = widget.info.pathValue!.replaceAll("/##__choise__##", '');
+    var pathValue = widget.info.pathValue!.replaceAll("/$cstAnyChoice", '');
     return pathValue;
   }
 
@@ -129,6 +130,14 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
             );
           },
           child: Icon(Icons.data_object), //settings
+        ),
+
+      if (widget.ctx.parentType == WidgetType.root)
+        InkWell(
+          onTap: () async {
+            widget.info.json2ui.showConfigPanDialog(context);
+          },
+          child: Icon(Icons.apps), //settings
         ),
 
       InkWell(

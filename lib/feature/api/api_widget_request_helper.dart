@@ -54,29 +54,28 @@ class WidgetRequestHelper with WidgetHelper {
 
   StatelessWidget initUrl(BuildContext context) {
     var attr = currentCompany.listAPI!.selectedAttr;
-    
+
     if (attr != null) {
       //String httpOpe = attr.info.name.toLowerCase();
       apiCallInfo.url = '';
       List<Widget> wpath = [];
       Widget wOpe = getHttpOpe(apiCallInfo.httpOperation) ?? Container();
-    
+
       wpath.add(wOpe);
-    
+
       var nd = attr.parent;
       apiCallInfo.urlParamFromNode.clear();
-    
+
       while (nd != null) {
         var n = nd.info.name; // getKeyParamFromYaml(nd.yamlNode.key);
         if (nd.info.properties?['\$server'] != null) {
           var urlserv = nd.info.properties?['\$server'];
-    
+
           urlserv = apiCallInfo.replaceVarInRequest(urlserv);
           var hasParam =
               apiCallInfo.extractParameters(urlserv, true).isNotEmpty;
           if (!hasParam) {
-            hasParam =
-                apiCallInfo.extractParameters(urlserv, false).isNotEmpty;
+            hasParam = apiCallInfo.extractParameters(urlserv, false).isNotEmpty;
           }
           if (hasParam && calcUrl != changeUrl.value) {
             apiCallInfo.fillVar().then((value) {
@@ -84,7 +83,7 @@ class WidgetRequestHelper with WidgetHelper {
               calcUrl = changeUrl.value;
             });
           }
-    
+
           apiCallInfo.url = '$urlserv${apiCallInfo.url}';
           wpath.insert(
             1,
@@ -96,18 +95,18 @@ class WidgetRequestHelper with WidgetHelper {
           break;
         }
         var path = _getPathWidgetFormNode(n);
-    
+
         wpath.insertAll(1, path);
         if (!n.endsWith('/')) {
           apiCallInfo.url = '/${apiCallInfo.url}';
           wpath.insert(1, Text('/'));
         }
-    
+
         nd = nd.parent;
       }
-    
+
       wpath.add(WidgetApiParam(apiCallInfo: apiCallInfo));
-    
+
       wpath.add(
         Padding(
           padding: EdgeInsetsGeometry.symmetric(horizontal: 10),
@@ -126,7 +125,7 @@ class WidgetRequestHelper with WidgetHelper {
           ),
         ),
       );
-    
+
       return Card(
         elevation: 10,
         child: ListTile(
@@ -135,7 +134,9 @@ class WidgetRequestHelper with WidgetHelper {
             direction: Axis.horizontal,
             children: wpath,
           ),
-          trailing: IntrinsicWidth(child: WidgetChoiseEnv(widgetRequestHelper: this)),
+          trailing: IntrinsicWidth(
+            child: WidgetChoiseEnv(widgetRequestHelper: this),
+          ),
         ),
       );
     } else {
@@ -243,7 +244,7 @@ class WidgetRequestHelper with WidgetHelper {
 
   Future<void> doSend() async {
     doClearResponse(inProgress: true); // vide la response
-    await doExecuteRequest();
+    await doExecuteRequest(CancelToken());
     doDisplayResponse();
 
     changeResponse.value++;
@@ -255,14 +256,13 @@ class WidgetRequestHelper with WidgetHelper {
     });
   }
 
-  Future<void> doExecuteRequest() async {
+  Future<void> doExecuteRequest(CancelToken cancelToken) async {
     //await CallerApi().callGraph();
     apiCallInfo.logs.add(
       '----------- ${DateTime.now().toIso8601String()} -------------',
     );
     await CallScript().callPreRequest(apiCallInfo);
 
-    final cancelToken = CancelToken();
     apiCallInfo.aResponse = await CallerApi().call(apiCallInfo, cancelToken);
   }
 
@@ -283,18 +283,22 @@ class WidgetRequestHelper with WidgetHelper {
     // ignore: invalid_use_of_protected_member
     keyResponseStatus.currentState?.setState(() {});
 
+    response = getStringResponse();
+    textConfigResponse!.repaintCode();
+  }
+
+  String getStringResponse() {
     if (apiCallInfo.aResponse!.toDisplayError == null &&
         apiCallInfo.aResponse!.reponse?.data is String) {
-      response = apiCallInfo.aResponse!.reponse!.data.toString();
+      return apiCallInfo.aResponse!.reponse!.data.toString();
     } else {
       var encoder = JsonEncoder.withIndent("  ");
-      response = encoder.convert(
+      return encoder.convert(
         apiCallInfo.aResponse!.toDisplayError ??
             apiCallInfo.aResponse!.reponse?.data ??
             {},
       );
     }
-    textConfigResponse!.repaintCode();
   }
 
   void doValidateResponse(APIResponse? resp) {

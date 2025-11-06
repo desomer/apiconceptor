@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/call_manager.dart';
 import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/search_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
@@ -12,9 +13,11 @@ class WidgetArrayParam extends StatefulWidget {
     super.key,
     required this.requestHelper,
     required this.constraints,
+    required this.config,
   });
   final WidgetRequestHelper requestHelper;
   final BoxConstraints constraints;
+  final ApiParamConfig config;
 
   @override
   State<WidgetArrayParam> createState() => _WidgetArrayParamState();
@@ -27,7 +30,7 @@ class _WidgetArrayParamState extends State<WidgetArrayParam> with WidgetHelper {
   Widget build(BuildContext context) {
     repaintManager.addTag(
       ChangeTag.apiparam,
-      "_WidgetArrayParamState",
+      "_WidgetArrayParamState ${widget.config.modeMock}",
       this,
       () {
         return true;
@@ -76,8 +79,6 @@ class _WidgetArrayParamState extends State<WidgetArrayParam> with WidgetHelper {
     );
   }
 
-
-
   Widget getRowParamWidget(APIParamInfo param) {
     GlobalKey<CellEditorState> keyEditor = GlobalKey(debugLabel: 'keyEditor');
     GlobalKey<CellCheckEditorState> keySelected = GlobalKey(
@@ -90,75 +91,78 @@ class _WidgetArrayParamState extends State<WidgetArrayParam> with WidgetHelper {
       requestHelper: widget.requestHelper,
     );
 
-    return getToolTip(
-      toolContent: getTooltipFromAttr(param.info),
-      child: NoOverflowErrorFlex(
-        direction: Axis.horizontal,
-        children: [
-          CellCheckEditor(
-            key: keySelected,
-            inArray: true,
-            acces: ParamAccess(
-              col: 0,
-              paramInfo: param,
-              requestHelper: widget.requestHelper,
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              border: Border.all(color: Colors.grey),
-            ),
-            width: 70,
-            height: 30,
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: EdgeInsetsGeometry.symmetric(horizontal: 5),
-              child: Text(param.type),
-            ),
-          ),
-          Container(
-            width: 150,
-            height: 30,
-            alignment: Alignment.centerLeft,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              border: Border.all(color: Colors.grey),
-            ),
-            child: Padding(
-              padding: EdgeInsetsGeometry.symmetric(horizontal: 5),
-              child: Text(param.name),
-            ),
-          ),
-          Container(
-            width: 20,
-            height: 30,
-            alignment: Alignment.center,
-            child: Text('='),
-          ),
-          SearchEditor(
-            key: ValueKey('val ${param.hashCode}'),
-            childKey: keyEditor,
-            paramAccessEditor: paramAccessEditor,
-            child: CellEditor(
-              key: keyEditor,
+    return Container(
+      key: ValueKey('row ${param.hashCode}'),
+      child: getToolTip(
+        toolContent: getTooltipFromAttr(param.info),
+        child: NoOverflowErrorFlex(
+          direction: Axis.horizontal,
+          children: [
+            CellCheckEditor(
+              key: keySelected,
               inArray: true,
-              line: 1,
-              acces: paramAccessEditor,
+              acces: ParamAccess(
+                col: 0,
+                paramInfo: param,
+                requestHelper: widget.requestHelper,
+              ),
             ),
-          ),
-          Container(
-            width: 70,
-            height: 30,
-            alignment: Alignment.center,
-            child: Text(param.info?.type ?? ''),
-          ),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                border: Border.all(color: Colors.grey),
+              ),
+              width: 70,
+              height: 30,
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsetsGeometry.symmetric(horizontal: 5),
+                child: Text(param.type),
+              ),
+            ),
+            Container(
+              width: 150,
+              height: 30,
+              alignment: Alignment.centerLeft,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                border: Border.all(color: Colors.grey),
+              ),
+              child: Padding(
+                padding: EdgeInsetsGeometry.symmetric(horizontal: 5),
+                child: Text(param.name),
+              ),
+            ),
+            Container(
+              width: 20,
+              height: 30,
+              alignment: Alignment.center,
+              child: Text('='),
+            ),
+            SearchEditor(
+              key: ValueKey('val ${param.hashCode}'),
+              childKey: keyEditor,
+              paramAccessEditor: paramAccessEditor,
+              child: CellEditor(
+                key: keyEditor,
+                inArray: true,
+                line: 1,
+                acces: paramAccessEditor,
+              ),
+            ),
+            Container(
+              width: 70,
+              height: 30,
+              alignment: Alignment.center,
+              child: Text(param.info?.type ?? ''),
+            ),
 
-          SizedBox(width: 5),
-          if (param.info?.properties?['required'] == true)
-            Icon(Icons.check_circle_outline),
-          if (param.info?.properties?['enum'] != null) Icon(Icons.checklist),
-        ],
+            SizedBox(width: 5),
+            if (param.info?.properties?['required'] == true)
+              Icon(Icons.check_circle_outline),
+            if (param.info?.properties?['enum'] != null) Icon(Icons.checklist),
+          ],
+        ),
       ),
     );
   }

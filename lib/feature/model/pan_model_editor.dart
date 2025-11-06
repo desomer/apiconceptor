@@ -55,6 +55,8 @@ mixin PanModelEditorHelper {
       SizedBox(width: 10),
       if (attr.info.properties?['required'] == true)
         Icon(Icons.check_circle_outline),
+      if (attr.info.properties?['#nullable'] ==true)
+        getChip(Text('nullable'), color: null),
       if (attr.info.properties?['const'] != null)
         getChip(Text('const'), color: null),
       if (attr.info.properties?['enum'] != null) Icon(Icons.checklist),

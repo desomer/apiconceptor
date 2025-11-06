@@ -59,6 +59,13 @@ class BrowseAPIPage extends GenericPageStateful {
 
         BreadNode(
           icon: const Icon(Icons.api_outlined),
+          settings: const RouteSettings(name: 'API UI'),
+          type: BreadNodeType.widget,
+          path: Pages.apiBrowserUI.urlpath,
+        ),
+
+        BreadNode(
+          icon: const Icon(Icons.api_outlined),
           settings: const RouteSettings(name: 'API Tree'),
           type: BreadNodeType.widget,
           path: Pages.apiBrowser.urlpath,
@@ -403,7 +410,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
   Widget getExampleAndDoc() {
     return WidgetTab(
       listTab: [
-        Tab(text: 'Call examples'),
+        Tab(text: 'Parameters examples'),
         Tab(text: 'Request documentation'),
         Tab(text: 'Responses documentation'),
       ],

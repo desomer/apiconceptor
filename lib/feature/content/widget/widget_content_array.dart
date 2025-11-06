@@ -33,7 +33,7 @@ class WidgetContentArray extends StatefulWidget {
 }
 
 class _WidgetContentArrayState extends State<WidgetContentArray>
-    with WidgetAnyOfHelper {
+    with WidgetUIHelper {
   @override
   void initState() {
     widget.info.json2ui.stateMgr.addContainer(widget.info.pathValue!, this);
@@ -48,6 +48,10 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
 
   @override
   Widget build(BuildContext context) {
+    print(
+      'Array path value ${widget.info.pathValue}   path data ${widget.info.pathData}',
+    );
+
     var dataContainer = widget.info.json2ui.getState(widget.info.pathData!);
     List? items;
     if (dataContainer != null) {
@@ -56,12 +60,15 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
 
     var key = '${widget.info.pathValue}[0]';
     var template = widget.info.json2ui.stateMgr.stateTemplate[key];
-    if (template == null) {
+    if ((template == null && widget.info.panInfo == null) ||
+        widget.info.panInfo?.type == 'PrimitiveArray') {
+      // de type tableau de String, int, double, bool
       var i =
           WidgetConfigInfo(json2ui: widget.info.json2ui, name: widget.info.name)
             ..inArrayValue = true
             ..setPathValue(widget.info.pathValue!)
-            ..setPathData(widget.info.pathValue!);
+            ..setPathData(widget.info.pathValue!)
+            ..panInfo = widget.info.panInfo;
 
       var v = getInputDesc(i);
 
@@ -101,7 +108,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
       }
     }
     if (widget.ctx.layoutArray!.nbRowPerPage > 0) {
-      double nextPreview = 20.0; 
+      double nextPreview = 20.0;
 
       Widget scroll = SizedBox(
         height: (widget.ctx.layoutArray!.nbRowPerPage * 47) + nextPreview,
@@ -167,7 +174,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
                   items?.add(newRow);
                   final currentPath =
                       '${widget.info.pathValue}[${items!.length - 1}]';
-                  widget.info.json2ui.loadDataInContainer(
+                  widget.info.json2ui.stateMgr.loadDataInContainer(
                     newRow,
                     pathData: currentPath,
                   );

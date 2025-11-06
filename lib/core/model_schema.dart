@@ -61,7 +61,7 @@ class ModelSchema {
   final String headerName; // pour les export
   bool isLoadProp = false;
 
-  NodeBrower? lastBrowser;
+  NodeBrowser? lastBrowser;
   JsonBrowser? lastJsonBrowser;
   final InfoManager infoManager;
 
@@ -744,7 +744,10 @@ class ModelSchema {
               ref: ref,
             );
             aSchema.autoSaveProperties = false;
-            await aSchema.loadYamlAndProperties(cache: false, withProperties: true);
+            await aSchema.loadYamlAndProperties(
+              cache: false,
+              withProperties: true,
+            );
           }
         }
       } else {

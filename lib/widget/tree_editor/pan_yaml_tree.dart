@@ -176,7 +176,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         jsonBrowserWidget.repaintRowState = state;
       },
       getNodes: () {
-        NodeBrower browser = jsonBrowserWidget.browse(_schema, true);
+        NodeBrowser browser = jsonBrowserWidget.browse(_schema, true);
         _schema.lastBrowser = browser;
         _schema.lastJsonBrowser = jsonBrowserWidget;
 

@@ -80,7 +80,7 @@ class PanApiExample extends PanYamlTree {
             onPressed: () async {
               await gotoTestApi(node.data, true);
             },
-            label: Text('Mock API'),
+            label: Text('Mock response'),
           ),
         );
         row.add(

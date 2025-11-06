@@ -22,7 +22,7 @@ class JsonBrowser<T> {
   void onReady(ModelSchema model) {}
   void onRowTypeChange(ModelSchema model, NodeAttribut node) {}
 
-  Future<NodeBrower> browseSync(
+  Future<NodeBrowser> browseSync(
     ModelSchema model,
     bool unknowedMode,
     int antiloop,
@@ -36,9 +36,9 @@ class JsonBrowser<T> {
     return ret;
   }
 
-  NodeBrower browse(ModelSchema model, bool unknowedMode) {
+  NodeBrowser browse(ModelSchema model, bool unknowedMode) {
     int time = DateTime.now().millisecondsSinceEpoch;
-    NodeBrower browser = NodeBrower()..time = time;
+    NodeBrowser browser = NodeBrowser()..time = time;
     browser.selectedPath = model.lastBrowser?.selectedPath;
     browser.unknowedMode = unknowedMode;
 
@@ -145,7 +145,7 @@ class JsonBrowser<T> {
     }
   }
 
-  void doSetUnknowNode(ModelSchema model, NodeBrower browser) {
+  void doSetUnknowNode(ModelSchema model, NodeBrowser browser) {
     //List<BrowserAttrInfo> newAttribut = [];
 
     if (model.first) {
@@ -583,7 +583,7 @@ class JsonBrowser<T> {
     }
   }
 
-  void _initNotUseAttr(NodeBrower browser, ModelSchema model, int date) {
+  void _initNotUseAttr(NodeBrowser browser, ModelSchema model, int date) {
     model.notUseAttributInfo.clear();
     model.useAttributInfo.clear();
     for (var element in model.allAttributInfo.entries) {
@@ -611,7 +611,7 @@ class JsonBrowser<T> {
   }
 }
 
-class NodeBrower {
+class NodeBrowser {
   late int time;
   bool propertiesChanged = false;
   int nbNode = 0;
@@ -755,7 +755,7 @@ class BrowserAttrInfo {
   String yamlPathAttr;
   NodeAttribut nodeAttribut;
   String aJsonPath;
-  NodeBrower browser;
+  NodeBrowser browser;
   int level = 0;
 
   bool unkwown = false;

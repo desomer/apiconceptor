@@ -8,7 +8,8 @@ import 'package:jsonschema/core/api/call_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/pages/browse_api_page.dart';
+import 'package:jsonschema/pages/browse_api/browse_api_page.dart';
+import 'package:jsonschema/pages/browse_api/browse_api_ui_page.dart';
 import 'package:jsonschema/pages/content_page.dart';
 import 'package:jsonschema/pages/design/design_api_detail_page.dart';
 import 'package:jsonschema/pages/design/design_api_detail_ui.dart';
@@ -49,6 +50,7 @@ enum Pages {
 
   api("/apis"),
   apiBrowser("/apis/browser"),
+  apiBrowserUI("/apis/browserUI"),
   apiBrowserTag("/apis/browserByTag"),
   //apiByTree("/apis/doc-by-tree"),
   apiDetail("/apis/detail"),
@@ -277,6 +279,13 @@ final GoRouter router = GoRouter(
               state.uri.queryParameters['id'] ??
               currentCompany.currentNameSpace;
           return BrowseAPIPage(namespace: namespace, byTag: false);
+        }),
+
+        addRouteByIndexed(Pages.apiBrowserUI, (ctx, state) {
+          final namespace =
+              state.uri.queryParameters['id'] ??
+              currentCompany.currentNameSpace;
+          return BrowseAPIUIPage(namespace: namespace, byTag: true);
         }),
 
         addRouteByIndexed(Pages.apiBrowserTag, (ctx, state) {

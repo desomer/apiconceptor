@@ -111,7 +111,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
         key: ValueKey('${attr.hashCode}#title'),
         acces: ModelAccessorAttr(
           node: attr,
-          schema: currentCompany.listAPI!,
+          schema: currentCompany.listModel!,
           propName: 'title',
           editable: false,
         ),

@@ -191,7 +191,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       return NodeJson(name: '', value: '')..add = false;
     }
     Map<String, dynamic> prop = getProp(node);
-    Map<String, dynamic> child = {'type': type, ...prop};
+    bool nullable = node.info.properties?['#nullable'] ?? false;
+    Map<String, dynamic> child = {'type': nullable ? [type, 'null'] : type, ...prop};
     return NodeJson(name: name, value: child);
   }
 
