@@ -11,6 +11,7 @@ import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 
@@ -60,6 +61,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
       GoTo()
           .getApiRequestModel(
             widget.requestHelper.apiCallInfo,
+            currentCompany.listAPI!.namespace!,
             widget.idApi,
             withDelay: false,
           )
@@ -70,6 +72,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
       GoTo()
           .getApiResponseModel(
             widget.requestHelper.apiCallInfo,
+            currentCompany.listAPI!.namespace!,
             widget.idApi,
             withDelay: false,
           )

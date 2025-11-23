@@ -60,7 +60,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
 
                   Future.delayed(Duration(milliseconds: 200)).then((timeStamp) {
                     // attend fermeture du popup
-                    forcePage = 2;
+                    forceNewPage = 2;
                     // ignore: use_build_context_synchronously
                     context.pushReplacement(
                       '${route.path}?id=${currentCompany.currentNameSpace}',
@@ -99,7 +99,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
         child: child,
       );
 
-      if (route.onTap != null || route.path!=null) {
+      if (route.onTap != null || route.path != null) {
         btn = InkWell(
           onTap: () {
             if (route.onTap != null) {
@@ -107,7 +107,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
             }
             if (route.path != null) {
               context.push(route.path!);
-            }            
+            }
           },
           child: btn,
         );

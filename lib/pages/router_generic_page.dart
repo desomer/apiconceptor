@@ -8,7 +8,7 @@ mixin GenericPage {
   NavigationInfo? initNavigation(
     GoRouterState routerState,
     BuildContext context,
-    PageInit? pageInit, 
+    PageInit? pageInit,
   );
 
   Widget getBackground(int num, Widget child) {
@@ -19,17 +19,21 @@ mixin GenericPage {
       ],
     );
   }
-
 }
 
-abstract class PageInit with GenericPage {
-}
+abstract class PageInit with GenericPage {}
 
+// ignore: must_be_immutable
 abstract class GenericPageStateless extends StatelessWidget with GenericPage {
-  const GenericPageStateless({super.key});
+  void setUrlPath(String path) {}
+  String? getUrlPath() {
+    return null;
+  }
 
+  const GenericPageStateless({super.key});
 }
 
+// ignore: must_be_immutable
 abstract class GenericPageStateful extends StatefulWidget with GenericPage {
   const GenericPageStateful({super.key});
 }
@@ -74,7 +78,6 @@ abstract class GenericPageState<T extends StatefulWidget> extends State<T>
       ],
     );
   }
-
 }
 
 class NavigationInfo {

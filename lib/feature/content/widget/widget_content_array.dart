@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/widget_selectable.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_form.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
@@ -33,7 +35,7 @@ class WidgetContentArray extends StatefulWidget {
 }
 
 class _WidgetContentArrayState extends State<WidgetContentArray>
-    with WidgetUIHelper {
+    with WidgetUIHelper, NameMixin {
   @override
   void initState() {
     widget.info.json2ui.stateMgr.addContainer(widget.info.pathValue!, this);
@@ -48,11 +50,13 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
 
   @override
   Widget build(BuildContext context) {
-    print(
-      'Array path value ${widget.info.pathValue}   path data ${widget.info.pathData}',
-    );
+    // print(
+    //   'Array path value ${widget.info.pathValue}   path data ${widget.info.pathData}',
+    // );
 
-    var dataContainer = widget.info.json2ui.getState(widget.info.pathData!);
+    var dataContainer = widget.info.json2ui.getStateContainer(
+      widget.info.pathData!,
+    );
     List? items;
     if (dataContainer != null) {
       items = dataContainer.jsonData[widget.info.name];
@@ -70,24 +74,28 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
             ..setPathData(widget.info.pathValue!)
             ..panInfo = widget.info.panInfo;
 
-      var v = getInputDesc(i);
+      var v = getInputDesc(i, false);
 
       if (v.choiseItem != null) {
         // template non défini donc tableau de String, Bool, int, double
-        return Padding(
-          padding: EdgeInsetsGeometry.all(10),
-          child: Row(
-            spacing: 20,
-            children: [
-              Text(widget.info.name),
-              TagSelector(
-                key: ObjectKey(items),
-                availableTags: v.choiseItem!,
-                initialSelected: [],
-                accessor: InfoAccess(initialSelected: items!),
-              ),
-              Spacer(),
-            ],
+        return WidgetSelectable(
+          withDragAndDrop: false,
+          panInfo: widget.info.panInfo,
+          child: Padding(
+            padding: EdgeInsetsGeometry.all(10),
+            child: Row(
+              spacing: 20,
+              children: [
+                Text(camelCaseToWordsCapitalized(widget.info.name)),
+                TagSelector(
+                  key: ObjectKey(items),
+                  availableTags: v.choiseItem!,
+                  initialSelected: [],
+                  accessor: InfoAccess(initialSelected: items!),
+                ),
+                Spacer(),
+              ],
+            ),
           ),
         );
       }
@@ -124,24 +132,28 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
     SizedBox addWidget = getAddBtn(items);
     children.add(addWidget);
 
-    return WidgetExpansive(
-      color: Colors.blue,
-      headers: [
-        Text(widget.info.name),
-        Spacer(),
-        InkWell(
-          onTap: () async {
-            if (widget.info.onTapSetting != null) {
-              widget.info.onTapSetting!();
-            }
-          },
-          child: Icon(Icons.tune), //settings
+    return WidgetSelectable(
+      withDragAndDrop: false,
+      panInfo: widget.info.panInfo,
+      child: WidgetExpansive(
+        color: Colors.blue,
+        headers: [
+          Text(camelCaseToWordsCapitalized(widget.info.name)),
+          Spacer(),
+          InkWell(
+            onTap: () async {
+              if (widget.info.onTapSetting != null) {
+                widget.info.onTapSetting!();
+              }
+            },
+            child: Icon(Icons.tune), //settings
+          ),
+        ],
+        child: Column(
+          spacing: 5,
+          mainAxisSize: MainAxisSize.max,
+          children: [...children, SizedBox(height: 1)],
         ),
-      ],
-      child: Column(
-        spacing: 5,
-        mainAxisSize: MainAxisSize.max,
-        children: [...children, SizedBox(height: 1)],
       ),
     );
   }
@@ -158,13 +170,19 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
               onTap: () {
                 setState(() {
                   dynamic newRow = {};
-                  var key = '${widget.info.pathValue}[0]';
+                  var pathEmptyRow = '${widget.info.pathValue}[0]';
                   var template =
-                      widget.info.json2ui.stateMgr.stateTemplate[key];
-                  if (template != null) {
-                    newRow = getNewRowFromPath(
+                      widget.info.json2ui.stateMgr.stateTemplate[pathEmptyRow];
+                  bool isRowOfObject = template != null;
+                  if (widget.info.panInfo != null) {
+                    isRowOfObject =
+                        widget.info.panInfo!.type != 'PrimitiveArray';
+                  }
+
+                  if (isRowOfObject) {
+                    newRow = getValueFromPath(
                       widget.info.json2ui.stateMgr.dataEmpty,
-                      key.substring(1),
+                      pathEmptyRow.substring(1),
                     );
                   } else {
                     // si tableau de String
@@ -194,32 +212,32 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
     return addWidget;
   }
 
-  dynamic getNewRowFromPath(Map<String, dynamic> json, String path) {
-    final regex = RegExp(r'([^/\[\]]+)|\[(\d+)\]');
-    dynamic current = json;
+  // dynamic getNewRowFromPath(Map<String, dynamic> json, String path) {
+  //   final regex = RegExp(r'([^/\[\]]+)|\[(\d+)\]');
+  //   dynamic current = json;
 
-    for (final match in regex.allMatches(path)) {
-      final key = match.group(1);
-      final index = match.group(2);
+  //   for (final match in regex.allMatches(path)) {
+  //     final key = match.group(1);
+  //     final index = match.group(2);
 
-      if (key != null) {
-        if (current is Map<String, dynamic>) {
-          current = current[key];
-        } else {
-          throw Exception('Clé "$key" introuvable dans un objet non-map');
-        }
-      } else if (index != null) {
-        final i = int.parse(index);
-        if (current is List) {
-          current = current[i];
-        } else {
-          throw Exception('Index [$i] utilisé sur un objet non-liste');
-        }
-      }
-    }
+  //     if (key != null) {
+  //       if (current is Map) {
+  //         current = current[key];
+  //       } else {
+  //         throw Exception('Clé "$key" introuvable dans un objet non-map');
+  //       }
+  //     } else if (index != null) {
+  //       final i = int.parse(index);
+  //       if (current is List) {
+  //         current = current[i];
+  //       } else {
+  //         throw Exception('Index [$i] utilisé sur un objet non-liste');
+  //       }
+  //     }
+  //   }
 
-    return current;
-  }
+  //   return current;
+  // }
 }
 
 class InfoAccess extends ValueAccessor {

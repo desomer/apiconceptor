@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/content/browser_pan.dart';
+import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
 import 'package:jsonschema/widget/widget_expansive.dart';
@@ -60,7 +60,9 @@ class _WidgetContentObjectAnyOfState extends State<WidgetContentObjectAnyOf>
   Widget build(BuildContext context) {
     List<Widget> rows = [];
     var pathValue = getPathValue();
-    var dataContainer = widget.info.json2ui.getState(widget.info.pathData!);
+    var dataContainer = widget.info.json2ui.getStateContainer(
+      widget.info.pathData!,
+    );
 
     InfoTemplate infoTemplate = getInfoTemplate(
       widget.info,

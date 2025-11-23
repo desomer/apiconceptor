@@ -297,7 +297,7 @@ class CoreDataEval {
 
       if (api != null) {
         String httpOpe = api.name.toLowerCase();
-        var apiCallInfo = APICallManager(api: api, httpOperation: httpOpe);
+        var apiCallInfo = APICallManager(namespace: domain, attrApi: api, httpOperation: httpOpe);
         apiCallInfo.getURLfromNode(allApi.nodeByMasterId[api.masterID!]!);
 
         var def = await loadAPI(id: api.masterID!, namespace: r.masterID);

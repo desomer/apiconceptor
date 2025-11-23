@@ -1,15 +1,24 @@
 import 'dart:convert';
+import 'dart:developer' as dev show log;
 import 'dart:math';
 import 'package:jsonschema/core/api/caller_api.dart';
+import 'package:jsonschema/core/api/sessionStorage.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 
 class APICallManager {
-  APICallManager({required this.api, required this.httpOperation});
+  APICallManager({
+    required this.namespace,
+    required this.attrApi,
+    required this.httpOperation,
+  });
 
-  AttributInfo api;
+  PageData? parentData;
+  bool? modeAPIResponse;
+  String namespace;
+  AttributInfo attrApi;
   AttributInfo? selectedExample;
 
   ModelSchema? currentAPIRequest;
@@ -85,10 +94,10 @@ body :
   }
 
   Future<void> fillVar() async {
-    var idDomain = currentCompany.listDomain.selectedAttr!.info.masterID!;
+    //var idDomain = currentCompany.listDomain.selectedAttr!.info.masterID!;
     var idEnv = currentCompany.listEnv.selectedAttr!.info.masterID!;
 
-    var envVar = await loadVarEnv(idDomain, idEnv, "variables", true);
+    var envVar = await loadVarEnv(namespace, idEnv, "variables", true);
     var browseSingle = BrowseSingle();
     browseSingle.browse(envVar, true);
 
@@ -178,7 +187,7 @@ body :
       variablesId.addAll(extractParameters(bodyStr, false));
     }
 
-    print("var $variablesId");
+    dev.log("variables used $variablesId in $url");
   }
 
   final regexDoubleQuote = RegExp(r'{{\s*(\w+)\s*}}');
@@ -190,16 +199,24 @@ body :
     return regex.allMatches(input).map((match) => match.group(1)!).toList();
   }
 
+  dynamic getVariableValue(String key) {
+    var val = requestVariableValue[key];
+    if (val == null && parentData != null) {
+      val = parentData!.findNearestValueByKey(key);
+    }
+    return val;
+  }
+
   String replaceVarInRequest(String aUrl) {
     var result = aUrl.replaceAllMapped(RegExp(r'{{(\w+)}}'), (match) {
       final key = match.group(1);
-      return requestVariableValue[key]?.toString() ??
+      return getVariableValue(key.toString())?.toString() ??
           match.group(0)!; // garde {{key}} si non trouvé
     });
 
     result = result.replaceAllMapped(RegExp(r'{(\w+)}'), (match) {
       final key = match.group(1);
-      return requestVariableValue[key]?.toString() ??
+      return getVariableValue(key.toString())?.toString() ??
           match.group(0)!; // garde {{key}} si non trouvé
     });
 

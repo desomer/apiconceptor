@@ -377,6 +377,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
 
           CellEditor(
             key: ValueKey('link#${info.hashCode}'),
+            line: 3,
             acces: ModelAccessorAttr(
               node: info,
               schema: model,

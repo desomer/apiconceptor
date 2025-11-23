@@ -216,7 +216,7 @@ class _DraggableEditableListState extends State<DraggableEditableList> {
                           text: items[index]['name'],
                         )
                         ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: items[index]['name'].length),
+                          TextPosition(offset: items[index]['name']?.length ?? 0),
                         ),
                       onChanged: (value) => _updateName(index, value),
                     ),

@@ -8,8 +8,7 @@ class CompanyModelSchema {
 
   late ModelSchema listEnv;
   late ModelSchema listDomain;
-  // late ModelSchema listComponent;
-  // late ModelSchema listRequest;
+  ModelSchema? listPage;
 
   ModelSchema? listModel;
   ModelSchema? currentModel;

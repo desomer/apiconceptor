@@ -1,7 +1,9 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
+import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 
 class StateManager {
@@ -9,13 +11,20 @@ class StateManager {
   dynamic data;
   dynamic dataEmpty;
 
+  ConfigBlock? config;
+
+  BrowserPan browser = BrowserPan();
+
   Map<String, List<ConfigFormContainer>> configLayout = {};
   Map<String, ConfigArrayContainer> configArray = {};
 
-  final Map<String, StateContainer> stateTemplate = {};   // container des templates (plus utile... remplacer par le PanInfo)
-  final Map<String, StateContainer> statesTreeData = {};  // les container de data 
+  final Map<String, StateContainer> stateTemplate =
+      {}; // container des templates (plus utile... remplacer par le PanInfo)
+  final Map<String, StateContainer> statesTreeData =
+      {}; // les container de data
 
-  final Map<String, WidgetContentInputState> listInput = {}; // liste des input controleur actif
+  final Map<String, WidgetContentInputState> listInput =
+      {}; // liste des input controleur actif
   final Map<String, State> listContainer = {};
 
   void loadDataInContainer(dynamic json, {String pathData = ''}) {
@@ -95,7 +104,7 @@ class StateManager {
 
   void removeControler(String pathData, WidgetContentInputState ctrl) {
     if (listInput[pathData] == ctrl) {
-      print("removeControler $pathData");
+      //rint("removeControler $pathData");
       listInput.remove(pathData);
     }
   }

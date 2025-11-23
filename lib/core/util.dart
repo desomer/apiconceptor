@@ -1,7 +1,63 @@
 import 'package:flutter/material.dart';
 
-class UtilDart {
+dynamic getValueFromPath(Map<dynamic, dynamic> json, String path) {
+  final regex = RegExp(r'([^/\[\]]+)|\[(\d+)\]');
+  dynamic current = json;
 
+  for (final match in regex.allMatches(path)) {
+    final key = match.group(1);
+    final index = match.group(2);
+
+    if (key != null) {
+      if (current is Map) {
+        current = current[key];
+      } else {
+        return null;
+      }
+    } else if (index != null) {
+      final i = int.parse(index);
+      if (current is List) {
+        current = current[i];
+      } else {
+        throw Exception('Index [$i] utilisé sur un objet non-liste');
+      }
+    }
+  }
+
+  return current;
+}
+
+/// Recherche récursive d'une clé dans une arborescence de Map.
+/// Retourne la valeur si trouvée, sinon null.
+dynamic findValueByKey(
+  Map<String, dynamic> map,
+  String key, {
+  dynamic valueToSet,
+}) {
+  if (map.containsKey(key)) {
+    if (valueToSet != null) {
+      map[key] = valueToSet;
+    }
+    return map[key];
+  }
+  for (final entry in map.entries) {
+    final value = entry.value;
+    if (value is Map<String, dynamic>) {
+      final result = findValueByKey(value, key, valueToSet: valueToSet);
+      if (result != null) return result;
+    } else if (value is List) {
+      for (final item in value) {
+        if (item is Map<String, dynamic>) {
+          final result = findValueByKey(item, key, valueToSet: valueToSet);
+          if (result != null) return result;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+class UtilDart {
   String? shift(List l) {
     if (l.isNotEmpty) {
       var first = l.first;
@@ -11,13 +67,15 @@ class UtilDart {
     return null;
   }
 
-  bool isURL(String? str,
-      {List<String?> protocols = const ['http', 'https', 'ftp'],
-      bool requireTld = true,
-      bool requireProtocol = false,
-      bool allowUnderscore = false,
-      List<String> hostWhitelist = const [],
-      List<String> hostBlacklist = const []}) {
+  bool isURL(
+    String? str, {
+    List<String?> protocols = const ['http', 'https', 'ftp'],
+    bool requireTld = true,
+    bool requireProtocol = false,
+    bool allowUnderscore = false,
+    List<String> hostWhitelist = const [],
+    List<String> hostBlacklist = const [],
+  }) {
     if (str == null ||
         str.isEmpty ||
         str.length > 2083 ||
@@ -101,8 +159,11 @@ class UtilDart {
     }
 
     if (!isIP(host) &&
-        !isFQDN(host!,
-            requireTld: requireTld, allowUnderscores: allowUnderscore) &&
+        !isFQDN(
+          host!,
+          requireTld: requireTld,
+          allowUnderscores: allowUnderscore,
+        ) &&
         host != 'localhost') {
       return false;
     }
@@ -118,10 +179,12 @@ class UtilDart {
     return true;
   }
 
-  final RegExp _ipv4Maybe =
-      RegExp(r'^(\d?\d?\d)\.(\d?\d?\d)\.(\d?\d?\d)\.(\d?\d?\d)$');
-  final RegExp _ipv6 =
-      RegExp(r'^::|^::1|^([a-fA-F0-9]{1,4}::?){1,7}([a-fA-F0-9]{1,4})$');
+  final RegExp _ipv4Maybe = RegExp(
+    r'^(\d?\d?\d)\.(\d?\d?\d)\.(\d?\d?\d)\.(\d?\d?\d)$',
+  );
+  final RegExp _ipv6 = RegExp(
+    r'^::|^::1|^([a-fA-F0-9]{1,4}::?){1,7}([a-fA-F0-9]{1,4})$',
+  );
 
   bool isIP(String? str, [/*<String | int>*/ version]) {
     version = version.toString();
@@ -142,8 +205,11 @@ class UtilDart {
   ///
   /// * [requireTld] sets if TLD is required
   /// * [allowUnderscore] sets if underscores are allowed
-  bool isFQDN(String str,
-      {bool requireTld = true, bool allowUnderscores = false}) {
+  bool isFQDN(
+    String str, {
+    bool requireTld = true,
+    bool allowUnderscores = false,
+  }) {
     var parts = str.split('.');
     if (requireTld) {
       var tld = parts.removeLast();
@@ -165,8 +231,8 @@ class UtilDart {
           part[part.length - 1] == '-' ||
           part.contains('---')) {
         return false;
-    }
       }
+    }
     return true;
   }
 }
@@ -183,3 +249,75 @@ class TextSize {
   }
 }
 
+class LruCache<K, V> {
+  final int capacity;
+  final _map = <K, _Node<K, V>>{};
+  _Node<K, V>? _head;
+  _Node<K, V>? _tail;
+
+  LruCache(this.capacity);
+
+  void clear() {
+    _map.clear();
+    _head = null;
+    _tail = null;
+  }
+
+  V? get(K key) {
+    final node = _map[key];
+    if (node == null) return null;
+    _moveToHead(node);
+    return node.value;
+  }
+
+  void put(K key, V value) {
+    var node = _map[key];
+    if (node != null) {
+      node.value = value;
+      _moveToHead(node);
+    } else {
+      node = _Node(key, value);
+      _map[key] = node;
+      _addNode(node);
+
+      if (_map.length > capacity) {
+        _map.remove(_tail!.key);
+        _removeNode(_tail!);
+      }
+    }
+  }
+
+  void _addNode(_Node<K, V> node) {
+    node.next = _head;
+    node.prev = null;
+    if (_head != null) _head!.prev = node;
+    _head = node;
+    _tail ??= node;
+  }
+
+  void _removeNode(_Node<K, V> node) {
+    if (node.prev != null) {
+      node.prev!.next = node.next;
+    } else {
+      _head = node.next;
+    }
+    if (node.next != null) {
+      node.next!.prev = node.prev;
+    } else {
+      _tail = node.prev;
+    }
+  }
+
+  void _moveToHead(_Node<K, V> node) {
+    _removeNode(node);
+    _addNode(node);
+  }
+}
+
+class _Node<K, V> {
+  K key;
+  V value;
+  _Node<K, V>? prev;
+  _Node<K, V>? next;
+  _Node(this.key, this.value);
+}

@@ -1,8 +1,8 @@
+import 'dart:developer' as dev show log;
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:jsonschema/core/core_expression.dart';
 import 'package:jsonschema/core/api/call_manager.dart';
-
 
 class CallerApi {
   dynamic callGraph() async {
@@ -41,6 +41,8 @@ class CallerApi {
     url = url.trim();
 
     info.logs.add('[SEND] <${info.httpOperation.toUpperCase()}><$url>');
+    dev.log('call api <${info.httpOperation.toUpperCase()}><$url>');
+    
     var ret = await sendApi(info.httpOperation, url, info.body, cancelToken);
     var httpState = ret.reponse?.statusCode ?? 500;
     var duration = ret.duration;

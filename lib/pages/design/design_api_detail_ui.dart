@@ -19,19 +19,25 @@ class CallAPIPageDetailUI extends GenericPageStateless {
   Widget build(BuildContext context) {
     var attr = currentCompany.listAPI!.nodeByMasterId[query]!;
     currentCompany.listAPI!.selectedAttr = attr;
+
     requestHelper = WidgetRequestHelper(
-      apiCallInfo: getAPICall(currentCompany.listAPI!.selectedAttr!),
+      apiNode: attr,
+      apiCallInfo: getAPICall(
+        currentCompany.currentNameSpace,
+        currentCompany.listAPI!.selectedAttr!,
+      ),
     );
 
-    return PanResponseViewer(
-      apiCallInfo: requestHelper.apiCallInfo,
-      requestHelper: requestHelper,
-    );
+    return PanResponseViewer(requestHelper: requestHelper);
   }
 
-  APICallManager getAPICall(NodeAttribut attr) {
+  APICallManager getAPICall(String namespace, NodeAttribut attr) {
     String httpOpe = attr.info.name.toLowerCase();
-    var apiCallInfo = APICallManager(api: attr.info, httpOperation: httpOpe);
+    var apiCallInfo = APICallManager(
+      namespace: namespace,
+      attrApi: attr.info,
+      httpOperation: httpOpe,
+    );
     return apiCallInfo;
   }
 

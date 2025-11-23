@@ -16,10 +16,16 @@ var cstType = '\$\$__type\$\$__';
 var cstContent = '\$\$__content\$\$__';
 var cstProp = '\$\$__prop\$\$__';
 var cstAnyChoice = '##__choise__##';
+var cstPropLabel = '\$\$__proplabel\$\$__';
 
 class Export2UI<T> extends JsonBrowser<T> {
   @override
-  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     doClean(node);
     String type = node.info.type.toLowerCase();
     String name = node.info.name;
@@ -120,7 +126,7 @@ class Export2UI<T> extends JsonBrowser<T> {
 
   NodeJson doArrayWithAnyOf(String name, NodeAttribut node) {
     var obj = [];
-    var child = {cstType: 'arrayAnyOf', cstContent: obj};
+    var child = {cstType: 'arrayAnyOf', cstContent: obj, cstProp: node.info};
     return NodeJson(name: name, value: child)..parentOfChild = obj;
   }
 
@@ -132,11 +138,14 @@ class Export2UI<T> extends JsonBrowser<T> {
     bool mustChoise = node.parent?.info.type == 'Object';
     if (mustChoise) {
       var obj = {};
-      Map<String, dynamic> map = {cstType: 'objectAnyOf', cstContent: obj};
+      Map<String, dynamic> map = {
+        cstType: 'objectAnyOf',
+        cstContent: obj,
+        cstProp: node.info,
+      };
       dynamic child = mustChoise ? map : null;
 
-      return NodeJson(name: cstAnyChoice, value: child)
-        ..parentOfChild = obj;
+      return NodeJson(name: cstAnyChoice, value: child)..parentOfChild = obj;
     } else {
       return NodeJson(name: name, value: null)..add = false;
     }
@@ -241,7 +250,7 @@ class Export2UI<T> extends JsonBrowser<T> {
         cstProp: node.info,
       };
       return NodeJson(name: name, value: child)..parentOfChild = obj;
-    } else {  
+    } else {
       child.add(getValue(name, type, node));
     }
     var child2 = {cstType: type, cstContent: child, cstProp: node.info};

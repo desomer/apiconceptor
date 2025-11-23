@@ -33,7 +33,7 @@ class DataAcces {
       );
 
       supabase = _sup!;
- 
+
       print("signInWithPassword to supabase");
       AuthResponse res = await supabase.auth.signInWithPassword(
         email: usermail,
@@ -53,7 +53,7 @@ class DataAcces {
       if (ret2.isNotEmpty) {
         for (var element in ret2) {
           // liste des company
-          print(element);
+          print('profil $element');
         }
       } else {
         UserAuthentication.stateConnection.value = 'Create ${user?.email}';
@@ -98,7 +98,7 @@ class DataAcces {
           callback: (payload) => messageReceived(payload),
         )
         .subscribe();
-        
+
     print("end connect to supabase");
     return true;
   }
@@ -202,12 +202,13 @@ class DataAcces {
   }
 
   dynamic getItemSync({
+    required ModelSchema model,
     required String id,
     required int delay,
     required ModelVersion? version,
   }) {
     if (delay == -1) {
-      String cacheId = getCacheId(id, version);
+      String cacheId = getCacheId(model, id, version);
       if (local[cacheId] != null) {
         return local[cacheId]!.value;
       }
@@ -223,7 +224,7 @@ class DataAcces {
     required bool setcache,
   }) {
     if (delay == -1) {
-      String cacheId = getCacheId(id, version);
+      String cacheId = getCacheId(model, id, version);
       if (local[cacheId] != null) {
         return local[cacheId]!.value;
       }
@@ -244,14 +245,14 @@ class DataAcces {
   }) async {
     var ret = await _getFromModelSupabase(model, id, version);
     if (setcache) {
-      String cacheId = getCacheId(id, version);
+      String cacheId = getCacheId(model, id, version);
       _setCache(cacheId, ret);
     }
     return ret;
   }
 
-  String getCacheId(String id, ModelVersion? version) {
-    return '$id/${version?.version ?? '1'}';
+  String getCacheId(ModelSchema model, String id, ModelVersion? version) {
+    return '${model.namespace}/$id/${version?.version ?? '1'}';
   }
 
   void saveYAML({
@@ -260,7 +261,7 @@ class DataAcces {
     dynamic value,
   }) async {
     ModelVersion? version = model.currentVersion;
-    String cacheId = getCacheId(model.id, version);
+    String cacheId = getCacheId(model, model.id, version);
     if (local[cacheId] != null) {
       var l = local[cacheId]!.value;
       if (type == 'YAML') {
@@ -403,7 +404,7 @@ class DataAcces {
         var old = modelVerif.mapInfoByJsonPath[attr.path];
         if (old != null && old.masterID != attr.masterID) {
           print('pb ********** double master id **************');
-          print('json/${model.id} path = ${attr.path}');
+          print('${model.namespace}/json/${model.id} path = ${attr.path}');
           showError('double master id on ${attr.path}');
         } else {
           _sendMessage({
@@ -420,7 +421,7 @@ class DataAcces {
 
   FutureOr<Null> _sendMessage(dynamic payload) async {
     try {
-      print('send by ${payload['id']} $payload'); // event $payload
+      //print('send by ${payload['id']} $payload'); // event $payload
       //final res =
       await myChannel.sendBroadcastMessage(event: "shout", payload: payload);
       //print('call $res');
@@ -440,7 +441,6 @@ class DataAcces {
 
   Future<List<ModelVersion>> getAllVersion(ModelSchema model) async {
     var id = model.id;
-    print("load version from bdd $id");
     var queryattr = supabase
         .from('versions')
         .select('*')
@@ -462,6 +462,7 @@ class DataAcces {
       listVersion.sort();
     }
     model.versions = listVersion;
+    print("load versions from bdd $id nb=${listVersion.length}");
     return listVersion;
   }
 
@@ -530,7 +531,7 @@ class DataAcces {
   }
 
   void setYaml(ModelSchema model, dynamic value, ModelVersion? version) async {
-    String cacheId = getCacheId(model.id, version);
+    String cacheId = getCacheId(model, model.id, version);
     _setCache(cacheId, value);
     await _setYaml(model, value, version);
   }
@@ -561,7 +562,7 @@ class DataAcces {
 
   void _setCache(String id, dynamic value) {
     if (value == null) {
-      if (id.startsWith('json/')) {
+      if (id.contains('/json/')) {
         value = <String, dynamic>{};
       } else {
         value = '';

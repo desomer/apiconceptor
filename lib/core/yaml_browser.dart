@@ -177,6 +177,15 @@ class YamlDoc {
     for (var e in val.entries) {
       dynamic v = e.value;
       if (v is YamlMap) {
+        if (v.length == 1) {
+          var vMap = v.values.first;
+          if (vMap == null) {
+            v = '{${v.keys.first}}';
+          }
+        }
+      }
+
+      if (v is YamlMap) {
         String k = e.key.toString();
         if (e.key is Map) {
           // cas des {id}

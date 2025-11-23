@@ -6,11 +6,12 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_env.dart';
-import 'package:jsonschema/feature/content/pan_content_viewer.dart';
+import 'package:jsonschema/feature/transform/pan_model_viewer.dart';
 import 'package:jsonschema/feature/domain/pan_domain.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/apps/data_sources_page.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
@@ -105,7 +106,7 @@ Future<bool> startCore(String usermail, String password) async {
   return true;
 }
 
-Future<ModelSchema> loadAPI({required String id, String? namespace}) async {
+Future<ModelSchema>  loadAPI({required String id, String? namespace}) async {
   var currentAPIResquest = ModelSchema(
     category: Category.api,
     infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
@@ -196,6 +197,29 @@ Future<ModelSchema> loadContent(
   return schema;
 }
 
+Future<ModelSchema> loadPage(String idDomain, bool cache) async {
+  var schema = ModelSchema(
+    category: Category.variable,
+    headerName: "pages",
+    id: 'listPages/$idDomain',
+    infoManager: InfoManagerPages(),
+    ref: null,
+  );
+  schema.namespace = "default";
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  schema.namespace = "default";  
+  currentCompany.listPage = schema;
+  return schema;
+}
+
 Future<ModelSchema> loadVarEnv(
   String idDomain,
   String idEnv,
@@ -208,7 +232,9 @@ Future<ModelSchema> loadVarEnv(
     id: 'var/$idDomain/$idEnv',
     infoManager: InfoManagerDomainVariables(),
     ref: null,
-  );
+  )
+  ..namespace=idDomain
+  ;
 
   if (withBdd) {
     try {

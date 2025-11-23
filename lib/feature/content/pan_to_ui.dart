@@ -1,8 +1,14 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/export/export2ui.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/feature/content/browser_pan.dart';
+import 'package:jsonschema/core/util.dart';
+import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
+import 'package:jsonschema/feature/content/pan_setting_array.dart';
+import 'package:jsonschema/feature/content/pan_setting_form.dart';
+import 'package:jsonschema/feature/content/pan_setting_page.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_array.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_form.dart';
@@ -11,18 +17,23 @@ import 'package:jsonschema/feature/content/widget/widget_content_object_anyof.da
 import 'package:jsonschema/feature/content/widget/widget_content_row.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
-class PanToUi with WidgetUIHelper implements GenericToUi {
-  PanToUi({required this.state});
+class PanToUi
+    with WidgetUIHelper, StateManagerMixin, NameMixin
+    implements GenericToUi {
+  PanToUi({required this.state, required this.withScroll});
 
-  PanContext? panContext;
+  bool withScroll;
+  String labelRoot = 'root';
 
   BuildContext? context;
   final State state;
 
   ModelSchema? model;
-
   ModelSchema? saveOnModel;
   bool saveUIOnModel = false;
+
+  @override
+  Export2UI? aExport;
 
   @override
   void loadData(dynamic data) {
@@ -31,81 +42,152 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
     stateMgr.loadDataInContainer(data);
   }
 
-  WidgetTyped? getWidget(
+  WidgetTyped? getWidgetTyped(
     PanInfo panInfo,
     WidgetType parentType,
     String pathJson,
+    List<WidgetTyped> rowTab, // list des tabs en cours
   ) {
-    print(
-      " getWidget for path: $pathJson  template : ${panInfo.pathDataInTemplate}  attr : ${panInfo.attrName} ",
-    );
- 
+    // print(
+    //   " getWidget for path: $pathJson  template : ${panInfo.pathDataInTemplate}  attr : ${panInfo.attrName} ",
+    // );
+
+    if (panInfo.isInvisible) {
+      // pas d'enfant selectionné pour etre visible et pas visible
+      return null;
+    }
+
     if (pathJson.endsWith('/')) {
       pathJson = pathJson.substring(0, pathJson.length - 1);
     }
 
-    var rowTab = <WidgetTyped>[];
-    UIParamContext ctx = UIParamContext(
-      pathData: pathJson,
-      path:
-          (panInfo.type != 'Row' &&
-                  panInfo.type != 'Bloc' &&
-                  parentType != WidgetType.list)
-              ? '$pathJson/${panInfo.attrName}'
-              : pathJson,
-      attrName: panInfo.attrName,
-      parentType: parentType,
-      rowTab: rowTab,
-    )..data = getValueFromPath(stateMgr.data, pathJson);
+    List<ConfigContainer>? layoutConfiguration =
+        stateMgr.configLayout[replaceAllIndexes(panInfo.pathDataInTemplate)];
+
+    UIParamContext ctx =
+        UIParamContext(
+            pathData: pathJson,
+            path:
+                (panInfo.type != 'Row' &&
+                        panInfo.type != 'Bloc' &&
+                        parentType != WidgetType.list)
+                    ? '$pathJson/${panInfo.attrName}'
+                    : pathJson,
+            attrName: panInfo.panName ?? panInfo.attrName,
+            parentType: parentType,
+            rowTab: rowTab,
+          )
+          ..data = getValueFromPath(stateMgr.data ?? {}, pathJson)
+          ..layoutConfiguration = layoutConfiguration;
 
     if (panInfo is PanInfoObject) {
       if (panInfo.type == 'Array' || panInfo.type == 'PrimitiveArray') {
-        return _getArray(panInfo, ctx);
+        return _getPanArray(panInfo, ctx);
       } else {
-        var widget = _getPanForm(panInfo, ctx, pathJson);
-        return _getWidgetTypedForm(widget, ctx);
+        return _getPanForm(panInfo, ctx, pathJson);
       }
     } else if (panInfo is PanInfoInput) {
-      return getObjectInput(this, panInfo, ctx);
+      if (panInfo.pathPanVisible != null) {
+        return getObjectInput(this, panInfo, ctx);
+      }
     }
 
     return null;
   }
 
-  WidgetTyped _getWidgetTypedForm(Widget wid, UIParamContext ctx) {
+  WidgetTyped _getWidgetTypedForm(
+    Widget wid,
+    UIParamContext ctx,
+    PanInfoObject panInfo,
+    bool withBorder,
+  ) {
     return WidgetTyped(
       height: -1,
       name: ctx.attrName,
       content: ctx.data,
       type: WidgetType.form,
-      widget: Container(
-        //key: ObjectKey(data),
-        margin: EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade700, width: 1),
-        ),
-        child: wid,
-      ),
-    );
+      widget:
+          withBorder
+              ? Container(
+                //key: ObjectKey(data),
+                margin: EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade700, width: 1),
+                ),
+                child: wid,
+              )
+              : wid,
+    )..messageTooltip = getMessageTooltip(panInfo);
   }
 
-  WidgetTyped _getWidgetTypedArray(Widget wid, UIParamContext ctx) {
+  String? getMessageTooltip(PanInfoObject panInfo) {
+    String? messageTooltip;
+    var template = panInfo.dataJsonSchema;
+    if (template is List && template.first[cstPropLabel] != null) {
+      AttributInfo propAttribut = template.first[cstPropLabel];
+      StringBuffer msg = getMessage(propAttribut);
+      messageTooltip = msg.toString();
+    } else if (template is Map && template[cstPropLabel] != null) {
+      AttributInfo propAttribut = template[cstPropLabel];
+      StringBuffer msg = getMessage(propAttribut);
+      messageTooltip = msg.toString();
+    }
+
+    return messageTooltip;
+  }
+
+  WidgetTyped _getWidgetTypedArray(
+    Widget wid,
+    UIParamContext ctx,
+    bool withBorder,
+  ) {
     return WidgetTyped(
       height: -1,
       name: ctx.attrName,
       content: ctx.data,
       type: WidgetType.list,
-      widget: Container(
-        margin: EdgeInsets.symmetric(horizontal: 5),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.blue, width: 1),
-        ),
-        child: wid,
-      ),
+      widget:
+          withBorder
+              ? Container(
+                margin: EdgeInsets.symmetric(horizontal: 5),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.blue, width: 1),
+                ),
+                child: wid,
+              )
+              : wid,
     );
   }
 
-  WidgetTyped? _getArray(PanInfoObject panInfo, UIParamContext ctx) {
+  WidgetTyped? _getPanArray(PanInfoObject panInfo, UIParamContext ctx) {
+    if (panInfo.pathPanVisible == null) {
+      int i = 0;
+      var pathDataRow = ctx.path;
+
+      var infoTemplate = getInfoTemplate(
+        WidgetConfigInfo(json2ui: this, name: ctx.attrName)..panInfo = panInfo,
+        pathDataRow,
+        false,
+      );
+
+      UIParamContext ctxRow =
+          UIParamContext(
+              pathData: pathDataRow,
+              path: ctx.path,
+              attrName: ctx.attrName,
+              parentType: ctx.parentType,
+              rowTab: ctx.rowTab,
+            )
+            ..data = ctx.data
+            ..infoTemplate = infoTemplate
+            ..layoutConfiguration = ctx.layoutConfiguration;
+
+      bool anyOfItem = infoTemplate.anyOf;
+      Widget wid = getFormOfRow(anyOfItem, i, ctxRow, panInfo);
+
+      return _getWidgetTypedForm(wid, ctx, panInfo, false);
+    }
+
     var lw = <Widget>[];
 
     var p = replaceAllIndexes(ctx.path);
@@ -115,32 +197,8 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
     ctx.layoutArray = confLayoutArray;
 
     Widget wid = getArrayWidget(panInfo, lw, ctx);
-
-    var widgetTyped = _getWidgetTypedArray(wid, ctx);
-
-    var confLayout =
-        ctx.layoutConfiguration?.firstWhereOrNull((element) {
-              return element.name == ctx.attrName;
-            })
-            as ConfigFormContainer?;
-
-    String layout = 'Flow';
-    if (confLayout != null) {
-      layout = confLayout.layout;
-    }
-    widgetTyped.layout = layout;
-    if (layout == 'Flow') {
-      addTabIn(ctx.rowTab, lw);
-    } else if (layout == 'Tab') {
-      ctx.rowTab.add(widgetTyped);
-      return null;
-    } else if (layout == 'OtherTab') {
-      addTabIn(ctx.rowTab, lw);
-      ctx.rowTab.add(widgetTyped);
-      return null;
-    }
-    lw.add(wid);
-
+    var widgetTyped = _getWidgetTypedArray(wid, ctx, true);
+    widgetTyped.messageTooltip = getMessageTooltip(panInfo);
     return widgetTyped;
   }
 
@@ -157,26 +215,31 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
           WidgetConfigInfo(name: ctx.attrName, json2ui: this)
             ..setPathValue(ctx.path)
             ..setPathData(ctx.pathData)
-            ..panInfo = panInfo,
-      // ..onTapSetting = () async {
-      //   if (await showSettingArrayDialog(
-      //     context!,
-      //     ctx.path,
-      //     ctx.layoutArray!,
-      //   )) {
-      //     // ignore: invalid_use_of_protected_member
-      //     state.setState(() {
-      //       // change config
-      //     });
-      //   }
-      // }
+            ..panInfo = panInfo
+            ..onTapSetting = () async {
+              if (await showSettingArrayDialog(
+                context!,
+                ctx.path,
+                ctx.layoutArray!,
+              )) {
+                // ignore: invalid_use_of_protected_member
+                state.setState(() {
+                  // change config
+                });
+              }
+            },
       children: (pathData) {
         // mode template sans données
         listWidget.clear();
         var lwt = <WidgetTyped>[];
 
         for (int i = 0; i < (ctx.data as List).length; i++) {
-          var row = getWidget(panInfo.children[0], WidgetType.list, pathData);
+          var row = getWidgetTyped(
+            panInfo.children[0],
+            WidgetType.list,
+            pathData,
+            ctx.rowTab,
+          );
           if (row != null) {
             lwt.add(row);
           }
@@ -218,7 +281,8 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
             info:
                 WidgetConfigInfo(json2ui: this, name: ctx.attrName)
                   ..setPathValue('$path[$i]')
-                  ..setPathData('$path[$i]'),
+                  ..setPathData('$path[$i]')
+                  ..panInfo = panInfo,
           );
 
           return getArrayItemAction(i, wid, rowData, k, onDelete);
@@ -240,40 +304,56 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
     return wid;
   }
 
-  WidgetContentForm _getPanForm(
+  WidgetTyped _getPanForm(
     PanInfoObject panInfo,
     UIParamContext ctx,
     String pathJson,
   ) {
     List<WidgetTyped> listContentBlocForConfig = [];
+    // print(
+    //   ' panInfo.type = ${panInfo.type}   pathJson= $pathJson   attrName= ${panInfo.attrName}',
+    // );
 
-    print(
-      ' panInfo.type = ${panInfo.type}   pathJson= $pathJson   attrName= ${panInfo.attrName}',
-    );
+    if (panInfo.pathPanVisible == null) {
+      var ctxClone = ctx.clone(aPathData: pathJson);
+      List<Widget> child = getContentForm(
+        panInfo,
+        ctxClone,
+        listContentBlocForConfig,
+      );
+      Widget wid = Column(children: child);
+      if (panInfo.subtype == 'root' && withScroll) {
+        wid = SingleChildScrollView(child: wid);
+      }
+      return _getWidgetTypedForm(wid, ctx, panInfo, false);
+    }
 
     WidgetContentForm wid = WidgetContentForm(
       ctx: ctx,
       info:
-          WidgetConfigInfo(name: ctx.attrName, json2ui: this)
+          WidgetConfigInfo(
+              name: panInfo.subtype == 'root' ? labelRoot : ctx.attrName,
+              json2ui: this,
+            )
             ..setPathValue(
               panInfo.type != 'Row'
                   ? '$pathJson/${panInfo.attrName}'
                   : pathJson,
             )
             ..setPathData(pathJson)
-            ..panInfo = panInfo,
-      // ..onTapSetting = () async {
-      //   if (await showSettingFormDialog(
-      //     context!,
-      //     ctx.path,
-      //     listContentBlocForConfig,
-      //   )) {
-      //     // ignore: invalid_use_of_protected_member
-      //     state.setState(() {
-      //       // change config
-      //     });
-      //   }
-      // }
+            ..panInfo = panInfo
+            ..onTapSetting = () async {
+              if (await showSettingFormDialog(
+                context!,
+                pathJson,
+                listContentBlocForConfig,
+              )) {
+                // ignore: invalid_use_of_protected_member
+                state.setState(() {
+                  // change config
+                });
+              }
+            },
       children: (pathDataComp) {
         listContentBlocForConfig.clear();
         var ctxClone = ctx.clone(aPathData: pathJson);
@@ -284,7 +364,8 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
     if (modeTemplate) {
       wid.children(ctx.pathData);
     }
-    return wid;
+
+    return _getWidgetTypedForm(wid, ctx, panInfo, true);
   }
 
   List<Widget> getContentForm(
@@ -292,6 +373,8 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
     UIParamContext ctx,
     List<WidgetTyped> listContentBloc,
   ) {
+    List<WidgetTyped> rowTab = [];
+
     var lwt = <WidgetTyped>[];
 
     if (modeTemplate) {
@@ -301,15 +384,20 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
 
     for (var panInfoChild in panInfo.children) {
       if (panInfoChild.type == 'Bloc') {
-        // ajout les input du bloc
+        // ajout les input du bloc (mais sans bloc)
         for (var input in (panInfoChild as PanInfoObject).children) {
-          lwt.add(getWidget(input, WidgetType.form, ctx.path)!);
+          var value = getWidgetTyped(input, WidgetType.form, ctx.path, rowTab);
+          if (value != null) {
+            // nul si input non affiché
+            lwt.add(value);
+          }
         }
       } else {
-        var w = getWidget(
+        var w = getWidgetTyped(
           panInfoChild,
           panInfo.type == 'Row' ? WidgetType.list : WidgetType.form,
           ctx.path,
+          rowTab,
         );
         if (w != null) {
           if (panInfoChild.type == 'Bloc') {
@@ -322,23 +410,35 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
       }
     }
 
+    List<Widget> lw = _doLayout(lwt, ctx, rowTab, listContentBloc);
+    return lw;
+  }
+
+  List<Widget> _doLayout(
+    List<WidgetTyped> lwt,
+    UIParamContext ctx,
+    List<WidgetTyped> rowTab,
+    List<WidgetTyped> listContentBloc,
+  ) {
     var lw = <Widget>[];
     var rowInput = <Widget>[];
     const margeHoriz = 20.0;
     bool prevIsContainerTab = false;
-    var rowTab = ctx.rowTab;
+    //var rowTab = ctx.rowTab;
 
     for (var i = 0; i < lwt.length; i++) {
-      // type list ou form
-      if (lwt[i].type != WidgetType.input) {
+      var aWidgetTypedChild = lwt[i];
+      if (aWidgetTypedChild.type != WidgetType.input) {
+        // type list ou form
         // cherche la configuration de mise en page
         var confLayout =
             ctx.layoutConfiguration?.firstWhereOrNull((element) {
-                  return (element as ConfigFormContainer).name == lwt[i].name;
+                  return (element as ConfigFormContainer).name ==
+                      aWidgetTypedChild.name;
                 })
                 as ConfigFormContainer?;
 
-        lwt[i].height = confLayout?.height ?? -1;
+        aWidgetTypedChild.height = confLayout?.height ?? -1;
 
         bool nextIsContainer = false;
         if (i < lwt.length - 1) {
@@ -363,28 +463,30 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
           rowInput = [];
         }
 
-        if (lwt[i].forceLayout) {
-          layout = lwt[i].layout;
+        if (aWidgetTypedChild.forceLayout) {
+          layout = aWidgetTypedChild.layout;
         } else {
-          lwt[i].layout = layout;
+          aWidgetTypedChild.layout = layout;
         }
+
+        // if ()
 
         if (layout == 'Flow') {
-          addTabIn(rowTab, lw);
-          lw.add(lwt[i].widget);
+          addTabInProgressIfNeeded(rowTab, lw);
+          lw.add(aWidgetTypedChild.widget);
         } else if (layout == 'Tab') {
-          rowTab.add(lwt[i]);
+          rowTab.add(aWidgetTypedChild);
         } else if (layout == 'OtherTab') {
-          addTabIn(rowTab, lw);
-          rowTab.add(lwt[i]);
+          addTabInProgressIfNeeded(rowTab, lw);
+          rowTab.add(aWidgetTypedChild);
         }
 
-        listContentBloc.add(lwt[i]);
+        listContentBloc.add(aWidgetTypedChild);
         prevIsContainerTab = layout == 'Tab';
       } else {
         // gestion des input par 3
         prevIsContainerTab = false;
-        addTabIn(rowTab, lw);
+        addTabInProgressIfNeeded(rowTab, lw);
         if (rowInput.length < 4) {
           addInputFlow(rowInput, lwt, i);
         } else {
@@ -395,7 +497,7 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
       }
     }
 
-    addTabIn(rowTab, lw);
+    addTabInProgressIfNeeded(rowTab, lw);
     if (rowInput.isNotEmpty) {
       int l = rowInput.length;
       // ajout la derniére ligne d'input
@@ -414,13 +516,18 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
     rowInput.add(widget2);
   }
 
-  void addTabIn(List<WidgetTyped> rowTab, List<Widget> dest) {
+  void addTabInProgressIfNeeded(List<WidgetTyped> rowTab, List<Widget> dest) {
     if (rowTab.isNotEmpty) {
       List<Widget> tabs = [];
       List<Widget> contents = [];
 
       for (var element in rowTab) {
-        tabs.add(Tab(text: element.name));
+        tabs.add(
+          Tooltip(
+            message: element.messageTooltip ?? '',
+            child: Tab(text: camelCaseToWordsCapitalized(element.name)),
+          ),
+        );
         contents.add(element.widget);
       }
       dest.add(
@@ -429,6 +536,7 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
           listTabCont: contents,
           heightTab: 30,
           heightContent: true,
+          onConfig: () {},
         ),
       );
       rowTab.clear();
@@ -454,33 +562,6 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
 
   //   return current;
   // }
-
-  dynamic getValueFromPath(Map<String, dynamic> json, String path) {
-    final regex = RegExp(r'([^/\[\]]+)|\[(\d+)\]');
-    dynamic current = json;
-
-    for (final match in regex.allMatches(path)) {
-      final key = match.group(1);
-      final index = match.group(2);
-
-      if (key != null) {
-        if (current is Map) {
-          current = current[key];
-        } else {
-          throw Exception('Clé "$key" introuvable dans un objet non-map');
-        }
-      } else if (index != null) {
-        final i = int.parse(index);
-        if (current is List) {
-          current = current[i];
-        } else {
-          throw Exception('Index [$i] utilisé sur un objet non-liste');
-        }
-      }
-    }
-
-    return current;
-  }
 
   @override
   Widget getFormOfRow(
@@ -509,11 +590,13 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
     } else {
       // ligne normale
       panInfo as PanInfoObject;
-      panInfo.children[0].attrName = '$i'; // force le nom de paneau
-      var row = getWidget(
+      panInfo.children[0].panName =
+          '${panInfo.attrName} n°${i + 1}'; // force le nom de paneau
+      var row = getWidgetTyped(
         panInfo.children[0],
         WidgetType.list,
         '${ctx.pathData}[$i]',
+        ctx.rowTab,
       );
       if (row == null) {
         wid = SizedBox();
@@ -525,8 +608,154 @@ class PanToUi with WidgetUIHelper implements GenericToUi {
   }
 
   @override
-  Future<bool> showConfigPanDialog(BuildContext ctx) {
-    throw UnimplementedError();
+  Future<bool> showConfigPanDialog(BuildContext ctx) async {
+    var result = false;
+
+    await showDialog<void>(
+      context: ctx,
+      barrierDismissible: true, // user must tap button!
+      builder: (BuildContext context) {
+        Size size = MediaQuery.of(ctx).size;
+        double width = size.width * 0.9;
+        double height = size.height * 0.8;
+        return AlertDialog(
+          content: SizedBox(
+            width: width,
+            height: height,
+            child: PanSettingPage(state: stateMgr),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('cancel'),
+              onPressed: () {
+                result = false;
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('change layout'),
+              onPressed: () {
+                result = true;
+                Navigator.of(context).pop();
+                // ignore: invalid_use_of_protected_member
+                state.setState(() {});
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    return result;
+  }
+
+  Future<bool> showSettingArrayDialog(
+    BuildContext ctx,
+    String path,
+    ConfigArrayContainer data,
+  ) async {
+    var setting = PanSettingArray(config: data);
+
+    var result = false;
+
+    await showDialog<void>(
+      context: ctx,
+      barrierDismissible: true, // user must tap button!
+      builder: (BuildContext context) {
+        Size size = MediaQuery.of(ctx).size;
+        double width = size.width * 0.9;
+        double height = size.height * 0.8;
+        return AlertDialog(
+          content: SizedBox(width: width, height: height, child: setting),
+          actions: [
+            //cancel
+            TextButton(
+              child: const Text('cancel'),
+              onPressed: () {
+                result = false;
+                Navigator.of(context).pop();
+              },
+            ),
+
+            TextButton(
+              child: const Text('change layout'),
+              onPressed: () {
+                result = true;
+                Navigator.of(context).pop();
+                stateMgr.configArray[replaceAllIndexes(path)] = data;
+
+                if (saveUIOnModel) {
+                  stateMgr.storeConfigLayout(model!);
+                } else if (saveOnModel != null) {
+                  stateMgr.storeConfigLayout(saveOnModel!);
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    return result;
+  }
+
+  Future<bool> showSettingFormDialog(
+    BuildContext ctx,
+    String path,
+    List<WidgetTyped> data,
+  ) async {
+    var setting = PanSettingForm(data: data);
+
+    var result = false;
+
+    await showDialog<void>(
+      context: ctx,
+      barrierDismissible: true, // user must tap button!
+      builder: (BuildContext context) {
+        Size size = MediaQuery.of(ctx).size;
+        double width = size.width * 0.9;
+        double height = size.height * 0.8;
+        return AlertDialog(
+          content: SizedBox(width: width, height: height, child: setting),
+          actions: [
+            TextButton(
+              child: const Text('cancel'),
+              onPressed: () {
+                result = false;
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('change layout'),
+              onPressed: () {
+                result = true;
+                Navigator.of(context).pop();
+                List<ConfigFormContainer> confs = [];
+                for (var i = 0; i < data.length; i++) {
+                  confs.add(
+                    ConfigFormContainer(
+                      height: data[i].height,
+                      pos: i,
+                      name: data[i].name,
+                      layout: data[i].layout,
+                    ),
+                  );
+                }
+                stateMgr.configLayout[replaceAllIndexes(path)] = confs;
+
+                if (saveUIOnModel) {
+                  stateMgr.storeConfigLayout(model!);
+                } else if (saveOnModel != null) {
+                  stateMgr.storeConfigLayout(saveOnModel!);
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    return result;
   }
 }
 

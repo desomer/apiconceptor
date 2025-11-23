@@ -90,9 +90,13 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIUIPage> {
 
   var flexWeights = [1, 10, 1];
 
-  APICallManager getAPICall(NodeAttribut attr) {
+  APICallManager getAPICall(String namespace, NodeAttribut attr) {
     String httpOpe = attr.info.name.toLowerCase();
-    var apiCallInfo = APICallManager(api: attr.info, httpOperation: httpOpe);
+    var apiCallInfo = APICallManager(
+      namespace: namespace,
+      attrApi: attr.info,
+      httpOperation: httpOpe,
+    );
     return apiCallInfo;
   }
 
@@ -193,9 +197,8 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIUIPage> {
         if (currentIdApi != '' && requestHelper != null) {
           return PanResponseViewer(
             key: ObjectKey(requestHelper),
-            apiCallInfo: requestHelper!.apiCallInfo,
-            requestHelper: requestHelper,
-            modeLegacy: true,
+            requestHelper: requestHelper!,
+            modeLegacy: false,
           );
         }
         return Container();
@@ -220,7 +223,11 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIUIPage> {
     Future.delayed(Duration(milliseconds: 10)).then((value) {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
         requestHelper = WidgetRequestHelper(
-          apiCallInfo: getAPICall(currentCompany.listAPI!.selectedAttr!),
+          apiNode: attr,
+          apiCallInfo: getAPICall(
+            currentCompany.currentNameSpace,
+            currentCompany.listAPI!.selectedAttr!,
+          ),
         );
         currentIdApi = idApi;
         refreshUI.value++;

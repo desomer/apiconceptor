@@ -1,12 +1,21 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:highlight/languages/json.dart';
+import 'package:jsonschema/core/api/sessionStorage.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
+import 'package:jsonschema/core/designer/widget_selectable.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
+import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
+import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
+import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_expansive.dart';
 import 'package:jsonschema/widget/widget_float_dialog.dart';
@@ -28,7 +37,8 @@ class WidgetContentForm extends StatefulWidget {
   State<WidgetContentForm> createState() => _WidgetContentFormState();
 }
 
-class _WidgetContentFormState extends State<WidgetContentForm> {
+class _WidgetContentFormState extends State<WidgetContentForm>
+    with NameMixin, WidgetUIHelper {
   late ScrollController aScrollController;
 
   @override
@@ -68,8 +78,7 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
   int initial = 5;
   dynamic data;
   List<Widget> childrenByRowOfN = [];
-
-  CodeEditorConfig? conf;
+  CodeEditorConfig? jsonViewerConf;
 
   String prettyPrintJson(dynamic input) {
     //const JsonDecoder decoder = JsonDecoder();
@@ -80,7 +89,19 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
   @override
   Widget build(BuildContext context) {
     var pathValue = getPathValue();
-    var dataContainer = widget.info.json2ui.getState(widget.info.pathData!);
+    var pathGeneric = replaceAllIndexes(pathValue);
+    var configBloc = widget.info.json2ui.stateMgr.config;
+    List<ConfigLink> links = [];
+    if (configBloc != null) {
+      var link = configBloc.links.firstWhereOrNull((e) {
+        return e.onPath == pathGeneric;
+      });
+      if (link != null) links.add(link);
+    }
+
+    var dataContainer = widget.info.json2ui.getStateContainer(
+      widget.info.pathData!,
+    );
     var mapData = dataContainer?.jsonData;
     if (mapData != data || data == null || widget.info.name != 'root') {
       data = mapData;
@@ -90,18 +111,22 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
       childrenByRowOfN = widget.children(pathValue);
 
       if (widget.ctx.parentType == WidgetType.root) {
-        if (conf == null) {
-          conf = CodeEditorConfig(
+        if (jsonViewerConf == null) {
+          jsonViewerConf = CodeEditorConfig(
             mode: json,
             getText: () {
-              return prettyPrintJson(data);
+              var dataContainer = widget.info.json2ui.getStateContainer(
+                widget.info.pathData!,
+              );
+              var mapData = dataContainer?.jsonData;
+              return prettyPrintJson(mapData);
             },
             onChange: (onChange, config) {},
             notifError: ValueNotifier(""),
           );
         } else {
           SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-            conf!.repaintCode();
+            jsonViewerConf!.repaintCode();
           });
         }
       }
@@ -111,8 +136,43 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
 
     max = childrenByRowOfN.length;
 
+    List<Widget> listLinkBtn =
+        links.map((e) {
+          return ElevatedButton(
+            style: ButtonStyle(
+              minimumSize: WidgetStateProperty.all(Size(64, 26)),
+              padding: WidgetStateProperty.all(
+                EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              ),
+            ),
+            onPressed: () async {
+              var pages = await loadPage("all", false);
+              BrowseSingle().browse(pages, false);
+              var attr = pages.mapInfoByName[e.toDatasrc];
+              if (attr?.isNotEmpty ?? false) {
+                PageData pageData = PageData(
+                  data: widget.info.json2ui.stateMgr.data,
+                  path: pathValue,
+                );
+
+                sessionStorage.put('${pageData.hashCode}', pageData);
+                // ignore: use_build_context_synchronously
+                context.push(
+                  Pages.appPage.param(
+                    attr!.first.masterID!,
+                    "param=${pageData.hashCode}",
+                  ),
+                );
+              }
+            },
+            child: Text(e.title),
+          );
+        }).toList();
+
     var headers = <Widget>[
-      Text(widget.info.name),
+      Text(camelCaseToWordsCapitalized(widget.info.name)),
+      SizedBox(width: 10),
+      ...listLinkBtn,
       Spacer(),
       if (widget.ctx.parentType == WidgetType.root)
         InkWell(
@@ -126,7 +186,7 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
               context,
               Offset(50, 100),
               Size(width, height),
-              TextEditor(config: conf!, header: "json"),
+              TextEditor(config: jsonViewerConf!, header: "json"),
             );
           },
           child: Icon(Icons.data_object), //settings
@@ -137,7 +197,7 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
           onTap: () async {
             widget.info.json2ui.showConfigPanDialog(context);
           },
-          child: Icon(Icons.apps), //settings
+          child: Icon(Icons.account_tree_outlined), //settings
         ),
 
       InkWell(
@@ -151,8 +211,25 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
     ];
 
     bool inifiniScroll = true;
+    bool isRootWithScroll = widget.info.name == 'root';
 
-    if (widget.info.name == 'root' && inifiniScroll) {
+    if (isRootWithScroll && widget.info.json2ui is PanToUi) {
+      PanToUi ui = widget.info.json2ui as PanToUi;
+      isRootWithScroll = ui.withScroll;
+    }
+
+    Widget cachableWidget;
+
+    if (widget.info.panInfo != null &&
+        widget.info.panInfo!.subtype == 'RowDetail') {
+      cachableWidget = Column(
+        spacing: 5,
+        mainAxisSize: MainAxisSize.max,
+        children: [...childrenByRowOfN, SizedBox(height: 1)],
+      );
+    } else if (isRootWithScroll && inifiniScroll) {
+      // avec infini scroll sur le root
+
       data = dataContainer?.jsonData;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -164,10 +241,10 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
         }
       });
 
-      return Column(
+      cachableWidget = Column(
         children: [
           Container(
-            color: Colors.grey.shade700,
+            color: Colors.lightBlueAccent.shade700,
             child: Row(
               spacing: 10,
               children: [Icon(Icons.auto_awesome_mosaic_rounded), ...headers],
@@ -188,6 +265,7 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
         ],
       );
     } else {
+      // sans infini scroll
       Widget w = WidgetExpansive(
         color: Colors.grey.shade700,
         headers: headers,
@@ -198,11 +276,17 @@ class _WidgetContentFormState extends State<WidgetContentForm> {
         ),
       );
 
-      if (widget.info.name == 'root') {
+      if (isRootWithScroll) {
         w = SingleChildScrollView(child: w);
       }
 
-      return w;
+      cachableWidget = WidgetSelectable(
+        withDragAndDrop: false,
+        panInfo: widget.info.panInfo,
+        child: w,
+      );
     }
+
+    return cachableWidget;
   }
 }

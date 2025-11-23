@@ -478,7 +478,7 @@ class JsonBrowser<T> {
       if (!info.isInitByRef) {
         var prop = bi.ref!.modelProperties[bi.aJsonPathRef];
         if (prop != null) {
-          print("get prop on ref");
+          //print("get prop on ref");
           info.properties = prop;
           info.isInitByRef = true;
         }

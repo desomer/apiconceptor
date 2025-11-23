@@ -3,14 +3,14 @@ import 'dart:convert';
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
+import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/model/widget_example_choiser.dart';
+import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
@@ -28,7 +28,7 @@ class PanContentViewer extends StatefulWidget {
   State<PanContentViewer> createState() => _PanContentViewerState();
 }
 
-class _PanContentViewerState extends State<PanContentViewer> {
+class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
   ModelSchema? modelLoaded;
 
   Future<ModelSchema?> getModel(String idDomain, String idModel) async {
@@ -75,18 +75,24 @@ class _PanContentViewerState extends State<PanContentViewer> {
     return aModel;
   }
 
-  late JsonToUi json2ui;
+  late GenericToUi json2ui;
+  bool modeLegacy = false;
 
   @override
   void initState() {
-    json2ui = JsonToUi(state: this);
+    if (modeLegacy) {
+      json2ui = JsonToUi(state: this);
+      (json2ui as JsonToUi).saveUIOnModel = true;
+    } else {
+      json2ui = PanToUi(state: this, withScroll: true);
+      (json2ui as PanToUi).saveUIOnModel = true;
+    }
     super.initState();
   }
 
   Future<Widget> getUI(BuildContext context) async {
-    if (widget.masterIdModel != null && json2ui.stateMgr.data==null) {
+    if (widget.masterIdModel != null && json2ui.stateMgr.data == null) {
       modelLoaded ??= await getModelByMasterId(widget.masterIdModel!);
-      json2ui.saveUIOnModel = true;
       // charge les layout
       json2ui.stateMgr.loadJSonConfigLayout(modelLoaded!);
 
@@ -97,53 +103,25 @@ class _PanContentViewerState extends State<PanContentViewer> {
       );
       await dataFake.browseSync(modelLoaded!, false, 0);
       json2ui.stateMgr.data = dataFake.json;
-    } else {
-      modelLoaded ??= await getModel('OMS', 'paginedSales');
     }
-    //modelLoaded ??= await getModel('Example', 'dataExample');
-    //modelLoaded ??= await getModel('Example', 'dogs');
 
     if (modelLoaded != null) {
-      var exportUI = Export2UI();
-      json2ui.haveTemplate = false;
-      json2ui.modeTemplate = false;
-      json2ui.stateMgr.dispose();
+      var ret = await getRootWidgetTyped(
+        modelLoaded,
+        modelLoaded,
+        'root',
+        json2ui,
+        modeLegacy,
+        // ignore: use_build_context_synchronously
+        context,
+        null
+      );
 
-      await exportUI.browseSync(modelLoaded!, false, 0);
-      json2ui.stateMgr.jsonUI = exportUI.json;
-      json2ui.context = context;
-      json2ui.modeTemplate = true;
-      json2ui.model = modelLoaded;
-      var ret =
-          json2ui.browseJsonToWidget(
-            'root',
-            exportUI.json,
-            path: '',
-            pathData: '',
-            parentType: WidgetType.root,
-          )!;
-
-      if (json2ui.stateMgr.dataEmpty == null) {
-        var dataEmpty = Export2FakeJson(
-          modeArray: ModeArrayEnum.anyInstance,
-          mode: ModeEnum.empty,
-        );
-        await dataEmpty.browseSync(modelLoaded!, false, 0);
-        json2ui.stateMgr.dataEmpty = dataEmpty.json;
+      if (!modeLegacy) {
+        var ui = json2ui as PanToUi;
+        ui.context = context;
+        ui.loadData(ui.stateMgr.data);
       }
-
-      SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
-        json2ui.haveTemplate = true;
-        json2ui.modeTemplate = false;
-        // for (var element in json2ui.stateMgr.stateTemplate.entries) {
-        //   print("template ${element.key} ${element.value}");
-        // }
-        var data = json2ui.stateMgr.data;
-        if (data != null) {
-          // recharge les bonnes datas
-          json2ui.loadData(data);
-        }
-      });
 
       return ret.widget;
     } else {

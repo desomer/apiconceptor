@@ -6,13 +6,13 @@ import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/api/call_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_doc_response.dart';
 import 'package:jsonschema/feature/api/pan_api_response_status.dart';
 import 'package:jsonschema/feature/api/widget_url.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_choise_env.dart';
 import 'package:jsonschema/widget/widget_float_dialog.dart';
@@ -24,8 +24,9 @@ import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 class WidgetRequestHelper with WidgetHelper {
-  WidgetRequestHelper({required this.apiCallInfo});
+  WidgetRequestHelper({required this.apiNode, required this.apiCallInfo});
 
+  NodeAttribut apiNode;
   final APICallManager apiCallInfo;
 
   String response = '';
@@ -53,95 +54,87 @@ class WidgetRequestHelper with WidgetHelper {
   }
 
   StatelessWidget initUrl(BuildContext context) {
-    var attr = currentCompany.listAPI!.selectedAttr;
+    var attr = apiNode; //currentCompany.listAPI!.selectedAttr;
 
-    if (attr != null) {
-      //String httpOpe = attr.info.name.toLowerCase();
-      apiCallInfo.url = '';
-      List<Widget> wpath = [];
-      Widget wOpe = getHttpOpe(apiCallInfo.httpOperation) ?? Container();
+    //String httpOpe = attr.info.name.toLowerCase();
+    apiCallInfo.url = '';
+    List<Widget> wpath = [];
+    Widget wOpe = getHttpOpe(apiCallInfo.httpOperation) ?? Container();
 
-      wpath.add(wOpe);
+    wpath.add(wOpe);
 
-      var nd = attr.parent;
-      apiCallInfo.urlParamFromNode.clear();
+    var nd = attr.parent;
+    apiCallInfo.urlParamFromNode.clear();
 
-      while (nd != null) {
-        var n = nd.info.name; // getKeyParamFromYaml(nd.yamlNode.key);
-        if (nd.info.properties?['\$server'] != null) {
-          var urlserv = nd.info.properties?['\$server'];
+    while (nd != null) {
+      var n = nd.info.name; // getKeyParamFromYaml(nd.yamlNode.key);
+      if (nd.info.properties?['\$server'] != null) {
+        var urlserv = nd.info.properties?['\$server'];
 
-          urlserv = apiCallInfo.replaceVarInRequest(urlserv);
-          var hasParam =
-              apiCallInfo.extractParameters(urlserv, true).isNotEmpty;
-          if (!hasParam) {
-            hasParam = apiCallInfo.extractParameters(urlserv, false).isNotEmpty;
-          }
-          if (hasParam && calcUrl != changeUrl.value) {
-            apiCallInfo.fillVar().then((value) {
-              changeUrl.value++;
-              calcUrl = changeUrl.value;
-            });
-          }
-
-          apiCallInfo.url = '$urlserv${apiCallInfo.url}';
-          wpath.insert(
-            1,
-            Padding(
-              padding: EdgeInsets.fromLTRB(10, 0, 0, 0),
-              child: Text(urlserv, style: TextStyle(color: Colors.white60)),
-            ),
-          );
-          break;
+        urlserv = apiCallInfo.replaceVarInRequest(urlserv);
+        var hasParam = apiCallInfo.extractParameters(urlserv, true).isNotEmpty;
+        if (!hasParam) {
+          hasParam = apiCallInfo.extractParameters(urlserv, false).isNotEmpty;
         }
-        var path = _getPathWidgetFormNode(n);
-
-        wpath.insertAll(1, path);
-        if (!n.endsWith('/')) {
-          apiCallInfo.url = '/${apiCallInfo.url}';
-          wpath.insert(1, Text('/'));
+        if (hasParam && calcUrl != changeUrl.value) {
+          apiCallInfo.fillVar().then((value) {
+            changeUrl.value++;
+            calcUrl = changeUrl.value;
+          });
         }
 
-        nd = nd.parent;
+        apiCallInfo.url = '$urlserv${apiCallInfo.url}';
+        wpath.insert(
+          1,
+          Padding(
+            padding: EdgeInsets.fromLTRB(10, 0, 0, 0),
+            child: Text(urlserv, style: TextStyle(color: Colors.white60)),
+          ),
+        );
+        break;
+      }
+      var path = _getPathWidgetFormNode(n);
+
+      wpath.insertAll(1, path);
+      if (!n.endsWith('/')) {
+        apiCallInfo.url = '/${apiCallInfo.url}';
+        wpath.insert(1, Text('/'));
       }
 
-      wpath.add(WidgetApiParam(apiCallInfo: apiCallInfo));
-
-      wpath.add(
-        Padding(
-          padding: EdgeInsetsGeometry.symmetric(horizontal: 10),
-          child: IconButton.filledTonal(
-            onPressed: () {
-              Clipboard.setData(
-                ClipboardData(
-                  text: apiCallInfo.addParametersOnUrl(apiCallInfo.url),
-                ),
-              );
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('URL copied to clipboard')),
-              );
-            },
-            icon: Icon(Icons.copy),
-          ),
-        ),
-      );
-
-      return Card(
-        elevation: 10,
-        child: ListTile(
-          leading: Icon(Icons.api),
-          title: NoOverflowErrorFlex(
-            direction: Axis.horizontal,
-            children: wpath,
-          ),
-          trailing: IntrinsicWidth(
-            child: WidgetChoiseEnv(widgetRequestHelper: this),
-          ),
-        ),
-      );
-    } else {
-      return Container();
+      nd = nd.parent;
     }
+
+    wpath.add(WidgetApiParam(apiCallInfo: apiCallInfo));
+
+    wpath.add(
+      Padding(
+        padding: EdgeInsetsGeometry.symmetric(horizontal: 10),
+        child: IconButton.filledTonal(
+          onPressed: () {
+            Clipboard.setData(
+              ClipboardData(
+                text: apiCallInfo.addParametersOnUrl(apiCallInfo.url),
+              ),
+            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('URL copied to clipboard')));
+          },
+          icon: Icon(Icons.copy),
+        ),
+      ),
+    );
+
+    return Card(
+      elevation: 10,
+      child: ListTile(
+        leading: Icon(Icons.api),
+        title: NoOverflowErrorFlex(direction: Axis.horizontal, children: wpath),
+        trailing: IntrinsicWidth(
+          child: WidgetChoiseEnv(widgetRequestHelper: this),
+        ),
+      ),
+    );
   }
 
   List<Widget> _getPathWidgetFormNode(String name) {

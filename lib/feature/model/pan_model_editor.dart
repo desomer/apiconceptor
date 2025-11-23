@@ -219,14 +219,15 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
     );
   }
 
+
   ModelAccessorAttr getDocAccessor() {
     ModelSchema model = currentCompany.currentModel!;
-    var examplesNode = model.getExtendedNode("#examples");
+    var examplesNode = model.getExtendedNode("#doc");
 
     var access = ModelAccessorAttr(
       node: examplesNode,
       schema: model,
-      propName: '#examples',
+      propName: '#doc',
     );
     return access;
   }

@@ -1,3 +1,5 @@
+import 'dart:developer' as dev show log;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/company_model.dart';
@@ -5,12 +7,16 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/apps/apps_page.dart';
+import 'package:jsonschema/pages/apps/apps_page_detail.dart';
 import 'package:jsonschema/pages/browse_api/browse_api_page.dart';
 import 'package:jsonschema/pages/browse_api/browse_api_ui_page.dart';
 import 'package:jsonschema/pages/content_page.dart';
+import 'package:jsonschema/pages/apps/data_sources_page.dart';
 import 'package:jsonschema/pages/design/design_api_detail_page.dart';
 import 'package:jsonschema/pages/design/design_api_detail_ui.dart';
 import 'package:jsonschema/pages/design/design_api_page.dart';
@@ -58,8 +64,11 @@ enum Pages {
   env('/env'),
   log('/log'),
   content("/content"),
+  contentPages("/content/pages"),
   mock("/apis/mock"),
-  user("/user");
+  user("/user"),
+  appPage("/app/page"),
+  appPageDetail("/app/page/detail");
 
   const Pages(this.urlpath);
   final String urlpath;
@@ -68,8 +77,8 @@ enum Pages {
     return '$urlpath?id=$id';
   }
 
-  String idx(int idx) {
-    return '$urlpath?idx=$idx';
+  String param(String id, String param) {
+    return '$urlpath?id=$id&$param';
   }
 
   void goto(BuildContext ctx) {
@@ -79,18 +88,20 @@ enum Pages {
 
 final routeObserver = RouteObserver<PageRoute>();
 
-Map<String, RouteManager> allroute = {};
+Map<String, RouteManager> cacheRoute = {};
+LruCache cachePage = LruCache(5);
+
 GoRoute addRoute(
   GoRoute route,
   Widget Function(BuildContext, GoRouterState) builder,
 ) {
-  allroute[route.path] = RouteManager(builder: builder);
+  cacheRoute[route.path] = RouteManager(builder: builder);
   return route;
 }
 
 GoRoute addRouteBy(Pages path, GenericPage page, {PageInit? init}) {
   var route = GoRoute(path: path.urlpath, pageBuilder: getPageAnim);
-  allroute[route.path] = RouteManager(
+  cacheRoute[route.path] = RouteManager(
     builder: (context, state) => page as Widget,
   );
   return route;
@@ -102,34 +113,72 @@ GoRoute addRouteByIndexed(
   PageInit? init,
 }) {
   var route = GoRoute(path: path.urlpath, pageBuilder: getPageNoAnim);
-  allroute[route.path] = RouteManager(builder: builder);
+  cacheRoute[route.path] = RouteManager(builder: builder);
   return route;
 }
 
-//bool isPageInit = false;
-
 String? lastPagePath;
-int forcePage = 0;
+int forceNewPage = 0;
+
+void noCacheOnNextLink(int nb) {
+  forceNewPage = nb;
+}
+
+void clearRouteCache(Pages page)
+{
+  cacheRoute[page.urlpath]!.cache = null;
+}
 
 Widget getPage(BuildContext context, GoRouterState state) {
-  // if (!isPageInit) {
-  //   isPageInit = true;
-  //   for (var element in allroute.values) {
-  //     element.cache ??= element.builder(context, state);
-  //   }
-  // }
+  // print("getPage ${state.uri}");
+
   var path = state.uri.path;
-  if (lastPagePath == path && forcePage > 0) {
-    forcePage = forcePage - 1;
-    allroute[path]!.cache = null;
+  if (lastPagePath == path && forceNewPage > 0) {
+    forceNewPage = forceNewPage - 1;
+    cacheRoute[path]!.cache = null;
   } else {
-    forcePage = 0;
+    forceNewPage = 0;
   }
 
+  String uri = state.uri.toString();
   lastPagePath = path;
-  if (allroute.containsKey(path)) {
-    allroute[path]!.cache ??= allroute[path]!.builder(context, state);
-    return allroute[path]!.cache!;
+  if (cacheRoute.containsKey(path)) {
+    if (cacheRoute[path]!.cache is GenericPageStateless) {
+      GenericPageStateless page =
+          cacheRoute[path]!.cache as GenericPageStateless;
+      var urlPath = page.getUrlPath();
+      var pageInCache = cachePage.get(uri);
+      if (pageInCache != null) {
+        dev.log("load page $uri from LRU");
+        return pageInCache;
+      }
+      if (urlPath != null && urlPath != state.uri.toString()) {
+        // vide la cache a la route
+        cacheRoute[path]!.cache = null;
+      }
+    }
+    
+    if (cacheRoute[path]!.cache!=null)
+    {
+      dev.log("load page $uri from route cache");
+    }
+    else
+    {
+      dev.log("buid page $uri");
+    }
+
+    cacheRoute[path]!.cache ??= cacheRoute[path]!.builder(context, state);
+
+    if (cacheRoute[path]!.cache is GenericPageStateless) {
+      var page = (cacheRoute[path]!.cache as GenericPageStateless);
+      page.setUrlPath(uri);
+      var urlPath = page.getUrlPath(); // test si cache
+      if (urlPath != null) {
+        cachePage.put(urlPath, cacheRoute[path]!.cache!);
+      }
+    }
+
+    return cacheRoute[path]!.cache!;
   }
   return const HomePage();
 }
@@ -269,6 +318,21 @@ final GoRouter router = GoRouter(
         addRouteBy(Pages.apiDetail, CallAPIPageDetail()),
         addRouteBy(Pages.apiUI, CallAPIPageDetailUI()),
         addRouteBy(Pages.env, const EnvPage()),
+        addRoute(
+          GoRoute(path: Pages.appPage.urlpath, pageBuilder: getPageNoAnim),
+          (context, state) {
+            return AppsPage();
+          },
+        ),
+        addRoute(
+          GoRoute(
+            path: Pages.appPageDetail.urlpath,
+            pageBuilder: getPageNoAnim,
+          ),
+          (context, state) {
+            return AppsPageDetail();
+          },
+        ),
 
         //----------------------------------------------------------------
         addRouteBy(Pages.user, const UserPage()),
@@ -299,6 +363,8 @@ final GoRouter router = GoRouter(
 
         //----------------------------------------------------------------
         addRouteBy(Pages.content, ContentPage()),
+        addRouteBy(Pages.contentPages, ContentAppsPage()),
+        //----------------------------------------------------------------
         addRouteBy(Pages.log, LogPage()),
         // addRoute(
         //   GoRoute(path: Pages.api.urlpath, pageBuilder: getPageAnim),
@@ -376,6 +442,7 @@ class GoTo {
 
   Future<ModelSchema> getApiRequestModel(
     APICallManager call,
+    String domain,
     String idApi, {
     required bool withDelay,
   }) async {
@@ -383,32 +450,34 @@ class GoTo {
       await Future.delayed(Duration(milliseconds: gotoDelay));
     }
 
-    var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
-    var key = attr.info.properties![constMasterID];
+    // var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
+    // var key = attr.info.properties![constMasterID];
 
+    // currentCompany.listModel = await loadSchema(
+    //   TypeMD.listmodel,
+    //   'model',
+    //   'Business models',
+    //   TypeModelBreadcrumb.businessmodel,
+    //   namespace: currentCompany.listAPI!.namespace,
+    // );
+
+    // recupere le models du domain
     currentCompany.listModel = await loadSchema(
       TypeMD.listmodel,
       'model',
       'Business models',
       TypeModelBreadcrumb.businessmodel,
-      namespace: currentCompany.listAPI!.namespace,
+      namespace: domain,
     );
 
-    currentCompany.listModel = await loadSchema(
-      TypeMD.listmodel,
-      'model',
-      'Business models',
-      TypeModelBreadcrumb.businessmodel,
-      namespace: currentCompany.listAPI!.namespace,
-    );
-
+    // recupere la définition de la request
     var currentAPIResquest = ModelSchema(
       category: Category.api,
       infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
       headerName: "Parameters query, header, cookies, body",
-      id: key,
+      id: idApi,
       ref: currentCompany.listModel,
-    );
+    )..namespace = domain;
 
     await currentAPIResquest.loadYamlAndProperties(
       cache: false,
@@ -432,6 +501,7 @@ class GoTo {
 
   Future<ModelSchema> getApiResponseModel(
     APICallManager call,
+    String domain,
     String idApi, {
     required bool withDelay,
   }) async {
@@ -439,16 +509,16 @@ class GoTo {
       await Future.delayed(Duration(milliseconds: gotoDelay));
     }
 
-    var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
-    var key = attr.info.properties![constMasterID];
+    // var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
+    // var key = attr.info.properties![constMasterID];
 
     currentCompany.currentAPIResponse = ModelSchema(
       category: Category.api,
       infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiresponse),
       headerName: '200, 404, ...',
-      id: 'response/$key',
+      id: 'response/$idApi',
       ref: currentCompany.listModel,
-    );
+    )..namespace = domain;
 
     call.currentAPIResponse = currentCompany.currentAPIResponse!;
 

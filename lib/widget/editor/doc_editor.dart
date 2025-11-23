@@ -74,6 +74,7 @@ class _WidgetDocState extends State<WidgetDoc> {
                 // Save document
                 var content = _controller.document.toDelta().toJson();
                 widget.accessorAttr?.set(content);
+                //widget.setAccessorAttr?.set(content);
               },
               label: Text('Save'),
             ),

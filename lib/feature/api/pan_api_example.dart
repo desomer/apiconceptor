@@ -139,7 +139,7 @@ class InfoManagerApiExample extends InfoManager with WidgetHelper {
   @override
   String getTypeTitle(NodeAttribut node, String name, type) {
     if (type is Map) {
-      return 'object';
+      return 'dir';
     }
     return '$type';
   }

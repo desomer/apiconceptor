@@ -389,6 +389,7 @@ class ModelSchema {
 
   dynamic getItemSync(int delay) {
     return bddStorage.getItemSync(
+      model: this,
       id: id,
       delay: delay,
       version: currentVersion,
@@ -553,7 +554,7 @@ class ModelSchema {
         model: this,
         version: currentVersion,
         id: 'json/$id',
-        delay: 0,
+        delay: 0, //cache ? -1 : 0,
         setcache: true,
       );
       if (l == null) {
@@ -742,7 +743,7 @@ class ModelSchema {
               id: masterIdRef,
               infoManager: InfoManagerModel(typeMD: TypeMD.model),
               ref: ref,
-            );
+            )..namespace = namespace;
             aSchema.autoSaveProperties = false;
             await aSchema.loadYamlAndProperties(
               cache: false,

@@ -1,7 +1,9 @@
+import 'dart:developer' as dev show log;
+
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/content/browser_pan.dart';
+import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
@@ -46,11 +48,82 @@ class InputDesc {
   String? link;
 }
 
-mixin WidgetUIHelper {
+mixin NameMixin {
+  String camelCaseToWords(String input) {
+    final regex = RegExp(r'(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])');
+    return input
+        .split(regex)
+        .map(
+          (word) =>
+              word.length > 1 && word.toUpperCase() == word
+                  ? word // conserve les acronymes
+                  : word.toLowerCase(),
+        )
+        .join(' ');
+  }
+
+  String camelCaseToWordsCapitalized(String input) {
+    final parts = input.split('_'); // Sépare les blocs par underscore
+    final formattedParts =
+        parts.map((part) {
+          final regex = RegExp(r'(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])');
+          final words =
+              part
+                  .split(regex)
+                  .map(
+                    (word) =>
+                        word.length > 1 && word.toUpperCase() == word
+                            ? word // acronyme
+                            : word.toLowerCase(),
+                  )
+                  .toList();
+
+          return words.join(' ');
+        }).toList();
+
+    if (formattedParts.isEmpty) return '';
+    formattedParts[0] =
+        '${formattedParts[0][0].toUpperCase()}${formattedParts[0].substring(1)}';
+    return formattedParts.join(' ');
+
+    // final regex = RegExp(r'(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])');
+    // final words =
+    //     input
+    //         .split(regex)
+    //         .map(
+    //           (word) =>
+    //               word.length > 1 && word.toUpperCase() == word
+    //                   ? word // conserve les acronymes
+    //                   : word.toLowerCase(),
+    //         )
+    //         .toList();
+
+    // if (words.isEmpty) return '';
+    // words[0] = '${words[0][0].toUpperCase()}${words[0].substring(1)}';
+    // return words.join(' ');
+  }
+}
+
+mixin StateManagerMixin {
   final StateManager stateMgr = StateManager();
   bool haveTemplate = false; // sans jsonSchemas
   bool modeTemplate = false; // plus utile
 
+  StateContainer? getStateContainer(String pathData) {
+    var p = pathData.split('/');
+    StateContainer? last;
+    if (p.length == 1) {
+      return stateMgr.statesTreeData[""];
+    }
+    last = stateMgr.statesTreeData[""];
+    for (var i = 1; i < p.length; i++) {
+      last = last?.stateChild[p[i]];
+    }
+    return last;
+  }
+}
+
+mixin WidgetUIHelper {
   String replaceAllIndexes(String input) {
     return input.replaceAllMapped(RegExp(r'\[\d+\]'), (match) => '[*]');
   }
@@ -82,7 +155,7 @@ mixin WidgetUIHelper {
                     child: Icon(Icons.delete),
                   ),
                 ),
-                Expanded(child: Center(child: Text('$i'))),
+                Expanded(child: Center(child: Text('${i + 1}'))),
               ],
             ),
           ),
@@ -114,19 +187,6 @@ mixin WidgetUIHelper {
     );
   }
 
-  StateContainer? getState(String pathData) {
-    var p = pathData.split('/');
-    StateContainer? last;
-    if (p.length == 1) {
-      return stateMgr.statesTreeData[""];
-    }
-    last = stateMgr.statesTreeData[""];
-    for (var i = 1; i < p.length; i++) {
-      last = last?.stateChild[p[i]];
-    }
-    return last;
-  }
-
   void setValue(
     WidgetConfigInfo info,
     InputType type,
@@ -143,7 +203,7 @@ mixin WidgetUIHelper {
       idx = int.parse(idxTxt);
     }
 
-    var dataContainer = info.json2ui.getState(pathData);
+    var dataContainer = info.json2ui.getStateContainer(pathData);
     if (dataContainer != null) {
       var data = dataContainer.jsonData;
       dynamic row;
@@ -185,7 +245,7 @@ mixin WidgetUIHelper {
     }
   }
 
-  InputDesc getInputDesc(WidgetConfigInfo info) {
+  InputDesc getInputDesc(WidgetConfigInfo info, bool onlyMessage) {
     InputDesc inputDesc = InputDesc();
 
     var pathData = info.pathData!;
@@ -197,7 +257,7 @@ mixin WidgetUIHelper {
       dataTemplate = info.json2ui.stateMgr.stateTemplate[pathData];
     }
 
-    var stateWidget = info.json2ui.getState(pathData);
+    var stateWidget = info.json2ui.getStateContainer(pathData);
     var displayData = stateWidget?.jsonData;
     var pathTemplate = pathData;
     var attrName = info.name;
@@ -236,10 +296,11 @@ mixin WidgetUIHelper {
       AttributInfo? propAttribut;
       if (template[cstProp] != null) {
         propAttribut = template[cstProp];
-        inputDesc.messageTooltip = propAttribut!.properties.toString();
+        StringBuffer msg = getMessage(propAttribut);
+        inputDesc.messageTooltip = msg.toString();
       }
 
-      if (propAttribut != null) {
+      if (!onlyMessage && propAttribut != null) {
         switch (propAttribut.type) {
           case 'number':
             inputDesc.typeInput = InputType.num;
@@ -270,13 +331,24 @@ mixin WidgetUIHelper {
           inputDesc.isRequired = true;
         }
       }
-    } else if (!info.json2ui.modeTemplate) {
-      print("no found $pathData");
+    } else if (!info.json2ui.modeTemplate && info.panInfo==null) {
+      dev.log("no found $pathData", level: 100);
       if (inputDesc.typeInput == InputType.choise) {
         inputDesc.typeInput = InputType.text;
       }
     }
     return inputDesc;
+  }
+
+  StringBuffer getMessage(AttributInfo? propAttribut) {
+    StringBuffer msg = StringBuffer();
+    msg.write(propAttribut!.properties?['title'] ?? '');
+    String desc = propAttribut.properties?['description'] ?? '';
+    if (desc.isNotEmpty) {
+      if (msg.isNotEmpty) msg.write('\n--------------\n');
+      msg.write(desc);
+    }
+    return msg;
   }
 
   InfoTemplate getInfoTemplate(
@@ -296,7 +368,7 @@ mixin WidgetUIHelper {
             (info.panInfo as PanInfoObject).children.first as PanInfoObject;
         infoTemplate.anyOf = rowTemplate.children.length > 1;
         if (infoTemplate.anyOf && withChoise) {
-          var stateContainer = info.json2ui.getState(pathData);
+          var stateContainer = info.json2ui.getStateContainer(pathData);
           var data = stateContainer?.jsonData;
           infoTemplate.panInfoChoised = _getTemplateCompliant(
             info,
@@ -330,7 +402,7 @@ mixin WidgetUIHelper {
             pathData = '$pathData/$p';
           }
         }
-        var stateContainer = info.json2ui.getState(pathData);
+        var stateContainer = info.json2ui.getStateContainer(pathData);
         var data = stateContainer?.jsonData;
 
         if (idx == -1 && data != null) {

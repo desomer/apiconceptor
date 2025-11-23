@@ -27,12 +27,16 @@ class HomePage extends GenericPageStateless {
                   getExpansible("Get started", getMenuStarted(context)),
                   SizedBox(height: 30),
                   getExpansible(
-                    "For architect and tech designer",
+                    "For architect & tech designer",
                     getMenuArchitect(context),
                   ),
                   getExpansible("For developer", getMenuDevelopper(context)),
-                  getExpansible("For content manager", getMenuCM(context)),
                   getExpansible("For quality assurance", getMenuQA(context)),
+                  getExpansible(
+                    "For content manager & app designer",
+                    getMenuCM(context),
+                  ),
+                  getExpansible("For UX/UI", getMenuUXUI(context)),
                   getExpansible("For administrator", getMenuAdmin(context)),
                 ],
               );
@@ -185,6 +189,26 @@ class HomePage extends GenericPageStateless {
             label: 'Browse content',
             icon: Icons.content_paste_search,
           ),
+          WidgetMenuBtn(
+            label: 'Data source',
+            icon: Icons.content_paste_rounded,
+            route: Pages.contentPages,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget getMenuUXUI(BuildContext context) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Wrap(
+        spacing: 5, // espace horizontal entre les blocs
+        runSpacing: 5, // espace vertical entre les lignes
+        alignment: WrapAlignment.start,
+        children: [
+          WidgetMenuBtn(label: 'Design system', icon: Icons.color_lens),
+          WidgetMenuBtn(label: 'Design pages', icon: Icons.design_services),
         ],
       ),
     );

@@ -108,9 +108,13 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
 
   var flexWeights = [1, 10, 1];
 
-  APICallManager getAPICall(NodeAttribut attr) {
+  APICallManager getAPICall(String namespace, NodeAttribut attr) {
     String httpOpe = attr.info.name.toLowerCase();
-    var apiCallInfo = APICallManager(api: attr.info, httpOperation: httpOpe);
+    var apiCallInfo = APICallManager(
+      namespace: namespace,
+      attrApi: attr.info,
+      httpOperation: httpOpe,
+    );
     return apiCallInfo;
   }
 
@@ -157,12 +161,14 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
 
         var request = await GoTo().getApiRequestModel(
           requestHelper!.apiCallInfo,
+          currentCompany.listAPI!.namespace!,
           idApi,
           withDelay: false,
         );
 
         var resp = await GoTo().getApiResponseModel(
           requestHelper!.apiCallInfo,
+          currentCompany.listAPI!.namespace!,
           idApi,
           withDelay: false,
         );
@@ -352,7 +358,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
         Tab(text: 'jmse search'),
       ],
       listTabCont: [
-        PanResponseViewer(apiCallInfo: requestHelper!.apiCallInfo),
+        PanResponseViewer(requestHelper: requestHelper!),
         PanResponseMapper(
           //key: ObjectKey(currentCompany.listAPI.selectedAttr),
           apiCallInfo: requestHelper!.apiCallInfo,
@@ -399,7 +405,11 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
     Future.delayed(Duration(milliseconds: 10)).then((value) {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
         requestHelper = WidgetRequestHelper(
-          apiCallInfo: getAPICall(currentCompany.listAPI!.selectedAttr!),
+          apiNode: attr,
+          apiCallInfo: getAPICall(
+            currentCompany.currentNameSpace,
+            currentCompany.listAPI!.selectedAttr!,
+          ),
         );
         currentIdApi = idApi;
         refreshExample.value++;

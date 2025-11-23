@@ -56,7 +56,7 @@ class BrowseModel<T extends Map> extends JsonBrowser<T> {
   }
 
   void initVersion(NodeAttribut aNodeAttribut, r) {
-    print(aNodeAttribut.info.name);
+    //print(aNodeAttribut.info.name);
   }
 }
 

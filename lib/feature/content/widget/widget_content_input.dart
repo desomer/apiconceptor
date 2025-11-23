@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
-import 'package:jsonschema/feature/content/pan_content_viewer.dart';
+import 'package:jsonschema/core/designer/widget_selectable.dart';
+import 'package:jsonschema/feature/transform/pan_model_viewer.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
 import 'package:jsonschema/start_core.dart';
 
@@ -16,7 +17,7 @@ class WidgetContentInput extends StatefulWidget {
 }
 
 class WidgetContentInputState extends State<WidgetContentInput>
-    with WidgetUIHelper {
+    with WidgetUIHelper, NameMixin {
   dynamic dataDisplayed;
   String ctrlName = '';
   late TextEditingController ctrl;
@@ -63,7 +64,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
       pathData = pathData.substring(0, end);
       idx = int.parse(idxTxt);
     }
-    var dataContainer  = widget.info.json2ui.getState(pathData);
+    var dataContainer = widget.info.json2ui.getStateContainer(pathData);
     dynamic val = '';
     if (dataContainer != null) {
       var data = dataContainer.jsonData;
@@ -117,7 +118,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
 
   @override
   Widget build(BuildContext context) {
-    InputDesc inputDesc = getInputDesc(widget.info);
+    InputDesc inputDesc = getInputDesc(widget.info, false);
 
     typeInput = inputDesc.typeInput;
 
@@ -139,16 +140,10 @@ class WidgetContentInputState extends State<WidgetContentInput>
         inputWidget = ValueListenableBuilder(
           valueListenable: ctrl,
           builder: (context, value, child) {
-            // print('c<${ctrl.text}>');
-            // var v =
-            //     inputDesc.choiseItem!.map((value) {
-            //       print('i<$value>');
-            //     }).toList();
-
             return DropdownButtonFormField<String>(
               decoration: getInputDecorator(inputDesc.isRequired),
               isExpanded: true,
-              initialValue: ctrl.text,
+              initialValue: dataDisplayed == null ? '' : ctrl.text,
               items:
                   inputDesc.choiseItem!.map((value) {
                     var trim = value;
@@ -158,7 +153,8 @@ class WidgetContentInputState extends State<WidgetContentInput>
                     );
                   }).toList(),
               onChanged: (newValue) {
-                ctrl.text = newValue ?? '';
+                dataDisplayed = newValue ?? '';
+                ctrl.text = dataDisplayed;
               },
             );
           },
@@ -172,7 +168,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
             suffixIcon: IconButton(
               icon: Icon(Icons.search),
               onPressed: () {
-                showLinkDialog(inputDesc.link!, context);
+                showLinkModelDialog(inputDesc.link!, context);
               },
             ),
           ),
@@ -183,7 +179,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
       case InputType.bool:
         inputWidget = Row(
           children: [
-            Text(widget.info.name),
+            Text(camelCaseToWordsCapitalized(widget.info.name)),
             SizedBox(width: 8),
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: ctrl,
@@ -209,7 +205,11 @@ class WidgetContentInputState extends State<WidgetContentInput>
         break;
     }
 
-    return Tooltip(message: inputDesc.messageTooltip, child: inputWidget);
+    return WidgetSelectable(
+      withDragAndDrop: true,
+      panInfo: widget.info.panInfo,
+      child: Tooltip(message: inputDesc.messageTooltip, child: inputWidget),
+    );
   }
 
   InputDecoration? getInputDecorator(bool isRequired, {Widget? suffixIcon}) {
@@ -217,12 +217,15 @@ class WidgetContentInputState extends State<WidgetContentInput>
     if (isRequired) {
       inputDecoration = InputDecoration(
         suffixIcon: suffixIcon,
-        label: getLabelWithAsterix(widget.info.name, Colors.deepOrange),
+        label: getLabelWithAsterix(
+          camelCaseToWordsCapitalized(widget.info.name),
+          Colors.deepOrange,
+        ),
       );
     } else {
       inputDecoration = InputDecoration(
         suffixIcon: suffixIcon,
-        labelText: widget.info.name,
+        labelText: camelCaseToWordsCapitalized(widget.info.name),
       );
     }
     return inputDecoration;
@@ -243,8 +246,8 @@ class WidgetContentInputState extends State<WidgetContentInput>
     );
   }
 
-  Future<void> showLinkDialog(String link, BuildContext ctx) async {
-    var l = link.split('.');
+  Future<void> showLinkModelDialog(String link, BuildContext ctx) async {
+    var l = link.split('\n');
     var m = currentCompany.listModel!.mapInfoByName[l[0]];
     if (m == null || m.isEmpty) return;
 

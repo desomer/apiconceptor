@@ -2,10 +2,9 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/feature/content/browser_pan.dart';
+import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/pan_setting_array.dart';
 import 'package:jsonschema/feature/content/pan_setting_form.dart';
-import 'package:jsonschema/feature/content/pan_setting_page.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_array.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_form.dart';
@@ -26,6 +25,7 @@ class WidgetTyped {
 
   String layout = 'Flow';
   bool forceLayout = false;
+  dynamic messageTooltip;
 
   WidgetTyped({
     required this.height,
@@ -72,7 +72,7 @@ class UIParamContext {
   }
 }
 
-abstract class GenericToUi with WidgetUIHelper {
+abstract class GenericToUi with WidgetUIHelper, StateManagerMixin {
   Future<bool> showConfigPanDialog(BuildContext ctx);
   Widget getFormOfRow(
     bool anyOfItem,
@@ -81,16 +81,16 @@ abstract class GenericToUi with WidgetUIHelper {
     PanInfo? panInfo,
   );
   void loadData(dynamic data);
+  Export2UI? aExport;
 }
 
-class JsonToUi with WidgetUIHelper implements GenericToUi {
+class JsonToUi with WidgetUIHelper, StateManagerMixin implements GenericToUi {
   JsonToUi({required this.state});
 
   BuildContext? context;
   final State state;
   ModelSchema? model;
   ModelSchema? saveOnModel;
-
   bool saveUIOnModel = false;
 
   @override
@@ -710,32 +710,32 @@ class JsonToUi with WidgetUIHelper implements GenericToUi {
   Future<bool> showConfigPanDialog(BuildContext ctx) async {
     var result = false;
 
-    await showDialog<void>(
-      context: ctx,
-      barrierDismissible: true, // user must tap button!
-      builder: (BuildContext context) {
-        Size size = MediaQuery.of(ctx).size;
-        double width = size.width * 0.9;
-        double height = size.height * 0.8;
-        return AlertDialog(
-          content: SizedBox(
-            width: width,
-            height: height,
-            child: PanSettingPage(state: stateMgr),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('cancel'),
-              onPressed: () {
-                result = false;
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(child: const Text('change layout'), onPressed: () {}),
-          ],
-        );
-      },
-    );
+    // await showDialog<void>(
+    //   context: ctx,
+    //   barrierDismissible: true, // user must tap button!
+    //   builder: (BuildContext context) {
+    //     Size size = MediaQuery.of(ctx).size;
+    //     double width = size.width * 0.9;
+    //     double height = size.height * 0.8;
+    //     return AlertDialog(
+    //       content: SizedBox(
+    //         width: width,
+    //         height: height,
+    //         child: PanSettingPage(state: stateMgr),
+    //       ),
+    //       actions: [
+    //         TextButton(
+    //           child: const Text('cancel'),
+    //           onPressed: () {
+    //             result = false;
+    //             Navigator.of(context).pop();
+    //           },
+    //         ),
+    //         TextButton(child: const Text('change layout'), onPressed: () {}),
+    //       ],
+    //     );
+    //   },
+    // );
 
     return result;
   }
@@ -789,4 +789,7 @@ class JsonToUi with WidgetUIHelper implements GenericToUi {
 
     return result;
   }
+
+  @override
+  Export2UI? aExport;
 }

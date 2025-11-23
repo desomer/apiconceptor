@@ -49,7 +49,11 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
     var attr = currentCompany.listAPI!.nodeByMasterId[widget.idApi]!;
     currentCompany.listAPI!.selectedAttr = attr;
     requestHelper = WidgetRequestHelper(
-      apiCallInfo: getAPICall(currentCompany.listAPI!.selectedAttr!),
+      apiNode: currentCompany.listAPI!.selectedAttr!,
+      apiCallInfo: getAPICall(
+        currentCompany.currentNameSpace,
+        currentCompany.listAPI!.selectedAttr!,
+      ),
     );
 
     // callInfo = currentCompany.currentAPICallInfo!;
@@ -169,7 +173,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
         Tab(text: 'jmse search'),
       ],
       listTabCont: [
-        PanResponseViewer(apiCallInfo: requestHelper.apiCallInfo),
+        PanResponseViewer(requestHelper: requestHelper),
         PanResponseMapper(
           //key: ObjectKey(currentCompany.listAPI.selectedAttr),
           apiCallInfo: requestHelper.apiCallInfo,
@@ -225,9 +229,13 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
     );
   }
 
-  APICallManager getAPICall(NodeAttribut attr) {
+  APICallManager getAPICall(String namespace, NodeAttribut attr) {
     String httpOpe = attr.info.name.toLowerCase();
-    var apiCallInfo = APICallManager(api: attr.info, httpOperation: httpOpe);
+    var apiCallInfo = APICallManager(
+      namespace: namespace,
+      attrApi: attr.info,
+      httpOperation: httpOpe,
+    );
     return apiCallInfo;
   }
 
@@ -243,6 +251,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
           getSchemaFct: () async {
             return await GoTo().getApiRequestModel(
               requestHelper.apiCallInfo,
+              currentCompany.listAPI!.namespace!,
               widget.idApi,
               withDelay: false,
             );
@@ -253,6 +262,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
           getSchemaFct: () async {
             return await GoTo().getApiResponseModel(
               requestHelper.apiCallInfo,
+              currentCompany.listAPI!.namespace!,
               widget.idApi,
               withDelay: false,
             );

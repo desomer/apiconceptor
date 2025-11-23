@@ -32,7 +32,11 @@ void startServer() async {
       modelApi.mapInfoByTreePath.forEach((key, api) {
         if (api.type == 'ope') {
           String httpOpe = api.name.toLowerCase();
-          var apiCallInfo = APICallManager(api: api, httpOperation: httpOpe);
+          var apiCallInfo = APICallManager(
+            namespace: namespace,
+            attrApi: api,
+            httpOperation: httpOpe,
+          );
           String url = apiCallInfo.getURLfromNode(
             modelApi.nodeByMasterId[api.masterID!]!,
           );

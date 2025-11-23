@@ -11,6 +11,7 @@ class WidgetTab extends StatefulWidget {
     super.key,
     this.heightContent,
     this.tabDisable,
+    this.onConfig,
   });
 
   final List<Widget> listTab;
@@ -19,6 +20,7 @@ class WidgetTab extends StatefulWidget {
   final Function? onInitController;
   final bool? heightContent;
   final Set<int>? tabDisable;
+  final Function? onConfig;
 
   int saveTabIndex = 0;
 
@@ -132,24 +134,37 @@ class _WidgetTabState extends State<WidgetTab>
         color: Colors.transparent,
         child: Align(
           alignment: Alignment.centerLeft,
-          child: TabBar(
-            onTap: (value) {
-              if (isDisable(value)) {
-                setState(() {
-                  controllerTab.index = controllerTab.previousIndex;
-                });
-              }
-            },
-            // indicatorSize: TabBarIndicatorSize.label,
-            controller: controllerTab,
-            indicator: const UnderlineTabIndicator(
-              borderSide: BorderSide(width: 4, color: Colors.blue),
-              insets: EdgeInsets.only(left: 0, right: 0, bottom: 0),
-            ),
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelPadding: const EdgeInsets.only(left: 10, right: 10),
-            tabs: listT,
+          child: Row(
+            children: [
+              Expanded(
+                child: TabBar(
+                  onTap: (value) {
+                    if (isDisable(value)) {
+                      setState(() {
+                        controllerTab.index = controllerTab.previousIndex;
+                      });
+                    }
+                  },
+                  // indicatorSize: TabBarIndicatorSize.label,
+                  controller: controllerTab,
+                  indicator: const UnderlineTabIndicator(
+                    borderSide: BorderSide(width: 4, color: Colors.blue),
+                    insets: EdgeInsets.only(left: 0, right: 0, bottom: 0),
+                  ),
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  labelPadding: const EdgeInsets.only(left: 10, right: 10),
+                  tabs: listT,
+                ),
+              ),
+              if (widget.onConfig != null)
+                IconButton(
+                  icon: Icon(Icons.settings, size: (heightTab / 2)),
+                  onPressed: () {
+                    widget.onConfig!();
+                  },
+                ),
+            ],
           ),
         ),
       ),

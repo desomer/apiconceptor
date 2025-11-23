@@ -183,7 +183,7 @@ class EvalFormula {
           }
         }
       } else {
-        print('var $token');
+        //print('var $token');
         output.add(elem);
       }
       i++;

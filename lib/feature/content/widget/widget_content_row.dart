@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
+import 'package:jsonschema/pages/apps/apps_page_detail.dart';
+import 'package:jsonschema/pages/router_config.dart' show Pages;
 
 class WidgetContentRow extends StatefulWidget {
   const WidgetContentRow({
@@ -43,7 +46,11 @@ class _WidgetContentRowState extends State<WidgetContentRow> {
             widget.ctxRow,
             widget.info.panInfo,
           );
-          showDetailDialog(w, context);
+          String key = '${w.hashCode}';
+          cacheLinkPage.put(key, w);
+          context.push(Pages.appPageDetail.id(key));
+
+          //showDetailDialog(w, context);
         },
         label: Text('View'),
       ),
