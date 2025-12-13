@@ -31,12 +31,12 @@ class HomePage extends GenericPageStateless {
                     getMenuArchitect(context),
                   ),
                   getExpansible("For developer", getMenuDevelopper(context)),
-                  getExpansible("For quality assurance", getMenuQA(context)),
                   getExpansible(
                     "For content manager & app designer",
                     getMenuCM(context),
                   ),
                   getExpansible("For UX/UI", getMenuUXUI(context)),
+                  getExpansible("For quality assurance", getMenuQA(context)),
                   getExpansible("For administrator", getMenuAdmin(context)),
                 ],
               );
@@ -208,7 +208,11 @@ class HomePage extends GenericPageStateless {
         alignment: WrapAlignment.start,
         children: [
           WidgetMenuBtn(label: 'Design system', icon: Icons.color_lens),
-          WidgetMenuBtn(label: 'Design pages', icon: Icons.design_services),
+          WidgetMenuBtn(
+            label: 'Design pages',
+            icon: Icons.design_services,
+            route: Pages.pageDesigner,
+          ),
         ],
       ),
     );

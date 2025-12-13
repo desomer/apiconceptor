@@ -12,6 +12,7 @@ import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/apps/apps_page.dart';
+import 'package:jsonschema/pages/apps/apps_page_designer.dart';
 import 'package:jsonschema/pages/apps/apps_page_detail.dart';
 import 'package:jsonschema/pages/browse_api/browse_api_page.dart';
 import 'package:jsonschema/pages/browse_api/browse_api_ui_page.dart';
@@ -68,7 +69,8 @@ enum Pages {
   mock("/apis/mock"),
   user("/user"),
   appPage("/app/page"),
-  appPageDetail("/app/page/detail");
+  appPageDetail("/app/page/detail"),
+  pageDesigner("/pages/designer");
 
   const Pages(this.urlpath);
   final String urlpath;
@@ -124,8 +126,7 @@ void noCacheOnNextLink(int nb) {
   forceNewPage = nb;
 }
 
-void clearRouteCache(Pages page)
-{
+void clearRouteCache(Pages page) {
   cacheRoute[page.urlpath]!.cache = null;
 }
 
@@ -157,13 +158,10 @@ Widget getPage(BuildContext context, GoRouterState state) {
         cacheRoute[path]!.cache = null;
       }
     }
-    
-    if (cacheRoute[path]!.cache!=null)
-    {
+
+    if (cacheRoute[path]!.cache != null) {
       dev.log("load page $uri from route cache");
-    }
-    else
-    {
+    } else {
       dev.log("buid page $uri");
     }
 
@@ -253,7 +251,7 @@ class Dialog with WidgetHelper {
 final GoRouter router = GoRouter(
   observers: [routeObserver],
   redirect: (context, state) async {
-    if (state.fullPath != Pages.home.urlpath &&
+    if (connect && state.fullPath != Pages.home.urlpath &&
         state.fullPath != Pages.domain.urlpath &&
         currentCompany.listDomain.selectedAttr == null) {
       await Dialog().doMustDomainFirst();
@@ -364,6 +362,7 @@ final GoRouter router = GoRouter(
         //----------------------------------------------------------------
         addRouteBy(Pages.content, ContentPage()),
         addRouteBy(Pages.contentPages, ContentAppsPage()),
+        addRouteBy(Pages.pageDesigner, AppsPageDesigner()),
         //----------------------------------------------------------------
         addRouteBy(Pages.log, LogPage()),
         // addRoute(

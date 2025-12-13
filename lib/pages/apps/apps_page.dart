@@ -10,7 +10,7 @@ import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/core/designer/pages_designer.dart';
+import 'package:jsonschema/core/designer/component/pages_viewer.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:yaml/yaml.dart';
@@ -169,7 +169,8 @@ class AppsPage extends GenericPageStateless {
     }
 
     if (helper != null) {
-      return PagesDesigner(
+      return PagesDesignerViewer(
+        cWDesignerMode: false,
         child: PanResponseViewer(requestHelper: helper, configApp: configApp),
       );
     }

@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:jsonschema/core/designer/widget_animated_drag.dart';
-import 'package:jsonschema/core/designer/widget_drag_utils.dart';
-import 'package:jsonschema/core/designer/widget_event_bus.dart';
+import 'package:jsonschema/core/designer/core/widget_animated_drag.dart';
+import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
+import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
+import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
-import 'package:jsonschema/core/designer/pages_designer.dart';
+import 'package:jsonschema/core/designer/component/pages_viewer.dart';
+import 'package:jsonschema/core/designer/cw_widget.dart';
 
 var currentSelectorManager = WidgetSelectorManager();
 
@@ -17,12 +19,26 @@ class WidgetSelectorManager {
   WidgetSelectableState? lastHover;
   List<WidgetSelectableState> listDragOpen = [];
 
+  var lastSelectedTime = DateTime.now().millisecondsSinceEpoch;
+  WidgetSelectableState? lastSelected;
+
+  bool isSelected(WidgetSelectableState sel) {
+    int t = DateTime.now().millisecondsSinceEpoch;
+    if (t - lastSelectedTime > 200) {
+      lastSelectedTime = DateTime.now().millisecondsSinceEpoch;
+      lastSelected = sel;
+      return true;
+    }
+    return false;
+  }
+
   void removeDrag() {
     var old = listDragOpen;
     listDragOpen = [];
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
       for (var element in old) {
         if (!listDragOpen.contains(element)) {
+          print('remove drag zone ${element.widget.getPath()}');
           element.dragZoneDetail = null;
           // ignore: invalid_use_of_protected_member
           element.setState(() {});
@@ -43,26 +59,26 @@ class WidgetSelectorManager {
     required bool isExiting,
   }) {
     var t = DateTime.now().millisecondsSinceEpoch;
-    var currentPath = lastHover?.widget.panInfo?.getPathAttrInTemplate();
+    var currentPath = lastHover?.widget.getPath();
 
     if (isExiting) {
       if (widgetState == lastHover) {
         lastHover = null;
       }
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+        print("isExiting onHover $isExiting  $currentPath");
         // ignore: invalid_use_of_protected_member
         widgetState.setState(() {});
       });
     }
 
-    var aPath = widgetState.widget.panInfo?.getPathAttrInTemplate();
-    //print("onHover $aPath $isExiting  $currentPath");
+    var aPath = widgetState.widget.getPath();
 
     if (!isExiting && widgetState != lastHover) {
       //if (t - lastHoverTime < 500) {
 
       if (currentPath != aPath) {
-        if (currentPath?.startsWith(aPath ?? '') ?? false) {
+        if (currentPath?.startsWith(aPath) ?? false) {
           //print('no hover $aPath car $currentPath');
           return;
         }
@@ -75,6 +91,8 @@ class WidgetSelectorManager {
       var old = lastHover;
       lastHoverTime = t;
       lastHover = widgetState;
+
+      print("onHover $aPath $isExiting  $currentPath");
 
       if (event != null) {
         repaint(old, widgetState);
@@ -107,10 +125,18 @@ class WidgetSelectable extends StatefulWidget {
     required this.child,
     required this.withDragAndDrop,
     required this.panInfo,
+    required this.slotConfig,
+    this.withAnimatedDropZone = true,
   });
   final Widget child;
   final bool withDragAndDrop;
   final PanInfo? panInfo;
+  final CwSlotConfig? slotConfig;
+  final bool withAnimatedDropZone;
+
+  String getPath() {
+    return slotConfig?.ctx.aPath ?? panInfo?.pathDataInTemplate ?? "";
+  }
 
   @override
   State<WidgetSelectable> createState() => WidgetSelectableState();
@@ -123,21 +149,27 @@ class WidgetSelectableState extends State<WidgetSelectable> {
   bool menuIsOpen = false;
 
   GlobalKey? captureKey;
-  Size? size;
+  Size? sizeOnDropAccept;
 
   Widget? dragZoneDetail;
   ValueNotifier<int> drawIndicatorMode = ValueNotifier(0);
 
-  Widget getDraggableContent(bool isHoverByDrag, Widget eventWidget) {
+  Widget getAnimatedZoneRow(Widget child) {
+    return AnimatedZoneRow(
+      modeNotifier: drawIndicatorMode,
+      height: sizeOnDropAccept?.height ?? 0,
+      child: child,
+    );
+  }
+
+  Widget _getDroppableWithAnimatedZone(bool isHoverByDrag, Widget eventWidget) {
     isHover = currentSelectorManager.isHover(this);
 
     return Stack(
+      fit: StackFit.passthrough,
       children: [
-        AnimatedZoneRow(
-          modeNotifier: drawIndicatorMode,
-          height: size?.height ?? 0,
-          child: eventWidget,
-        ),
+        if (widget.withAnimatedDropZone) getAnimatedZoneRow(eventWidget),
+        if (!widget.withAnimatedDropZone) eventWidget,
 
         if (dragZoneDetail != null) dragZoneDetail!,
         if (isViewHoverEnable)
@@ -161,73 +193,71 @@ class WidgetSelectableState extends State<WidgetSelectable> {
 
   @override
   Widget build(BuildContext context) {
+    print('rebuild selectable ${widget.slotConfig?.ctx.aPath}');
     captureKey ??= GlobalKey(debugLabel: 'captureKey');
+    widget.slotConfig?.ctx.keyCapture = captureKey;
 
     var withDrag = widget.withDragAndDrop;
     var withDrop = widget.withDragAndDrop;
 
-    var eventWidget = GestureDetector(
-      // onDoubleTap: () {
-      //   print('select widget');
-      //   //dialogOverlayKey.currentState?.minimized(false, null);
-      // },
-      child: MouseRegion(
-        onHover: onHover,
-        onExit: onExit,
-        child: Listener(
-          behavior: HitTestBehavior.opaque,
-          onPointerDown: onPointerDown,
-          child:
-              withDrag
-                  ? RepaintBoundary(key: captureKey, child: widget.child)
-                  : widget.child,
+    var eventWidget = ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+      child: GestureDetector(
+        key: withDrag ? null : captureKey,
+        child: MouseRegion(
+          onHover: onHover,
+          onExit: onExit,
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: onPointerDown,
+            child:
+                withDrag
+                    ? RepaintBoundary(key: captureKey, child: widget.child)
+                    : widget.child,
+          ),
         ),
       ),
     );
 
-    if (!withDrag && withDrop) {
-      return getDraggableContent(false, eventWidget);
-    } else if (withDrop) {
-      Widget droppable = eventWidget;
-      if (withDrag) {
-        droppable = getDragTargetWidget(eventWidget);
-      }
-
-      Widget draggable = getDraggableWidget(droppable);
-      return draggable;
+    if (withDrop && !withDrag) {
+      return getDropTargetWidget(eventWidget);
+    } else if (withDrop && withDrag) {
+      return getDraggableWidget(getDropTargetWidget(eventWidget));
     } else {
       return eventWidget;
     }
   }
 
   Widget getDraggableWidget(Widget droppable) {
-    return Draggable<DragComponentCtx>(
+    return Draggable<DragCtx>(
       dragAnchorStrategy: dragAnchorStrategy,
-      data: DragComponentCtx(),
-      childWhenDragging: Container(),
+      data: DragCtx(),
+      childWhenDragging:
+          Container(), // remplace par un container vide pendant le drag
       onDragEnd: (details) {
         currentSelectorManager.removeDrag();
         currentSelectorManager.doHover(this, null, isExiting: true);
         setState(() {});
       },
+      feedbackOffset: const Offset(0, 0),
       feedback: Container(
-        color: Colors.white,
+        color: Colors.black38,
         child: const Material(
           elevation: 10,
           borderOnForeground: false,
-          child: CWSlotImage(),
+          child: CWSlotImage(), // affiche l'image capturée
         ),
       ),
       child: droppable,
     );
   }
 
-  Widget getDragTargetWidget(Widget eventWidget) {
-    return DragTarget<DragComponentCtx>(
+  Widget getDropTargetWidget(Widget eventWidget) {
+    return DragTarget<DragCtx>(
       onWillAcceptWithDetails: (details) {
         final RenderBox box =
             captureKey!.currentContext!.findRenderObject() as RenderBox;
-        size = box.size;
+        sizeOnDropAccept = box.size;
         return true;
       },
       onAcceptWithDetails: (details) {
@@ -235,17 +265,22 @@ class WidgetSelectableState extends State<WidgetSelectable> {
             captureKey!.currentContext!.findRenderObject() as RenderBox;
         final Offset localOffset = box.globalToLocal(details.offset);
         print('Position relative dans le DragTarget : $localOffset');
+        details.data.doDragOn(this, context);
+        currentSelectorManager.removeDrag();
       },
       builder: (context, candidateData, rejectedData) {
-        final isHoverByDrag = candidateData.isNotEmpty;
+        final isHoverWithDrag = candidateData.isNotEmpty;
 
-        if (isHoverByDrag) {
+        if (widget.withAnimatedDropZone &&
+            isHoverWithDrag &&
+            widget.slotConfig?.innerWidget != null) {
+          // ajoute les zone de drap
           currentSelectorManager.addDrag(this);
           currentSelectorManager.doHover(this, null, isExiting: false);
           dragZoneDetail = getZoneBox();
         }
 
-        return getDraggableContent(isHoverByDrag, eventWidget);
+        return _getDroppableWithAnimatedZone(isHoverWithDrag, eventWidget);
       },
     );
   }
@@ -254,22 +289,22 @@ class WidgetSelectableState extends State<WidgetSelectable> {
     return Row(
       mainAxisSize: MainAxisSize.max,
       children: [
-        getZoneDrag(
-          width: size!.width * 0.3,
+        _getZoneDrag(
+          width: sizeOnDropAccept!.width * 0.3,
           color: null,
           message: 'move left',
           mDrag: 1,
         ),
         Expanded(
-          child: getZoneDrag(
+          child: _getZoneDrag(
             width: null,
-            color: null,
+            color: Colors.red,
             message: 'swap',
             mDrag: 2,
           ),
         ),
-        getZoneDrag(
-          width: size!.width * 0.3,
+        _getZoneDrag(
+          width: sizeOnDropAccept!.width * 0.3,
           color: null,
           message: 'move right',
           mDrag: 3,
@@ -278,24 +313,27 @@ class WidgetSelectableState extends State<WidgetSelectable> {
     );
   }
 
-  Widget getZoneDrag({
+  Widget _getZoneDrag({
     required double? width,
     required Color? color,
     required String message,
     required int mDrag,
   }) {
-    return DragTarget<DragComponentCtx>(
+    return DragTarget<DragCtx>(
       onWillAcceptWithDetails: (details) {
         drawIndicatorMode.value = mDrag;
         return true;
       },
-      onAcceptWithDetails: (details) {},
+      onAcceptWithDetails: (details) {
+        print('Drop accepted on $message $details');
+        currentSelectorManager.removeDrag();
+      },
       builder: (context, candidateData, rejectedData) {
         return Tooltip(
           message: message,
           preferBelow: false,
           child: Container(
-            height: size!.height,
+            height: sizeOnDropAccept!.height,
             width: width,
             color: color?.withAlpha(50),
           ),
@@ -334,16 +372,17 @@ class WidgetSelectableState extends State<WidgetSelectable> {
 
   void onExit(PointerExitEvent d) {
     currentSelectorManager.doHover(this, d, isExiting: true);
-    if (dragZoneDetail != null) {
-      setState(() {});
-      dragZoneDetail = null;
-    }
+    // if (dragZoneDetail != null) {
+    //   print("onExit dragZoneDetail");
+    //   setState(() {});
+    //   dragZoneDetail = null;
+    // }
   }
 
   void onPointerDown(PointerDownEvent d) {
     if (menuIsOpen) return;
 
-    print("onPointerDown ${widget.panInfo?.getPathAttrInTemplate()}");
+    // print("onPointerDown ${widget.panInfo?.getPathAttrInTemplate()}");
 
     //widget.ctx.lastEvent = d;
 
@@ -363,9 +402,24 @@ class WidgetSelectableState extends State<WidgetSelectable> {
     //     CoreDesigner.emit(CDDesignEvent.select, widget.ctx);
     //     setState(() {});
     //   }
-    if (isHover) {
-      emit(CDDesignEvent.select, CWContext()..keybox = captureKey);
-      _capturePng();
+
+    bool isSel = currentSelectorManager.isSelected(this);
+
+    if (isHover || isSel) {
+      String id =
+          widget.slotConfig?.ctx.aPath ??
+          widget.panInfo?.pathDataInTemplate ??
+          "?";
+      emit(
+        CDDesignEvent.select,
+        CWEventCtx()
+          ..ctx = widget.slotConfig?.ctx
+          ..id = id
+          ..keybox = captureKey,
+      );
+      if (widget.withDragAndDrop) {
+        _capturePng();
+      }
     }
     // }
   }
@@ -382,10 +436,15 @@ class WidgetSelectableState extends State<WidgetSelectable> {
     final byteData = await image.toByteData(format: ImageByteFormat.png);
     final imageBytes = byteData?.buffer.asUint8List();
 
-    CWSlotImageState.wi = Image.memory(imageBytes!, scale: 1);
+    CWSlotImageState.imageCmp = Image.memory(
+      imageBytes!,
+      scale: 1,
+      //opacity: const AlwaysStoppedAnimation<double>(0.8),
+    );
 
     // debugPrint(
-    //     'Capture PNG ===========> ${image.toString()} ${imageBytes.length}');
+    //   'Capture PNG ===========> ${image.toString()} ${imageBytes.length}',
+    // );
   }
 
   Offset dragAnchorStrategy(
@@ -529,6 +588,8 @@ class CWRec {
   }
 }
 
-class CWContext {
+class CWEventCtx {
   GlobalKey? keybox;
+  String? id;
+  CwWidgetCtx? ctx;
 }

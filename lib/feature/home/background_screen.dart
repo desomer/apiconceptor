@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 class BackgroundScreen extends StatelessWidget {
   const BackgroundScreen({super.key, required this.num});
 
+  bool withImage() {
+    return false;
+  }
+
   final int num;
   final url = const [
     'https://images.unsplash.com/photo-1559336197-ded8aaa244bc?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=880&q=80',
@@ -22,10 +26,13 @@ class BackgroundScreen extends StatelessWidget {
               clipBehavior: Clip.none,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.all(Radius.circular(20)),
-                image: DecorationImage(
-                  fit: BoxFit.cover,
-                  image: NetworkImage(url[num]),
-                ),
+                image:
+                    withImage()
+                        ? DecorationImage(
+                          fit: BoxFit.cover,
+                          image: NetworkImage(url[num]),
+                        )
+                        : null,
               ),
             ),
           ),

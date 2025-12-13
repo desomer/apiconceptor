@@ -13,7 +13,7 @@ void main() async {
   debugPaintBaselinesEnabled = false;
   debugPaintPointersEnabled = false;
 
- // await startCore();
+  //await startCore();
 
   //   CoreExpression run = CoreExpression();
   //   run.init('''
@@ -65,11 +65,22 @@ void main() async {
   runApp(const MyApp());
 }
 
+class ThemeHolder {
+  static late ThemeData theme;
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    var theme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorSchemeSeed: Colors.blueGrey,
+    );
+    ThemeHolder.theme = theme;
+
     return MaterialApp.router(
       title: 'App Desktop avec Menu Fixe',
       localizationsDelegates: [
@@ -84,11 +95,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: const Color.fromRGBO(86, 80, 14, 171),
       ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorSchemeSeed: Colors.blueGrey,
-      ),
+      darkTheme: theme,
       themeMode: ThemeMode.dark,
       routerConfig: router,
     );

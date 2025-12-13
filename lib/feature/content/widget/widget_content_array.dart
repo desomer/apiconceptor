@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/designer/widget_selectable.dart';
+import 'package:jsonschema/core/designer/core/widget_selectable.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_form.dart';
@@ -79,6 +79,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
       if (v.choiseItem != null) {
         // template non défini donc tableau de String, Bool, int, double
         return WidgetSelectable(
+          slotConfig: null,
           withDragAndDrop: false,
           panInfo: widget.info.panInfo,
           child: Padding(
@@ -135,6 +136,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
     return WidgetSelectable(
       withDragAndDrop: false,
       panInfo: widget.info.panInfo,
+      slotConfig: null,
       child: WidgetExpansive(
         color: Colors.blue,
         headers: [
@@ -159,6 +161,10 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
   }
 
   SizedBox getAddBtn(List<dynamic>? items) {
+    if (items == null) {
+      return SizedBox();
+    }
+
     // bouton d'ajout
     var addWidget = SizedBox(
       height: 30,
@@ -189,9 +195,9 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
                     newRow = '';
                   }
 
-                  items?.add(newRow);
+                  items.add(newRow);
                   final currentPath =
-                      '${widget.info.pathValue}[${items!.length - 1}]';
+                      '${widget.info.pathValue}[${items.length - 1}]';
                   widget.info.json2ui.stateMgr.loadDataInContainer(
                     newRow,
                     pathData: currentPath,

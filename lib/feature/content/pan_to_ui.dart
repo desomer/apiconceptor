@@ -309,18 +309,11 @@ class PanToUi
     UIParamContext ctx,
     String pathJson,
   ) {
-    List<WidgetTyped> listContentBlocForConfig = [];
-    // print(
-    //   ' panInfo.type = ${panInfo.type}   pathJson= $pathJson   attrName= ${panInfo.attrName}',
-    // );
+    List<WidgetTyped> listBlocForConfig = [];
 
     if (panInfo.pathPanVisible == null) {
       var ctxClone = ctx.clone(aPathData: pathJson);
-      List<Widget> child = getContentForm(
-        panInfo,
-        ctxClone,
-        listContentBlocForConfig,
-      );
+      List<Widget> child = getContentForm(panInfo, ctxClone, listBlocForConfig);
       Widget wid = Column(children: child);
       if (panInfo.subtype == 'root' && withScroll) {
         wid = SingleChildScrollView(child: wid);
@@ -343,10 +336,16 @@ class PanToUi
             ..setPathData(pathJson)
             ..panInfo = panInfo
             ..onTapSetting = () async {
+              if (panInfo.type == 'Row') {
+                if (panInfo.children.first.subtype == 'RowDetail') {
+                  print("RowDetail n'est pas affiché donc difficile à setter");
+                }
+              }
+
               if (await showSettingFormDialog(
                 context!,
                 pathJson,
-                listContentBlocForConfig,
+                listBlocForConfig,
               )) {
                 // ignore: invalid_use_of_protected_member
                 state.setState(() {
@@ -355,9 +354,9 @@ class PanToUi
               }
             },
       children: (pathDataComp) {
-        listContentBlocForConfig.clear();
+        listBlocForConfig.clear();
         var ctxClone = ctx.clone(aPathData: pathJson);
-        return getContentForm(panInfo, ctxClone, listContentBlocForConfig);
+        return getContentForm(panInfo, ctxClone, listBlocForConfig);
       },
     );
 
@@ -371,7 +370,7 @@ class PanToUi
   List<Widget> getContentForm(
     PanInfoObject panInfo,
     UIParamContext ctx,
-    List<WidgetTyped> listContentBloc,
+    List<WidgetTyped> listBlocForConfig,
   ) {
     List<WidgetTyped> rowTab = [];
 
@@ -410,15 +409,15 @@ class PanToUi
       }
     }
 
-    List<Widget> lw = _doLayout(lwt, ctx, rowTab, listContentBloc);
+    List<Widget> lw = _doLayout(lwt, ctx, rowTab, listBlocForConfig);
     return lw;
   }
 
   List<Widget> _doLayout(
-    List<WidgetTyped> lwt,
+    List<WidgetTyped> lwt, // les widgets du niveau
     UIParamContext ctx,
-    List<WidgetTyped> rowTab,
-    List<WidgetTyped> listContentBloc,
+    List<WidgetTyped> rowTab, // les onglets du niveau
+    List<WidgetTyped> listBlocForConfig, // le tableau des bloc à remplir
   ) {
     var lw = <Widget>[];
     var rowInput = <Widget>[];
@@ -428,7 +427,8 @@ class PanToUi
 
     for (var i = 0; i < lwt.length; i++) {
       var aWidgetTypedChild = lwt[i];
-      if (aWidgetTypedChild.type != WidgetType.input) {
+      var isFormOrArray = aWidgetTypedChild.type != WidgetType.input;
+      if (isFormOrArray) {
         // type list ou form
         // cherche la configuration de mise en page
         var confLayout =
@@ -447,6 +447,8 @@ class PanToUi
           }
         }
 
+        // le premier formulaire (path vide et i = 0) est toujours hors tabulation par défaut
+        // les autres toujours en tabulation
         String layout =
             (((ctx.pathData == '' && i == 0) || !nextIsContainer) &&
                     !prevIsContainerTab)
@@ -458,7 +460,7 @@ class PanToUi
         }
 
         if (rowInput.isNotEmpty) {
-          // ajouter les inputs
+          // ajouter les inputs en cours avant d'ajouter les panneaux
           lw.add(Row(spacing: margeHoriz, children: rowInput));
           rowInput = [];
         }
@@ -468,8 +470,6 @@ class PanToUi
         } else {
           aWidgetTypedChild.layout = layout;
         }
-
-        // if ()
 
         if (layout == 'Flow') {
           addTabInProgressIfNeeded(rowTab, lw);
@@ -481,7 +481,7 @@ class PanToUi
           rowTab.add(aWidgetTypedChild);
         }
 
-        listContentBloc.add(aWidgetTypedChild);
+        listBlocForConfig.add(aWidgetTypedChild);
         prevIsContainerTab = layout == 'Tab';
       } else {
         // gestion des input par 3

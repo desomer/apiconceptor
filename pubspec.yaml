@@ -69,6 +69,9 @@ dependencies:
   dart_eval: ^0.8.1
   jmespath: ^2.0.1
   event_listener: ^0.2.0
+  dotted_border: ^3.1.0
+  flutter_colorpicker: ^1.1.0
+
 
   flutter:
     sdk: flutter
@@ -145,7 +148,7 @@ msix_config:
   display_name: Api Architect
   publisher_display_name: ApiArchitect
   identity_name: apiarchitect
-  msix_version: 1.0.3.22
+  msix_version: 1.0.3.24
   logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
   capabilities: internetClient
   sign_msix: true

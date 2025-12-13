@@ -12,6 +12,7 @@ import 'package:jsonschema/widget/widget_zoom_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 bool showLoginDialog = true;
+bool connect = false;
 
 // ignore: must_be_immutable
 class Layout extends StatefulWidget {
@@ -33,6 +34,10 @@ class _LayoutState extends State<Layout> {
 
     var navigationInfo =
         page.initNavigation(widget.routerState, context, null)!;
+
+    if (!connect) {
+      showLoginDialog = false;
+    }
 
     if (showLoginDialog) {
       showLoginDialog = false;
@@ -132,7 +137,7 @@ class _LayoutState extends State<Layout> {
                 // SizedBox(width: 5),
                 SizedBox(height: 20, child: WidgetGlobalZoom()),
                 Spacer(),
-                Text('API Architect by Desomer G. V1.0.3.22'),
+                Text('API Architect by Desomer G. V1.0.3.24'),
               ],
             ),
           ),
@@ -281,7 +286,9 @@ class _LayoutState extends State<Layout> {
 }
 
 class UserAuthentication {
-  static ValueNotifier<String> stateConnection = ValueNotifier<String>('Connecting...');
+  static ValueNotifier<String> stateConnection = ValueNotifier<String>(
+    'Connecting...',
+  );
 
   void logIn(BuildContext context, String email, String password) async {
     BuildContext? ctx;
@@ -298,7 +305,10 @@ class UserAuthentication {
               ValueListenableBuilder(
                 valueListenable: stateConnection,
                 builder: (context, value, child) {
-                  return Text(style: TextStyle(fontSize: 20), stateConnection.value);
+                  return Text(
+                    style: TextStyle(fontSize: 20),
+                    stateConnection.value,
+                  );
                 },
               ),
 

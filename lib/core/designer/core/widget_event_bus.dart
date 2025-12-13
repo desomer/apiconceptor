@@ -1,4 +1,5 @@
 import 'package:event_listener/event_listener.dart';
+import 'package:event_listener/exceptions.dart';
 
 Function(dynamic) on(CDDesignEvent event, Function(dynamic) fct) {
   _eventListener.on(event.toString(), fct);
@@ -8,8 +9,8 @@ Function(dynamic) on(CDDesignEvent event, Function(dynamic) fct) {
 void emit(CDDesignEvent event, dynamic payload) {
   try {
     _eventListener.emit(event.toString(), payload);
-  } catch (e) {
-    print('no listener $event');
+  } on NoListener catch (e) {
+    print('no listener $event  $e');
   }
 }
 

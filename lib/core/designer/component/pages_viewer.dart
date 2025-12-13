@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/designer/widget_overlay_selector.dart';
+import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
 import 'package:jsonschema/widget/device_preview/devise_iphone13.dart';
 import 'package:jsonschema/widget/device_preview/frame.dart';
 
-class PagesDesigner extends StatefulWidget {
-  const PagesDesigner({super.key, required this.child});
+class PagesDesignerViewer extends StatefulWidget {
+  const PagesDesignerViewer({
+    super.key,
+    required this.child,
+    required this.cWDesignerMode,
+  });
   final Widget child;
+  final bool cWDesignerMode;
 
   @override
-  State<PagesDesigner> createState() => _PagesDesignerState();
+  State<PagesDesignerViewer> createState() => _PagesDesignerViewerState();
 }
 
 enum DeviseDisplayType { mobile, desktop }
-
-bool cWDesignerMode = false;
 
 GlobalKey designViewPortKey = GlobalKey(debugLabel: 'designViewPortKey');
 GlobalKey designerKey = GlobalKey(debugLabel: 'designerKey');
@@ -21,8 +24,10 @@ GlobalKey scaleKeyMin = GlobalKey(debugLabel: 'scaleKeyMin');
 GlobalKey scaleKey100 = GlobalKey(debugLabel: 'scaleKey100');
 GlobalKey scaleKeyMax = GlobalKey(debugLabel: 'scaleKeyMax');
 
-class _PagesDesignerState extends State<PagesDesigner> {
+class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
   DeviseDisplayType mode = DeviseDisplayType.desktop;
+
+  double marge = 20.0;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +35,7 @@ class _PagesDesignerState extends State<PagesDesigner> {
   }
 
   Widget initFrame(Widget content) {
-    if (!cWDesignerMode) {
+    if (!widget.cWDesignerMode) {
       return content;
     }
 
@@ -58,7 +63,7 @@ class _PagesDesignerState extends State<PagesDesigner> {
       ),
       Positioned(
         right: 0,
-        bottom: 0,
+        bottom: -marge,
         child: SizedBox(
           key: scaleKeyMax,
           //color: Colors.red,
@@ -88,8 +93,9 @@ class _PagesDesignerState extends State<PagesDesigner> {
         ),
       );
     } else {
-      designer = Padding(
-        padding: const EdgeInsets.all(0),
+      designer = Container(
+        color: Colors.black,
+        padding: EdgeInsets.all(marge),
         child: getAnimatedWidth(stackDesigner),
       );
     }
@@ -113,19 +119,16 @@ class _PagesDesignerState extends State<PagesDesigner> {
   GlobalKey keyAnimated = GlobalKey();
 
   Widget getAnimatedWidth(Widget child) {
-    return Align(
-      alignment: AlignmentGeometry.topCenter,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          //print(' getAnimatedWidth  $constraints');
-          return AnimatedContainer(
-            width: constraints.maxWidth,
-            key: keyAnimated,
-            duration: Durations.short3,
-            child: child,
-          );
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        //print(' getAnimatedWidth  $constraints');
+        return AnimatedContainer(
+          width: constraints.maxWidth,
+          key: keyAnimated,
+          duration: Durations.short3,
+          child: child,
+        );
+      },
     );
   }
 }

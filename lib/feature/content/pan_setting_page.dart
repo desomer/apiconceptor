@@ -110,6 +110,69 @@ class _PanSettingPageState extends State<PanSettingPage> {
     );
   }
 
+  Widget getChoiseLayoutBehaviour(bool first) {
+    List<ButtonSegment<String>> listChoiseName = [];
+    listChoiseName.add(ButtonSegment(value: 'tab', label: Text('Tab')));
+    if (!first) {
+      listChoiseName.add(
+        ButtonSegment(value: 'tabBelow', label: Text('Tab below')),
+      );
+    }
+    listChoiseName.add(ButtonSegment(value: 'form', label: Text(first?'Form':'Form below')));
+
+    Widget choiseWidget = _getChoiseWidget(listChoiseName);
+
+    return choiseWidget;
+  }
+
+  Widget getChoiseArrayBehaviour() {
+    List<ButtonSegment<String>> listChoiseName = [];
+    listChoiseName.add(ButtonSegment(value: 'form', label: Text('List form')));
+    listChoiseName.add(ButtonSegment(value: 'list', label: Text('List row')));
+    listChoiseName.add(ButtonSegment(value: 'card', label: Text('List card')));
+
+    Widget choiseWidget = _getChoiseWidget(listChoiseName);
+
+    return choiseWidget;
+  }
+
+  Widget _getChoiseWidget(List<ButtonSegment<String>> listChoiseName) {
+    Set<String> selected = {};
+
+    Widget choiseWidget = SizedBox(
+      height: 20,
+      child: SegmentedButton<String>(
+        emptySelectionAllowed: true,
+        segments: listChoiseName,
+        selected: selected,
+        onSelectionChanged: (newSelection) {
+          setState(() {
+            selected = newSelection;
+          });
+        },
+        multiSelectionEnabled: false,
+        showSelectedIcon: true,
+        style: ButtonStyle(
+          alignment: Alignment.topCenter,
+          padding: WidgetStateProperty.all(EdgeInsets.fromLTRB(10, 0, 10, 0)),
+          backgroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
+            if (states.contains(WidgetState.selected)) {
+              return Colors.white; // Couleur quand sélectionné
+            }
+            return Colors.orangeAccent; // Couleur par défaut
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
+            if (states.contains(WidgetState.selected)) {
+              return Colors.orange; // Texte quand sélectionné
+            }
+            return Colors.white; // Texte par défaut
+          }),
+        ),
+      ),
+    );
+    return choiseWidget;
+  }
+
   Widget getPan(PanInfoObject panParent, ValueNotifier<int> changer) {
     List<PanInfoObject> childrenPan =
         panParent.children.whereType<PanInfoObject>().toList();
@@ -159,7 +222,13 @@ class _PanSettingPageState extends State<PanSettingPage> {
               spacing: 10,
               children: [
                 Text(name),
-                Text(childPan.type),
+                Text('as ${childPan.type}  '),
+                if (childPan.type == 'Array') getChoiseArrayBehaviour(),
+                Spacer(),
+                if (childPan.subtype != 'RowDetail')
+                  getChoiseLayoutBehaviour(
+                   index == 0 ||(index > 0 && childrenPan[index - 1].type == 'Bloc'),
+                  ),
                 //Text("[${childPan.subtype}]"),
                 //Text(childrenPan[index].pathDataInTemplate),
               ],
@@ -201,7 +270,7 @@ class _PanSettingPageState extends State<PanSettingPage> {
               ),
               child: Row(
                 spacing: 10,
-                children: [Text(nameAttrInRow), Text('Array')],
+                children: [Text(nameAttrInRow), Text('as Primitive array')],
               ),
             );
           } else {

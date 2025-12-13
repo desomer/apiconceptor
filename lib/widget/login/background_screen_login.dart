@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 class BackgroundScreenLogin extends StatelessWidget {
   const BackgroundScreenLogin({super.key});
 
+  bool withImage() {
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -10,14 +14,17 @@ class BackgroundScreenLogin extends StatelessWidget {
         children: [
           Expanded(
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.all(Radius.circular(20)),
-                image: DecorationImage(
-                  fit: BoxFit.cover,
-                  image: NetworkImage(
-                    'https://images.unsplash.com/photo-1559336197-ded8aaa244bc?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=880&q=80',
-                  ),
-                ),
+                image:
+                    withImage()
+                        ? DecorationImage(
+                          fit: BoxFit.cover,
+                          image: NetworkImage(
+                            'https://images.unsplash.com/photo-1559336197-ded8aaa244bc?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=880&q=80',
+                          ),
+                        )
+                        : null,
               ),
             ),
           ),

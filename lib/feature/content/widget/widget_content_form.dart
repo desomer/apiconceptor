@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:highlight/languages/json.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
-import 'package:jsonschema/core/designer/widget_selectable.dart';
+import 'package:jsonschema/core/designer/core/widget_selectable.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
@@ -93,10 +92,9 @@ class _WidgetContentFormState extends State<WidgetContentForm>
     var configBloc = widget.info.json2ui.stateMgr.config;
     List<ConfigLink> links = [];
     if (configBloc != null) {
-      var link = configBloc.links.firstWhereOrNull((e) {
-        return e.onPath == pathGeneric;
-      });
-      if (link != null) links.add(link);
+      for (var e in configBloc.links) {
+        if (e.onPath == pathGeneric) links.add(e);
+      }
     }
 
     var dataContainer = widget.info.json2ui.getStateContainer(
@@ -282,6 +280,7 @@ class _WidgetContentFormState extends State<WidgetContentForm>
 
       cachableWidget = WidgetSelectable(
         withDragAndDrop: false,
+        slotConfig: null,
         panInfo: widget.info.panInfo,
         child: w,
       );

@@ -752,13 +752,16 @@ class ModelSchema {
           }
         }
       } else {
-        aSchema = ModelSchema(
-          id: '?',
-          category: Category.model,
-          headerName: '',
-          infoManager: InfoManagerModel(typeMD: TypeMD.model),
-          ref: ref,
-        )..autoSaveProperties = false;
+        aSchema =
+            ModelSchema(
+                id: '?',
+                category: Category.model,
+                headerName: '',
+                infoManager: InfoManagerModel(typeMD: TypeMD.model),
+                ref: ref,
+              )
+              ..namespace = namespace
+              ..autoSaveProperties = false;
 
         aSchema.loadSubSchema(subNode, this);
       }
