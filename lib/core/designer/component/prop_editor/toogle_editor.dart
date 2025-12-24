@@ -10,9 +10,11 @@ class ToogleEditor extends GenericEditor {
     required super.onJsonChanged,
     required this.items,
     required this.isMultiple,
+    this.defaultValue,
   });
   final List items;
   final bool isMultiple;
+  final String? defaultValue;
 
   @override
   State<ToogleEditor> createState() => _ToogleEditorState();
@@ -44,7 +46,8 @@ class _ToogleEditorState extends State<ToogleEditor> with HelperEditor {
     double width = 30;
 
     var vals = <String>[];
-    var mapValue = widget.json[widget.config.id]?.toString();
+    var mapValue =
+        widget.json[widget.config.id]?.toString() ?? widget.defaultValue;
     if (mapValue != null && widget.isMultiple) {
       vals = mapValue.split(';');
     } else if (mapValue != null) {
@@ -63,9 +66,15 @@ class _ToogleEditorState extends State<ToogleEditor> with HelperEditor {
         width = 70;
         lb.add(Row(children: [Icon(element['icon']), Text(element['label'])]));
       } else {
-        lb.add(Icon(element['icon']));
+        lb.add(
+          RotatedBox(
+            quarterTurns: element['quarterTurns'] ?? 0,
+            child: Icon(element['icon']),
+          ),
+        );
       }
     }
+
     // listIcons.map((e) => Icon(e)).toList()
     return Row(
       mainAxisSize: MainAxisSize.max,

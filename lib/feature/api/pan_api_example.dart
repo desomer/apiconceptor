@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';

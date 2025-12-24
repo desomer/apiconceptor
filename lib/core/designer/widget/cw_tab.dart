@@ -9,34 +9,23 @@ class CwTabBar extends CwWidget {
   const CwTabBar({super.key, required super.ctx});
 
   static void initFactory(WidgetFactory factory) {
-    factory.builderWidget['tabbar'] = (ctx) {
-      return CwTabBar(ctx: ctx);
-    };
-
-    factory.builderConfig['tabbar'] = (ctx) {
-      return CwWidgetConfig(id: "tabbar")
-      // .addProp(
-      //   CwWidgetProperties(id: 'drawer', name: 'with drawer')..isBool(
-      //     ctx,
-      //     onJsonChanged: (value) {
-      //       ctx.onValueChange(repaint: false)(value);
-      //       ctx.parentCtx!.onValueChange()(value);
-      //     },
-      //   ),
-      // )
-      ;
-    };
-
-    factory.builderDragConfig['tabbar'] = (ctx, drag) {
-      ctx.aFactory.addInSlot(drag.childData!, 'tab0', {
-        cwType: 'input',
-        cwProps: <String, dynamic>{'label': 'Tab Title 1'},
-      });      
-      ctx.aFactory.addInSlot(drag.childData!, 'tab1', {
-        cwType: 'input',
-        cwProps: <String, dynamic>{'label': 'Tab Title 2'},
-      });
-    };
+    factory.register(
+      id: 'tabbar',
+      build: (ctx) => CwTabBar(ctx: ctx),
+      config: (ctx) {
+        return CwWidgetConfig();
+      },
+      drag: (ctx, drag) {
+        ctx.aFactory.addInSlot(drag.childData!, 'tab0', {
+          cwType: 'input',
+          cwProps: <String, dynamic>{'label': 'Tab Title 1'},
+        });
+        ctx.aFactory.addInSlot(drag.childData!, 'tab1', {
+          cwType: 'input',
+          cwProps: <String, dynamic>{'label': 'Tab Title 2'},
+        });
+      },
+    );
   }
 
   @override
@@ -46,15 +35,34 @@ class CwTabBar extends CwWidget {
 class _CwPageState extends CwWidgetState<CwTabBar> with HelperEditor {
   @override
   Widget build(BuildContext context) {
-    return buildWidget((ctx) {
+    return buildWidget(true, (ctx, constraints) {
       List<Widget> tabs = [];
       List<Widget> tabsView = [];
-      for (var i = 0; i < 2; i++) {
+      int nb = 2;
+      for (var i = 0; i < nb; i++) {
         tabs.add(Tab(child: getSlot(CwSlotProp(id: 'tab$i', name: 'Tab'))));
-        tabsView.add(getSlot(CwSlotProp(id: 'tabview', name: 'Tab view')));
+        tabsView.add(getSlot(CwSlotProp(id: 'tabview$i', name: 'Tab view')));
       }
-
-      return WidgetTab(listTab: tabs, listTabCont: tabsView, heightTab: 40);
+      bool hasBoundedHeight = constraints?.hasBoundedHeight ?? true;
+      bool hasBoundedWidth = constraints?.hasBoundedWidth ?? true;
+      if (!hasBoundedWidth) {
+        return SizedBox(
+          width: 100.0 * nb,
+          child: WidgetTab(
+            listTab: tabs,
+            listTabCont: tabsView,
+            heightTab: 40,
+            heightContent: !hasBoundedHeight,
+          ),
+        );
+      } else {
+        return WidgetTab(
+          listTab: tabs,
+          listTabCont: tabsView,
+          heightTab: 40,
+          heightContent: !hasBoundedHeight,
+        );
+      }
     });
   }
 }

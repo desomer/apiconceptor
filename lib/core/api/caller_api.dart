@@ -2,7 +2,7 @@ import 'dart:developer' as dev show log;
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:jsonschema/core/core_expression.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
 
 class CallerApi {
   dynamic callGraph() async {

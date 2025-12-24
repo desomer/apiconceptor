@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/dart.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 
 enum ScriptType { pre, post }

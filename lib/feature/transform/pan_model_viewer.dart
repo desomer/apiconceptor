@@ -114,7 +114,7 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
         modeLegacy,
         // ignore: use_build_context_synchronously
         context,
-        null
+        null,
       );
 
       if (!modeLegacy) {
@@ -209,6 +209,16 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
 // ignore: must_be_immutable
 class PanContentSelectorTree extends PanYamlTree {
   PanContentSelectorTree({super.key, required super.getSchemaFct});
+
+  @override
+  bool withEditor() {
+    return false;
+  }
+
+  @override
+  bool canDrag(TreeNodeData<NodeAttribut> node) {
+    return true;
+  }
 }
 
 //************************************************************************* */

@@ -8,8 +8,8 @@ import 'package:jmespath/jmespath.dart' show search;
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
-import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
+import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_doc_response.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
@@ -358,7 +358,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
         Tab(text: 'jmse search'),
       ],
       listTabCont: [
-        PanResponseViewer(requestHelper: requestHelper!),
+        PanResponseViewer(modeLegacy: true, requestHelper: requestHelper!),
         PanResponseMapper(
           //key: ObjectKey(currentCompany.listAPI.selectedAttr),
           apiCallInfo: requestHelper!.apiCallInfo,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';

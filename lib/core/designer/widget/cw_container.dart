@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
-import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
-import 'package:jsonschema/core/designer/core/widget_selectable.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_factory_action.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
@@ -37,7 +36,7 @@ List listCrossRow = [
   {'icon': Icons.align_vertical_top, 'value': 'start'},
   {'icon': Icons.align_vertical_center, 'value': 'center'},
   {'icon': Icons.align_vertical_bottom, 'value': 'end'},
-  {'icon': Icons.settings_ethernet, 'value': 'stretch'},
+  {'icon': Icons.settings_ethernet, 'value': 'stretch', 'quarterTurns': 1},
   //{'icon': Icons.format_strikethrough, 'value': 'baseline'}
 ];
 
@@ -48,67 +47,125 @@ class CwContainer extends CwWidget with HelperEditor {
   State<CwContainer> createState() => _CwContainerState();
 
   static void initFactory(WidgetFactory factory) {
-    factory.builderWidget['container'] = (ctx) {
-      return CwContainer(ctx: ctx);
-    };
+    factory.register(
+      id: 'container',
+      build: (ctx) => CwContainer(ctx: ctx),
+      config: (ctx) {
+        var horz = HelperEditor.getStringProp(ctx, 'style') == 'row';
 
-    factory.builderConfig['container'] = (ctx) {
-      var ret = CwWidgetConfig(id: 'container')
-          .addProp(
-            CwWidgetProperties(id: 'horiz', name: 'horizontal')..isBool(ctx),
-          )
-          .addProp(
-            CwWidgetProperties(id: 'nbchild', name: 'nb child')..isInt(ctx),
-          );
+        var ret = CwWidgetConfig()
+            .addProp(
+              CwWidgetProperties(id: 'style', name: 'style')..isToogle(ctx, [
+                {'icon': Icons.table_rows_rounded, 'value': 'column'},
+                {'icon': Icons.view_week, 'value': 'row'},
+                //{'icon': Icons.grid_view, 'value': 'grid'},
+              ], defaultValue: 'column'),
+            )
+            .addProp(
+              CwWidgetProperties(id: 'layout', name: 'layout')..isToogle(ctx, [
+                {
+                  'icon': Icons.format_line_spacing,
+                  'value': 'fill',
+                  'quarterTurns': horz ? 3 : 0,
+                },
+                {
+                  'icon': Icons.vertical_align_top,
+                  'value': 'flow',
+                  'quarterTurns': horz ? 3 : 0,
+                },
+                {'icon': Icons.list_alt_rounded, 'value': 'form'},
+              ], defaultValue: 'fill'),
+            );
 
-      var horz = HelperEditor.getBoolProp(ctx, 'horiz') ?? false;
-      ret
-          .addProp(
-            CwWidgetProperties(id: 'mainAxisAlign', name: 'alignment')
-              ..isToogle(ctx, horz ? listAxisRow : listAxisCol),
-          )
-          .addProp(
-            CwWidgetProperties(id: 'crossAxisAlign', name: 'cross align')
-              ..isToogle(ctx, horz ? listCrossRow : listCrossCol),
-          );
+        var noStretch = ctx.extraRenderingData?['noStretch'] == true;
+        ret
+            .addProp(
+              CwWidgetProperties(id: 'mainAxisAlign', name: 'alignment')
+                ..isToogle(
+                  ctx,
+                  horz ? listAxisRow : listAxisCol,
+                  defaultValue: 'start',
+                ),
+            )
+            .addProp(
+              CwWidgetProperties(id: 'crossAxisAlign', name: 'cross align')
+                ..isToogle(
+                  ctx,
+                  horz ? listCrossRow : listCrossCol,
+                  defaultValue: noStretch ? 'start' : 'stretch',
+                ),
+            );
 
-      return ret;
-    };
+        return ret;
+      },
+    );
   }
 }
 
 class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
   CwWidgetConfig slotConfig(CwWidgetCtx ctx) {
-    return CwWidgetConfig(id: 'cell')
+    return CwWidgetConfig()
         .addProp(
           CwWidgetProperties(id: 'fit', name: 'fit')..isToogle(ctx, [
-            {'icon': Icons.close_fullscreen, 'value': 'inner'},
             {'icon': Icons.open_in_full, 'value': 'tight'},
+            {'icon': Icons.close_fullscreen, 'value': 'inner'},
             {'icon': Icons.fit_screen, 'value': 'loose'},
-          ]),
+          ], defaultValue: 'tight'),
         )
         .addProp(
-          CwWidgetProperties(id: 'flex', name: 'flex')
-            ..isInt(ctx, defaultValue: 0),
+          CwWidgetProperties(id: 'flex', name: 'flex ratio')..isInt(ctx),
         );
   }
 
-  void onDrop(CwWidgetCtx ctx, DropCtx drop) {
+  void onDropOnCell(CwWidgetCtx ctx, DropCtx drop) {
+    if (drop.forConfigOnly) {
+      return;
+    }
+
     var type = drop.childData![cwType];
+
     if (type == 'input') {
       drop.childData![cwProps]['label'] = 'New Cell';
     } else if (type == 'container') {
-      var horiz = drop.parentData![cwProps]?['horiz'] ?? false;
-      if (!horiz) {
-        drop.childData![cwProps]['horiz'] = true;
+      var horiz = drop.parentData![cwProps]?['style'] == 'row';
+      if (!horiz && drop.childData?[cwProps]?['style'] == null) {
+        // default is row si parent is column
+        drop.childData![cwProps]['style'] = 'row';
+      }
+    }
+
+    bool autoInsert = getBoolProp(ctx.parentCtx!, '#autoInsert') ?? false;
+    if (ctx.parentCtx!.extraRenderingData?['autoInsert'] == true) {
+      autoInsert = true;
+    }
+    if (autoInsert) {
+      int nb = getIntProp(ctx.parentCtx!, 'nbchild') ?? 2;
+      int nbFill = 0;
+      for (var i = 0; i < nb; i++) {
+        var slotData = ctx.parentCtx!.dataWidget![cwSlots]?['cell_$i'];
+        if (slotData != null || ctx.id == 'cell_$i') {
+          nbFill++;
+        }
+      }
+      if (nbFill == nb) {
+        var props = ctx.parentCtx!.initPropsIfNeeded();
+        props['nbchild'] = nb + 1;
+        bool autoInsertAtStart =
+            getBoolProp(ctx.parentCtx!, '#autoInsertAtStart') ?? false;
+
+        if (autoInsertAtStart) {
+          drop.afterAdded = () {
+            var actMgr = CwFactoryAction(ctx: ctx);
+            actMgr.moveSlot(nb + 1, 0);
+          };
+        }
       }
     }
   }
 
-  void onAction(CwWidgetCtx ctx, DesignAction action) {
-    print('onAction');
+  void onActionCell(CwWidgetCtx ctx, DesignAction action) {
     var props = ctx.parentCtx!.initPropsIfNeeded();
-    var horiz = props['horiz'] ?? false;
+    var horiz = HelperEditor.getStringProp(ctx.parentCtx!, 'style') == 'row';
 
     String actionStr = '';
     if (horiz) {
@@ -153,109 +210,81 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
 
     int nb = getIntProp(ctx.parentCtx!, 'nbchild') ?? 2;
     int idx = int.parse(ctx.id.split('_').last);
-    // vertical
+    var actMgr = CwFactoryAction(ctx: ctx);
+
     switch (actionStr) {
       case "delete":
-        for (var i = idx; i < nb - 1; i++) {
-          var slotFrom = 'cell_${i + 1}';
-          var slotTo = 'cell_$i';
-          var dataFrom = ctx.parentCtx!.dataWidget![cwSlots]?[slotFrom];
-          if (dataFrom != null) {
-            dataFrom[cwId] = slotTo;
-            ctx.parentCtx!.dataWidget![cwSlots]?[slotTo] = dataFrom;
-            ctx.parentCtx!.dataWidget![cwSlots]?.remove(slotFrom);
-          } else {
-            ctx.parentCtx!.dataWidget![cwSlots]?.remove(slotTo);
-          }
-        }
-
-        ctx.dataWidget?.remove(cwType);
-        ctx.dataWidget?.remove(cwProps);
         props['nbchild'] = nb - 1;
-        setState(() {});
-        emit(
-          CDDesignEvent.select,
-          CWEventCtx()
-            ..ctx = ctx.parentCtx
-            ..id = ctx.parentCtx!.aPath
-            ..keybox = ctx.parentCtx!.keyCapture,
-        );
+        actMgr.deleteSlot(idx, nb);
         break;
-
       case 'surround':
-        surround(idx, 0, !horiz, ctx);
-        setState(() {});
-        selectParent(ctx);
+        var slotFrom = 'cell_$idx';
+        var slotTo = 'cell_0';
+        actMgr.surround(slotFrom, slotTo, {
+          cwType: 'container',
+          cwProps: <String, dynamic>{'style': horiz ? 'column' : 'row'},
+        });
         break;
-
       case 'surround1':
-        surround(idx, 1, !horiz, ctx);
-        setState(() {});
-        selectParent(ctx);
+        var slotFrom = 'cell_$idx';
+        var slotTo = 'cell_1';
+        actMgr.surround(slotFrom, slotTo, {
+          cwType: 'container',
+          cwProps: <String, dynamic>{'style': horiz ? 'column' : 'row'},
+        });
         break;
-
       case 'before':
         props['nbchild'] = nb + 1;
-        moveSlot(nb, idx, ctx);
-        setState(() {});
-        selectParent(ctx);
+        actMgr.moveSlot(nb, idx);
         break;
       case "after":
         props['nbchild'] = nb + 1;
-        moveSlot(nb, idx + 1, ctx);
-        setState(() {});
-        selectParent(ctx);
+        actMgr.moveSlot(nb, idx + 1);
         break;
       default:
     }
-  }
-
-  void surround(int idx, int idxDest, bool horiz, CwWidgetCtx ctx) {
-    var slotFrom = 'cell_$idx';
-    var slotTo = 'cell_$idxDest';
-    var dataFrom = ctx.parentCtx!.dataWidget![cwSlots]?[slotFrom];
-    dataFrom[cwId] = slotTo;
-    var newContainer = ctx.aFactory.addInSlot(
-      ctx.parentCtx!.dataWidget!,
-      slotFrom,
-      {
-        cwType: 'container',
-        cwProps: <String, dynamic>{'horiz': horiz},
-      },
-    );
-    ctx.aFactory.addInSlot(newContainer, slotTo, dataFrom!);
-  }
-
-  void selectParent(CwWidgetCtx ctx) {
-    emit(
-      CDDesignEvent.select,
-      CWEventCtx()
-        ..ctx = ctx.parentCtx
-        ..id = ctx.parentCtx!.aPath
-        ..keybox = ctx.parentCtx!.keyCapture,
-    );
-  }
-
-  void moveSlot(int nb, int idx, CwWidgetCtx ctx) {
-    for (var i = nb - 1; i >= idx; i--) {
-      var slotFrom = 'cell_$i';
-      var slotTo = 'cell_${i + 1}';
-      var dataFrom = ctx.parentCtx!.dataWidget![cwSlots]?[slotFrom];
-      if (dataFrom != null) {
-        dataFrom[cwId] = slotTo;
-        ctx.parentCtx!.dataWidget![cwSlots]?[slotTo] = dataFrom;
-        ctx.parentCtx!.dataWidget![cwSlots]?.remove(slotFrom);
-      } else {
-        ctx.parentCtx!.dataWidget![cwSlots]?.remove(slotTo);
-      }
-    }
+    setState(() {});
+    ctx.selectParent();
   }
 
   @override
   Widget build(BuildContext context) {
-    return buildWidget((ctx) {
+    return buildWidget(true, (ctx, constraints) {
       List<Widget> child = [];
+      var horiz = getStringProp(ctx, 'style') == 'row';
+      bool noStretch = getBoolProp(ctx, 'noStretch') ?? false;
+      bool flow = getBoolProp(ctx, 'flow') ?? false;
+      bool disableFlex = false;
+      bool hasBoundedHeight = constraints?.hasBoundedHeight ?? true;
+      bool hasBoundedWidth = constraints?.hasBoundedWidth ?? true;
+      ctx.extraRenderingData ??= {};
+
+      if (!hasBoundedHeight && horiz) {
+        // pas de hauteur contrainte en horizontal => pas de stretch possible
+        noStretch = true;
+        ctx.extraRenderingData!['noStretch'] = true;
+      }
+      if (!hasBoundedWidth && !horiz) {
+        // pas de largeur contrainte en vertical => pas de stretch possible
+        noStretch = true;
+        ctx.extraRenderingData!['noStretch'] = true;
+      }
+      if (!hasBoundedHeight && !horiz) {
+        disableFlex = true;
+        ctx.extraRenderingData!['disableFlex'] = true;
+      }
+      if (!hasBoundedWidth && horiz) {
+        disableFlex = true;
+        ctx.extraRenderingData!['disableFlex'] = true;
+      }
+
       int nb = getIntProp(ctx, 'nbchild') ?? 2;
+      var layout = getStringProp(ctx, 'layout');
+      ['flow', 'form'].contains(layout) ? flow = true : null;
+      if (['flow', 'form'].contains(layout)) {
+        ctx.extraRenderingData ??= {};
+        ctx.extraRenderingData!['autoInsert'] = true;
+      }
 
       for (var i = 0; i < nb; i++) {
         var slot = getSlot(
@@ -263,31 +292,39 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
             id: 'cell_$i',
             name: 'cell',
             slotConfig: slotConfig,
-            onDrop: onDrop,
-            onAction: onAction,
+            onDrop: onDropOnCell,
+            onAction: onActionCell,
           ),
         );
         var ctxSlot = slot.config.ctx.cloneForSlot();
-        var fit = getStringProp(ctxSlot, 'fit');
-        var flex = getIntProp(ctxSlot, 'flex');
-        child.add(
-          Flexible(
-            flex: fit == 'inner' ? 0 : (flex ?? 1),
-            fit: fit != 'loose' ? FlexFit.tight : FlexFit.loose,
-            child: slot,
-          ),
-        );
+        if (flow) {
+          if (noStretch) {
+            child.add(slot);
+          } else {
+            child.add(Flexible(flex: 0, fit: FlexFit.loose, child: slot));
+          }
+        } else {
+          var fit = getStringProp(ctxSlot, 'fit');
+          if (disableFlex) {
+            fit = 'inner';
+          }
+          var flex = getIntProp(ctxSlot, 'flex');
+          child.add(
+            Flexible(
+              flex: fit == 'inner' ? 0 : (flex ?? 1), // 1 par defaut
+              fit: fit != 'loose' ? FlexFit.tight : FlexFit.loose,
+              child: slot,
+            ),
+          );
+        }
       }
 
       return Flex(
-        //key: GlobalKey(),
-        direction:
-            getBoolProp(widget.ctx, 'horiz') ?? false
-                ? Axis.horizontal
-                : Axis.vertical,
-        //mainAxisSize: MainAxisSize.min,
+        spacing: layout == 'form' ? 8.0 : 0.0,
+        direction: horiz ? Axis.horizontal : Axis.vertical,
+        mainAxisSize: flow ? MainAxisSize.min : MainAxisSize.max,
         mainAxisAlignment: getMainAxisAlignment('mainAxisAlign'),
-        crossAxisAlignment: getCrossAxisAlignment('crossAxisAlign'),
+        crossAxisAlignment: getCrossAxisAlignment(noStretch, 'crossAxisAlign'),
         children: child,
       );
     });
@@ -313,7 +350,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
     }
   }
 
-  CrossAxisAlignment getCrossAxisAlignment(String name) {
+  CrossAxisAlignment getCrossAxisAlignment(bool noStretch, String name) {
     String v = getStringProp(widget.ctx, name) ?? '';
     switch (v) {
       case 'start':
@@ -323,10 +360,16 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
       case 'center':
         return CrossAxisAlignment.center;
       case 'stretch':
+        if (noStretch) {
+          return CrossAxisAlignment.center;
+        }
         return CrossAxisAlignment.stretch;
       case 'baseline':
         return CrossAxisAlignment.baseline;
       default:
+        if (noStretch) {
+          return CrossAxisAlignment.center;
+        }
         return CrossAxisAlignment.stretch;
     }
   }

@@ -106,7 +106,7 @@ Future<bool> startCore(String usermail, String password) async {
   return true;
 }
 
-Future<ModelSchema>  loadAPI({required String id, String? namespace}) async {
+Future<ModelSchema> loadAPI({required String id, String? namespace}) async {
   var currentAPIResquest = ModelSchema(
     category: Category.api,
     infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
@@ -197,7 +197,7 @@ Future<ModelSchema> loadContent(
   return schema;
 }
 
-Future<ModelSchema> loadPage(String idDomain, bool cache) async {
+Future<ModelSchema> loadDataSource(String idDomain, bool cache) async {
   var schema = ModelSchema(
     category: Category.variable,
     headerName: "pages",
@@ -215,7 +215,7 @@ Future<ModelSchema> loadPage(String idDomain, bool cache) async {
       startError.add("$e");
     }
   }
-  schema.namespace = "default";  
+  schema.namespace = "default";
   currentCompany.listPage = schema;
   return schema;
 }
@@ -232,9 +232,7 @@ Future<ModelSchema> loadVarEnv(
     id: 'var/$idDomain/$idEnv',
     infoManager: InfoManagerDomainVariables(),
     ref: null,
-  )
-  ..namespace=idDomain
-  ;
+  )..namespace = idDomain;
 
   if (withBdd) {
     try {

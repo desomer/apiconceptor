@@ -26,7 +26,7 @@ class ContentAppsPage extends GenericPageStateless {
       withSpacer: false,
       model: null,
       getModel: () {
-        return loadPage("all", false);
+        return loadDataSource("all", false);
       },
       change: appsChanged,
     );

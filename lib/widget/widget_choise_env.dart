@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/list_editor/widget_choise.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';

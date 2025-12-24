@@ -2,15 +2,16 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/company_model.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
+import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
-import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
@@ -26,12 +27,12 @@ class PanResponseViewer extends StatefulWidget {
     super.key,
     required this.requestHelper,
     this.modeLegacy = false,
-    this.configApp,
+    this.callerDatasource,
   });
 
   final WidgetRequestHelper requestHelper;
   final bool modeLegacy;
-  final ConfigApp? configApp;
+  final CallerDatasource? callerDatasource;
 
   @override
   State<PanResponseViewer> createState() => _PanResponseViewerState();
@@ -162,6 +163,13 @@ mixin UIMixin {
             "",
             [],
           )!;
+      // SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
+      //   var data = aJson2ui.stateMgr.data;
+      //   if (data != null) {
+      //     // recharge les bonnes datas
+      //     aJson2ui.loadData(data);
+      //   }
+      // });
     }
     return ret;
   }
@@ -196,10 +204,10 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       modelLoaded,
       apiCallInfo.currentAPIResponse,
       'root',
-      json2uiCriteria,
+      json2ui,
       widget.modeLegacy,
       context,
-      widget.configApp?.criteria,
+      widget.callerDatasource?.configApp.criteria,
     );
 
     return ret.widget;
@@ -223,7 +231,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       widget.modeLegacy,
       // ignore: use_build_context_synchronously
       context,
-      widget.configApp?.criteria,
+      widget.callerDatasource?.configApp.criteria,
     );
 
     return ret.widget;
@@ -252,7 +260,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       widget.modeLegacy,
       // ignore: use_build_context_synchronously
       context,
-      widget.configApp?.data,
+      widget.callerDatasource?.configApp.data,
     );
 
     return ret.widget;
@@ -268,8 +276,9 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
     Widget criteria = await getUIRequest();
     Widget data = await getUIResponse();
 
-    var paginationVariable = widget.configApp?.criteria.paginationVariable;
-    var paginationMin = widget.configApp?.criteria.min ?? 0;
+    var paginationVariable =
+        widget.callerDatasource?.configApp.criteria.paginationVariable;
+    var paginationMin = widget.callerDatasource?.configApp.criteria.min ?? 0;
 
     return SingleChildScrollView(
       child: Column(
@@ -433,9 +442,12 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
         future: getUIPage(),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            if (widget.configApp?.paramToLoad != null && firstLoad) {
+            if (widget.callerDatasource?.configApp.paramToLoad != null &&
+                firstLoad) {
               firstLoad = false;
-              loadCriteria(widget.configApp!.paramToLoad!).then((value) {
+              loadCriteria(
+                widget.callerDatasource!.configApp.paramToLoad!,
+              ).then((value) {
                 // ignore: use_build_context_synchronously
                 startSearch(context);
               });

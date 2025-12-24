@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/feature/home/background_screen.dart';
 
 class BackgroundScreenLogin extends StatelessWidget {
   const BackgroundScreenLogin({super.key});
-
-  bool withImage() {
-    return false;
-  }
 
   @override
   Widget build(BuildContext context) {

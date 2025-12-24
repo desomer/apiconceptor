@@ -8,7 +8,7 @@ import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_doc_response.dart';
 import 'package:jsonschema/feature/api/pan_api_response_status.dart';
 import 'package:jsonschema/feature/api/widget_url.dart';

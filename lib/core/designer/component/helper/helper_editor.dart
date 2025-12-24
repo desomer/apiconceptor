@@ -6,6 +6,10 @@ mixin HelperEditor {
     return ctx.getData()?[ctx.getPropsName()]?[propName]?.toString();
   }
 
+  static Map<String, dynamic>? getObjProp(CwWidgetCtx ctx, String propName) {
+    return ctx.getData()?[ctx.getPropsName()]?[propName];
+  }
+
   static int? getIntProp(CwWidgetCtx ctx, String propName) {
     return int.tryParse(
       ctx.getData()?[ctx.getPropsName()]?[propName]?.toString() ?? '',

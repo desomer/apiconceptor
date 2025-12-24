@@ -12,7 +12,7 @@ import 'package:jsonschema/widget/widget_zoom_selector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 bool showLoginDialog = true;
-bool connect = false;
+bool connect = true;
 
 // ignore: must_be_immutable
 class Layout extends StatefulWidget {

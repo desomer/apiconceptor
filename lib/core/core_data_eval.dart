@@ -5,7 +5,7 @@ import 'package:dart_eval/stdlib/core.dart';
 import 'package:dio/dio.dart';
 import 'package:jmespath/jmespath.dart' show search;
 import 'package:jsonschema/core/api/caller_api.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/start_core.dart';
 
 class CoreDataEval {

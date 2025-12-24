@@ -38,17 +38,24 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
 
     on(CDDesignEvent.select, (selected) {
       CWEventCtx ctx = selected;
-      currentSelect = ctx;
-
-      dev.log("select ${ctx.id}");
+      var displayProps = (ctx.extra?['displayProps'] ?? true) == true;
+      dev.log("select ${ctx.path}");
+      if (ctx.keybox == null) {
+        dev.log("no keybox for ${ctx.path}");
+        return;
+      }
 
       initRecWithKeyPosition(ctx.keybox!, designerKey, position);
       setState(() {}); // postionne l'indicateur
-      if (ctx.ctx != null) {
-        var ctxW = ctx.ctx!;
-        ctxW.aFactory.displayProps(ctxW);
+      if (displayProps) {
+        currentSelect = ctx;
+        if (ctx.ctx != null) {
+          var ctxW = ctx.ctx!;
+          ctxW.aFactory.displayProps(ctxW);
+        }
       }
     });
+
     on(CDDesignEvent.reselect, (selected) {
       CWEventCtx ctx = currentSelect!;
       currentSelect = ctx;
@@ -79,7 +86,12 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
             width: position.right - position.left,
             height: position.bottom - position.top,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.deepOrange),
+              border: Border.all(color: Colors.deepOrange, width: 1.5),
+            ),
+            child: OuterGlowBorder(
+              color: Colors.deepOrange,
+              radius: 0,
+              strokeWidth: 2,
             ),
           ),
         ),
@@ -411,4 +423,62 @@ enum DesignAction {
   moveRight,
   moveLeft,
   none,
+}
+
+class OuterGlowBorder extends StatelessWidget {
+  final Color color;
+  final double radius;
+  final double strokeWidth;
+
+  const OuterGlowBorder({
+    super.key,
+    required this.color,
+    this.radius = 16,
+    this.strokeWidth = 2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _OuterGlowPainter(
+        color: color,
+        radius: radius,
+        strokeWidth: strokeWidth,
+      ),
+      child: Container(), // intérieur totalement transparent
+    );
+  }
+}
+
+class _OuterGlowPainter extends CustomPainter {
+  final Color color;
+  final double radius;
+  final double strokeWidth;
+
+  _OuterGlowPainter({
+    required this.color,
+    required this.radius,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+
+    // Halo externe uniquement
+    final glowPaint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 5);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      glowPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

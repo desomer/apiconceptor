@@ -2,7 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
+import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
+import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_factory_action.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
@@ -10,31 +13,15 @@ class CwAppBar extends CwWidget {
   const CwAppBar({super.key, required super.ctx});
 
   static void initFactory(WidgetFactory factory) {
-    factory.builderWidget['appbar'] = (ctx) {
-      return CwAppBar(ctx: ctx);
-    };
+    config(CwWidgetCtx ctx) {
+      return CwWidgetConfig();
+    }
 
-    factory.builderConfig['appbar'] = (ctx) {
-      return CwWidgetConfig(id: "appbar")
-          .addProp(
-            CwWidgetProperties(id: 'drawer', name: 'with drawer')..isBool(
-              ctx,
-              onJsonChanged: (value) {
-                ctx.onValueChange(repaint: false)(value);
-                ctx.parentCtx!.onValueChange()(value);
-              },
-            ),
-          )
-          .addProp(
-            CwWidgetProperties(id: 'fixDrawer', name: 'fix drawer on desktop')..isBool(
-              ctx,
-              onJsonChanged: (value) {
-                ctx.onValueChange(repaint: false)(value);
-                ctx.parentCtx!.onValueChange()(value);
-              },
-            ),
-          );
-    };
+    factory.register(
+      id: 'appbar',
+      build: (ctx) => CwAppBar(ctx: ctx),
+      config: config,
+    );
   }
 
   @override
@@ -42,12 +29,103 @@ class CwAppBar extends CwWidget {
 }
 
 class _CwPageState extends CwWidgetState<CwAppBar> with HelperEditor {
+  void onAction(CwWidgetCtx ctx, DesignAction action) {
+    String actionStr = '';
+
+    switch (action) {
+      case DesignAction.delete:
+        actionStr = 'delete';
+        break;
+      case DesignAction.addLeft:
+        actionStr = 'before';
+        break;
+      case DesignAction.addRight:
+        actionStr = 'after';
+        break;
+      default:
+    }
+
+    var actMgr = CwFactoryAction(ctx: ctx);
+    if (actionStr == 'delete') {
+      // cannot delete appbar
+      return;
+    } else if (actionStr == 'before') {
+      var slotFrom = 'actions';
+      var slotTo = 'cell_1';
+      actMgr.surround(slotFrom, slotTo, {
+        cwType: 'container',
+        cwProps: <String, dynamic>{
+          'style': 'row',
+          'flow': true,
+          'noStretch': true,
+          "#autoInsert": true,
+          "#autoInsertAtStart": true,
+        },
+      });
+    } else if (actionStr == 'after') {
+      var slotFrom = 'actions';
+      var slotTo = 'cell_0';
+      actMgr.surround(slotFrom, slotTo, {
+        cwType: 'container',
+        cwProps: <String, dynamic>{
+          'style': 'row',
+          'flow': true,
+          'noStretch': true,
+          "#autoInsert": true,
+          "#autoInsertAtStart": true,
+        },
+      });
+    }
+    setState(() {});
+    ctx.selectParent();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return buildWidget((ctx) {
+    return buildWidget(false, (ctx, constraints) {
+      void onDrop(CwWidgetCtx ctx, DropCtx drop) {
+        var type = drop.childData![cwType];
+        var cd = drop.childData!;
+        if (type == 'action') {
+          cd[cwProps]['style'] = 'icon';
+          if (drop.forConfigOnly) {
+            drop.forConfigOnly = false;
+          } else {
+            drop.childData = <String, dynamic>{
+              cwType: 'container',
+              cwProps: <String, dynamic>{
+                'style': 'row',
+                'flow': true,
+                'noStretch': true,
+                "#autoInsert": true,
+                "#autoInsertAtStart": true,
+              },
+            };
+            ctx.aFactory.addInSlot(drop.childData!, 'cell_1', cd);
+          }
+        }
+      }
+
       return AppBar(
         title: getSlot(CwSlotProp(id: 'title', name: 'app title')),
-        actions: [getSlot(CwSlotProp(id: 'actions', name: 'actions'))],
+        actions: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              getSlot(
+                CwSlotProp(
+                  id: 'actions',
+                  name: 'actions',
+                  onAction: onAction,
+                  onDrop: onDrop,
+                ),
+              ),
+            ],
+          ),
+          // getSlot(
+          //   CwSlotProp(id: 'actions', name: 'actions', onAction: onAction),
+          // ),
+        ],
       );
     });
   }

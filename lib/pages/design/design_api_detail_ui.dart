@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';

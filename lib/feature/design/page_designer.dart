@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/pages_viewer.dart';
 import 'package:jsonschema/core/designer/component/props_viewer.dart';
-import 'package:jsonschema/core/designer/component/widget_choiser.dart';
+import 'package:jsonschema/core/designer/component/widget_cmp_choiser.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';

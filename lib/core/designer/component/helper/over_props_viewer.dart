@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/cw_widget.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
 class WidgetOverCmp extends StatefulWidget {
@@ -8,7 +9,7 @@ class WidgetOverCmp extends StatefulWidget {
   @override
   State<WidgetOverCmp> createState() => _WidgetOverCmpState();
   final Widget child;
-  final String? path;
+  final CwWidgetCtx? path;
   final String? mode;
   final HoverCmpManager? overMgr;
 }
@@ -72,16 +73,9 @@ class _WidgetOverCmpState extends State<WidgetOverCmp> {
 }
 
 class HoverCmpManager {
-  String? path;
 
-  void onHover(String onPath) {
-    // var app = CWApplication.of();
-    // if (app.loader.ctxLoader.mode == ModeRendering.design && path != onPath) {
-    //   path = onPath;
-    //   SlotConfig? config = app.factory.mapSlotConstraintByPath[onPath];
-    //   var ctx = config?.slot?.ctx;
-    //   CoreDesigner.emit(CDDesignEvent.over, ctx);
-    // }
+  void onHover(CwWidgetCtx onPath) {
+
   }
 
   void onExit() {

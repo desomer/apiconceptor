@@ -7,7 +7,7 @@ import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';

@@ -66,7 +66,8 @@ class _WidgetTabState extends State<WidgetTab>
     double heightTab = widget.heightTab * (zoom.value / 100);
     if (widget.heightContent == true) {
       return Column(
-        mainAxisSize: MainAxisSize.min,
+        //mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch, // toute la largeur
         children: <Widget>[
           getTabActionLayout(widget.listTab, heightTab),
           widget.listTabCont[controllerTab.index],
@@ -78,6 +79,8 @@ class _WidgetTabState extends State<WidgetTab>
           var heightContent = viewportConstraints.maxHeight - heightTab - 2;
 
           return Column(
+            // mainAxisSize: MainAxisSize.min,
+            // crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               getTabActionLayout(widget.listTab, heightTab),
               Container(

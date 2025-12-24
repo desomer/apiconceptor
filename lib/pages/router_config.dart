@@ -6,7 +6,7 @@ import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';

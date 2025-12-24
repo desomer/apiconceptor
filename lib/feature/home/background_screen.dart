@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+bool withImage() {
+  return true;
+}
+
 class BackgroundScreen extends StatelessWidget {
   const BackgroundScreen({super.key, required this.num});
-
-  bool withImage() {
-    return false;
-  }
 
   final int num;
   final url = const [

@@ -79,6 +79,10 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return true;
   }
 
+  bool canDrag(TreeNodeData<NodeAttribut> node) {
+    return false;
+  }
+
   bool actionRowOnTapDetail = false;
 
   Widget _getContent(BuildContext context) {
@@ -86,13 +90,15 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
       return _schema.modelYaml;
     }
 
-    _yamlConfig ??= CodeEditorConfig(
-      mode: yaml,
-      notifError: ValueNotifier<String>(''),
-      onChange: _getOnChange(),
-      getText: getYaml,
-      readOnly: isReadOnly(),
-    );
+    if (withEditor()) {
+      _yamlConfig ??= CodeEditorConfig(
+        mode: yaml,
+        notifError: ValueNotifier<String>(''),
+        onChange: _getOnChange(),
+        getText: getYaml,
+        readOnly: isReadOnly(),
+      );
+    }
 
     var attrViewer = getTree(context);
     var attributProp = getAttributProperties(context);
@@ -187,6 +193,21 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         return TreeViewData(nodes: ret, headerSize: jsonBrowserWidget.maxSize);
       },
       getHeader: (node) {
+        var canDrag = this.canDrag(node);
+        if (canDrag) {
+          return Draggable<TreeNodeData<NodeAttribut>>(
+            dragAnchorStrategy: pointerDragAnchorStrategy,
+            data: node,
+            feedback: Material(
+              child: getChip(
+                Text(node.data.info.getJsonPath()),
+                color: Colors.blueAccent,
+              ),
+            ),
+            child: _schema.infoManager.getRowHeader(node),
+          );
+        }
+
         return _schema.infoManager.getRowHeader(node);
       },
       getDataRow: (node) {

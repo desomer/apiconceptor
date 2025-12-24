@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
-import 'package:jsonschema/feature/api/api_widget_request_helper.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
+import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/search_editor.dart';

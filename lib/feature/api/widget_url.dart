@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/api/call_manager.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
 
 class WidgetApiParam extends StatefulWidget {
   const WidgetApiParam({super.key, required this.apiCallInfo});

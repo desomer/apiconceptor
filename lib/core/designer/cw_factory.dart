@@ -3,7 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/over_props_viewer.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
+import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
+import 'package:jsonschema/core/designer/core/widget_selectable.dart';
+import 'package:jsonschema/core/designer/widget/cw_action.dart';
 import 'package:jsonschema/core/designer/widget/cw_appbar.dart';
 import 'package:jsonschema/core/designer/widget/cw_container.dart';
 import 'package:jsonschema/core/designer/widget/cw_input.dart';
@@ -14,11 +17,13 @@ import 'package:jsonschema/core/designer/widget/cw_tab.dart';
 import 'package:jsonschema/main.dart';
 
 typedef BuilderWidget = CwWidget Function(CwWidgetCtx ctx);
-typedef CacheWidget = Widget Function(CwWidgetCtx ctx);
+typedef CacheWidget =
+    Widget Function(CwWidgetCtx ctx, BoxConstraints? constraints);
 typedef BuilderWidgetConfig = CwWidgetConfig Function(CwWidgetCtx ctx);
 typedef OnDrapWidgetConfig = void Function(CwWidgetCtx ctx, DropCtx drag);
 typedef OnDropWidgetConfig = void Function(CwWidgetCtx ctx, DropCtx drag);
-typedef OnActionWidgetConfig = void Function(CwWidgetCtx ctx, DesignAction action);
+typedef OnActionWidgetConfig =
+    void Function(CwWidgetCtx ctx, DesignAction action);
 
 const String cwType = 'type';
 const String cwId = 'id';
@@ -35,6 +40,20 @@ class WidgetFactory {
     CwInput.initFactory(this);
     CwContainer.initFactory(this);
     CwTabBar.initFactory(this);
+    CwAction.initFactory(this);
+  }
+
+  void register({
+    required String id,
+    required BuilderWidget build,
+    required BuilderWidgetConfig config,
+    OnDrapWidgetConfig? drag,
+  }) {
+    builderWidget[id] = build;
+    builderConfig[id] = config;
+    if (drag != null) {
+      builderDragConfig[id] = drag;
+    }
   }
 
   Map<String, BuilderWidget> builderWidget = {};
@@ -47,7 +66,7 @@ class WidgetFactory {
     Map<String, dynamic> pages = {
       cwId: '',
       cwType: 'page',
-      cwProps: <String, dynamic>{'color': 'FF448AFF'},
+      cwProps: <String, dynamic>{'color': 'FF448AFF', 'fullheight': true, 'drawer': true, 'fixDrawer': true},
     };
     data[cwSlots][''] = pages;
 
@@ -58,6 +77,7 @@ class WidgetFactory {
 
     var appbar = addInSlot(pages, 'appbar', <String, dynamic>{
       cwType: 'appbar',
+      cwProps: <String, dynamic>{},
     });
     addInSlot(appbar, 'title', {
       cwType: 'input',
@@ -130,22 +150,9 @@ class WidgetFactory {
   void addPropsLayer(CwWidgetCtx aCtx) {
     var config = aCtx.getConfig();
     List<Widget> listPropsWidget = [];
-    var data = '${aCtx.inSlotName} [${aCtx.getData()?[cwType] ?? 'Empty'}]';
+    var name = '${aCtx.getData()?[cwType] ?? 'Empty'} [${aCtx.inSlotName}]';
 
-    listPropsWidget.add(
-      Container(
-        margin: EdgeInsets.fromLTRB(0, 0, 0, 5),
-        width: double.infinity,
-        padding: const EdgeInsets.all(3),
-        color: ThemeHolder.theme.colorScheme.secondaryContainer,
-        child: Center(
-          child: Text(
-            data,
-            style: TextStyle(color: Colors.white60, fontSize: 14),
-          ),
-        ),
-      ),
-    );
+    listPropsWidget.add(getHeader(name, aCtx));
 
     for (CwWidgetProperties prop in config?.properties ?? []) {
       listPropsWidget.add(prop.input!);
@@ -161,9 +168,52 @@ class WidgetFactory {
     }
 
     listPropsEditor.add(
-      WidgetOverCmp(child: Column(children: listPropsWidget)),
+      WidgetOverCmp(
+        path: aCtx,
+        overMgr: HoverCmpManagerImpl(),
+        child: Column(children: listPropsWidget),
+      ),
     );
 
     //-------------------------------------------------
+  }
+
+  Widget getHeader(String name, CwWidgetCtx aCtx) {
+    return GestureDetector(
+      onTap: () {
+        aCtx.select();
+      },
+      child: Container(
+        margin: EdgeInsets.fromLTRB(0, 0, 0, 5),
+        width: double.infinity,
+        padding: const EdgeInsets.all(3),
+        color: ThemeHolder.theme.colorScheme.secondaryContainer,
+        child: Center(
+          child: Text(
+            name,
+            style: TextStyle(color: Colors.white60, fontSize: 14),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HoverCmpManagerImpl extends HoverCmpManager {
+  @override
+  void onHover(CwWidgetCtx onPath) {
+    emit(
+      CDDesignEvent.select,
+      CWEventCtx()
+        ..extra = {'displayProps': false}
+        ..ctx = onPath
+        ..path = onPath.aPath
+        ..keybox = onPath.keyCapture,
+    );
+  }
+
+  @override
+  void onExit() {
+    emit(CDDesignEvent.reselect, null);
   }
 }

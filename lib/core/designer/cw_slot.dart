@@ -61,8 +61,8 @@ class _CwSlotState extends State<CwSlot> {
     return DottedBorder(
       options: RectDottedBorderOptions(
         color: Colors.orange,
-        dashPattern: [10, 5],
-        strokeWidth: 2,
+        dashPattern: [5, 5],
+        strokeWidth: 1,
       ),
       child: IconButton(
         padding: EdgeInsets.zero, // supprime le padding interne

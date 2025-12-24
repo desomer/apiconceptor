@@ -67,8 +67,10 @@ class WidgetSelectorManager {
       }
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
         print("isExiting onHover $isExiting  $currentPath");
-        // ignore: invalid_use_of_protected_member
-        widgetState.setState(() {});
+        if (widgetState.mounted) {
+          // ignore: invalid_use_of_protected_member
+          widgetState.setState(() {});
+        }
       });
     }
 
@@ -229,9 +231,13 @@ class WidgetSelectableState extends State<WidgetSelectable> {
   }
 
   Widget getDraggableWidget(Widget droppable) {
-    return Draggable<DragCtx>(
+    if (widget.slotConfig == null) {
+      return droppable;
+    }
+
+    return Draggable<DragComponentCtx>(
       dragAnchorStrategy: dragAnchorStrategy,
-      data: DragCtx(),
+      data: DragComponentCtx(widget.slotConfig!.ctx),
       childWhenDragging:
           Container(), // remplace par un container vide pendant le drag
       onDragEnd: (details) {
@@ -265,7 +271,7 @@ class WidgetSelectableState extends State<WidgetSelectable> {
             captureKey!.currentContext!.findRenderObject() as RenderBox;
         final Offset localOffset = box.globalToLocal(details.offset);
         print('Position relative dans le DragTarget : $localOffset');
-        details.data.doDragOn(this, context);
+        details.data.doDropOn(this, context);
         currentSelectorManager.removeDrag();
       },
       builder: (context, candidateData, rejectedData) {
@@ -414,7 +420,7 @@ class WidgetSelectableState extends State<WidgetSelectable> {
         CDDesignEvent.select,
         CWEventCtx()
           ..ctx = widget.slotConfig?.ctx
-          ..id = id
+          ..path = id
           ..keybox = captureKey,
       );
       if (widget.withDragAndDrop) {
@@ -590,6 +596,7 @@ class CWRec {
 
 class CWEventCtx {
   GlobalKey? keybox;
-  String? id;
+  String? path;
   CwWidgetCtx? ctx;
+  Map<String, dynamic>? extra;
 }

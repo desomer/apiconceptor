@@ -144,7 +144,7 @@ class _WidgetContentFormState extends State<WidgetContentForm>
               ),
             ),
             onPressed: () async {
-              var pages = await loadPage("all", false);
+              var pages = await loadDataSource("all", false);
               BrowseSingle().browse(pages, false);
               var attr = pages.mapInfoByName[e.toDatasrc];
               if (attr?.isNotEmpty ?? false) {

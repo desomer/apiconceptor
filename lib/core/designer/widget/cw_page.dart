@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
+import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
@@ -8,31 +9,59 @@ class CwPage extends CwWidget {
   const CwPage({super.key, required super.ctx});
 
   static void initFactory(WidgetFactory factory) {
-    factory.builderWidget['page'] = (ctx) {
-      return CwPage(ctx: ctx);
-    };
-
-    factory.builderConfig['page'] = (ctx) {
-      return CwWidgetConfig(id: "page")
-        ..addSlot(CwWidgetSlotConfig(id: "appbar"))
-        ..addSlot(CwWidgetSlotConfig(id: "bottombar"))
-        ..addSlot(CwWidgetSlotConfig(id: "floatingActionButton"))
-        ..addSlot(CwWidgetSlotConfig(id: "body"))
-        ..addProp(
-          CwWidgetProperties(id: 'color', name: 'seed color')..isColor(ctx),
-        )
-        ..addProp(
-          CwWidgetProperties(id: 'darkMode', name: 'dark mode')..isBool(ctx),
-        )
-        ..addProp(
-          CwWidgetProperties(id: 'floating', name: 'floating Action Button')
-            ..isBool(ctx),
-        )
-        ..addProp(
-          CwWidgetProperties(id: 'bottomBar', name: 'bottom Navigation Bar')
-            ..isBool(ctx),
-        );
-    };
+    factory.register(
+      id: 'page',
+      build: (ctx) => CwPage(ctx: ctx),
+      config: (ctx) {
+        return CwWidgetConfig()
+          // ..addSlot(CwWidgetSlotConfig(id: "appbar"))
+          // ..addSlot(CwWidgetSlotConfig(id: "bottombar"))
+          // ..addSlot(CwWidgetSlotConfig(id: "floatingActionButton"))
+          // ..addSlot(CwWidgetSlotConfig(id: "body"))
+          ..addProp(
+            CwWidgetProperties(id: 'color', name: 'seed color')..isColor(ctx),
+          )
+          ..addProp(
+                CwWidgetProperties(id: 'darkMode', name: 'dark mode')
+                  ..isBool(ctx),
+              )
+              .addProp(
+                CwWidgetProperties(id: 'drawer', name: 'with drawer')..isBool(
+                  ctx,
+                  onJsonChanged: (value) {
+                    ctx.onValueChange(repaint: true)(value);
+                    //ctx.parentCtx!.onValueChange()(value);
+                  },
+                ),
+              )
+              .addProp(
+                CwWidgetProperties(
+                  id: 'fixDrawer',
+                  name: 'fix drawer on desktop',
+                )..isBool(
+                  ctx,
+                  onJsonChanged: (value) {
+                    ctx.onValueChange(repaint: true)(value);
+                    //ctx.parentCtx!.onValueChange()(value);
+                  },
+                ),
+              )
+              .addProp(
+                CwWidgetProperties(
+                  id: 'floating',
+                  name: 'floating Action Button',
+                )..isBool(ctx),
+              )
+          ..addProp(
+            CwWidgetProperties(id: 'bottomBar', name: 'bottom Navigation Bar')
+              ..isBool(ctx),
+          )
+          ..addProp(
+            CwWidgetProperties(id: 'fullheight', name: 'full page layout')
+              ..isBool(ctx),
+          );
+      },
+    );
   }
 
   @override
@@ -42,7 +71,7 @@ class CwPage extends CwWidget {
 class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
   @override
   Widget build(BuildContext context) {
-    return buildWidget((ctx) {
+    return buildWidget(false, (ctx, constraints) {
       var isDark = getBoolProp(widget.ctx, 'darkMode') ?? false;
       ThemeData theme = getTheme(isDark);
 
@@ -62,23 +91,36 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
     bool isDesktop = isModeDesktop();
     var withFloating = getBoolProp(widget.ctx, 'floating') ?? false;
     var withBottomBar = getBoolProp(widget.ctx, 'bottomBar') ?? false;
-    var withDrawer =
-        getBoolProp(widget.ctx.childrenCtx?['appbar'], 'drawer') ?? false;
-    var fixDrawer =
-        getBoolProp(widget.ctx.childrenCtx?['appbar'], 'fixDrawer') ?? false;
+    var withDrawer = getBoolProp(widget.ctx, 'drawer') ?? false;
+    var fixDrawer = getBoolProp(widget.ctx, 'fixDrawer') ?? false;
 
     Widget? drawer;
     if (withDrawer) {
+      void onDrop(CwWidgetCtx ctx, DropCtx drop) {
+        var type = drop.childData![cwType];
+        var cd = drop.childData!;
+        if (type == 'action') {
+          if (drop.forConfigOnly) {
+            cd[cwProps]['style'] = 'listTile';
+            cd[cwProps]['icon'] = {
+              "pack": "material",
+              "key": "app_registration",
+            };
+            drop.forConfigOnly = false;
+          } else {
+            drop.childData = <String, dynamic>{
+              cwType: 'container',
+              cwProps: <String, dynamic>{'flow': true, "#autoInsert": true},
+            };
+            ctx.aFactory.addInSlot(drop.childData!, 'cell_0', cd);
+          }
+        }
+      }
+
       drawer = Drawer(
-        child: getSlot(CwSlotProp(id: 'rdrawer', name: 'right drawer')),
-        // child: ListView(
-        //   padding: EdgeInsets.zero,
-        //   children: const [
-        //     DrawerHeader(child: Text('Menu')),
-        //     ListTile(leading: Icon(Icons.home), title: Text('Accueil')),
-        //     ListTile(leading: Icon(Icons.info), title: Text('À propos')),
-        //   ],
-        // ),
+        child: getSlot(
+          CwSlotProp(id: 'rdrawer', name: 'right drawer', onDrop: onDrop),
+        ),
       );
     }
 
@@ -145,17 +187,33 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
     );
   }
 
-  Widget getBody(bool isDesktop, Widget? drawer) {
-    if (isDesktop && drawer != null) {
+  Widget getFixedHeightBody() {
+    var fixheight = getBoolProp(widget.ctx, 'fullheight') ?? false;
+    if (fixheight) {
       return Row(
         children: [
-          SizedBox(width: 250, child: drawer),
-          // contenu principal
           Expanded(child: getSlot(CwSlotProp(id: 'body', name: 'body'))),
         ],
       );
     } else {
-      return getSlot(CwSlotProp(id: 'body', name: 'body'));
+      return SingleChildScrollView(
+        child: getSlot(CwSlotProp(id: 'body', name: 'body')),
+      );
+    }
+  }
+
+  Widget getBody(bool isDesktop, Widget? drawer) {
+    if (isDesktop && drawer != null) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 250, child: drawer),
+          // contenu principal
+          Expanded(child: getFixedHeightBody()),
+        ],
+      );
+    } else {
+      return getFixedHeightBody();
     }
   }
 

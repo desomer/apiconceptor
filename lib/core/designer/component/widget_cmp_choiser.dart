@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
+import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/start_core.dart';
 
 class WidgetChoiser extends StatefulWidget {
   const WidgetChoiser({super.key});
@@ -20,7 +23,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
           {"id": "input", "name": "Title, Label", "icon": Icons.title},
           {
             "id": "action",
-            "name": "Button",
+            "name": "Button, Action, Link",
             "icon": Icons.smart_button_rounded,
           },
         ],
@@ -45,8 +48,37 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
       },
     ];
 
-    final nodes = jsonData.map((e) => Node.fromJson(e)).toList();
-    return NodeTree(nodes: nodes);
+    var dataSource = loadDataSource("all", false);
+
+    return FutureBuilder(
+      future: dataSource,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data == null) {
+          return const Center(child: Text('No data available'));
+        } else {
+          var ds = snapshot.data as ModelSchema;
+          var b = BrowseSingle();
+          b.browse(ds, false);
+          var j = b.root;
+          var listDataSource = <Map<String, dynamic>>[];
+          for (var i = 0; i < j.length; i++) {
+            listDataSource.add({ "id": "ds_${j[i].info.masterID}", "name": j[i].info.name, "icon": Icons.storage,});
+          }
+          jsonData.add({
+            "id": "DataSource",
+            "name": "Data Source",
+            "icon": Icons.folder,
+            "children": listDataSource,
+          });
+          final nodes = jsonData.map((e) => Node.fromJson(e)).toList();
+          return NodeTree(nodes: nodes);
+        }
+      },
+    );
   }
 }
 

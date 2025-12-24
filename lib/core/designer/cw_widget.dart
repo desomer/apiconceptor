@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
 import 'package:jsonschema/core/designer/component/prop_editor/bool_editor.dart';
 import 'package:jsonschema/core/designer/component/prop_editor/color_editor.dart';
+import 'package:jsonschema/core/designer/component/prop_editor/icon_editor.dart';
 import 'package:jsonschema/core/designer/component/prop_editor/text_editor.dart';
 import 'package:jsonschema/core/designer/component/prop_editor/toogle_editor.dart';
+import 'package:jsonschema/core/designer/core/widget_selectable.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
+import 'package:jsonschema/widget/constraint_builder.dart';
 
 class CwWidgetCtxSlot extends CwWidgetCtx {
   CwWidgetCtxSlot({required super.aFactory, required super.id});
@@ -36,6 +40,7 @@ class CwWidgetCtx {
 
   CwWidgetState? state;
   GlobalKey? keyCapture;
+  Map<String, dynamic>? extraRenderingData;
 
   CwWidgetCtx({required this.aFactory, required this.id});
 
@@ -58,8 +63,7 @@ class CwWidgetCtx {
       return ret;
     }
 
-    var c = CwWidgetCtx(id: cid, aFactory: aFactory)
-      ..parentCtx = this;
+    var c = CwWidgetCtx(id: cid, aFactory: aFactory)..parentCtx = this;
     childrenCtx ??= {};
     childrenCtx![cid] = c;
     c.dataWidget = getData()?[cwSlots]?[cid];
@@ -67,7 +71,7 @@ class CwWidgetCtx {
   }
 
   void createDataOnParentIfNeeded() {
-    if (parentCtx != null && parentCtx!.dataWidget?[cwSlots]?[id] == null) {
+    if (parentCtx != null && parentCtx!.dataWidget![cwSlots]?[id] == null) {
       dataWidget = aFactory.addInSlot(parentCtx!.dataWidget!, id, {});
     }
   }
@@ -92,16 +96,27 @@ class CwWidgetCtx {
 
   ValueChanged<Map> onValueChange({bool repaint = true, bool resize = true}) {
     return (newJson) {
-      getData()?[getPropsName()] ??= newJson;
+      createDataOnParentIfNeeded();
+      if (getData()![getPropsName()] == null) {
+        getData()![getPropsName()] = newJson;
+      } else {
+        getData()![getPropsName()]!.addAll(newJson);
+      }
+
       if (repaint) {
         if (state == null) {
           print('ERROR: onValueChange state is null for $aPath');
         }
-
         // ignore: invalid_use_of_protected_member
         state?.setState(() {});
       }
-      if (resize) {
+
+      if (currentSelectorManager.lastSelected?.widget.slotConfig?.ctx.aPath !=
+          aPath) {
+        SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+          select(onlyOverlay: true);
+        });
+      } else if (resize) {
         SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
           emit(CDDesignEvent.reselect, null);
         });
@@ -155,6 +170,27 @@ class CwWidgetCtx {
       dataWidget?.remove(cwSlots);
     }
   }
+
+  void selectParent() {
+    emit(
+      CDDesignEvent.select,
+      CWEventCtx()
+        ..ctx = parentCtx
+        ..path = parentCtx!.aPath
+        ..keybox = parentCtx!.keyCapture,
+    );
+  }
+
+  void select({bool onlyOverlay = false}) {
+    emit(
+      CDDesignEvent.select,
+      CWEventCtx()
+        ..extra = {'displayProps': !onlyOverlay}
+        ..ctx = this
+        ..path = aPath
+        ..keybox = keyCapture,
+    );
+  }
 }
 
 abstract class CwWidget extends StatefulWidget {
@@ -165,15 +201,26 @@ abstract class CwWidget extends StatefulWidget {
 class CwWidgetState<T extends CwWidget> extends State<T> {
   int buildtime = 0;
 
-  Widget buildWidget(CacheWidget builder) {
+  Widget buildWidget(bool withContraint, CacheWidget builder) {
     widget.ctx.state = this;
-    buildtime = DateTime.now().millisecondsSinceEpoch;
-    print('buildWidget ${widget.ctx.aPath} $buildtime');
-    var ret = builder(widget.ctx);
 
-    widget.ctx.cleanWidget(buildtime);
-
-    return ret;
+    if (withContraint) {
+      return ConstraintBuilder(
+        builder: (context, constraints) {
+          buildtime = DateTime.now().millisecondsSinceEpoch;
+          print('buildWidget ${widget.ctx.aPath} $buildtime');
+          var ret = builder(widget.ctx, constraints);
+          widget.ctx.cleanWidget(buildtime);
+          return ret;
+        },
+      );
+    } else {
+      buildtime = DateTime.now().millisecondsSinceEpoch;
+      print('buildWidget ${widget.ctx.aPath} $buildtime');
+      var ret = builder(widget.ctx, null);
+      widget.ctx.cleanWidget(buildtime);
+      return ret;
+    }
   }
 
   @override
@@ -205,6 +252,10 @@ class CwWidgetState<T extends CwWidget> extends State<T> {
     return HelperEditor.getStringProp(ctx, propName);
   }
 
+  Map<String, dynamic>? getObjProp(CwWidgetCtx ctx, String propName) {
+    return HelperEditor.getObjProp(ctx, propName);
+  }
+
   int? getIntProp(CwWidgetCtx ctx, String propName) {
     return HelperEditor.getIntProp(ctx, propName);
   }
@@ -219,11 +270,10 @@ class CwWidgetState<T extends CwWidget> extends State<T> {
 }
 
 class CwWidgetConfig {
-  final String id;
   Map<String, CwWidgetSlotConfig> slotsConfig = {};
   List<CwWidgetProperties> properties = [];
 
-  CwWidgetConfig({required this.id});
+  CwWidgetConfig();
 
   CwWidgetConfig addSlot(CwWidgetSlotConfig prop) {
     slotsConfig[prop.id] = prop;
@@ -252,6 +302,16 @@ class CwWidgetProperties {
   Map<String, dynamic> jsonFromCtx(CwWidgetCtx ctx) {
     ctx.createDataOnParentIfNeeded();
     return ctx.initPropsIfNeeded();
+  }
+
+  void isIcon(CwWidgetCtx ctx) {
+    var json = jsonFromCtx(ctx);
+    input = IconEditor(
+      key: ValueKey('$id@${json.hashCode}'),
+      json: json,
+      config: this,
+      onJsonChanged: ctx.onValueChange(),
+    );
   }
 
   void isInt(CwWidgetCtx ctx, {int defaultValue = 0}) {
@@ -289,9 +349,11 @@ class CwWidgetProperties {
     List items, {
     ValueChanged<Map>? onJsonChanged,
     bool isMultiple = false,
+    String? defaultValue,
   }) {
     var json = jsonFromCtx(ctx);
     input = ToogleEditor(
+      defaultValue: defaultValue,
       key: GlobalKey(), //ValueKey('$id@${json.hashCode}'),
       json: json,
       config: this,
