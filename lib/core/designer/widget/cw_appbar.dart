@@ -55,11 +55,12 @@ class _CwPageState extends CwWidgetState<CwAppBar> with HelperEditor {
       actMgr.surround(slotFrom, slotTo, {
         cwType: 'container',
         cwProps: <String, dynamic>{
-          'style': 'row',
+          'type': 'row',
           'flow': true,
           'noStretch': true,
           "#autoInsert": true,
           "#autoInsertAtStart": true,
+          "crossAxisAlign": "center",
         },
       });
     } else if (actionStr == 'after') {
@@ -68,16 +69,17 @@ class _CwPageState extends CwWidgetState<CwAppBar> with HelperEditor {
       actMgr.surround(slotFrom, slotTo, {
         cwType: 'container',
         cwProps: <String, dynamic>{
-          'style': 'row',
+          'type': 'row',
           'flow': true,
           'noStretch': true,
           "#autoInsert": true,
           "#autoInsertAtStart": true,
+          "crossAxisAlign": "center",
         },
       });
     }
     setState(() {});
-    ctx.selectParent();
+    ctx.selectParentOnDesigner();
   }
 
   @override
@@ -87,18 +89,19 @@ class _CwPageState extends CwWidgetState<CwAppBar> with HelperEditor {
         var type = drop.childData![cwType];
         var cd = drop.childData!;
         if (type == 'action') {
-          cd[cwProps]['style'] = 'icon';
+          cd[cwProps]['type'] = 'icon';
           if (drop.forConfigOnly) {
             drop.forConfigOnly = false;
           } else {
             drop.childData = <String, dynamic>{
               cwType: 'container',
               cwProps: <String, dynamic>{
-                'style': 'row',
+                'type': 'row',
                 'flow': true,
                 'noStretch': true,
                 "#autoInsert": true,
                 "#autoInsertAtStart": true,
+                "crossAxisAlign": "center",
               },
             };
             ctx.aFactory.addInSlot(drop.childData!, 'cell_1', cd);
@@ -112,12 +115,15 @@ class _CwPageState extends CwWidgetState<CwAppBar> with HelperEditor {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              getSlot(
-                CwSlotProp(
-                  id: 'actions',
-                  name: 'actions',
-                  onAction: onAction,
-                  onDrop: onDrop,
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: 40),
+                child: getSlot(
+                  CwSlotProp(
+                    id: 'actions',
+                    name: 'actions',
+                    onAction: onAction,
+                    onDrop: onDrop,
+                  ),
                 ),
               ),
             ],

@@ -38,25 +38,36 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
 
     on(CDDesignEvent.select, (selected) {
       CWEventCtx ctx = selected;
+
       var displayProps = (ctx.extra?['displayProps'] ?? true) == true;
-      dev.log("select ${ctx.path}");
       if (ctx.keybox == null) {
-        dev.log("no keybox for ${ctx.path}");
+        dev.log("*********** no keybox for ${ctx.path}");
         return;
       }
 
       initRecWithKeyPosition(ctx.keybox!, designerKey, position);
+
+      final RenderBox? b = ctx.keybox?.currentContext?.findRenderObject() as RenderBox?;
+      ctx.ctx?.lastSize = b?.size; 
+      
       setState(() {}); // postionne l'indicateur
+
       if (displayProps) {
         currentSelect = ctx;
+        currentSelectorManager.lastSelectedCtx = ctx.ctx;
+        dev.log("select ${ctx.path}");
         if (ctx.ctx != null) {
           var ctxW = ctx.ctx!;
           ctxW.aFactory.displayProps(ctxW);
         }
       }
+      ctx.callback?.call();
     });
 
     on(CDDesignEvent.reselect, (selected) {
+      if (currentSelect == null) {
+        return;
+      }
       CWEventCtx ctx = currentSelect!;
       currentSelect = ctx;
       initRecWithKeyPosition(ctx.keybox!, designerKey, position);

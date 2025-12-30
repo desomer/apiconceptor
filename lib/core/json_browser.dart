@@ -742,6 +742,7 @@ class AttributInfo {
     }
     return curPath.toString();
   }
+
 }
 
 class BrowserAttrInfo {

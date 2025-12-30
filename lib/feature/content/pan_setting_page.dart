@@ -8,7 +8,7 @@ import 'package:jsonschema/feature/content/state_manager.dart';
 
 class PanSettingPage extends StatefulWidget {
   const PanSettingPage({super.key, required this.state});
-  final StateManager state;
+  final StateManagerUI state;
 
   @override
   State<PanSettingPage> createState() => _PanSettingPageState();

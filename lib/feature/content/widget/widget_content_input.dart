@@ -7,6 +7,10 @@ import 'package:jsonschema/start_core.dart';
 
 enum InputType { text, num, bool, choise, date, link }
 
+abstract class WidgetBindJsonState<T extends StatefulWidget> extends State<T> {
+  void setBindJsonValue(dynamic value) {}
+}
+
 class WidgetContentInput extends StatefulWidget {
   const WidgetContentInput({super.key, required this.info});
 
@@ -16,12 +20,17 @@ class WidgetContentInput extends StatefulWidget {
   State<WidgetContentInput> createState() => WidgetContentInputState();
 }
 
-class WidgetContentInputState extends State<WidgetContentInput>
+class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
     with WidgetUIHelper, NameMixin {
   dynamic dataDisplayed;
   String ctrlName = '';
   late TextEditingController ctrl;
   InputType typeInput = InputType.text;
+
+  @override
+  void setBindJsonValue(dynamic value) {
+    ctrl.text = value.toString();
+  }
 
   @override
   void initState() {
@@ -37,7 +46,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
       print("init ctrl $ctrlName");
     }
 
-    widget.info.json2ui.stateMgr.addControler(ctrlName, this);
+    widget.info.json2ui.stateMgr.registerInput(ctrlName, this);
 
     ctrl.addListener(() {
       setValue(widget.info, typeInput, pathDataContainer, ctrl.text);
@@ -111,7 +120,7 @@ class WidgetContentInputState extends State<WidgetContentInput>
       ctrlName = pathDataContainer;
     }
 
-    widget.info.json2ui.stateMgr.removeControler(ctrlName, this);
+    widget.info.json2ui.stateMgr.disposeInput(ctrlName, this);
     ctrl.dispose();
     super.dispose();
   }

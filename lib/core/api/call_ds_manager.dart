@@ -8,6 +8,7 @@ import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:yaml/yaml.dart';
 
@@ -15,10 +16,37 @@ class CallerDatasource {
   WidgetRequestHelper? helper;
   ConfigApp configApp = ConfigApp();
   String domainDs = '';
+  String dsId = '';
   String apiShortName = '';
   ModelSchema? modelHttp200;
 
+  String typeLayout = 'Form';
   List<Map<String, dynamic>> selectionConfig = [];
+
+  Future<void> loadDs(String dataSourceId, String? parentParamId) async {
+    dsId = dataSourceId;
+    await loadConfig('all', dataSourceId, parentParamId);
+
+    var apiCallInfo = helper!.apiCallInfo;
+
+    apiCallInfo.currentAPIRequest ??= await GoTo().getApiRequestModel(
+      apiCallInfo,
+      apiCallInfo.namespace,
+      apiCallInfo.attrApi.masterID!,
+      withDelay: false,
+    );
+
+    apiCallInfo.currentAPIResponse ??= await GoTo().getApiResponseModel(
+      apiCallInfo,
+      apiCallInfo.namespace,
+      apiCallInfo.attrApi.masterID!,
+      withDelay: false,
+    );
+
+    modelHttp200 = await apiCallInfo.currentAPIResponse!.getSubSchema(
+      subNode: 200,
+    );
+  }
 
   Future<WidgetRequestHelper?> loadConfig(
     String domainName,
@@ -28,6 +56,7 @@ class CallerDatasource {
     var apps = await loadDataSource(domainName, false);
     var b = BrowseSingle();
     b.browse(apps, false);
+    dsId = datasourceId;
 
     var app = apps.nodeByMasterId[datasourceId];
     print('load ds $datasourceId name = ${app!.info.name}');

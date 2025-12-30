@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/company_model.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
@@ -20,7 +19,6 @@ import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
-import 'package:jsonschema/widget/widget_logger.dart';
 
 class PanResponseViewer extends StatefulWidget {
   const PanResponseViewer({
@@ -501,105 +499,12 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
   }
 
   void startSearch(BuildContext context) async {
-    bool isCancelled = false;
-    final cancelToken = CancelToken();
-
-    showDownloadDialog(context, () {
-      isCancelled = true;
-      cancelToken.cancel('Request cancelled by user');
-    });
-
-    apiCallInfo.initListParams(paramJson: json2uiCriteria.stateMgr.data);
-    widget.requestHelper.initUrl(context);
-
-    await widget.requestHelper.doExecuteRequest(cancelToken);
-
-    if (!isCancelled && dialogCtx?.mounted == true) {
-      Navigator.of(dialogCtx!).pop(); // ferme la boîte si pas annulé
-    }
-
-    if (apiCallInfo.aResponse?.reponse?.statusCode == 200) {
-      json2ui.stateMgr.data = apiCallInfo.aResponse?.reponse?.data;
-      json2ui.loadData(json2ui.stateMgr.data);
-    } else {
-      showErrorDialog(
-        // ignore: use_build_context_synchronously
-        context,
-        apiCallInfo.aResponse,
-      );
-    }
-  }
-
-  BuildContext? dialogCtx;
-
-  void showErrorDialog(BuildContext context, APIResponse? res) {
-    var message = widget.requestHelper.getStringResponse();
-    Size size = MediaQuery.of(context).size;
-    double width = size.width * 0.5;
-    double height = size.height * 0.5;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text('Error', style: TextStyle(color: Colors.red)),
-          content: SizedBox(
-            height: height,
-            width: width,
-            child: Column(
-              spacing: 10,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(message),
-                Expanded(
-                  child: LogViewer(
-                    fct: () {
-                      return widget.requestHelper.apiCallInfo.logs;
-                    },
-                    change: ValueNotifier<int>(0),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> showDownloadDialog(BuildContext context, VoidCallback onCancel) {
-    return showDialog(
-      context: context,
-      barrierDismissible:
-          false, // empêche la fermeture en cliquant à l'extérieur
-      builder: (BuildContext ctx) {
-        dialogCtx = ctx;
-        return AlertDialog(
-          title: Text('sending request'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 20),
-              Text('Wait while the request is being sent...'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop(); // ferme la boîte de dialogue
-                onCancel(); // appelle la fonction d'annulation
-              },
-              child: Text('Cancel'),
-            ),
-          ],
-        );
+    widget.requestHelper.startCancellableSearch(
+      context,
+      json2uiCriteria.stateMgr.data,
+      () {
+        json2ui.stateMgr.data = apiCallInfo.aResponse?.reponse?.data;
+        json2ui.loadData(json2ui.stateMgr.data);
       },
     );
   }

@@ -4,6 +4,7 @@ import 'package:jsonschema/core/designer/component/widget_carousel_choice.dart';
 import 'package:jsonschema/core/designer/component/widget_drop_attr.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/transform/pan_model_viewer.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 
 import '../../../widget/tree_editor/tree_view.dart';
@@ -16,7 +17,7 @@ class PagesDatasource extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ValueNotifier<String> sourceName = ValueNotifier<String>("Criteria");
-
+    ValueNotifier<String> typeName = ValueNotifier<String>("Form");
     return Column(
       children: [
         SizedBox(
@@ -45,7 +46,8 @@ class PagesDatasource extends StatelessWidget {
                     'Chart',
                   ],
                   onSelected: (value) {
-                    print('Selected layout: $value');
+                    typeName.value = value;
+                    dsCaller.typeLayout = value;
                   },
                 ),
               ),
@@ -86,7 +88,7 @@ class PagesDatasource extends StatelessWidget {
                   var data = (detail.data as TreeNodeData<NodeAttribut>).data;
                   return <String, dynamic>{
                     'src': sourceName.value,
-                    'id': data.info.masterID,
+                    'id': data.info.masterID ?? data.info.properties?[constMasterID],
                     'path': data.info.getJsonPath().substring(5),
                   };
                 },

@@ -1,17 +1,25 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
+import 'package:jsonschema/core/designer/cw_factory.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 
 class WidgetChoiser extends StatefulWidget {
-  const WidgetChoiser({super.key});
+  const WidgetChoiser({required this.factory, super.key});
+
+  final WidgetFactory factory;
 
   @override
   State<WidgetChoiser> createState() => _WidgetChoiserState();
 }
 
+ValueNotifier<int> componentValueListenable = ValueNotifier<int>(0);
+
 class _WidgetChoiserState extends State<WidgetChoiser> {
+  ModelSchema? dataSourceModel;
+
   @override
   Widget build(BuildContext context) {
     final jsonData = [
@@ -44,6 +52,11 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "icon": Icons.tab,
           },
           {"id": "menu", "name": "Menu, Popup Menu", "icon": Icons.menu},
+          {
+            "id": "list",
+            "name": "List, Data List",
+            "icon": Icons.view_list,
+          },          
         ],
       },
     ];
@@ -66,16 +79,60 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
           var j = b.root;
           var listDataSource = <Map<String, dynamic>>[];
           for (var i = 0; i < j.length; i++) {
-            listDataSource.add({ "id": "ds_${j[i].info.masterID}", "name": j[i].info.name, "icon": Icons.storage,});
+            listDataSource.add({
+              "type": "datasource",
+              "id": j[i].info.masterID,
+              "name": j[i].info.name,
+              "icon": Icons.storage,
+            });
           }
-          jsonData.add({
-            "id": "DataSource",
-            "name": "Data Source",
-            "icon": Icons.folder,
-            "children": listDataSource,
-          });
-          final nodes = jsonData.map((e) => Node.fromJson(e)).toList();
-          return NodeTree(nodes: nodes);
+
+          return ValueListenableBuilder(
+            valueListenable: componentValueListenable,
+            builder: (context, value, child) {
+              var listRepos = <Map<String, dynamic>>[];
+
+              jsonData.removeWhere((element) => element['id'] == 'Repository');
+              jsonData.removeWhere((element) => element['id'] == 'DataSource');
+
+              Map data = widget.factory.data[cwSlots];
+              for (var key in data.keys) {
+                if (key.toString().startsWith('rp_')) {
+                  var repoId = key.toString().substring(3);
+                  var idDs = data[key][cwProps]['dsId'];
+                  Map? ds = listDataSource.firstWhereOrNull((element) {
+                    return element['id'] == idDs;
+                  });
+                  if (ds == null) continue;
+                  listRepos.add({
+                    "type": "repository",
+                    "id": repoId,
+                    "name": "Repos. ${ds['name']}",
+                    "icon": Icons.move_to_inbox_rounded,
+                    "ds": idDs,
+                  });
+                }
+              }
+              if (listRepos.isNotEmpty) {
+                jsonData.add({
+                  "id": "Repository",
+                  "name": "Repository",
+                  "icon": Icons.folder,
+                  "children": listRepos,
+                });
+              }
+
+              jsonData.add({
+                "id": "DataSource",
+                "name": "Data Source",
+                "icon": Icons.folder,
+                "children": listDataSource,
+              });
+
+              final nodes = jsonData.map((e) => Node.fromJson(e)).toList();
+              return NodeTree(nodes: nodes);
+            },
+          );
         }
       },
     );
@@ -87,6 +144,7 @@ class Node {
   final String id;
   final String name;
   final IconData icon;
+  final Map json;
   final List<Node> children;
 
   Node({
@@ -94,6 +152,7 @@ class Node {
     required this.name,
     required this.icon,
     this.children = const [],
+    required this.json,
   });
 
   /// Factory pour construire depuis un JSON
@@ -102,6 +161,7 @@ class Node {
       id: json['id'],
       name: json['name'],
       icon: json['icon'],
+      json: json,
       children:
           (json['children'] as List<dynamic>? ?? [])
               .map((child) => Node.fromJson(child))
@@ -124,7 +184,7 @@ class NodeTree extends StatelessWidget {
   Widget _buildNode(Node node) {
     if (node.children.isEmpty) {
       return Draggable<DragNewComponentCtx>(
-        data: DragNewComponentCtx(idComponent: node.id),
+        data: DragNewComponentCtx(idComponent: node.id, config: node.json),
         dragAnchorStrategy: pointerDragAnchorStrategy,
         feedback: SizedBox(
           width: 250,

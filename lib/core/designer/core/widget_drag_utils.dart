@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/designer/component/pages_datasource.dart';
 import 'package:jsonschema/core/designer/component/pages_viewer.dart';
+import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_selectable.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_factory_bloc.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
-import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
-import 'package:jsonschema/pages/router_config.dart';
 
 class DropCtx {
   final Map<String, dynamic>? parentData;
   Map<String, dynamic>? childData;
   final String? componentId;
   final CwWidgetCtx? source;
-  bool forConfigOnly =
-      false; // demande juste la config sans ajout effectif pour typer par rapport au container parent
+  // demande juste la config sans ajout effectif pour typer par rapport au container parent
+  bool forConfigOnly = false;
 
   Function? afterAdded;
 
@@ -76,7 +76,7 @@ class DragComponentCtx extends DragCtx {
     // ignore: invalid_use_of_protected_member
     source.parentCtx!.state?.setState(() {});
 
-    ctxOn.selectParent();
+    ctxOn.selectOnDesigner();
 
     // state.widget.slotConfig!.ctx.aFactory.builderDragConfig[idComponent]?.call(
     //   ctx,
@@ -85,9 +85,10 @@ class DragComponentCtx extends DragCtx {
   }
 }
 
-class DragNewComponentCtx extends DragCtx with NameMixin {
+class DragNewComponentCtx extends DragCtx {
   final String idComponent;
-  DragNewComponentCtx({required this.idComponent});
+  final Map config;
+  DragNewComponentCtx({required this.idComponent, required this.config});
 
   @override
   void doDropOn(WidgetSelectableState state, BuildContext context) {
@@ -97,8 +98,16 @@ class DragNewComponentCtx extends DragCtx with NameMixin {
       cwProps: <String, dynamic>{},
     };
 
-    if (idComponent.startsWith('ds_')) {
-      showConfigDataSrc(ctx, idComponent, context).then((changed) {
+    if (config['type'] == 'datasource') {
+      showConfigDataSrc(ctx, idComponent, context, config).then((changed) {
+        if (changed != null) {
+          param = changed;
+          doActionDrop(ctx, param, state);
+        }
+      });
+    } else if (config['type'] == 'repository') {
+      var dsId = config['ds'];
+      showConfigDataSrc(ctx, dsId, context, config).then((changed) {
         if (changed != null) {
           param = changed;
           doActionDrop(ctx, param, state);
@@ -138,35 +147,18 @@ class DragNewComponentCtx extends DragCtx with NameMixin {
 
     // ignore: invalid_use_of_protected_member
     ctx.parentCtx!.state?.setState(() {});
+
+    ctx.selectOnDesigner();
   }
 
   Future<Map<String, dynamic>?> showConfigDataSrc(
     CwWidgetCtx ctx,
-    String idComponent,
+    String dataSourceId,
     BuildContext bctx,
+    Map config,
   ) async {
     CallerDatasource ds = CallerDatasource();
-    var datasourceId = idComponent.substring(3);
-    await ds.loadConfig('all', datasourceId, null);
-    var apiCallInfo = ds.helper!.apiCallInfo;
-
-    apiCallInfo.currentAPIRequest ??= await GoTo().getApiRequestModel(
-      apiCallInfo,
-      apiCallInfo.namespace,
-      apiCallInfo.attrApi.masterID!,
-      withDelay: false,
-    );
-
-    apiCallInfo.currentAPIResponse ??= await GoTo().getApiResponseModel(
-      apiCallInfo,
-      apiCallInfo.namespace,
-      apiCallInfo.attrApi.masterID!,
-      withDelay: false,
-    );
-
-    ds.modelHttp200 = await apiCallInfo.currentAPIResponse!.getSubSchema(
-      subNode: 200,
-    );
+    await ds.loadDs(dataSourceId, null);
 
     if (ds.modelHttp200 == null) {
       print('No response model for 200');
@@ -196,35 +188,11 @@ class DragNewComponentCtx extends DragCtx with NameMixin {
             ),
             TextButton(
               child: const Text('add data source'),
-              onPressed: () {
+              onPressed: () async {
+                ret = await CwFactoryBloc().doDataSrcBloc(config, ds, ctx);
+                // ignore: use_build_context_synchronously
                 Navigator.of(context).pop();
-
-                var list = ds.selectionConfig;
-
-                ret = {
-                  cwType: 'container',
-                  cwProps: <String, dynamic>{
-                    'style': 'column',
-                    'layout': 'flow',
-                    'nbchild': list.length,
-                  },
-                };
-                for (var i = 0; i < list.length; i++) {
-                  ModelSchema? model;
-
-                  if (list[i]['src'] == 'Criteria') {
-                    model = ds.helper!.apiCallInfo.currentAPIRequest!;
-                  } else if (list[i]['src'] == 'Data') {
-                    model = ds.modelHttp200!;
-                  }
-
-                  var info = model!.nodeByMasterId[list[i]['id']]!.info;
-
-                  ctx.aFactory.addInSlot(ret!, 'cell_$i', {
-                    cwType: 'input',
-                    cwProps: <String, dynamic>{'label': camelCaseToWords(info.name)},
-                  });
-                }
+                emitLater(CDDesignEvent.reselect, null, multiple: true);
               },
             ),
           ],
@@ -239,7 +207,9 @@ class DragNewComponentCtx extends DragCtx with NameMixin {
 //-----------------------------------------------------------
 
 class CWSlotImage extends StatefulWidget {
-  const CWSlotImage({super.key});
+  const CWSlotImage({super.key, this.selectableState});
+
+  final WidgetSelectableState? selectableState;
 
   @override
   CWSlotImageState createState() => CWSlotImageState();
@@ -247,9 +217,27 @@ class CWSlotImage extends StatefulWidget {
 
 class CWSlotImageState extends State<CWSlotImage> {
   static Widget? imageCmp;
+  static String? path;
 
   @override
   Widget build(BuildContext context) {
+    if (imageCmp == null || path != widget.selectableState?.widget.getPath()) {
+      
+      SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+        widget.selectableState?.capturePng().then((image) {
+          SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+            if (mounted) {
+              // ignore: invalid_use_of_protected_member
+              setState(() {
+                imageCmp = image;
+                path = widget.selectableState?.widget.getPath();
+              });
+            }
+          });
+        });
+      });
+    }
+
     return Container(
       color: Colors.black45,
       child: imageCmp ?? const Text('vide'),

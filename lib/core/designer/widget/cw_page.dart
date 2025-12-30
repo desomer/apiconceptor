@@ -101,7 +101,7 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
         var cd = drop.childData!;
         if (type == 'action') {
           if (drop.forConfigOnly) {
-            cd[cwProps]['style'] = 'listTile';
+            cd[cwProps]['type'] = 'listTile';
             cd[cwProps]['icon'] = {
               "pack": "material",
               "key": "app_registration",

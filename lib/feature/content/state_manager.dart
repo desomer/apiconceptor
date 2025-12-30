@@ -6,139 +6,20 @@ import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 
-class StateManager {
+class StateManagerUI extends StateManager {
   dynamic jsonUI;
-  dynamic data;
-  dynamic dataEmpty;
-
   ConfigBlock? config;
-
   BrowserPan browser = BrowserPan();
-
   Map<String, List<ConfigFormContainer>> configLayout = {};
   Map<String, ConfigArrayContainer> configArray = {};
 
   final Map<String, StateContainer> stateTemplate =
       {}; // container des templates (plus utile... remplacer par le PanInfo)
-  final Map<String, StateContainer> statesTreeData =
-      {}; // les container de data
 
-  final Map<String, WidgetContentInputState> listInput =
-      {}; // liste des input controleur actif
-  final Map<String, State> listContainer = {};
-
-  void loadDataInContainer(dynamic json, {String pathData = ''}) {
-    if (json is Map) {
-      _addStateTreeData(pathData, StateContainerObject()..jsonData = json);
-      json.forEach((key, value) {
-        final currentPath = '$pathData/$key';
-        loadDataInContainer(value, pathData: currentPath);
-      });
-      _doReloadContainer(pathData);
-    } else if (json is List) {
-      _addStateTreeData(pathData, StateContainerArray()..jsonData = json);
-      for (int i = 0; i < json.length; i++) {
-        final currentPath = '$pathData[$i]';
-        loadDataInContainer(json[i], pathData: currentPath);
-      }
-      _doReloadContainer(pathData);
-    } else {
-      // Valeur primitive
-      _initInputControleur(pathData, json, 0);
-    }
-  }
-
-  void _addStateTreeData(String pathData, StateContainer container) {
-    //print('==>> addStateTreeData $pathData ${container.hashCode}');
-    var p = pathData.split('/');
-    StateContainer? last;
-    if (p.length == 1) {
-      statesTreeData[""] = container;
-      return;
-    }
-    last = statesTreeData[""];
-    for (var i = 1; i < p.length - 1; i++) {
-      last = last!.stateChild[p[i]];
-    }
-    last!.stateChild[p[p.length - 1]] = container;
-  }
-
-  void _doReloadContainer(String pathData) {
-    var containerState = listContainer[pathData];
-    if (containerState?.mounted ?? false) {
-      // ignore: invalid_use_of_protected_member
-      containerState!.setState(() {});
-    }
-  }
-
-  void _initInputControleur(String pathData, var json, int antiLoop) {
-    if (antiLoop > 3) {
-      //print("********** no visible pathData: $pathData $antiLoop");
-      return;
-    }
-
-    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-      try {
-        var stateInput = listInput[pathData];
-        if (stateInput?.mounted ?? false) {
-          stateInput!.ctrl.text = json.toString();
-          if (antiLoop > 0) {
-            // print("load pathData: $pathData $antiLoop > $json");
-          }
-        } else {
-          // print("no visible pathData: $pathData $antiLoop > $json");
-          antiLoop++;
-
-          _initInputControleur(pathData, json, antiLoop);
-        }
-      } catch (e) {
-        print("erreur pathData: $pathData => $e");
-      }
-    });
-  }
-
-  void addControler(String pathData, WidgetContentInputState ctrl) {
-    //print("addControler $pathData");
-    listInput[pathData] = ctrl;
-  }
-
-  void removeControler(String pathData, WidgetContentInputState ctrl) {
-    if (listInput[pathData] == ctrl) {
-      //rint("removeControler $pathData");
-      listInput.remove(pathData);
-    }
-  }
-
-  void addContainer(String pathData, State widgetState) {
-    //print("addContainer $pathData");
-    listContainer[pathData] = widgetState;
-  }
-
-  void removeContainer(String pathData) {
-    listContainer.remove(pathData);
-  }
-
-  void clear() {
-    data = null;
-    statesTreeData.clear();
-
-    for (var element in listContainer.entries) {
-      if (element.value.mounted) {
-        // ignore: invalid_use_of_protected_member
-        element.value.setState(() {});
-      }
-    }
-    for (var element in listInput.entries) {
-      // ignore: invalid_use_of_protected_member
-      element.value.ctrl.text = '';
-    }
-  }
-
+  @override
   void dispose() {
     stateTemplate.clear();
-    statesTreeData.clear();
-    listInput.clear();
-    listContainer.clear();
+    super.dispose();
   }
 
   Map storeConfigLayout(ModelSchema model) {
@@ -224,6 +105,129 @@ class StateManager {
   }
 }
 
+class StateManager {
+  dynamic data;
+  dynamic dataEmpty;
+
+  // les container de data
+  final Map<String, StateContainer> statesTreeData = {};
+  // liste des input controleur actif
+  final Map<String, WidgetBindJsonState> listInputByPath = {};
+  final Map<String, State> listContainerByPath = {};
+
+  // pathData de type /objet/child1/child2 or /array[0]/child1/child2
+
+  void loadDataInContainer(dynamic json, {String pathData = ''}) {
+    if (json is Map) {
+      _addStateTreeData(pathData, StateContainerObject()..jsonData = json);
+      json.forEach((key, value) {
+        final currentPath = '$pathData/$key';
+        loadDataInContainer(value, pathData: currentPath);
+      });
+      _doReloadContainer(pathData);
+    } else if (json is List) {
+      _addStateTreeData(pathData, StateContainerArray()..jsonData = json);
+      for (int i = 0; i < json.length; i++) {
+        final currentPath = '$pathData[$i]';
+        loadDataInContainer(json[i], pathData: currentPath);
+      }
+      _doReloadContainer(pathData);
+    } else {
+      // Valeur primitive
+      _initInputControleur(pathData, json, 0);
+    }
+  }
+
+  void _addStateTreeData(String pathData, StateContainer container) {
+    //print('==>> addStateTreeData $pathData ${container.hashCode}');
+    var p = pathData.split('/');
+    StateContainer? last;
+    if (p.length == 1) {
+      statesTreeData[""] = container;
+      return;
+    }
+    last = statesTreeData[""];
+    for (var i = 1; i < p.length - 1; i++) {
+      last = last!.stateChild[p[i]];
+    }
+    last!.stateChild[p[p.length - 1]] = container;
+  }
+
+  void _doReloadContainer(String pathData) {
+    var containerState = listContainerByPath[pathData];
+    if (containerState?.mounted ?? false) {
+      // ignore: invalid_use_of_protected_member
+      containerState!.setState(() {});
+    }
+  }
+
+  void _initInputControleur(String pathData, var json, int antiLoop) {
+    if (antiLoop > 3) {
+      //print("********** no visible pathData: $pathData $antiLoop");
+      return;
+    }
+
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+      try {
+        var stateInput = listInputByPath[pathData];
+        if (stateInput?.mounted ?? false) {
+          stateInput!.setBindJsonValue(json);
+          if (antiLoop > 0) {
+            // print("load pathData: $pathData $antiLoop > $json");
+          }
+        } else {
+          // print("no visible pathData: $pathData $antiLoop > $json");
+          antiLoop++;
+
+          _initInputControleur(pathData, json, antiLoop);
+        }
+      } catch (e) {
+        print("erreur pathData: $pathData => $e");
+      }
+    });
+  }
+
+  void registerInput(String pathData, WidgetBindJsonState ctrl) {
+    listInputByPath[pathData] = ctrl;
+  }
+
+  void disposeInput(String pathData, WidgetBindJsonState ctrl) {
+    if (listInputByPath[pathData] == ctrl) {
+      listInputByPath.remove(pathData);
+    }
+  }
+
+  void registerContainer(String pathData, State widgetState) {
+    //print("addContainer $pathData");
+    listContainerByPath[pathData] = widgetState;
+  }
+
+  void disposeContainer(String pathData) {
+    listContainerByPath.remove(pathData);
+  }
+
+  void clear() {
+    data = null;
+    statesTreeData.clear();
+
+    for (var element in listContainerByPath.entries) {
+      if (element.value.mounted) {
+        // ignore: invalid_use_of_protected_member
+        element.value.setState(() {});
+      }
+    }
+    for (var element in listInputByPath.entries) {
+      element.value.setBindJsonValue("");
+    }
+  }
+
+  void dispose() {
+    statesTreeData.clear();
+    listInputByPath.clear();
+    listContainerByPath.clear();
+  }
+}
+
 class StateContainer {
   dynamic jsonTemplate;
   dynamic jsonData;
@@ -240,7 +244,9 @@ class StateContainerObjectAny extends StateContainer {}
 
 class StateContainerObject extends StateContainer {}
 
-class StateContainerArray extends StateContainer {}
+class StateContainerArray extends StateContainer {
+  int currentIndex = 0;
+}
 
 //--------------------------------------------------------------------------
 class ConfigContainer {

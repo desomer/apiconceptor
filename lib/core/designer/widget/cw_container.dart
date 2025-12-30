@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
@@ -6,6 +7,7 @@ import 'package:jsonschema/core/designer/cw_factory.dart';
 import 'package:jsonschema/core/designer/cw_factory_action.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
+import 'package:jsonschema/core/designer/widget/cw_style.dart.dart';
 
 List listAxisCol = [
   {'icon': Icons.align_vertical_top, 'value': 'start'},
@@ -51,11 +53,11 @@ class CwContainer extends CwWidget with HelperEditor {
       id: 'container',
       build: (ctx) => CwContainer(ctx: ctx),
       config: (ctx) {
-        var horz = HelperEditor.getStringProp(ctx, 'style') == 'row';
+        var horz = HelperEditor.getStringProp(ctx, 'type') == 'row';
 
         var ret = CwWidgetConfig()
             .addProp(
-              CwWidgetProperties(id: 'style', name: 'style')..isToogle(ctx, [
+              CwWidgetProperties(id: 'type', name: 'type')..isToogle(ctx, [
                 {'icon': Icons.table_rows_rounded, 'value': 'column'},
                 {'icon': Icons.view_week, 'value': 'row'},
                 //{'icon': Icons.grid_view, 'value': 'grid'},
@@ -80,7 +82,7 @@ class CwContainer extends CwWidget with HelperEditor {
         var noStretch = ctx.extraRenderingData?['noStretch'] == true;
         ret
             .addProp(
-              CwWidgetProperties(id: 'mainAxisAlign', name: 'alignment')
+              CwWidgetProperties(id: 'mainAxisAlign', name: 'internal align')
                 ..isToogle(
                   ctx,
                   horz ? listAxisRow : listAxisCol,
@@ -92,7 +94,7 @@ class CwContainer extends CwWidget with HelperEditor {
                 ..isToogle(
                   ctx,
                   horz ? listCrossRow : listCrossCol,
-                  defaultValue: noStretch ? 'start' : 'stretch',
+                  defaultValue: noStretch ? 'stretch' : 'stretch',
                 ),
             );
 
@@ -127,10 +129,10 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
     if (type == 'input') {
       drop.childData![cwProps]['label'] = 'New Cell';
     } else if (type == 'container') {
-      var horiz = drop.parentData![cwProps]?['style'] == 'row';
-      if (!horiz && drop.childData?[cwProps]?['style'] == null) {
+      var horiz = drop.parentData![cwProps]?['type'] == 'row';
+      if (!horiz && drop.childData?[cwProps]?['type'] == null) {
         // default is row si parent is column
-        drop.childData![cwProps]['style'] = 'row';
+        drop.childData![cwProps]['type'] = 'row';
       }
     }
 
@@ -138,6 +140,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
     if (ctx.parentCtx!.extraRenderingData?['autoInsert'] == true) {
       autoInsert = true;
     }
+
     if (autoInsert) {
       int nb = getIntProp(ctx.parentCtx!, 'nbchild') ?? 2;
       int nbFill = 0;
@@ -165,7 +168,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
 
   void onActionCell(CwWidgetCtx ctx, DesignAction action) {
     var props = ctx.parentCtx!.initPropsIfNeeded();
-    var horiz = HelperEditor.getStringProp(ctx.parentCtx!, 'style') == 'row';
+    var horiz = HelperEditor.getStringProp(ctx.parentCtx!, 'type') == 'row';
 
     String actionStr = '';
     if (horiz) {
@@ -222,7 +225,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
         var slotTo = 'cell_0';
         actMgr.surround(slotFrom, slotTo, {
           cwType: 'container',
-          cwProps: <String, dynamic>{'style': horiz ? 'column' : 'row'},
+          cwProps: <String, dynamic>{'type': horiz ? 'column' : 'row'},
         });
         break;
       case 'surround1':
@@ -230,7 +233,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
         var slotTo = 'cell_1';
         actMgr.surround(slotFrom, slotTo, {
           cwType: 'container',
-          cwProps: <String, dynamic>{'style': horiz ? 'column' : 'row'},
+          cwProps: <String, dynamic>{'type': horiz ? 'column' : 'row'},
         });
         break;
       case 'before':
@@ -243,15 +246,20 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
         break;
       default:
     }
-    setState(() {});
-    ctx.selectParent();
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+      if (mounted) {
+        setState(() {});
+        ctx.selectParentOnDesigner();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return buildWidget(true, (ctx, constraints) {
+      // print('path ${ctx.aPath} $constraints ${ctx.lastSize} ');
       List<Widget> child = [];
-      var horiz = getStringProp(ctx, 'style') == 'row';
+      var horiz = getStringProp(ctx, 'type') == 'row';
       bool noStretch = getBoolProp(ctx, 'noStretch') ?? false;
       bool flow = getBoolProp(ctx, 'flow') ?? false;
       bool disableFlex = false;
@@ -319,15 +327,34 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
         }
       }
 
-      return Flex(
-        spacing: layout == 'form' ? 8.0 : 0.0,
-        direction: horiz ? Axis.horizontal : Axis.vertical,
-        mainAxisSize: flow ? MainAxisSize.min : MainAxisSize.max,
-        mainAxisAlignment: getMainAxisAlignment('mainAxisAlign'),
-        crossAxisAlignment: getCrossAxisAlignment(noStretch, 'crossAxisAlign'),
-        children: child,
+      var layoutStyle = CwStyleDart();
+      if (layout == 'form') {
+        layoutStyle.layout = 'form';
+        layoutStyle.spacing = 8.0;
+        layoutStyle.padding = 8.0;
+      }
+
+      return getExternalStyle(
+        layoutStyle,
+        Flex(
+          spacing: layoutStyle.spacing ?? 0,
+          direction: horiz ? Axis.horizontal : Axis.vertical,
+          mainAxisSize: flow ? MainAxisSize.min : MainAxisSize.max,
+          mainAxisAlignment: getMainAxisAlignment('mainAxisAlign'),
+          crossAxisAlignment: getCrossAxisAlignment(
+            noStretch,
+            'crossAxisAlign',
+          ),
+          children: child,
+        ),
       );
     });
+  }
+
+  Widget getExternalStyle(CwStyleDart style, Widget child) {
+    return style.padding != null
+        ? Padding(padding: EdgeInsets.all(style.padding!), child: child)
+        : child;
   }
 
   MainAxisAlignment getMainAxisAlignment(String name) {
@@ -361,14 +388,16 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
         return CrossAxisAlignment.center;
       case 'stretch':
         if (noStretch) {
-          return CrossAxisAlignment.center;
+          widget.ctx.dataWidget?[cwProps]?[name] = 'start';
+          return CrossAxisAlignment.start;
         }
         return CrossAxisAlignment.stretch;
       case 'baseline':
         return CrossAxisAlignment.baseline;
       default:
         if (noStretch) {
-          return CrossAxisAlignment.center;
+          print("noStretch: ${widget.ctx.aPath}");
+          return CrossAxisAlignment.start;
         }
         return CrossAxisAlignment.stretch;
     }

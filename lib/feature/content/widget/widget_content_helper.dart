@@ -105,7 +105,7 @@ mixin NameMixin {
 }
 
 mixin StateManagerMixin {
-  final StateManager stateMgr = StateManager();
+  final StateManagerUI stateMgr = StateManagerUI();
   bool haveTemplate = false; // sans jsonSchemas
   bool modeTemplate = false; // plus utile
 

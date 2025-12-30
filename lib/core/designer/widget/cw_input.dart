@@ -16,7 +16,7 @@ class CwInput extends CwWidget {
       config: (ctx) {
         return CwWidgetConfig()
             .addProp(
-              CwWidgetProperties(id: 'style', name: 'style')..isToogle(ctx, [
+              CwWidgetProperties(id: 'type', name: 'type')..isToogle(ctx, [
                 {'icon': Icons.label, 'value': 'label'},
                 {'icon': Icons.text_fields, 'value': 'textfield'},
                 {'icon': Icons.check_box, 'value': 'checkbox'},
@@ -26,24 +26,110 @@ class CwInput extends CwWidget {
               CwWidgetProperties(id: 'label', name: 'label')..isText(ctx),
             );
       },
-      drag: (ctx, drag) {
+      populateOnDrag: (ctx, drag) {
         drag.childData![cwProps]['label'] = 'Title';
       },
     );
   }
 }
 
-class _CwInputState extends CwWidgetState<CwInput> with HelperEditor {
+class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
+  @override
+  void setBindJsonValue(value) {
+    if (widget.ctx.aFactory.isModeViewer()) {
+      ctrlInput?.text = value?.toString() ?? '';
+    }
+  }
+
+  TextEditingController? ctrlInput;
+  final focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    initBind();
+    var modeViewer = widget.ctx.aFactory.isModeViewer();
+    if (stateRepository != null) {
+      ctrlInput = TextEditingController(text: widget.ctx.aPath);
+      if (modeViewer) {
+        ctrlInput?.addListener(() {
+          if (stateRepository != null) {
+            String pathContainer;
+            String attrName;
+            (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+            var dataContainer = stateRepository!.getStateContainer(
+              pathContainer,
+            );
+            if (dataContainer != null) {
+              var value = ctrlInput!.text;
+              dataContainer.jsonData[attrName] = value;
+            }
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    stateRepository?.disposeInput(pathData, this);
+    ctrlInput?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return buildWidget(false, (ctx, constraints) {
-      String style = getStringProp(widget.ctx, 'style') ?? 'label';
+      var modeDesigner = widget.ctx.aFactory.isModeDesigner();
+      if (stateRepository != null) {
+        String? oldPathData = pathData;
+        pathData = stateRepository!.getDataPath(
+          context,
+          attribut!.info,
+          typeList: false,
+        );
+        if (oldPathData != '?' && oldPathData != pathData) {
+          stateRepository!.disposeContainer(oldPathData);
+        }
+        stateRepository!.registerInput(pathData, this);
+
+        String pathContainer;
+        String attrName;
+        (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+        var dataContainer = stateRepository!.getStateContainer(pathContainer);
+        if (dataContainer != null) {
+          dynamic val = dataContainer.jsonData[attrName];
+          if (modeDesigner) {
+            ctrlInput?.text = pathData;
+          } else {
+            ctrlInput?.text = val?.toString() ?? '';
+          }
+        }
+      }
+      // else if (modeDesigner) {
+      //   ctrlInput?.text = ctx.aPath;
+      // }
+
+      String style = getStringProp(widget.ctx, 'type') ?? 'label';
 
       if (style == 'textfield') {
-        return TextField(
-          decoration: InputDecoration(
-            labelText: getStringProp(widget.ctx, 'label') ?? '',
-            border: OutlineInputBorder(),
+        focusNode.canRequestFocus = !modeDesigner;
+        focusNode.skipTraversal = modeDesigner;
+
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 300, maxHeight: 50),
+          child: AbsorbPointer(
+            absorbing: modeDesigner,
+            child: TextField(
+              focusNode: focusNode,
+              //readOnly: modeDesigner ? true : false,
+              //onTap: modeDesigner ? () {} : null,
+              controller: ctrlInput,
+              decoration: InputDecoration(
+                labelText: getStringProp(widget.ctx, 'label') ?? '',
+                border: OutlineInputBorder(),
+              ),
+            ),
           ),
         );
       } else if (style == 'checkbox') {

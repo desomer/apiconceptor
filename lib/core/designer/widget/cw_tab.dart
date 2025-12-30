@@ -15,7 +15,8 @@ class CwTabBar extends CwWidget {
       config: (ctx) {
         return CwWidgetConfig();
       },
-      drag: (ctx, drag) {
+      populateOnDrag: (ctx, drag) {
+        // ajoute deux onglets par défaut
         ctx.aFactory.addInSlot(drag.childData!, 'tab0', {
           cwType: 'input',
           cwProps: <String, dynamic>{'label': 'Tab Title 1'},
@@ -29,10 +30,10 @@ class CwTabBar extends CwWidget {
   }
 
   @override
-  State<CwTabBar> createState() => _CwPageState();
+  State<CwTabBar> createState() => _CwTabBarState();
 }
 
-class _CwPageState extends CwWidgetState<CwTabBar> with HelperEditor {
+class _CwTabBarState extends CwWidgetState<CwTabBar> with HelperEditor {
   @override
   Widget build(BuildContext context) {
     return buildWidget(true, (ctx, constraints) {

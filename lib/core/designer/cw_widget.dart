@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
 import 'package:jsonschema/core/designer/component/prop_editor/bool_editor.dart';
@@ -9,8 +8,11 @@ import 'package:jsonschema/core/designer/component/prop_editor/text_editor.dart'
 import 'package:jsonschema/core/designer/component/prop_editor/toogle_editor.dart';
 import 'package:jsonschema/core/designer/core/widget_selectable.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_repository.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
+import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 import 'package:jsonschema/widget/constraint_builder.dart';
 
 class CwWidgetCtxSlot extends CwWidgetCtx {
@@ -22,6 +24,7 @@ class CwWidgetCtx {
 
   final WidgetFactory aFactory;
   final String id;
+  Size? lastSize;
 
   String get aPath {
     if (parentCtx != null) {
@@ -39,7 +42,8 @@ class CwWidgetCtx {
   CwSlotProp? slotProps;
 
   CwWidgetState? state;
-  GlobalKey? keyCapture;
+  WidgetSelectableState? selectableState;
+
   Map<String, dynamic>? extraRenderingData;
 
   CwWidgetCtx({required this.aFactory, required this.id});
@@ -85,8 +89,16 @@ class CwWidgetCtx {
     return props;
   }
 
+  bool isEmptySlot() {
+    return dataWidget?[cwType] == null;
+  }
+
+  bool isDesignSelected() {
+    return currentSelectorManager.lastSelectedCtx == this;
+  }
+
   Map? getData() {
-    return dataWidget;
+    return dataWidget ?? parentCtx?.getData()?[cwSlots]?[id];
   }
 
   CwWidgetConfig? getConfig() {
@@ -111,22 +123,23 @@ class CwWidgetCtx {
         state?.setState(() {});
       }
 
-      if (currentSelectorManager.lastSelected?.widget.slotConfig?.ctx.aPath !=
-          aPath) {
+      if (currentSelectorManager.getSelectedPath() != aPath) {
         SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-          select(onlyOverlay: true);
+          selectOnDesigner(onlyOverlay: true);
         });
       } else if (resize) {
-        SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-          emit(CDDesignEvent.reselect, null);
-        });
+        emitLater(CDDesignEvent.reselect, null, multiple: true);
       }
     };
   }
 
   void cleanWidget(int buildtime) {
     //remove children from ctx if buildtime different
-    childrenCtx?.removeWhere((key, value) => value.buildSlotTime != buildtime);
+    if (buildtime >= 0) {
+      childrenCtx?.removeWhere(
+        (key, value) => value.buildSlotTime != buildtime,
+      );
+    }
 
     _cleanSlotNotUse();
 
@@ -149,13 +162,18 @@ class CwWidgetCtx {
       var cid = entry.key;
       var data = entry.value as Map<String, dynamic>;
       var ctxChild = childrenCtx?[cid];
-      if (ctxChild == null) {
+      var type = data[cwType];
+      if (type != 'datasrc') {
+        // keep data source even if not used
+        // because it can be used by other component
+        // later
+      } else if (ctxChild == null) {
+        // remove unused slot
         slotIdsToRemove.add(cid);
       } else {
-        var t = data[cwType];
         var pp = data[cwProps] as Map<String, dynamic>?;
         var ps = data[cwPropsSlot] as Map<String, dynamic>?;
-        if (t == null &&
+        if (type == null &&
             (pp == null || pp.isEmpty) &&
             (ps == null || ps.isEmpty)) {
           slotIdsToRemove.add(cid);
@@ -171,25 +189,67 @@ class CwWidgetCtx {
     }
   }
 
-  void selectParent() {
+  void selectParentOnDesigner() {
     emit(
       CDDesignEvent.select,
       CWEventCtx()
         ..ctx = parentCtx
         ..path = parentCtx!.aPath
-        ..keybox = parentCtx!.keyCapture,
+        ..keybox = parentCtx!.selectableState?.captureKey,
+    );
+    parentCtx!.repaintSelectorForEnableDrag();
+
+    emitLater(
+      CDDesignEvent.select,
+      //waitFrame: 1,
+      CWEventCtx()
+        ..extra = {'displayProps': false}
+        ..ctx = parentCtx
+        ..path = parentCtx!.aPath
+        ..keybox = parentCtx!.selectableState?.captureKey
+        ..callback = () {
+          //repaintSelector();
+        },
+      multiple: true,
     );
   }
 
-  void select({bool onlyOverlay = false}) {
+  void selectOnDesigner({bool onlyOverlay = false}) {
     emit(
       CDDesignEvent.select,
       CWEventCtx()
         ..extra = {'displayProps': !onlyOverlay}
         ..ctx = this
         ..path = aPath
-        ..keybox = keyCapture,
+        ..keybox = selectableState?.captureKey
+        ..callback = () {},
     );
+
+    repaintSelectorForEnableDrag();
+
+    emitLater(
+      CDDesignEvent.select,
+      //waitFrame: 1,
+      CWEventCtx()
+        ..extra = {'displayProps': false}
+        ..ctx = this
+        ..path = aPath
+        ..keybox = selectableState?.captureKey
+        ..callback = () {
+          //repaintSelector();
+        },
+      multiple: true,
+    );
+  }
+
+  // permet le drag après une sélection
+  void repaintSelectorForEnableDrag() {
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+      if (selectableState?.mounted == true) {
+        // ignore: invalid_use_of_protected_member
+        selectableState?.setState(() {});
+      }
+    });
   }
 }
 
@@ -198,7 +258,37 @@ abstract class CwWidget extends StatefulWidget {
   const CwWidget({super.key, required this.ctx});
 }
 
-class CwWidgetState<T extends CwWidget> extends State<T> {
+class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
+  String pathData = '?';
+  CwRepository? repository;
+  StateRepository? stateRepository;
+  NodeAttribut? attribut;
+
+  void initBind() {
+    Map? bind = widget.ctx.dataWidget?[cwProps]?['bind'];
+    if (bind != null) {
+      String repoId = bind['repository'];
+      repository = widget.ctx.aFactory.mapRepositories['rp_$repoId'];
+      if (repository != null && bind['from'] == 'criteria') {
+        String attrId = bind['attr'];
+        stateRepository = repository!.criteriaState;
+        attribut =
+            repository!
+                .ds
+                .helper!
+                .apiCallInfo
+                .currentAPIRequest!
+                .nodeByMasterId[attrId];
+      } else if (repository != null && bind['from'] == 'data') {
+        String attrId = bind['attr'];
+        stateRepository = repository!.dataState;
+        attribut = repository!.ds.modelHttp200!.nodeByMasterId[attrId];
+      }
+    }
+  }
+}
+
+class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
   int buildtime = 0;
 
   Widget buildWidget(bool withContraint, CacheWidget builder) {
@@ -208,7 +298,7 @@ class CwWidgetState<T extends CwWidget> extends State<T> {
       return ConstraintBuilder(
         builder: (context, constraints) {
           buildtime = DateTime.now().millisecondsSinceEpoch;
-          print('buildWidget ${widget.ctx.aPath} $buildtime');
+          // print('buildWidget ${widget.ctx.aPath} $buildtime');
           var ret = builder(widget.ctx, constraints);
           widget.ctx.cleanWidget(buildtime);
           return ret;

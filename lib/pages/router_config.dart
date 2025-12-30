@@ -9,6 +9,7 @@ import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/apps/apps_page.dart';
@@ -70,7 +71,8 @@ enum Pages {
   user("/user"),
   appPage("/app/page"),
   appPageDetail("/app/page/detail"),
-  pageDesigner("/pages/designer");
+  pageDesigner("/pages/designer"),
+  pageViewer("/pages/viewer");
 
   const Pages(this.urlpath);
   final String urlpath;
@@ -362,7 +364,8 @@ final GoRouter router = GoRouter(
         //----------------------------------------------------------------
         addRouteBy(Pages.content, ContentPage()),
         addRouteBy(Pages.contentPages, ContentAppsPage()),
-        addRouteBy(Pages.pageDesigner, AppsPageDesigner()),
+        addRouteBy(Pages.pageDesigner, AppsPageDesigner(mode: DesignMode.designer)),
+        addRouteBy(Pages.pageViewer, AppsPageDesigner(mode: DesignMode.viewer)),
         //----------------------------------------------------------------
         addRouteBy(Pages.log, LogPage()),
         // addRoute(

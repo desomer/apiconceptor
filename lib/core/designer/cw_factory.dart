@@ -1,19 +1,20 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/over_props_viewer.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
 import 'package:jsonschema/core/designer/core/widget_selectable.dart';
+import 'package:jsonschema/core/designer/cw_repository.dart';
 import 'package:jsonschema/core/designer/widget/cw_action.dart';
 import 'package:jsonschema/core/designer/widget/cw_appbar.dart';
 import 'package:jsonschema/core/designer/widget/cw_container.dart';
 import 'package:jsonschema/core/designer/widget/cw_input.dart';
+import 'package:jsonschema/core/designer/widget/cw_list.dart';
 import 'package:jsonschema/core/designer/widget/cw_page.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 import 'package:jsonschema/core/designer/widget/cw_tab.dart';
+import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/main.dart';
 
 typedef BuilderWidget = CwWidget Function(CwWidgetCtx ctx);
@@ -33,6 +34,7 @@ const String cwSlots = 'slots';
 
 class WidgetFactory {
   GlobalKey keyPropsViewer = GlobalKey();
+  DesignMode mode = DesignMode.designer;
 
   WidgetFactory() {
     CwPage.initFactory(this);
@@ -41,18 +43,19 @@ class WidgetFactory {
     CwContainer.initFactory(this);
     CwTabBar.initFactory(this);
     CwAction.initFactory(this);
+    CwList.initFactory(this);
   }
 
   void register({
     required String id,
     required BuilderWidget build,
     required BuilderWidgetConfig config,
-    OnDrapWidgetConfig? drag,
+    OnDrapWidgetConfig? populateOnDrag,
   }) {
     builderWidget[id] = build;
     builderConfig[id] = config;
-    if (drag != null) {
-      builderDragConfig[id] = drag;
+    if (populateOnDrag != null) {
+      builderDragConfig[id] = populateOnDrag;
     }
   }
 
@@ -61,12 +64,18 @@ class WidgetFactory {
   Map<String, OnDrapWidgetConfig> builderDragConfig = {};
 
   Map<String, dynamic> data = {cwSlots: {}};
+  Map<String, CwRepository> mapRepositories = {};
 
   Map<String, dynamic> addPage() {
     Map<String, dynamic> pages = {
       cwId: '',
       cwType: 'page',
-      cwProps: <String, dynamic>{'color': 'FF448AFF', 'fullheight': true, 'drawer': true, 'fixDrawer': true},
+      cwProps: <String, dynamic>{
+        'color': 'FF448AFF',
+        'fullheight': true,
+        'drawer': true,
+        'fixDrawer': true,
+      },
     };
     data[cwSlots][''] = pages;
 
@@ -86,6 +95,14 @@ class WidgetFactory {
     return pages;
   }
 
+  bool isModeDesigner() {
+    return mode == DesignMode.designer;
+  }
+
+  bool isModeViewer() {
+    return mode == DesignMode.viewer;
+  }
+
   CwSlot getSlot(CwWidgetCtx parent, String id) {
     var ctx = parent.getSlotCtx(id);
     return CwSlot(config: CwSlotConfig(ctx: ctx));
@@ -101,6 +118,28 @@ class WidgetFactory {
       slots = {};
       wd[cwSlots] = slots;
     }
+    child[cwId] = id;
+    slots[id] = child;
+    return child;
+  }
+
+  Map<String, dynamic> addCmpInSlot(
+    Map<String, dynamic> wd,
+    String id, {
+    required String cmpType,
+    Map<String, dynamic>? props,
+    Map<String, dynamic>? slotProps,
+  }) {
+    var slots = wd[cwSlots] as Map?;
+    if (slots == null) {
+      slots = {};
+      wd[cwSlots] = slots;
+    }
+    var child = <String, dynamic>{
+      cwType: cmpType,
+      if (props != null) cwProps: props,
+      if (slotProps != null) cwPropsSlot: slotProps,
+    };
     child[cwId] = id;
     slots[id] = child;
     return child;
@@ -125,14 +164,13 @@ class WidgetFactory {
 
   List<Widget> listPropsEditor = [];
 
-  String prettyPrintJson(dynamic input) {
-    //const JsonDecoder decoder = JsonDecoder();
-    const JsonEncoder encoder = JsonEncoder.withIndent('  ');
-    return encoder.convert(input);
-  }
+  // String prettyPrintJson(dynamic input) {
+  //   const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+  //   return encoder.convert(input);
+  // }
 
   void displayProps(CwWidgetCtx ctx) {
-    print("frame json = ${prettyPrintJson(data[cwSlots][''])}");
+    // print("frame json = ${prettyPrintJson(data[cwSlots][''])}");
 
     listPropsEditor.clear();
 
@@ -142,9 +180,8 @@ class WidgetFactory {
       aCtx = aCtx.parentCtx;
     }
 
-    keyPropsViewer.currentState
     // ignore: invalid_use_of_protected_member
-    ?.setState(() {}); // force refresh props viewer
+    keyPropsViewer.currentState?.setState(() {}); // force refresh props viewer
   }
 
   void addPropsLayer(CwWidgetCtx aCtx) {
@@ -181,7 +218,7 @@ class WidgetFactory {
   Widget getHeader(String name, CwWidgetCtx aCtx) {
     return GestureDetector(
       onTap: () {
-        aCtx.select();
+        aCtx.selectOnDesigner();
       },
       child: Container(
         margin: EdgeInsets.fromLTRB(0, 0, 0, 5),
@@ -201,14 +238,15 @@ class WidgetFactory {
 
 class HoverCmpManagerImpl extends HoverCmpManager {
   @override
-  void onHover(CwWidgetCtx onPath) {
+  void onHover(CwWidgetCtx onCtx) {
+    //print('hover on ${onCtx.aPath}');
     emit(
       CDDesignEvent.select,
       CWEventCtx()
         ..extra = {'displayProps': false}
-        ..ctx = onPath
-        ..path = onPath.aPath
-        ..keybox = onPath.keyCapture,
+        ..ctx = onCtx
+        ..path = onCtx.aPath
+        ..keybox = onCtx.selectableState?.captureKey,
     );
   }
 

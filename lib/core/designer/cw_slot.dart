@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
 import 'package:jsonschema/core/designer/core/widget_selectable.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
+import 'package:jsonschema/feature/design/page_designer.dart';
 
 class CwSlotProp {
   final String id;
@@ -43,6 +44,10 @@ class _CwSlotState extends State<CwSlot> {
       widget.config.innerWidget = ctx.aFactory.getWidget(ctx);
     }
 
+    if (ctx.aFactory.mode == DesignMode.viewer) {
+      return getDefaultLayout(widget.config.innerWidget ?? SizedBox());
+    }
+
     return getDefaultLayout(
       getSelectable(widget.config.innerWidget ?? getEmptySlot()),
     );
@@ -65,7 +70,7 @@ class _CwSlotState extends State<CwSlot> {
         strokeWidth: 1,
       ),
       child: IconButton(
-        padding: EdgeInsets.zero, // supprime le padding interne
+        padding:  EdgeInsets.fromLTRB(10, 0, 10, 0), //           EdgeInsets.zero, // supprime le padding interne
         constraints: const BoxConstraints(),
         onPressed: () {},
         icon: Icon(Icons.add_box_outlined),

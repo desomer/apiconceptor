@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_iconpicker/flutter_iconpicker.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
 import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_repository.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
 class CwAction extends CwWidget {
@@ -25,7 +26,7 @@ class CwAction extends CwWidget {
       config: (ctx) {
         return CwWidgetConfig()
             .addProp(
-              CwWidgetProperties(id: 'style', name: 'style')
+              CwWidgetProperties(id: 'type', name: 'type')
                 ..isToogle(ctx, listButtonType),
             )
             .addProp(
@@ -33,7 +34,7 @@ class CwAction extends CwWidget {
             )
             .addProp(CwWidgetProperties(id: 'icon', name: 'icon')..isIcon(ctx));
       },
-      drag: (ctx, drag) {
+      populateOnDrag: (ctx, drag) {
         drag.childData![cwProps]['label'] = 'Action';
       },
     );
@@ -45,7 +46,7 @@ class _CwInputState extends CwWidgetState<CwAction> with HelperEditor {
   Widget build(BuildContext context) {
     return buildWidget(false, (ctx, constraints) {
       Widget button;
-      String? style = getStringProp(widget.ctx, 'style');
+      String? style = getStringProp(widget.ctx, 'type');
       String? label = getStringProp(widget.ctx, 'label') ?? '';
       Map<String, dynamic>? iconProp = getObjProp(widget.ctx, 'icon');
       Icon? icon;
@@ -56,32 +57,58 @@ class _CwInputState extends CwWidgetState<CwAction> with HelperEditor {
         }
       }
 
+      void onPressed() async {
+        var v = widget.ctx.dataWidget![cwProps]['onPressed'];
+        if (v != null && v['type'] == 'repository') {
+          CwRepository? repo =
+              widget.ctx.aFactory.mapRepositories['rp_${v['repository']}'];
+          if (repo != null) {
+            if (v['operation'] == 'load') {
+              if (ctx.aFactory.isModeDesigner()) {
+                return;
+              }
+
+              var h = repo.ds.helper!;
+              
+              repo.dataState.clear();
+
+              // ignore: use_build_context_synchronously
+              h.startCancellableSearch(context, repo.criteriaState.data, () {
+                var data = h.apiCallInfo.aResponse?.reponse?.data;
+                repo.dataState.data = data;
+                repo.dataState.loadDataInContainer(data);
+              });
+            }
+          }
+        }
+      }
+
       switch (style) {
         case 'elevated':
           if (icon != null) {
             button = ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: onPressed,
               icon: icon,
               label: Text(label),
             );
           } else {
-            button = ElevatedButton(onPressed: () {}, child: Text(label));
+            button = ElevatedButton(onPressed: onPressed, child: Text(label));
           }
           break;
         case 'outlined':
           if (icon != null) {
             button = OutlinedButton.icon(
-              onPressed: () {},
+              onPressed: onPressed,
               icon: icon,
               label: Text(label),
             );
           } else {
-            button = OutlinedButton(onPressed: () {}, child: Text(label));
+            button = OutlinedButton(onPressed: onPressed, child: Text(label));
           }
           break;
         case 'icon':
           button = IconButton(
-            onPressed: () {},
+            onPressed: onPressed,
             icon: icon ?? const Icon(Icons.help),
             tooltip: label,
           );
@@ -91,19 +118,19 @@ class _CwInputState extends CwWidgetState<CwAction> with HelperEditor {
             leading: icon,
             dense: true,
             title: Text(label),
-            onTap: () {},
+            onTap: onPressed,
           );
           break;
         case 'text':
         default:
           if (icon != null) {
             button = TextButton.icon(
-              onPressed: () {},
+              onPressed: onPressed,
               icon: icon,
               label: Text(label),
             );
           } else {
-            button = TextButton(onPressed: () {}, child: Text(label));
+            button = TextButton(onPressed: onPressed, child: Text(label));
           }
       }
 

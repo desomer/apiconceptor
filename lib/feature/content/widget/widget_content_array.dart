@@ -38,13 +38,16 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
     with WidgetUIHelper, NameMixin {
   @override
   void initState() {
-    widget.info.json2ui.stateMgr.addContainer(widget.info.pathValue!, this);
+    widget.info.json2ui.stateMgr.registerContainer(
+      widget.info.pathValue!,
+      this,
+    );
     super.initState();
   }
 
   @override
   void dispose() {
-    widget.info.json2ui.stateMgr.removeContainer(widget.info.pathValue!);
+    widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathValue!);
     super.dispose();
   }
 
@@ -92,7 +95,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
                   key: ObjectKey(items),
                   availableTags: v.choiseItem!,
                   initialSelected: [],
-                  accessor: InfoAccess(initialSelected: items!),
+                  accessor: InfoAccess(initialSelected: items?? []),
                 ),
                 Spacer(),
               ],

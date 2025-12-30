@@ -1,5 +1,6 @@
 import 'package:event_listener/event_listener.dart';
 import 'package:event_listener/exceptions.dart';
+import 'package:flutter/scheduler.dart';
 
 Function(dynamic) on(CDDesignEvent event, Function(dynamic) fct) {
   _eventListener.on(event.toString(), fct);
@@ -11,6 +12,23 @@ void emit(CDDesignEvent event, dynamic payload) {
     _eventListener.emit(event.toString(), payload);
   } on NoListener catch (e) {
     print('no listener $event  $e');
+  }
+}
+
+void emitLater(
+  CDDesignEvent event,
+  dynamic payload, {
+  int waitFrame = 3,
+  bool multiple = false,
+}) {
+  if (waitFrame <= 0) {
+    emit(event, payload);
+  } else {
+    if (multiple) emit(event, payload);
+    //Future.delayed( Duration(milliseconds: 100), () {
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+      emitLater(event, payload, waitFrame: waitFrame - 1);
+    });
   }
 }
 

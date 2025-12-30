@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -369,6 +370,142 @@ class WidgetRequestHelper with WidgetHelper {
           child: Text('Show Doc.'),
         ),
       ],
+    );
+  }
+
+  Future<Map<String, dynamic>> loadCriteriaFromParam(
+    AttributInfo element,
+    Map<String, dynamic> criteria,
+    Map<String, dynamic> empty,
+  ) async {
+    apiCallInfo.selectedExample = element;
+    var jsonParam = await bddStorage.getAPIParam(
+      apiCallInfo.currentAPIRequest!,
+      element.masterID!,
+    );
+
+    apiCallInfo.clearRequest();
+
+    if (jsonParam != null) {
+      apiCallInfo.initWithParamJson(jsonParam);
+      var data = criteria;
+      for (var element in apiCallInfo.params) {
+        if (element.toSend) {
+          data[element.type][element.name] = element.value;
+        } else {
+          data[element.type][element.name] = empty[element.type][element.name];
+        }
+      }
+      return data;
+    }
+
+    return criteria;
+  }
+
+  void startCancellableSearch(
+    BuildContext context,
+    Map<String, dynamic>? criteria,
+    Function onRequestComplete,
+  ) async {
+    bool isCancelled = false;
+    final cancelToken = CancelToken();
+
+    showDownloadDialog(context, () {
+      isCancelled = true;
+      cancelToken.cancel('Request cancelled by user');
+    });
+
+    apiCallInfo.initListParams(paramJson: criteria);
+    initUrl(context);
+
+    await doExecuteRequest(cancelToken);
+
+    if (!isCancelled && dialogCtx?.mounted == true) {
+      Navigator.of(dialogCtx!).pop(); // ferme la boîte si pas annulé
+    }
+
+    if (apiCallInfo.aResponse?.reponse?.statusCode == 200) {
+      onRequestComplete();
+    } else {
+      showErrorDialog(
+        // ignore: use_build_context_synchronously
+        context,
+        apiCallInfo.aResponse,
+      );
+    }
+  }
+
+  BuildContext? dialogCtx;
+
+  void showErrorDialog(BuildContext context, APIResponse? res) {
+    var message = getStringResponse();
+    Size size = MediaQuery.of(context).size;
+    double width = size.width * 0.5;
+    double height = size.height * 0.5;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('Error', style: TextStyle(color: Colors.red)),
+          content: SizedBox(
+            height: height,
+            width: width,
+            child: Column(
+              spacing: 10,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message),
+                Expanded(
+                  child: LogViewer(
+                    fct: () {
+                      return apiCallInfo.logs;
+                    },
+                    change: ValueNotifier<int>(0),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> showDownloadDialog(BuildContext context, VoidCallback onCancel) {
+    return showDialog(
+      context: context,
+      barrierDismissible:
+          false, // empêche la fermeture en cliquant à l'extérieur
+      builder: (BuildContext ctx) {
+        dialogCtx = ctx;
+        return AlertDialog(
+          title: Text('sending request'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text('Wait while the request is being sent...'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop(); // ferme la boîte de dialogue
+                onCancel(); // appelle la fonction d'annulation
+              },
+              child: Text('Cancel'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

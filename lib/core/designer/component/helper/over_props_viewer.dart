@@ -3,8 +3,13 @@ import 'package:jsonschema/core/designer/cw_widget.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
 class WidgetOverCmp extends StatefulWidget {
-  const WidgetOverCmp(
-      {required this.child, this.path, super.key, this.mode, this.overMgr});
+  const WidgetOverCmp({
+    required this.child,
+    this.path,
+    super.key,
+    this.mode,
+    this.overMgr,
+  });
 
   @override
   State<WidgetOverCmp> createState() => _WidgetOverCmpState();
@@ -17,7 +22,6 @@ class WidgetOverCmp extends StatefulWidget {
 class _WidgetOverCmpState extends State<WidgetOverCmp> {
   bool isOver = false;
 
-
   @override
   void initState() {
     super.initState();
@@ -26,19 +30,20 @@ class _WidgetOverCmpState extends State<WidgetOverCmp> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-        onHover: (event) {
-          setState(() {
-            isOver = true;
-            widget.overMgr?.onHover(widget.path!);
-          });
-        },
-        onExit: (event) {
-          setState(() {
-            isOver = false;
-            widget.overMgr?.onExit();
-          });
-        },
-        child: getClip(getHoverBox(context)));
+      onHover: (event) {
+        setState(() {
+          isOver = true;
+          widget.overMgr?.onHover(widget.path!);
+        });
+      },
+      onExit: (event) {
+        setState(() {
+          isOver = false;
+          widget.overMgr?.onExit();
+        });
+      },
+      child: getClip(getHoverBox(context)),
+    );
   }
 
   Widget getClip(Widget child) {
@@ -54,29 +59,30 @@ class _WidgetOverCmpState extends State<WidgetOverCmp> {
 
   Container getHoverBox(BuildContext context) {
     return Container(
-        decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor,
-            boxShadow: isOver
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor,
+        boxShadow:
+            isOver
                 ? [
-                    BoxShadow(
-                      color: Colors.deepOrange.withAlpha(128),
-                      spreadRadius: 5,
-                      blurRadius: 20,
-                      // offset: const Offset(-20, -20), // changes position of shadow
-                    ),
-                  ]
+                  BoxShadow(
+                    color: Colors.deepOrange.withAlpha(128),
+                    spreadRadius: 5,
+                    blurRadius: 20,
+                    // offset: const Offset(-20, -20), // changes position of shadow
+                  ),
+                ]
                 : null,
-            border: Border.all(
-                color: isOver ? Colors.deepOrange : Colors.transparent)),
-        child: widget.child);
+        border: Border.all(
+          color: isOver ? Colors.deepOrange : Colors.transparent,
+        ),
+      ),
+      child: widget.child,
+    );
   }
 }
 
 class HoverCmpManager {
-
-  void onHover(CwWidgetCtx onPath) {
-
-  }
+  void onHover(CwWidgetCtx onCtx) {}
 
   void onExit() {
     // var app = CWApplication.of();

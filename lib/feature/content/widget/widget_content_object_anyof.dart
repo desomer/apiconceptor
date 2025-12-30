@@ -38,9 +38,12 @@ class _WidgetContentObjectAnyOfState extends State<WidgetContentObjectAnyOf>
   void initState() {
     if (widget.info.inArrayValue == null) {
       //deja ajouter par l'array
-      widget.info.json2ui.stateMgr.addContainer(getPathValue(), this);
+      widget.info.json2ui.stateMgr.registerContainer(getPathValue(), this);
     } else {
-      widget.info.json2ui.stateMgr.addContainer(widget.info.pathData!, this);
+      widget.info.json2ui.stateMgr.registerContainer(
+        widget.info.pathData!,
+        this,
+      );
     }
     super.initState();
   }
@@ -49,9 +52,9 @@ class _WidgetContentObjectAnyOfState extends State<WidgetContentObjectAnyOf>
   void dispose() {
     if (widget.info.inArrayValue == null) {
       //deja ajouter par l'array
-      widget.info.json2ui.stateMgr.removeContainer(getPathValue());
+      widget.info.json2ui.stateMgr.disposeContainer(getPathValue());
     } else {
-      widget.info.json2ui.stateMgr.removeContainer(widget.info.pathData!);
+      widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathData!);
     }
     super.dispose();
   }
