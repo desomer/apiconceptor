@@ -66,7 +66,7 @@ class _WidgetContentFormState extends State<WidgetContentForm>
   @override
   void dispose() {
     aScrollController.dispose();
-    widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathValue!);
+    widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathValue!, this);
     super.dispose();
   }
 

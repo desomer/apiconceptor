@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
+import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_factory_action.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
-import 'package:jsonschema/core/designer/widget/cw_style.dart.dart';
+import 'package:jsonschema/core/designer/core/widget_style.dart';
 
 List listAxisCol = [
   {'icon': Icons.align_vertical_top, 'value': 'start'},
@@ -51,7 +52,7 @@ class CwContainer extends CwWidget with HelperEditor {
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'container',
-      build: (ctx) => CwContainer(ctx: ctx),
+      build: (ctx) => CwContainer(key: ctx.getKey(), ctx: ctx),
       config: (ctx) {
         var horz = HelperEditor.getStringProp(ctx, 'type') == 'row';
 
@@ -79,7 +80,8 @@ class CwContainer extends CwWidget with HelperEditor {
               ], defaultValue: 'fill'),
             );
 
-        var noStretch = ctx.extraRenderingData?['noStretch'] == true;
+        var noStretch =
+            ctx.selectorCtxIfDesign?.extraRenderingData?['noStretch'] == true;
         ret
             .addProp(
               CwWidgetProperties(id: 'mainAxisAlign', name: 'internal align')
@@ -94,7 +96,7 @@ class CwContainer extends CwWidget with HelperEditor {
                 ..isToogle(
                   ctx,
                   horz ? listCrossRow : listCrossCol,
-                  defaultValue: noStretch ? 'stretch' : 'stretch',
+                  defaultValue: noStretch ? 'start' : 'stretch',
                 ),
             );
 
@@ -137,7 +139,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
     }
 
     bool autoInsert = getBoolProp(ctx.parentCtx!, '#autoInsert') ?? false;
-    if (ctx.parentCtx!.extraRenderingData?['autoInsert'] == true) {
+    if (ctx.parentCtx!.selectorCtx.extraRenderingData?['autoInsert'] == true) {
       autoInsert = true;
     }
 
@@ -146,7 +148,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
       int nbFill = 0;
       for (var i = 0; i < nb; i++) {
         var slotData = ctx.parentCtx!.dataWidget![cwSlots]?['cell_$i'];
-        if (slotData != null || ctx.id == 'cell_$i') {
+        if (slotData != null || ctx.slotId == 'cell_$i') {
           nbFill++;
         }
       }
@@ -212,7 +214,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
     }
 
     int nb = getIntProp(ctx.parentCtx!, 'nbchild') ?? 2;
-    int idx = int.parse(ctx.id.split('_').last);
+    int idx = int.parse(ctx.slotId.split('_').last);
     var actMgr = CwFactoryAction(ctx: ctx);
 
     switch (actionStr) {
@@ -256,7 +258,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
 
   @override
   Widget build(BuildContext context) {
-    return buildWidget(true, (ctx, constraints) {
+    return buildWidget(ModeBuilderWidget.layoutBuilder, (ctx, constraints) {
       // print('path ${ctx.aPath} $constraints ${ctx.lastSize} ');
       List<Widget> child = [];
       var horiz = getStringProp(ctx, 'type') == 'row';
@@ -265,33 +267,41 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
       bool disableFlex = false;
       bool hasBoundedHeight = constraints?.hasBoundedHeight ?? true;
       bool hasBoundedWidth = constraints?.hasBoundedWidth ?? true;
-      ctx.extraRenderingData ??= {};
+      ctx.selectorCtxIfDesign?.extraRenderingData ??= {};
 
       if (!hasBoundedHeight && horiz) {
         // pas de hauteur contrainte en horizontal => pas de stretch possible
         noStretch = true;
-        ctx.extraRenderingData!['noStretch'] = true;
+        ctx.selectorCtxIfDesign?.extraRenderingData!['noStretch'] = true;
       }
       if (!hasBoundedWidth && !horiz) {
         // pas de largeur contrainte en vertical => pas de stretch possible
         noStretch = true;
-        ctx.extraRenderingData!['noStretch'] = true;
+        ctx.selectorCtxIfDesign?.extraRenderingData!['noStretch'] = true;
       }
       if (!hasBoundedHeight && !horiz) {
         disableFlex = true;
-        ctx.extraRenderingData!['disableFlex'] = true;
+        ctx.selectorCtxIfDesign?.extraRenderingData!['disableFlex'] = true;
       }
       if (!hasBoundedWidth && horiz) {
         disableFlex = true;
-        ctx.extraRenderingData!['disableFlex'] = true;
+        ctx.selectorCtxIfDesign?.extraRenderingData!['disableFlex'] = true;
       }
 
       int nb = getIntProp(ctx, 'nbchild') ?? 2;
       var layout = getStringProp(ctx, 'layout');
-      ['flow', 'form'].contains(layout) ? flow = true : null;
+      // mise en flow (flux de composants)
+      if (horiz) {
+        // reste en horizontal sans contrainte de largeur
+        ['flow'].contains(layout) ? flow = true : null;
+      } else {
+        // empilement vertical
+        ['flow', 'form'].contains(layout) ? flow = true : null;
+      }
+
       if (['flow', 'form'].contains(layout)) {
-        ctx.extraRenderingData ??= {};
-        ctx.extraRenderingData!['autoInsert'] = true;
+        ctx.selectorCtxIfDesign?.extraRenderingData ??= {};
+        ctx.selectorCtxIfDesign?.extraRenderingData!['autoInsert'] = true;
       }
 
       for (var i = 0; i < nb; i++) {
@@ -327,11 +337,14 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
         }
       }
 
-      var layoutStyle = CwStyleDart();
+      var layoutStyle = CwStyleBox();
       if (layout == 'form') {
         layoutStyle.layout = 'form';
         layoutStyle.spacing = 8.0;
-        layoutStyle.padding = 8.0;
+        ctx.isParentOfType('container', layout: 'form')
+            ? layoutStyle.padding =
+                0.0 // deja dans un form
+            : layoutStyle.padding = 8.0;
       }
 
       return getExternalStyle(
@@ -351,7 +364,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
     });
   }
 
-  Widget getExternalStyle(CwStyleDart style, Widget child) {
+  Widget getExternalStyle(CwStyleBox style, Widget child) {
     return style.padding != null
         ? Padding(padding: EdgeInsets.all(style.padding!), child: child)
         : child;
@@ -389,6 +402,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
       case 'stretch':
         if (noStretch) {
           widget.ctx.dataWidget?[cwProps]?[name] = 'start';
+          emitLater(CDDesignEvent.reselect, "displayProps", waitFrame: 1);
           return CrossAxisAlignment.start;
         }
         return CrossAxisAlignment.stretch;
@@ -396,7 +410,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
         return CrossAxisAlignment.baseline;
       default:
         if (noStretch) {
-          print("noStretch: ${widget.ctx.aPath}");
+          //print("noStretch: ${widget.ctx.aWidgetPath}");
           return CrossAxisAlignment.start;
         }
         return CrossAxisAlignment.stretch;

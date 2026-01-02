@@ -22,7 +22,7 @@ import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
-import 'package:jsonschema/widget/widget_disable.dart';
+import 'package:jsonschema/widget/widget_disable_overlay.dart';
 import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_split.dart';

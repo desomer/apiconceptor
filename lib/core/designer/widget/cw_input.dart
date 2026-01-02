@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
 class CwInput extends CwWidget {
@@ -12,7 +12,7 @@ class CwInput extends CwWidget {
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'input',
-      build: (ctx) => CwInput(ctx: ctx),
+      build: (ctx) => CwInput(key: ctx.getKey(), ctx: ctx),
       config: (ctx) {
         return CwWidgetConfig()
             .addProp(
@@ -50,7 +50,7 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
     initBind();
     var modeViewer = widget.ctx.aFactory.isModeViewer();
     if (stateRepository != null) {
-      ctrlInput = TextEditingController(text: widget.ctx.aPath);
+      ctrlInput = TextEditingController(text: '');
       if (modeViewer) {
         ctrlInput?.addListener(() {
           if (stateRepository != null) {
@@ -79,7 +79,7 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
 
   @override
   Widget build(BuildContext context) {
-    return buildWidget(false, (ctx, constraints) {
+    return buildWidget(ModeBuilderWidget.noConstraint, (ctx, constraints) {
       var modeDesigner = widget.ctx.aFactory.isModeDesigner();
       if (stateRepository != null) {
         String? oldPathData = pathData;
@@ -89,13 +89,18 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
           typeList: false,
         );
         if (oldPathData != '?' && oldPathData != pathData) {
-          stateRepository!.disposeContainer(oldPathData);
+          stateRepository!.disposeInput(oldPathData, this);
         }
         stateRepository!.registerInput(pathData, this);
 
         String pathContainer;
         String attrName;
         (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+
+        // if (modeDesigner == false && attrName=='IsPrimary') {
+        //   print('debug'); 
+        // }
+
         var dataContainer = stateRepository!.getStateContainer(pathContainer);
         if (dataContainer != null) {
           dynamic val = dataContainer.jsonData[attrName];

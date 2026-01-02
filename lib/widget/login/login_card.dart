@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 
-
 class LoginCard extends StatefulWidget {
   const LoginCard({super.key, required this.email, required this.pwd});
 
@@ -95,6 +94,16 @@ class _LoginCardState extends State<LoginCard> {
     _mailController.text = widget.email;
     _passwordController.text = widget.pwd;
 
+    if (autoLoging && widget.email.isNotEmpty && widget.pwd.isNotEmpty) {
+      Future.delayed(Duration(seconds: 1), () {
+        final email = _mailController.text;
+        final password = _passwordController.text;
+
+        // ignore: use_build_context_synchronously
+        UserAuthentication().logIn(context, email, password);
+      });
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: ClipRRect(
@@ -151,37 +160,38 @@ class _LoginCardState extends State<LoginCard> {
                   getPasswordWidget(),
                   const SizedBox(height: 10),
                   MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child:  GestureDetector(
-                    onTap: () {
-                      // logIn(_scaffoldKey.currentContext);
-                      final email = _mailController.text;
-                      final password = _passwordController.text;
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () {
+                        // logIn(_scaffoldKey.currentContext);
+                        final email = _mailController.text;
+                        final password = _passwordController.text;
 
-                      UserAuthentication().logIn(context, email, password);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 25,
-                        vertical: 15,
-                      ),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: const Color.fromARGB(235, 255, 123, 0),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          "Continue",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        UserAuthentication().logIn(context, email, password);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 25,
+                          vertical: 15,
+                        ),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color.fromARGB(235, 255, 123, 0),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "Continue",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  )),
+                  ),
                   const SizedBox(height: 30),
                   GestureDetector(
                     child: const Text(
@@ -202,5 +212,3 @@ class _LoginCardState extends State<LoginCard> {
     );
   }
 }
-
-

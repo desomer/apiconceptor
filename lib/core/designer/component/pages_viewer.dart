@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:jsonschema/core/designer/core/widget_popup_action.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
+import 'package:jsonschema/widget/widget_measure_size.dart';
+import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
 import 'package:jsonschema/widget/device_preview/devise_iphone13.dart';
 import 'package:jsonschema/widget/device_preview/frame.dart';
@@ -8,9 +13,11 @@ class PagesDesignerViewer extends StatefulWidget {
     super.key,
     required this.child,
     required this.cWDesignerMode,
+    required this.aFactory,
   });
   final Widget child;
   final bool cWDesignerMode;
+  final WidgetFactory? aFactory;
 
   @override
   State<PagesDesignerViewer> createState() => _PagesDesignerViewerState();
@@ -18,11 +25,6 @@ class PagesDesignerViewer extends StatefulWidget {
 
 enum DeviseDisplayType { mobile, desktop }
 
-GlobalKey designViewPortKey = GlobalKey(debugLabel: 'designViewPortKey');
-GlobalKey designerKey = GlobalKey(debugLabel: 'designerKey');
-GlobalKey scaleKeyMin = GlobalKey(debugLabel: 'scaleKeyMin');
-GlobalKey scaleKey100 = GlobalKey(debugLabel: 'scaleKey100');
-GlobalKey scaleKeyMax = GlobalKey(debugLabel: 'scaleKeyMax');
 
 class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
   DeviseDisplayType mode = DeviseDisplayType.desktop;
@@ -39,13 +41,12 @@ class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
       return content;
     }
 
-    // ignore: dead_code
     List<Widget> indicator = [
       Positioned(
         left: 0,
         top: 0,
         child: SizedBox(
-          key: scaleKeyMin,
+          key: widget.aFactory!.scaleKeyMin,
           //color: Colors.red,
           height: 1,
           width: 1,
@@ -55,7 +56,7 @@ class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
         left: 100,
         top: 100,
         child: SizedBox(
-          key: scaleKey100,
+          key: widget.aFactory!.scaleKey100,
           //color: Colors.red,
           height: 1,
           width: 1,
@@ -65,7 +66,7 @@ class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
         right: 0,
         bottom: -marge,
         child: SizedBox(
-          key: scaleKeyMax,
+          key: widget.aFactory!.scaleKeyMax,
           //color: Colors.red,
           height: 1,
           width: 1,
@@ -74,7 +75,7 @@ class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
     ];
 
     Widget stackDesigner = Stack(
-      key: designViewPortKey,
+      key: widget.aFactory!.designViewPortKey,
       children: [content, ...indicator],
     );
 
@@ -100,23 +101,36 @@ class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
       );
     }
 
-    return Stack(
-      key: designerKey,
-      children: [designer, WidgetOverlySelector()],
+    var resizer = WidgetMeasureSize(
+      onChange: (size) {
+        debugPrint("Nouvelle taille : $size");
+        resizeSelector();
+      },
+
+      child: Stack(
+        key: widget.aFactory!.designerKey,
+        children: [
+          designer,
+          WidgetOverlySelector(),
+          WidgetPopupAction(key: widget.aFactory!.popupActionKey),
+        ],
+      ),
+    );
+    return resizer;
+  }
+
+  void resizeSelector() {
+    SchedulerBinding.instance.addPostFrameCallback(
+      (_) => emitLater(
+        //waitFrame: 10,
+        multiple: true,
+        CDDesignEvent.reselect,
+        null,
+      ),
     );
   }
 
-  Widget getStackDesigner(Widget content) {
-    return Stack(
-      children: [
-        initFrame(content),
-        // SelectorActionWidget(key: SelectorActionWidget.actionPanKey),
-        // WidgetPopupMenu(key: SelectorActionWidget.popupMenuKey),
-      ],
-    );
-  }
-
-  GlobalKey keyAnimated = GlobalKey();
+  GlobalKey keyAnimated = GlobalKey(debugLabel: "keyAnimated");
 
   Widget getAnimatedWidth(Widget child) {
     return LayoutBuilder(
@@ -132,3 +146,5 @@ class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
     );
   }
 }
+
+//----------------------------------------------------------

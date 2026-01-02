@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/designer/component/pages_datasource.dart';
-import 'package:jsonschema/core/designer/component/pages_viewer.dart';
 import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_selectable.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_factory_bloc.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
@@ -64,17 +63,17 @@ class DragComponentCtx extends DragCtx {
     //   source: source,
     // );
 
-    source.parentCtx!.dataWidget![cwSlots]?.remove(source.id);
+    source.parentCtx!.dataWidget![cwSlots]?.remove(source.slotId);
 
     ctxOn.aFactory.addInSlot(
       ctxOn.parentCtx!.dataWidget!,
-      ctxOn.id,
+      ctxOn.slotId,
       source.dataWidget!,
     );
     // ignore: invalid_use_of_protected_member
-    ctxOn.parentCtx!.state?.setState(() {});
+    ctxOn.parentCtx!.widgetState?.setState(() {});
     // ignore: invalid_use_of_protected_member
-    source.parentCtx!.state?.setState(() {});
+    source.parentCtx!.widgetState?.setState(() {});
 
     ctxOn.selectOnDesigner();
 
@@ -102,7 +101,7 @@ class DragNewComponentCtx extends DragCtx {
       showConfigDataSrc(ctx, idComponent, context, config).then((changed) {
         if (changed != null) {
           param = changed;
-          doActionDrop(ctx, param, state);
+          doActionDropNewCmp(ctx, param, state);
         }
       });
     } else if (config['type'] == 'repository') {
@@ -110,15 +109,15 @@ class DragNewComponentCtx extends DragCtx {
       showConfigDataSrc(ctx, dsId, context, config).then((changed) {
         if (changed != null) {
           param = changed;
-          doActionDrop(ctx, param, state);
+          doActionDropNewCmp(ctx, param, state);
         }
       });
     } else {
-      doActionDrop(ctx, param, state);
+      doActionDropNewCmp(ctx, param, state);
     }
   }
 
-  void doActionDrop(
+  void doActionDropNewCmp(
     CwWidgetCtx ctx,
     Map<String, dynamic> param,
     WidgetSelectableState state,
@@ -141,12 +140,16 @@ class DragNewComponentCtx extends DragCtx {
     if (ctx.slotProps?.onDrop != null) {
       ctx.slotProps!.onDrop!(ctx, drop);
     }
-    ctx.aFactory.addInSlot(ctx.parentCtx!.dataWidget!, ctx.id, drop.childData!);
+    ctx.aFactory.addInSlot(
+      ctx.parentCtx!.dataWidget!,
+      ctx.slotId,
+      drop.childData!,
+    );
 
     drop.afterAdded?.call();
 
     // ignore: invalid_use_of_protected_member
-    ctx.parentCtx!.state?.setState(() {});
+    ctx.parentCtx!.widgetState?.setState(() {});
 
     ctx.selectOnDesigner();
   }
@@ -167,7 +170,7 @@ class DragNewComponentCtx extends DragCtx {
     Map<String, dynamic>? ret;
 
     await showDialog<void>(
-      context: designerKey.currentContext!,
+      context: ctx.aFactory.designerKey.currentContext!,
       barrierDismissible: true, // user must tap button!
       builder: (BuildContext context) {
         Size size = MediaQuery.of(bctx).size;
@@ -222,7 +225,6 @@ class CWSlotImageState extends State<CWSlotImage> {
   @override
   Widget build(BuildContext context) {
     if (imageCmp == null || path != widget.selectableState?.widget.getPath()) {
-      
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
         widget.selectableState?.capturePng().then((image) {
           SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
@@ -239,7 +241,7 @@ class CWSlotImageState extends State<CWSlotImage> {
     }
 
     return Container(
-      color: Colors.black45,
+      color: Colors.orangeAccent.withAlpha(100),
       child: imageCmp ?? const Text('vide'),
     );
   }

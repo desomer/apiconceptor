@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'pages/router_config.dart';
 import 'package:fleather/fleather.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+late SharedPreferences prefs;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  prefs = await SharedPreferences.getInstance();
 
   debugPaintSizeEnabled = false;
   debugPaintBaselinesEnabled = false;

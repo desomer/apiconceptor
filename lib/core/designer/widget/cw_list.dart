@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
@@ -10,7 +10,7 @@ class CwList extends CwWidget {
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'list',
-      build: (ctx) => CwList(ctx: ctx),
+      build: (ctx) => CwList(key: ctx.getKey(), ctx: ctx),
       config: (ctx) {
         return CwWidgetConfig();
       },
@@ -22,17 +22,44 @@ class CwList extends CwWidget {
 }
 
 class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
-  @override
-  void initState() {
-    super.initState();
-    initBind();
-  }
+  late final ScrollController controller;
 
   GlobalKey parentKey = GlobalKey();
 
   @override
+  void initState() {
+    controller = ScrollController();
+
+    super.initState();
+    initBind();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  Widget getScrollCapable(Widget child) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: 100, maxHeight: 100),
+      child: ScrollbarTheme(
+        data: ScrollbarThemeData(
+          //thumbColor: WidgetStateProperty.all(Colors.red),
+        ),
+
+        child: Scrollbar(
+          controller: controller,
+          thumbVisibility: true,
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return buildWidget(true, (ctx, constraints) {
+    return buildWidget(ModeBuilderWidget.layoutBuilder, (ctx, constraints) {
       List listRow = [];
 
       if (stateRepository != null) {
@@ -44,7 +71,7 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
           typeList: true,
         );
         if (oldPathData != '?' && oldPathData != pathData) {
-          stateRepository!.disposeContainer(oldPathData);
+          stateRepository!.disposeContainer(oldPathData, this);
         }
         stateRepository!.registerContainer(pathData, this);
 
@@ -57,13 +84,38 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
         }
       }
 
-      return ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 100, maxHeight: 200),
-        child: ListView.builder(
+      var rowState = getRowState(context);
+      var primaryList = rowState == null ? true : false;
+      bool withScroll = primaryList;
+
+      if (!withScroll) {
+        return ListView(
+          shrinkWrap: true, // prends la taille necessaire
+          physics: NeverScrollableScrollPhysics(),
+          key: parentKey,
+          children: List.generate(listRow.length, (index) {
+            // print("add CWInheritedRow 2 $pathData index $index ${listRow[index]}");
+            return CWInheritedRow(
+              parentKey: parentKey,
+              path: pathData,
+              rowIdx: index,
+              child: getSlot(
+                CwSlotProp(id: 'item0', name: 'Item ${index + 1}'),
+              ),
+            );
+          }),
+        );
+      }
+
+      return getScrollCapable(
+        ListView.builder(
+          controller: controller,
+          primary: false,
           key: parentKey,
           itemCount: listRow.length,
-          shrinkWrap: true,
+          shrinkWrap: false, // avec autoscroll
           itemBuilder: (context, index) {
+            // print("add CWInheritedRow $pathData index $index ${listRow[index]}");
             return CWInheritedRow(
               parentKey: parentKey,
               path: pathData,

@@ -11,7 +11,7 @@ import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
-import 'package:jsonschema/widget/widget_disable.dart';
+import 'package:jsonschema/widget/widget_disable_overlay.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 
 class BrowseAPIUIPage extends GenericPageStateful {

@@ -61,6 +61,7 @@ class AppsPage extends GenericPageStateless {
     if (helper != null) {
       return PagesDesignerViewer(
         cWDesignerMode: false,
+        aFactory: null,
         child: PanResponseViewer(
           requestHelper: helper,
           callerDatasource: caller,

@@ -47,7 +47,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
 
   @override
   void dispose() {
-    widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathValue!);
+    widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathValue!, this);
     super.dispose();
   }
 

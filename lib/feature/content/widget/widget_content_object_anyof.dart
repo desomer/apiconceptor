@@ -52,9 +52,9 @@ class _WidgetContentObjectAnyOfState extends State<WidgetContentObjectAnyOf>
   void dispose() {
     if (widget.info.inArrayValue == null) {
       //deja ajouter par l'array
-      widget.info.json2ui.stateMgr.disposeContainer(getPathValue());
+      widget.info.json2ui.stateMgr.disposeContainer(getPathValue(), this);
     } else {
-      widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathData!);
+      widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathData!, this);
     }
     super.dispose();
   }

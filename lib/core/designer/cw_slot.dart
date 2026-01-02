@@ -1,9 +1,8 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/widget_selectable.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
-import 'package:jsonschema/feature/design/page_designer.dart';
 
 class CwSlotProp {
   final String id;
@@ -33,18 +32,22 @@ class CwSlot extends StatefulWidget implements PreferredSizeWidget {
   Size get preferredSize => Size.fromHeight(kToolbarHeight);
 
   @override
-  State<CwSlot> createState() => _CwSlotState();
+  State<CwSlot> createState() => CwSlotState();
 }
 
-class _CwSlotState extends State<CwSlot> {
+class CwSlotState extends State<CwSlot> {
   @override
   Widget build(BuildContext context) {
     var ctx = widget.config.ctx;
+
+    // pas posible si viewer car un ctx peut avoir plusieurs slots (si dans list)
+    ctx.selectorCtxIfDesign?.slotState = this;
+
     if (ctx.getData()?[cwType] != null && widget.config.innerWidget == null) {
       widget.config.innerWidget = ctx.aFactory.getWidget(ctx);
     }
 
-    if (ctx.aFactory.mode == DesignMode.viewer) {
+    if (ctx.aFactory.isModeViewer()) {
       return getDefaultLayout(widget.config.innerWidget ?? SizedBox());
     }
 
@@ -70,7 +73,12 @@ class _CwSlotState extends State<CwSlot> {
         strokeWidth: 1,
       ),
       child: IconButton(
-        padding:  EdgeInsets.fromLTRB(10, 0, 10, 0), //           EdgeInsets.zero, // supprime le padding interne
+        padding: EdgeInsets.fromLTRB(
+          10,
+          0,
+          10,
+          0,
+        ), //           EdgeInsets.zero, // supprime le padding interne
         constraints: const BoxConstraints(),
         onPressed: () {},
         icon: Icon(Icons.add_box_outlined),

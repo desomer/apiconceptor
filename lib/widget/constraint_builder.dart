@@ -5,7 +5,9 @@ class ConstraintBuilder extends StatefulWidget {
   final Widget Function(BuildContext context, BoxConstraints constraints)
   builder;
 
-  const ConstraintBuilder({super.key, required this.builder});
+  final Size? fixedSize;
+
+  const ConstraintBuilder({super.key, required this.builder, this.fixedSize});
 
   @override
   State<ConstraintBuilder> createState() => _ConstraintBuilderState();
@@ -37,7 +39,13 @@ class _ConstraintBuilderState extends State<ConstraintBuilder> {
       onConstraints: _update,
       child:
           _constraints == null
-              ? const SizedBox.shrink() // évite de builder avant d'avoir les contraintes
+             // évite de builder avant d'avoir les contraintes
+              ? (widget.fixedSize != null
+                  ? SizedBox(
+                      width: widget.fixedSize!.width,
+                      height: widget.fixedSize!.height,
+                    )
+                  : const SizedBox.shrink())
               : widget.builder(context, _constraints!),
     );
   }

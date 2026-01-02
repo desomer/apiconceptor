@@ -161,15 +161,26 @@ Widget getPage(BuildContext context, GoRouterState state) {
       }
     }
 
-    if (cacheRoute[path]!.cache != null) {
-      dev.log("load page $uri from route cache");
+    Widget? pc = cacheRoute[path]!.cache;
+    if (pc != null) {
+      if (pc is GenericPageStateless) {
+        if (pc.isCacheValid(state, uri) == false) {
+          dev.log("cache page $uri invalidated");
+          pc = null;
+        } else {
+          dev.log("load page $uri from route cache");
+        }
+      } else {
+        dev.log("load page $uri from route cache");
+      }
     } else {
       dev.log("buid page $uri");
     }
 
-    cacheRoute[path]!.cache ??= cacheRoute[path]!.builder(context, state);
+    pc ??= cacheRoute[path]!.builder(context, state);
+    cacheRoute[path]!.cache = pc;
 
-    if (cacheRoute[path]!.cache is GenericPageStateless) {
+    if (pc is GenericPageStateless) {
       var page = (cacheRoute[path]!.cache as GenericPageStateless);
       page.setUrlPath(uri);
       var urlPath = page.getUrlPath(); // test si cache
@@ -253,7 +264,8 @@ class Dialog with WidgetHelper {
 final GoRouter router = GoRouter(
   observers: [routeObserver],
   redirect: (context, state) async {
-    if (connect && state.fullPath != Pages.home.urlpath &&
+    if (connectBdd &&
+        state.fullPath != Pages.home.urlpath &&
         state.fullPath != Pages.domain.urlpath &&
         currentCompany.listDomain.selectedAttr == null) {
       await Dialog().doMustDomainFirst();
@@ -364,7 +376,10 @@ final GoRouter router = GoRouter(
         //----------------------------------------------------------------
         addRouteBy(Pages.content, ContentPage()),
         addRouteBy(Pages.contentPages, ContentAppsPage()),
-        addRouteBy(Pages.pageDesigner, AppsPageDesigner(mode: DesignMode.designer)),
+        addRouteBy(
+          Pages.pageDesigner,
+          AppsPageDesigner(mode: DesignMode.designer),
+        ),
         addRouteBy(Pages.pageViewer, AppsPageDesigner(mode: DesignMode.viewer)),
         //----------------------------------------------------------------
         addRouteBy(Pages.log, LogPage()),

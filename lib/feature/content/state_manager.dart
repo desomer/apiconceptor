@@ -112,8 +112,8 @@ class StateManager {
   // les container de data
   final Map<String, StateContainer> statesTreeData = {};
   // liste des input controleur actif
-  final Map<String, WidgetBindJsonState> listInputByPath = {};
-  final Map<String, State> listContainerByPath = {};
+  final Map<String, List<WidgetBindJsonState>> listInputByPath = {};
+  final Map<String, List<State>> listContainerByPath = {};
 
   // pathData de type /objet/child1/child2 or /array[0]/child1/child2
 
@@ -155,9 +155,12 @@ class StateManager {
 
   void _doReloadContainer(String pathData) {
     var containerState = listContainerByPath[pathData];
-    if (containerState?.mounted ?? false) {
-      // ignore: invalid_use_of_protected_member
-      containerState!.setState(() {});
+    for (var state in containerState ?? const []) {
+      //print("check reload container ${element.key} for $pathData");
+      if (state?.mounted ?? false) {
+        // ignore: invalid_use_of_protected_member
+        state!.setState(() {});
+      }
     }
   }
 
@@ -170,16 +173,18 @@ class StateManager {
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
       try {
         var stateInput = listInputByPath[pathData];
-        if (stateInput?.mounted ?? false) {
-          stateInput!.setBindJsonValue(json);
-          if (antiLoop > 0) {
-            // print("load pathData: $pathData $antiLoop > $json");
-          }
-        } else {
-          // print("no visible pathData: $pathData $antiLoop > $json");
-          antiLoop++;
+        for (WidgetBindJsonState state in stateInput ?? const []) {
+          if (state.mounted) {
+            state.setBindJsonValue(json);
+            if (antiLoop > 0) {
+              // print("load pathData: $pathData $antiLoop > $json");
+            }
+          } else {
+            // print("no visible pathData: $pathData $antiLoop > $json");
+            antiLoop++;
 
-          _initInputControleur(pathData, json, antiLoop);
+            _initInputControleur(pathData, json, antiLoop);
+          }
         }
       } catch (e) {
         print("erreur pathData: $pathData => $e");
@@ -188,36 +193,56 @@ class StateManager {
   }
 
   void registerInput(String pathData, WidgetBindJsonState ctrl) {
-    listInputByPath[pathData] = ctrl;
+    var list = listInputByPath[pathData];
+    if (list == null) {
+      list = [];
+      listInputByPath[pathData] = list;
+    }
+    list.add(ctrl);
   }
 
   void disposeInput(String pathData, WidgetBindJsonState ctrl) {
-    if (listInputByPath[pathData] == ctrl) {
+    var list = listInputByPath[pathData];
+    list?.removeWhere((role) => role == ctrl);
+    if (list != null && list.isEmpty) {
       listInputByPath.remove(pathData);
     }
   }
 
   void registerContainer(String pathData, State widgetState) {
+    var list = listContainerByPath[pathData];
+    if (list == null) {
+      list = [];
+      listContainerByPath[pathData] = list;
+    }
+    list.add(widgetState);
     //print("addContainer $pathData");
-    listContainerByPath[pathData] = widgetState;
   }
 
-  void disposeContainer(String pathData) {
-    listContainerByPath.remove(pathData);
+  void disposeContainer(String pathData, State widgetState) {
+    var list = listContainerByPath[pathData];
+    list?.removeWhere((role) => role == widgetState);
+    if (list != null && list.isEmpty) {
+      listContainerByPath.remove(pathData);
+    }
   }
 
-  void clear() {
+  void clearDisplayedData() {
     data = null;
     statesTreeData.clear();
 
-    for (var element in listContainerByPath.entries) {
-      if (element.value.mounted) {
-        // ignore: invalid_use_of_protected_member
-        element.value.setState(() {});
+    for (var c in listContainerByPath.entries) {
+      for (var element in c.value) {
+        if (element.mounted) {
+          // ignore: invalid_use_of_protected_member
+          element.setState(() {});
+        }
       }
     }
-    for (var element in listInputByPath.entries) {
-      element.value.setBindJsonValue("");
+    for (var i in listInputByPath.entries) {
+      for (var element in i.value) {
+        element.setBindJsonValue("");
+      }
     }
   }
 

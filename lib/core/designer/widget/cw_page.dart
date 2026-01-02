@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/core/widget_theme.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
@@ -11,7 +12,7 @@ class CwPage extends CwWidget {
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'page',
-      build: (ctx) => CwPage(ctx: ctx),
+      build: (ctx) => CwPage(key: ctx.getKey(), ctx: ctx),
       config: (ctx) {
         return CwWidgetConfig()
           // ..addSlot(CwWidgetSlotConfig(id: "appbar"))
@@ -20,7 +21,7 @@ class CwPage extends CwWidget {
           // ..addSlot(CwWidgetSlotConfig(id: "body"))
           ..addProp(
             CwWidgetProperties(id: 'color', name: 'seed color')..isColor(ctx),
-          )
+          )         
           ..addProp(
                 CwWidgetProperties(id: 'darkMode', name: 'dark mode')
                   ..isBool(ctx),
@@ -59,6 +60,14 @@ class CwPage extends CwWidget {
           ..addProp(
             CwWidgetProperties(id: 'fullheight', name: 'full page layout')
               ..isBool(ctx),
+          )
+          ..addProp(
+            CwWidgetProperties(id: 'maxWidth', name: 'limit page width')
+              ..isToogle(ctx, [
+                {'icon': Icons.width_normal, 'value': '1024'},
+                {'icon': Icons.width_wide, 'value': '1440'},
+                {'icon': Icons.width_full, 'value': '1920'},
+              ]),
           );
       },
     );
@@ -69,16 +78,24 @@ class CwPage extends CwWidget {
 }
 
 class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
+  final themeController = ThemeController();
+
   @override
   Widget build(BuildContext context) {
-    return buildWidget(false, (ctx, constraints) {
+    return buildWidget(ModeBuilderWidget.noConstraint, (ctx, constraints) {
       var isDark = getBoolProp(widget.ctx, 'darkMode') ?? false;
       ThemeData theme = getTheme(isDark);
+      themeController.setDefaultTheme(theme);
 
-      return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: theme,
-        home: getResponsiveDrawerScaffold(context),
+      return AnimatedBuilder(
+        animation: themeController,
+        builder: (context, _) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: themeController.theme,
+            home: getResponsiveDrawerScaffold(context),
+          );
+        },
       );
     });
   }
@@ -145,7 +162,12 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
               )
               : null,
       drawer: isDesktop && fixDrawer ? null : drawer,
-      body: getBody(isDesktop && fixDrawer, drawer),
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: getBody(isDesktop && fixDrawer, drawer),
+      ),
 
       // persistentFooterButtons: [
       //   TextButton(onPressed: () {}, child: const Text("Annuler")),
@@ -188,16 +210,33 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
   }
 
   Widget getFixedHeightBody() {
+    var maxWidthVal = getStringProp(widget.ctx, 'maxWidth');
+    double? maxWidth;
+
+    if (maxWidthVal != null) {
+      maxWidth = double.tryParse(maxWidthVal);
+    }
+
     var fixheight = getBoolProp(widget.ctx, 'fullheight') ?? false;
     if (fixheight) {
-      return Row(
-        children: [
-          Expanded(child: getSlot(CwSlotProp(id: 'body', name: 'body'))),
-        ],
+      return Center(
+        child: SizedBox(
+          width: maxWidth?.toDouble() ?? double.infinity,
+          child: Row(
+            children: [
+              Expanded(child: getSlot(CwSlotProp(id: 'body', name: 'body'))),
+            ],
+          ),
+        ),
       );
     } else {
       return SingleChildScrollView(
-        child: getSlot(CwSlotProp(id: 'body', name: 'body')),
+        child: Center(
+          child: SizedBox(
+            width: maxWidth?.toDouble() ?? double.infinity,
+            child: getSlot(CwSlotProp(id: 'body', name: 'body')),
+          ),
+        ),
       );
     }
   }

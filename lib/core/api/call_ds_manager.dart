@@ -83,7 +83,7 @@ class CallerDatasource {
       configApp.criteria.min = pagination['min'] ?? 0;
     }
 
-    for (var link in links ?? []) {
+    for (var link in links ?? const []) {
       configApp.data.links.add(
         ConfigLink(
           onPath: link['link']['on'],

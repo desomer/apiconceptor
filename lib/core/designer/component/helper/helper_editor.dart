@@ -46,4 +46,10 @@ mixin HelperEditor {
     );
     return inputDecoration;
   }
+
+  static double? getDoubleProp(CwWidgetCtx ctx, String propName) {
+    return double.tryParse(
+      ctx.getData()?[ctx.getPropsName()]?[propName]?.toString() ?? '',
+    );
+  }
 }

@@ -80,11 +80,14 @@ class _ToogleEditorState extends State<ToogleEditor> with HelperEditor {
       mainAxisSize: MainAxisSize.max,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Padding(
+        Expanded(child:  Padding(
           padding: const EdgeInsets.fromLTRB(5, 0, 0, 0),
-          child: Text(widget.config.name),
-        ),
-        const Spacer(),
+          child: Text(
+            widget.config.name,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+          ),
+        )),
         ToggleButtons(
           isSelected: isSelected,
           constraints: BoxConstraints(

@@ -11,16 +11,14 @@ import 'package:jsonschema/feature/domain/pan_domain.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/apps/data_sources_page.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 bool withBdd = true;
-
-late final SharedPreferences prefs;
 
 Future<bool> startCore(String usermail, String password) async {
   const isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');

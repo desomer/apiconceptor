@@ -1,7 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
@@ -34,6 +34,11 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "name": "Button, Action, Link",
             "icon": Icons.smart_button_rounded,
           },
+          {
+            "id": "divider",
+            "name": "Divider, Spacer",
+            "icon": Icons.horizontal_rule,
+          },
         ],
       },
       {
@@ -52,11 +57,6 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "icon": Icons.tab,
           },
           {"id": "menu", "name": "Menu, Popup Menu", "icon": Icons.menu},
-          {
-            "id": "list",
-            "name": "List, Data List",
-            "icon": Icons.view_list,
-          },          
         ],
       },
     ];
@@ -107,7 +107,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
                   listRepos.add({
                     "type": "repository",
                     "id": repoId,
-                    "name": "Repos. ${ds['name']}",
+                    "name": "Data ${ds['name']}",
                     "icon": Icons.move_to_inbox_rounded,
                     "ds": idDs,
                   });
@@ -116,7 +116,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
               if (listRepos.isNotEmpty) {
                 jsonData.add({
                   "id": "Repository",
-                  "name": "Repository",
+                  "name": "From Data Repository",
                   "icon": Icons.folder,
                   "children": listRepos,
                 });
@@ -124,7 +124,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
 
               jsonData.add({
                 "id": "DataSource",
-                "name": "Data Source",
+                "name": "From DataSource",
                 "icon": Icons.folder,
                 "children": listDataSource,
               });
@@ -163,7 +163,7 @@ class Node {
       icon: json['icon'],
       json: json,
       children:
-          (json['children'] as List<dynamic>? ?? [])
+          (json['children'] as List<dynamic>? ?? const [])
               .map((child) => Node.fromJson(child))
               .toList(),
     );

@@ -31,6 +31,10 @@ abstract class GenericPageStateless extends StatelessWidget with GenericPage {
   }
 
   const GenericPageStateless({super.key});
+
+  bool isCacheValid(GoRouterState state, String uri) {
+    return true;
+  }
 }
 
 // ignore: must_be_immutable

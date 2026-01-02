@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_iconpicker/flutter_iconpicker.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_repository.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
@@ -13,8 +13,8 @@ class CwAction extends CwWidget {
 
   static void initFactory(WidgetFactory factory) {
     final List listButtonType = [
-      {'icon': Icons.text_fields, 'value': 'text'},
-      {'icon': Icons.smart_button, 'value': 'elevated'}, // elevated button
+      {'icon': Icons.smart_button, 'value': 'elevated'},
+      {'icon': Icons.text_fields, 'value': 'text'}, // elevated button
       {'icon': Icons.crop_square, 'value': 'outlined'}, // outlined button
       {'icon': Icons.touch_app, 'value': 'icon'},
       {'icon': Icons.list, 'value': 'listTile'},
@@ -22,12 +22,12 @@ class CwAction extends CwWidget {
 
     factory.register(
       id: 'action',
-      build: (ctx) => CwAction(ctx: ctx),
+      build: (ctx) => CwAction(key: ctx.getKey(), ctx: ctx),
       config: (ctx) {
         return CwWidgetConfig()
             .addProp(
               CwWidgetProperties(id: 'type', name: 'type')
-                ..isToogle(ctx, listButtonType),
+                ..isToogle(ctx, listButtonType, defaultValue: 'elevated'),
             )
             .addProp(
               CwWidgetProperties(id: 'label', name: 'label')..isText(ctx),
@@ -44,7 +44,7 @@ class CwAction extends CwWidget {
 class _CwInputState extends CwWidgetState<CwAction> with HelperEditor {
   @override
   Widget build(BuildContext context) {
-    return buildWidget(false, (ctx, constraints) {
+    return buildWidget(ModeBuilderWidget.noConstraint, (ctx, constraints) {
       Widget button;
       String? style = getStringProp(widget.ctx, 'type');
       String? label = getStringProp(widget.ctx, 'label') ?? '';
@@ -69,8 +69,7 @@ class _CwInputState extends CwWidgetState<CwAction> with HelperEditor {
               }
 
               var h = repo.ds.helper!;
-              
-              repo.dataState.clear();
+              repo.dataState.clearDisplayedData();
 
               // ignore: use_build_context_synchronously
               h.startCancellableSearch(context, repo.criteriaState.data, () {
@@ -84,17 +83,6 @@ class _CwInputState extends CwWidgetState<CwAction> with HelperEditor {
       }
 
       switch (style) {
-        case 'elevated':
-          if (icon != null) {
-            button = ElevatedButton.icon(
-              onPressed: onPressed,
-              icon: icon,
-              label: Text(label),
-            );
-          } else {
-            button = ElevatedButton(onPressed: onPressed, child: Text(label));
-          }
-          break;
         case 'outlined':
           if (icon != null) {
             button = OutlinedButton.icon(
@@ -122,7 +110,6 @@ class _CwInputState extends CwWidgetState<CwAction> with HelperEditor {
           );
           break;
         case 'text':
-        default:
           if (icon != null) {
             button = TextButton.icon(
               onPressed: onPressed,
@@ -132,6 +119,19 @@ class _CwInputState extends CwWidgetState<CwAction> with HelperEditor {
           } else {
             button = TextButton(onPressed: onPressed, child: Text(label));
           }
+
+        case 'elevated':
+        default:
+          if (icon != null) {
+            button = ElevatedButton.icon(
+              onPressed: onPressed,
+              icon: icon,
+              label: Text(label),
+            );
+          } else {
+            button = ElevatedButton(onPressed: onPressed, child: Text(label));
+          }
+          break;
       }
 
       return button;

@@ -114,7 +114,7 @@ class HomePage extends GenericPageStateless {
         alignment: WrapAlignment.start,
         children: [
           WidgetMenuBtn(
-            label: 'Glossary',
+            label: 'Data Glossary',
             icon: Icons.language,
             route: Pages.glossary,
           ),

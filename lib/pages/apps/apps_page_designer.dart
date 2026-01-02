@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -19,15 +19,39 @@ class AppsPageDesigner extends GenericPageStateless {
   final DesignMode mode;
 
   @override
+  bool isCacheValid(GoRouterState state, String uri) {
+    String keyFactory = 'factoryName';
+    WidgetFactory f = getFactory(keyFactory);
+    f.listPropsEditor = [];
+    f.rootCtx = null;
+    f.onStarted = () {
+      f.onStarted = null;
+      Future.delayed(Duration(milliseconds: 2000), () {
+        if (f.isModeDesigner()) {
+          f.rootCtx?.selectOnDesigner();
+        }
+      });
+    };
+
+    return true;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    String key = 'f1';
-    WidgetFactory? f;
-    f = cacheLinkPage.get(key);
+    String keyFactory = 'factoryName';
+    WidgetFactory f = getFactory(keyFactory);
+    f.initAllGlobalKeys();
+
+    return PageDesigner(key: f.pageDesignerKey, mode: mode, factory: f);
+  }
+
+  WidgetFactory getFactory(String keyFactory) {
+    WidgetFactory? f = cacheLinkPage.get(keyFactory);
     if (f == null) {
       f = WidgetFactory();
-      cacheLinkPage.put(key, f);
+      cacheLinkPage.put(keyFactory, f);
     }
-    return PageDesigner(mode: mode, factory: f);
+    return f;
   }
 
   @override

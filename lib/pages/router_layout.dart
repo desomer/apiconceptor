@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
+import 'package:jsonschema/main.dart';
+import 'package:jsonschema/pages/apps/apps_page_designer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -9,10 +12,10 @@ import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_global_zoom.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 bool showLoginDialog = true;
-bool connect = true;
+bool connectBdd = true;
+bool autoLoging = true;
 
 // ignore: must_be_immutable
 class Layout extends StatefulWidget {
@@ -35,7 +38,7 @@ class _LayoutState extends State<Layout> {
     var navigationInfo =
         page.initNavigation(widget.routerState, context, null)!;
 
-    if (!connect) {
+    if (!connectBdd) {
       showLoginDialog = false;
     }
 
@@ -79,6 +82,7 @@ class _LayoutState extends State<Layout> {
             ),
           },
           child: Scaffold(
+            resizeToAvoidBottomInset: true,
             backgroundColor: Color.fromARGB(255, 5, 1, 0),
             appBar: AppBar(
               toolbarHeight: 40,
@@ -112,20 +116,25 @@ class _LayoutState extends State<Layout> {
                 ),
               ],
             ),
-            body: Row(
-              children: [
-                SizedBox(
-                  width: 100,
-                  child: getNavigationItem(navigationInfo, location, context),
-                ),
-                const VerticalDivider(thickness: 1, width: 1),
-                Expanded(
-                  child:
-                      widget
-                          .navChild, //  IndexedStack(index: 0, children: pages),
-                  //child: widget.navChild,
-                ),
-              ],
+            body: GestureDetector(
+              onTap: () {
+                FocusScope.of(context).unfocus();
+              },
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 100,
+                    child: getNavigationItem(navigationInfo, location, context),
+                  ),
+                  const VerticalDivider(thickness: 1, width: 1),
+                  Expanded(
+                    child:
+                        widget
+                            .navChild, //  IndexedStack(index: 0, children: pages),
+                    //child: widget.navChild,
+                  ),
+                ],
+              ),
             ),
             bottomNavigationBar: Row(
               children: [
@@ -136,6 +145,20 @@ class _LayoutState extends State<Layout> {
                 // InkWell(child: Icon(Icons.redo)),
                 // SizedBox(width: 5),
                 SizedBox(height: 20, child: WidgetGlobalZoom()),
+                IconButton(
+                  onPressed: () {
+                    prefs.remove("page_designer_data");
+                    String key = 'f1';
+                    WidgetFactory? f;
+                    f = cacheLinkPage.get(key);
+                    if (f != null) {
+                      f.initEmptyPage();
+                      f.pageDesignerKey.currentState?.setState(() {});
+                      f.rootCtx?.selectOnDesigner();
+                    }
+                  },
+                  icon: Icon(Icons.delete),
+                ),
                 Spacer(),
                 Text('API Architect by Desomer G. V1.0.3.24'),
               ],
@@ -241,7 +264,6 @@ class _LayoutState extends State<Layout> {
   }
 
   Future<void> _dialogBuilder(BuildContext context) async {
-    prefs = await SharedPreferences.getInstance();
     var mail = prefs.getString("mail");
     var pwd = prefs.getString("pwd");
 

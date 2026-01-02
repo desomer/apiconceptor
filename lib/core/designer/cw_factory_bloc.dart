@@ -1,6 +1,6 @@
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/designer/component/widget_cmp_choiser.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_repository.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -9,14 +9,18 @@ import 'package:jsonschema/start_core.dart';
 import 'package:uuid/uuid.dart';
 
 class CwFactoryBloc with NameMixin {
-  Future<void> createRepositoryIfNeeded(CwWidgetCtx ctx) async {
-    Map listSlot = ctx.aFactory.data[cwSlots];
+  Future<void> createRepositoryIfNeeded(
+    WidgetFactory aFactory,
+    Map<String, dynamic> data,
+    bool loadLater,
+  ) async {
+    Map listSlot = data[cwSlots];
     for (String key in listSlot.keys) {
       if (key.startsWith('rp_')) {
         var rpConfig = listSlot[key];
-        if (ctx.aFactory.mapRepositories[key] == null) {
-          var repo = CwRepository(config: rpConfig, aFactory: ctx.aFactory);
-          ctx.aFactory.mapRepositories[key] = repo;
+        if (aFactory.mapRepositories[key] == null) {
+          var repo = CwRepository(config: rpConfig, aFactory: aFactory);
+          aFactory.mapRepositories[key] = repo;
           await repo.ds.loadDs(rpConfig[cwProps]["dsId"], null);
           var schemaCriteria = repo.ds.helper!.apiCallInfo.currentAPIRequest!;
 
@@ -34,18 +38,28 @@ class CwFactoryBloc with NameMixin {
               repo.viewerState.criteriaState.dataEmpty,
             );
           }
-          repo.designState.criteriaState.loadDataInContainer(
-            repo.designState.criteriaState.data,
-          );
-          repo.designState.dataState.loadDataInContainer(
-            repo.designState.dataState.data,
-          );          
-          repo.viewerState.criteriaState.loadDataInContainer(
-            repo.viewerState.criteriaState.data,
-          );
+          if (loadLater) {
+            Future.delayed(Duration(seconds: 1), () {
+              loadAllData(repo);
+            });
+          } else {
+            loadAllData(repo);
+          }
         }
       }
     }
+  }
+
+  void loadAllData(CwRepository repo) {
+    repo.designState.criteriaState.loadDataInContainer(
+      repo.designState.criteriaState.data,
+    );
+    repo.designState.dataState.loadDataInContainer(
+      repo.designState.dataState.data,
+    );
+    repo.viewerState.criteriaState.loadDataInContainer(
+      repo.viewerState.criteriaState.data,
+    );
   }
 
   Future<Map<String, dynamic>?> doDataSrcBloc(
@@ -62,23 +76,35 @@ class CwFactoryBloc with NameMixin {
         cwId: repositoryId,
         cwProps: <String, dynamic>{'domain': ds.domainDs, 'dsId': ds.dsId},
       };
-      await createRepositoryIfNeeded(ctx);
+      await createRepositoryIfNeeded(ctx.aFactory, ctx.aFactory.data, false);
       componentValueListenable.value++;
     } else if (config['type'] == 'repository') {
       repositoryId = config[cwId];
     }
 
     Map<String, dynamic>? ret;
-    var listAttrSelected = ds.selectionConfig;
+    var propContainer = <String, dynamic>{};
 
-    var propContainer = <String, dynamic>{'type': 'column', 'layout': 'form'};
-    ret = {cwType: 'container', cwProps: propContainer};
+    if (ds.typeLayout == 'Table') {
+      // add table container
+      propContainer.addAll(<String, dynamic>{
+        'bind': {'repository': repositoryId, 'from': 'data'},
+      });
+      ret = {cwType: 'table', cwProps: propContainer};
+    } else {
+      // add form container
+      propContainer.addAll(<String, dynamic>{
+        'type': 'column',
+        'layout': 'form',
+      });
+      ret = {cwType: 'container', cwProps: propContainer};
 
-    if (ctx.parentCtx?.dataWidget?[cwType] == 'container' &&
-        (ctx.parentCtx?.dataWidget?[cwProps]?['type'] ?? 'column') ==
-            'column') {
-      // hauteur à la hauteur du contenu si parent colonne
-      ret[cwPropsSlot] = <String, dynamic>{"fit": "inner"};
+      if (ctx.parentCtx?.dataWidget?[cwType] == 'container' &&
+          (ctx.parentCtx?.dataWidget?[cwProps]?['type'] ?? 'column') ==
+              'column') {
+        // hauteur à la hauteur du contenu si parent colonne
+        ret[cwPropsSlot] = <String, dynamic>{"fit": "inner"};
+      }
     }
 
     bool addAction = true;
@@ -86,6 +112,7 @@ class CwFactoryBloc with NameMixin {
     String typeContainer = "criteria";
     String? listPath;
 
+    var listAttrSelected = ds.selectionConfig;
     for (var i = 0; i < listAttrSelected.length; i++) {
       ModelSchema? model;
 
@@ -149,6 +176,8 @@ class CwFactoryBloc with NameMixin {
       };
       ctx.aFactory.addInSlot(list, 'item0', ret);
       ret = list;
+    } else if (ds.typeLayout == 'Table') {
+      propContainer['bind']['attr'] = listPath;
     }
 
     return ret;

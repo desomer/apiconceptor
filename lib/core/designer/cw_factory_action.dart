@@ -1,10 +1,20 @@
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 
 class CwFactoryAction {
   final CwWidgetCtx ctx;
 
   CwFactoryAction({required this.ctx});
+
+  void delete() {
+    ctx.dataWidget?.remove(cwType);
+    ctx.dataWidget?.remove(cwProps);
+    ctx.parentCtx!.dataWidget![cwSlots]?.remove(ctx.slotId);
+    ctx.selectorCtx.slotState?.widget.config.innerWidget = null;
+    // ignore: invalid_use_of_protected_member
+    ctx.selectorCtx.slotState?.setState(() {});
+    ctx.selectOnDesigner();
+  }
 
   void deleteSlot(int idx, int nbSlots) {
     ctx.dataWidget?.remove(cwType);

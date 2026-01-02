@@ -52,7 +52,9 @@ class _PanModelGraphState extends State<PanModelGraph> {
     initGraph(currentCompany.listModel!);
     // initGraph(currentCompany.listComponent);
     // initGraph(currentCompany.listRequest);
-    initGraph(currentCompany.listAPI!);
+    if (currentCompany.listAPI != null) {
+      initGraph(currentCompany.listAPI!);
+    }
 
     timer = Timer.periodic(const Duration(milliseconds: 30), (_) {
       _applyForces();

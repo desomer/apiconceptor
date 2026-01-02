@@ -197,7 +197,7 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
     return TextButton.icon(
       icon: Icon(Icons.clear),
       onPressed: () async {
-        json2ui.stateMgr.clear();
+        json2ui.stateMgr.clearDisplayedData();
         exampleManager.clearSelected();
       },
       label: Text('Clear'),

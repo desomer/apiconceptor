@@ -3,7 +3,6 @@ import 'dart:developer' as dev show log;
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/core/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_selectable.dart';
-import 'package:jsonschema/core/designer/component/pages_viewer.dart';
 
 class WidgetOverlySelector extends StatefulWidget {
   const WidgetOverlySelector({super.key});
@@ -39,17 +38,26 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
     on(CDDesignEvent.select, (selected) {
       CWEventCtx ctx = selected;
 
+      //var keybox = ctx.ctx?.selectableState?.captureKey;
+
+      var keybox = ctx.ctx?.getBoxKey();
+
       var displayProps = (ctx.extra?['displayProps'] ?? true) == true;
-      if (ctx.keybox == null) {
+      if (keybox == null) {
         dev.log("*********** no keybox for ${ctx.path}");
         return;
       }
 
-      initRecWithKeyPosition(ctx.keybox!, designerKey, position);
+      initRecWithKeyPosition(keybox, ctx.ctx!.aFactory.designerKey, position, ctx.ctx!);
 
-      final RenderBox? b = ctx.keybox?.currentContext?.findRenderObject() as RenderBox?;
-      ctx.ctx?.lastSize = b?.size; 
-      
+      final RenderBox? b =
+          keybox.currentContext?.findRenderObject() as RenderBox?;
+      ctx.ctx?.selectorCtxIfDesign?.lastSize = b?.size;
+
+      // var h = position.bottom - position.top;
+      // var w = position.right - position.left;
+      //dev.log("size for ${ctx.path} : $w x $h");
+
       setState(() {}); // postionne l'indicateur
 
       if (displayProps) {
@@ -68,10 +76,26 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
       if (currentSelect == null) {
         return;
       }
+      if (selected != null) {
+        currentSelect!.ctx!.aFactory.displayProps(currentSelect!.ctx!);
+      }
+
       CWEventCtx ctx = currentSelect!;
       currentSelect = ctx;
-      initRecWithKeyPosition(ctx.keybox!, designerKey, position);
-      setState(() {}); // postionne l'indicateur
+      initRecWithKeyPosition(
+        ctx.ctx!.getBoxKey()!,
+        ctx.ctx!.aFactory.designerKey,
+        position,
+        ctx.ctx!,
+      );
+
+      var h = position.bottom - position.top;
+      var w = position.right - position.left;
+      dev.log("reselect size for ${currentSelect!.ctx!.aWidgetPath} : $w x $h");
+
+      if (mounted) {
+        setState(() {}); // postionne l'indicateur
+      }
     });
 
     super.initState();
@@ -79,6 +103,14 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
 
   @override
   Widget build(BuildContext context) {
+
+    var width = position.right - position.left;
+    var height = position.bottom - position.top;
+
+    if (width <= 0 || height <= 0) {
+      return Container();
+    }
+
     List<Widget> childrenAction = [];
     childrenAction.add(getZone(deleteZone, position));
     childrenAction.add(getZone(sizeZone, position));
@@ -94,8 +126,8 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
         left: position.left,
         child: IgnorePointer(
           child: Container(
-            width: position.right - position.left,
-            height: position.bottom - position.top,
+            width: width,
+            height: height,
             decoration: BoxDecoration(
               border: Border.all(color: Colors.deepOrange, width: 1.5),
             ),

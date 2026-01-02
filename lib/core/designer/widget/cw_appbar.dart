@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/core/widget_overlay_selector.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_factory_action.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
@@ -19,7 +19,7 @@ class CwAppBar extends CwWidget {
 
     factory.register(
       id: 'appbar',
-      build: (ctx) => CwAppBar(ctx: ctx),
+      build: (ctx) => CwAppBar(key: ctx.getKey(), ctx: ctx),
       config: config,
     );
   }
@@ -84,7 +84,7 @@ class _CwPageState extends CwWidgetState<CwAppBar> with HelperEditor {
 
   @override
   Widget build(BuildContext context) {
-    return buildWidget(false, (ctx, constraints) {
+    return buildWidget(ModeBuilderWidget.noConstraint, (ctx, constraints) {
       void onDrop(CwWidgetCtx ctx, DropCtx drop) {
         var type = drop.childData![cwType];
         var cd = drop.childData!;
@@ -112,26 +112,20 @@ class _CwPageState extends CwWidgetState<CwAppBar> with HelperEditor {
       return AppBar(
         title: getSlot(CwSlotProp(id: 'title', name: 'app title')),
         actions: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: 40),
-                child: getSlot(
-                  CwSlotProp(
-                    id: 'actions',
-                    name: 'actions',
-                    onAction: onAction,
-                    onDrop: onDrop,
-                  ),
+          // Row(
+          //   mainAxisSize: MainAxisSize.min,
+          //   children: [
+              getSlot(
+                CwSlotProp(
+                  id: 'actions',
+                  name: 'actions',
+                  onAction: onAction,
+                  onDrop: onDrop,
                 ),
               ),
             ],
-          ),
-          // getSlot(
-          //   CwSlotProp(id: 'actions', name: 'actions', onAction: onAction),
-          // ),
-        ],
+ //         ),
+ //       ],
       );
     });
   }

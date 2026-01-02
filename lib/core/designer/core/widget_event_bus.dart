@@ -27,7 +27,7 @@ void emitLater(
     if (multiple) emit(event, payload);
     //Future.delayed( Duration(milliseconds: 100), () {
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-      emitLater(event, payload, waitFrame: waitFrame - 1);
+      emitLater(event, payload, multiple: multiple, waitFrame: waitFrame - 1);
     });
   }
 }

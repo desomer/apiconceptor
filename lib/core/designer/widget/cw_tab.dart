@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/component/helper/helper_editor.dart';
-import 'package:jsonschema/core/designer/cw_factory.dart';
+import 'package:jsonschema/core/designer/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/cw_slot.dart';
 import 'package:jsonschema/core/designer/cw_widget.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -11,7 +11,7 @@ class CwTabBar extends CwWidget {
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'tabbar',
-      build: (ctx) => CwTabBar(ctx: ctx),
+      build: (ctx) => CwTabBar(key: ctx.getKey(), ctx: ctx),
       config: (ctx) {
         return CwWidgetConfig();
       },
@@ -36,7 +36,7 @@ class CwTabBar extends CwWidget {
 class _CwTabBarState extends CwWidgetState<CwTabBar> with HelperEditor {
   @override
   Widget build(BuildContext context) {
-    return buildWidget(true, (ctx, constraints) {
+    return buildWidget(ModeBuilderWidget.constraintBuilder, (ctx, constraints) {
       List<Widget> tabs = [];
       List<Widget> tabsView = [];
       int nb = 2;
