@@ -7,7 +7,7 @@ import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/feature/model/pan_model_import_dialog.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:uuid/uuid.dart';
+
 
 class PanSaveParam extends StatefulWidget {
   const PanSaveParam(this.api, this.jsonParam, {super.key});
@@ -19,7 +19,6 @@ class PanSaveParam extends StatefulWidget {
 }
 
 class _PanSaveParamState extends State<PanSaveParam> {
-  final uuid = Uuid();
 
   @override
   Widget build(BuildContext context) {

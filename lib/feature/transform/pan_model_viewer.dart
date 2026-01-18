@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';

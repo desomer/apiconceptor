@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/json.dart' show json;
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';

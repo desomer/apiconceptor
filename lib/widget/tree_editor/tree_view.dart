@@ -19,8 +19,8 @@ class TreeNodeData<T> {
   bool isInvisibleRequested = false;
   T data;
 
-  ValueNotifier<int> changed = ValueNotifier(0);
-  ValueNotifier<int> selected = ValueNotifier(0);
+  // ValueNotifier<int> changed = ValueNotifier(0);
+  // ValueNotifier<int> selected = ValueNotifier(0);
 
   String? rowCacheKey;
   Widget? rowCache;
@@ -93,12 +93,62 @@ typedef IsSelected<T> =
       State? oldSelectedState,
     );
 
+typedef IsRowCached<T> = int Function(TreeNodeData<T> node);
+
 class TreeViewData<T> {
   final List<TreeNodeData<T>> nodes;
   final double headerSize;
 
   TreeViewData({required this.nodes, required this.headerSize});
 }
+
+/// A widget that displays a tree view with expandable and collapsible nodes.
+
+// GlobalKey<TreeViewState> keyTreeEditor = GlobalKey();
+
+//   Widget getTree(BuildContext context) {
+//     return TreeView<Map<String, dynamic>>(
+//       key: keyTreeEditor,
+//       isSelected: (node, cur, old) {
+//         return node.data['selected'] == true;
+//       },
+//       onBuild: (state, ctx) {},
+//       getNodes: () {
+//         var main = TreeNodeData<Map<String, dynamic>>(
+//           data: {'id': 'root', 'name': 'Root'},
+//           children: [
+//             TreeNodeData<Map<String, dynamic>>(
+//               data: {'id': 'aaa', 'name': 'aaaaa'},
+//             ),
+//           ],
+//         );
+//         return TreeViewData(nodes: [main], headerSize: 100);
+//       },
+//       getHeader: (node) {
+//         return Text(node.data['id'] ?? 'No id');
+//       },
+//       getDataRow: (node) {
+//         return InkWell(
+//           onTap: () {
+//             node.data['selected'] =
+//                 node.data['selected'] == true ? false : true;
+
+//             int idcache = node.data['intCache'] ?? 0;
+//             node.data['intCache'] = idcache + 1;
+
+//             keyTreeEditor.currentState?.doTapHeader(node);
+//           },
+//           child: Text(node.data['name'] ?? 'No name'),
+//         );
+//       },
+//       onTapHeader: (node, ctx) async {
+//         print('tap on ${node.data['name']}');
+//       },
+//       isRowCached: (node) {
+//         return node.data['intCache'] ?? 0;
+//       },
+//     );
+//   }
 
 class TreeView<T> extends StatefulWidget {
   const TreeView({
@@ -109,6 +159,7 @@ class TreeView<T> extends StatefulWidget {
     this.onBuild,
     this.onTapHeader,
     required this.isSelected,
+    this.isRowCached,
   });
 
   final GetNode<T> getNodes;
@@ -117,6 +168,7 @@ class TreeView<T> extends StatefulWidget {
   final OnTap<T>? onTapHeader;
   final OnBuild<T>? onBuild;
   final IsSelected<T> isSelected;
+  final IsRowCached<T>? isRowCached;
 
   @override
   State<TreeView> createState() => TreeViewState<T>();
@@ -149,7 +201,6 @@ class TreeViewState<T> extends State<TreeView<T>> {
 
   @override
   void dispose() {
-    print("dispose");
     isDisposed = true;
     super.dispose();
   }
@@ -314,6 +365,8 @@ class TreeViewState<T> extends State<TreeView<T>> {
     int numUpdate = 0;
     if (node.data is NodeAttribut) {
       numUpdate = (node.data as NodeAttribut).info.numUpdateForKey;
+    } else if (widget.isRowCached != null) {
+      numUpdate = widget.isRowCached!(node);
     }
 
     if (node.rowCache == null ||

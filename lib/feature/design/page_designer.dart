@@ -1,11 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/designer/component/pages_viewer.dart';
-import 'package:jsonschema/core/designer/component/props_viewer.dart';
-import 'package:jsonschema/core/designer/component/widget_cmp_choiser.dart';
-import 'package:jsonschema/core/designer/cw_widget_factory.dart';
-import 'package:jsonschema/core/designer/cw_factory_bloc.dart';
+import 'package:jsonschema/core/designer/editor/view/pages_viewer.dart';
+import 'package:jsonschema/core/designer/editor/view/bloc_props_viewer.dart';
+import 'package:jsonschema/core/designer/editor/view/bloc_drag_components.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
+import 'package:jsonschema/core/designer/core/cw_factory_bloc.dart';
+import 'package:jsonschema/core/designer/editor/view/bloc_drag_pages.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -22,21 +23,26 @@ class PageDesigner extends StatefulWidget {
 }
 
 class _PageDesignerState extends State<PageDesigner> {
+  bool isInitialized = false;
+
   @override
   void initState() {
-    Map slot = widget.factory.data[cwSlots] ?? {};
-    if (slot.isEmpty) {
+    Map app = widget.factory.appData[cwApp] ?? {};
+    if (app.isEmpty) {
       var d = prefs.getString("page_designer_data");
       if (d != null) {
         var saveData = jsonDecode(d);
         CwFactoryBloc()
-            .createRepositoryIfNeeded(widget.factory, saveData, true)
+            .createRepositoriesIfNeeded(widget.factory, saveData, true)
             .then((_) {
-              widget.factory.data = saveData;
+              // affiche apres avoir tout charger les repositories
+              widget.factory.appData = saveData;
+              isInitialized = true;
               setState(() {});
             });
       } else {
-        widget.factory.initEmptyPage();
+        widget.factory.getEmptyApp();
+        isInitialized = true;
         // Future.delayed(Duration(milliseconds: 500), () {
         //   widget.factory.rootCtx?.selectOnDesigner();
         // });
@@ -49,11 +55,14 @@ class _PageDesignerState extends State<PageDesigner> {
   Widget build(BuildContext context) {
     widget.factory.mode = widget.mode;
 
-    var rootSlot = widget.factory.getRootSlot();
-    widget.factory.onStarted?.call();
+    var rootSlot = widget.factory.getRootSlot('/');
+
+    if (isInitialized) {
+      widget.factory.onStarted?.call();
+    }
 
     if (widget.mode == DesignMode.viewer) {
-      var j = jsonEncode(widget.factory.data);
+      var j = jsonEncode(widget.factory.appData);
       prefs.setString("page_designer_data", j);
 
       return PagesDesignerViewer(
@@ -68,6 +77,9 @@ class _PageDesignerState extends State<PageDesigner> {
       primaryWidth: 300,
       children: [
         WidgetTab(
+          onInitController: (widgetTabController) {
+            widget.factory.controllerTabProps = widgetTabController;
+          },
           listTab: [
             Tab(
               child: Row(
@@ -110,10 +122,10 @@ class _PageDesignerState extends State<PageDesigner> {
             ),
 
             WidgetTab(
-              listTab: [Tab(text: 'Components'), Tab(text: 'Pages')],
+              listTab: [Tab(text: 'Components'), Tab(text: 'Pages & dialogs')],
               listTabCont: [
                 WidgetChoiser(factory: widget.factory),
-                Container(),
+                WidgetPages(factory: widget.factory),
               ],
               heightTab: 30,
             ),

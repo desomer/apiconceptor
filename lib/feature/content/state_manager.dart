@@ -13,8 +13,8 @@ class StateManagerUI extends StateManager {
   Map<String, List<ConfigFormContainer>> configLayout = {};
   Map<String, ConfigArrayContainer> configArray = {};
 
-  final Map<String, StateContainer> stateTemplate =
-      {}; // container des templates (plus utile... remplacer par le PanInfo)
+  // container des templates (plus utile... remplacer par le PanInfo)
+  final Map<String, StateContainer> stateTemplate = {};
 
   @override
   void dispose() {
@@ -114,6 +114,8 @@ class StateManager {
   // liste des input controleur actif
   final Map<String, List<WidgetBindJsonState>> listInputByPath = {};
   final Map<String, List<State>> listContainerByPath = {};
+
+  final Map<String, Map<String, State>> listDepsContainerByPath = {};
 
   // pathData de type /objet/child1/child2 or /array[0]/child1/child2
 

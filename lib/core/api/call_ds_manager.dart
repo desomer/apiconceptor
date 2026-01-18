@@ -1,8 +1,9 @@
 import 'package:collection/collection.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
@@ -18,6 +19,7 @@ class CallerDatasource {
   String domainDs = '';
   String dsId = '';
   String apiShortName = '';
+  String dsName = '';
   ModelSchema? modelHttp200;
 
   String typeLayout = 'Form';
@@ -56,12 +58,20 @@ class CallerDatasource {
     var apps = await loadDataSource(domainName, false);
     var b = BrowseSingle();
     b.browse(apps, false);
+    late AttributInfo app;
+
+    if (datasourceId.startsWith('#name=')) {
+      var name = datasourceId.substring(6);
+      app = apps.mapInfoByName[name]!.first;
+      datasourceId = app.masterID!;
+    } else {
+      app = apps.nodeByMasterId[datasourceId]!.info;
+    }
     dsId = datasourceId;
+    dsName = app.name;
+    print('load ds $datasourceId name = ${app.name}');
 
-    var app = apps.nodeByMasterId[datasourceId];
-    print('load ds $datasourceId name = ${app!.info.name}');
-
-    var configText = app.info.properties!['config'];
+    var configText = app.properties!['config'];
     Map config = {};
     try {
       config = loadYaml(configText, recover: true);

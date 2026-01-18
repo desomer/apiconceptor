@@ -1,6 +1,6 @@
 // main d'un ecran simple
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/designer/widget/cw_table_layout.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_layout.dart';
 
 void main(List<String> args) {
   //debugPaintSizeEnabled = true;
@@ -24,6 +24,8 @@ class _NewWidgetState extends State<NewWidget> {
         const Text('Frozen Table View Example'),
         Expanded(
           child: FrozenTableView(
+            rowWidthBorderL: 0,
+            rowWidthBorderR: 0,
             rowCountTop: 1,
             rowCount: 5,
             rowCountBottom: 1,
@@ -51,7 +53,7 @@ class _NewWidgetState extends State<NewWidget> {
               }
               return 50;
             },
-            buildRow: (int row, Widget child) {
+            buildRow: (int row, bool isStartCols, Widget child) {
               return child;
             },
           ),

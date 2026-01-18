@@ -1,6 +1,6 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';

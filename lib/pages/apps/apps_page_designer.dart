@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
-import 'package:jsonschema/core/designer/cw_widget_factory.dart';
-import 'package:jsonschema/core/util.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
-
-LruCache cacheLinkPage = LruCache(5);
 
 // ignore: must_be_immutable
 class AppsPageDesigner extends GenericPageStateless {
@@ -26,9 +24,15 @@ class AppsPageDesigner extends GenericPageStateless {
     f.rootCtx = null;
     f.onStarted = () {
       f.onStarted = null;
-      Future.delayed(Duration(milliseconds: 2000), () {
+      Future.delayed(Duration(milliseconds: 1000), () {
+        // ignore: invalid_use_of_protected_member
+        f.pageDesignerKey.currentState?.setState(() {});
+        // ignore: invalid_use_of_protected_member
+        f.rootCtx?.widgetState?.setState(() {});
         if (f.isModeDesigner()) {
-          f.rootCtx?.selectOnDesigner();
+          SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+            f.rootCtx?.selectOnDesigner();
+          });
         }
       });
     };
@@ -74,6 +78,12 @@ class AppsPageDesigner extends GenericPageStateless {
           settings: const RouteSettings(name: 'Test Page'),
           type: BreadNodeType.widget,
           path: Pages.pageViewer.urlpath,
+        ),
+        BreadNode(
+          icon: const Icon(Icons.bug_report),
+          settings: const RouteSettings(name: 'Debug app'),
+          type: BreadNodeType.widget,
+          path: Pages.pageDebug.urlpath,
         ),
       ];
   }

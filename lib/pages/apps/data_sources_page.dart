@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:highlight/languages/yaml.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/pages/apps/apps_page_detail.dart';
+import 'package:jsonschema/pages/apps/data_sources_link_viewer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';

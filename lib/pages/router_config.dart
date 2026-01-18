@@ -2,7 +2,7 @@ import 'dart:developer' as dev show log;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
@@ -12,29 +12,30 @@ import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/pages/apps/apps_page.dart';
+import 'package:jsonschema/pages/apps/data_sources_data_viewer.dart';
 import 'package:jsonschema/pages/apps/apps_page_designer.dart';
-import 'package:jsonschema/pages/apps/apps_page_detail.dart';
+import 'package:jsonschema/pages/apps/apps_page_designer_debug.dart';
+import 'package:jsonschema/pages/apps/data_sources_link_viewer.dart';
 import 'package:jsonschema/pages/browse_api/browse_api_page.dart';
 import 'package:jsonschema/pages/browse_api/browse_api_ui_page.dart';
-import 'package:jsonschema/pages/content_page.dart';
+import 'package:jsonschema/pages/content/content_page.dart';
 import 'package:jsonschema/pages/apps/data_sources_page.dart';
-import 'package:jsonschema/pages/design/design_api_detail_page.dart';
-import 'package:jsonschema/pages/design/design_api_detail_ui.dart';
-import 'package:jsonschema/pages/design/design_api_page.dart';
-import 'package:jsonschema/pages/design/design_model_jsonschema_page.dart';
-import 'package:jsonschema/pages/design/design_model_detail_page.dart';
-import 'package:jsonschema/pages/design/design_model_detail_scrum_page.dart';
-import 'package:jsonschema/pages/design/design_model_graph_page.dart';
-import 'package:jsonschema/pages/design/design_model_page.dart';
-import 'package:jsonschema/pages/design/design_model_ui_page.dart';
-import 'package:jsonschema/pages/domain_page.dart';
-import 'package:jsonschema/pages/env_page.dart';
-import 'package:jsonschema/pages/glossary_page.dart';
+import 'package:jsonschema/pages/model_design/design_api_detail_page.dart';
+import 'package:jsonschema/pages/model_design/design_api_detail_ui.dart';
+import 'package:jsonschema/pages/model_design/design_api_page.dart';
+import 'package:jsonschema/pages/model_design/design_model_jsonschema_page.dart';
+import 'package:jsonschema/pages/model_design/design_model_detail_page.dart';
+import 'package:jsonschema/pages/model_design/design_model_detail_scrum_page.dart';
+import 'package:jsonschema/pages/model_design/design_model_graph_page.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
+import 'package:jsonschema/pages/model_design/design_model_ui_page.dart';
+import 'package:jsonschema/pages/config/domain_page.dart';
+import 'package:jsonschema/pages/config/env_page.dart';
+import 'package:jsonschema/pages/config/glossary_page.dart';
 import 'package:jsonschema/pages/log_page.dart';
 import 'package:jsonschema/pages/mock_api_page.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
-import 'package:jsonschema/pages/user_page.dart';
+import 'package:jsonschema/pages/config/user_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
@@ -72,7 +73,9 @@ enum Pages {
   appPage("/app/page"),
   appPageDetail("/app/page/detail"),
   pageDesigner("/pages/designer"),
-  pageViewer("/pages/viewer");
+  pageViewer("/pages/viewer"),
+  pageDebug("/pages/debug")
+  ;
 
   const Pages(this.urlpath);
   final String urlpath;
@@ -381,6 +384,7 @@ final GoRouter router = GoRouter(
           AppsPageDesigner(mode: DesignMode.designer),
         ),
         addRouteBy(Pages.pageViewer, AppsPageDesigner(mode: DesignMode.viewer)),
+        addRouteBy(Pages.pageDebug, AppsPageDesignerDebug()),
         //----------------------------------------------------------------
         addRouteBy(Pages.log, LogPage()),
         // addRoute(

@@ -124,6 +124,11 @@ class HomePage extends GenericPageStateless {
             route: Pages.models,
           ),
           WidgetMenuBtn(label: 'Design API', icon: Icons.api, route: Pages.api),
+          WidgetMenuBtn(
+            label: 'Data source',
+            icon: Icons.dataset_linked,
+            route: Pages.contentPages,
+          ),          
           WidgetMenuBtn(label: 'Design Message', icon: Icons.message_outlined),
           WidgetMenuBtn(
             label: 'Validation Workflow',
@@ -143,7 +148,7 @@ class HomePage extends GenericPageStateless {
         alignment: WrapAlignment.start,
         children: [
           WidgetMenuBtn(
-            label: 'Browse documentation',
+            label: 'Browse API documentation',
             icon: Icons.insert_drive_file_outlined,
             route: Pages.apiBrowserTag,
           ),
@@ -188,11 +193,6 @@ class HomePage extends GenericPageStateless {
           WidgetMenuBtn(
             label: 'Browse content',
             icon: Icons.content_paste_search,
-          ),
-          WidgetMenuBtn(
-            label: 'Data source',
-            icon: Icons.content_paste_rounded,
-            route: Pages.contentPages,
           ),
         ],
       ),

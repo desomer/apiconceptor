@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/designer/core/widget_selectable.dart';
+import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_form.dart';

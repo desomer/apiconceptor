@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_action_hub.dart';

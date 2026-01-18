@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jsonschema/core/designer/cw_widget_factory.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/main.dart';
-import 'package:jsonschema/pages/apps/apps_page_designer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -148,11 +147,11 @@ class _LayoutState extends State<Layout> {
                 IconButton(
                   onPressed: () {
                     prefs.remove("page_designer_data");
-                    String key = 'f1';
+                    String keyFactory = 'factoryName';
                     WidgetFactory? f;
-                    f = cacheLinkPage.get(key);
+                    f = cacheLinkPage.get(keyFactory);
                     if (f != null) {
-                      f.initEmptyPage();
+                      f.getEmptyApp();
                       f.pageDesignerKey.currentState?.setState(() {});
                       f.rootCtx?.selectOnDesigner();
                     }
@@ -213,6 +212,7 @@ class _LayoutState extends State<Layout> {
     List<NavigationRailDestination> contextMenu =
         navigationInfo.navLeft.map((item) {
           return NavigationRailDestination(
+            disabled: item.path == null && item.onTap == null,
             icon: item.icon != null ? item.icon! : Icon(Icons.question_mark),
             label: Text(item.settings.name ?? "Unknown"),
           );

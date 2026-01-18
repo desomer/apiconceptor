@@ -4,7 +4,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:intl/intl.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/pan_attribut_editor.dart';

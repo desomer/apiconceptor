@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:jsonschema/company_model.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';

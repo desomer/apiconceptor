@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:jsonschema/widget/editor/eval.dart';
+import 'package:jsonschema/widget/editor/formula_eval.dart';
 
 void main() => runApp(MyApp());
 

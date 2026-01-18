@@ -86,23 +86,28 @@ class MyApp extends StatelessWidget {
     );
     ThemeHolder.theme = theme;
 
-    return MaterialApp.router(
-      title: 'App Desktop avec Menu Fixe',
-      localizationsDelegates: [
-        FleatherLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        FlutterQuillLocalizations.delegate,
-      ],
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color.fromRGBO(86, 80, 14, 171),
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      excludeSemantics: true,
+      child: MaterialApp.router(
+        title: 'App Desktop avec Menu Fixe',
+        localizationsDelegates: [
+          FleatherLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          FlutterQuillLocalizations.delegate,
+        ],
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorSchemeSeed: const Color.fromRGBO(86, 80, 14, 171),
+        ),
+        darkTheme: theme,
+        themeMode: ThemeMode.dark,
+        routerConfig: router,
       ),
-      darkTheme: theme,
-      themeMode: ThemeMode.dark,
-      routerConfig: router,
     );
   }
 }

@@ -28,6 +28,7 @@ class BreadCrumbNavigator extends StatefulWidget {
 // }
 
 const _textStyle = TextStyle(color: Colors.white, fontSize: 15);
+const _textStyleDisable = TextStyle(color: Colors.grey, fontSize: 15);
 
 class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
     with WidgetHelper {
@@ -97,6 +98,8 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
         route.type,
         currentPathOnStack[index].settings.name ?? '',
         index == 0,
+        route.type == BreadNodeType.domain ||
+            (route.path != null || route.onTap != null),
         child: child,
       );
 
@@ -151,8 +154,16 @@ class _BreadButton extends StatelessWidget {
   final BreadNodeType type;
   final Widget? child;
 
+  final bool enable;
+
   // ignore: unused_element_parameter
-  const _BreadButton(this.type, this.text, this.isFirstButton, {this.child});
+  const _BreadButton(
+    this.type,
+    this.text,
+    this.isFirstButton,
+    this.enable, {
+    this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +181,12 @@ class _BreadButton extends StatelessWidget {
             top: 8,
             bottom: 8,
           ),
-          child: child ?? Text(text, style: _textStyle),
+          child:
+              child ??
+              Text(
+                text,
+                style: enable ? _textStyle : _textStyleDisable,
+              ),
         ),
       ),
     );
