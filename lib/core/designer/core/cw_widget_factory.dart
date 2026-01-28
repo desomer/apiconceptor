@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_app.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_page_indicator.dart';
 import 'package:jsonschema/core/designer/editor/view/helper/widget_hover.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
@@ -54,6 +55,10 @@ LruCache cacheLinkPage = LruCache(5);
 class WidgetFactory {
   GlobalKey keyPropsViewer = GlobalKey(debugLabel: "keyPropsViewer");
   GlobalKey keyStyleViewer = GlobalKey(debugLabel: "keyStyleViewer");
+  GlobalKey keyStyleSelectorViewer = GlobalKey(
+    debugLabel: "keyStyleSelectorViewer",
+  );
+
   GlobalKey<TreeViewState> keyPagesViewer = GlobalKey(
     debugLabel: 'keyPagesViewer',
   );
@@ -78,6 +83,7 @@ class WidgetFactory {
 
   void initAllGlobalKeys() {
     keyPropsViewer = GlobalKey(debugLabel: "keyPropsViewer");
+    keyStyleSelectorViewer = GlobalKey(debugLabel: "keyStyleSelectorViewer");
     keyStyleViewer = GlobalKey(debugLabel: "keyStyleViewer");
     keyPagesViewer = GlobalKey(debugLabel: 'keyPagesViewer');
 
@@ -112,6 +118,7 @@ class WidgetFactory {
 
   List<Widget> listPropsEditor = [];
   List<Widget> listStyleEditor = [];
+  List<Widget> listStyleSelectorEditor = [];
 
   var cwFactoryStyle = CWFactoryStyle();
 
@@ -124,12 +131,13 @@ class WidgetFactory {
     CwAppBar.initFactory(this);
     CwInput.initFactory(this);
     CwContainer.initFactory(this);
-    CwTabBar.initFactory(this);
+    CwBar.initFactory(this);
     CwAction.initFactory(this);
     CwList.initFactory(this);
     CwDivider.initFactory(this);
     CwTable.initFactory(this);
     CwRow.initFactory(this);
+    CwAdvancedPager.initFactory(this);
   }
 
   set isStarted(bool isStarted) {}
@@ -268,21 +276,34 @@ class WidgetFactory {
     return CwSlot(config: CwSlotConfig(ctx: rootCtx!)..withDragAndDrop = false);
   }
 
+  CwWidgetCtx? ctxStyleSelected;
+
   void displayProps(CwWidgetCtx ctx) {
     listPropsEditor.clear();
+    listStyleSelectorEditor.clear();
 
     var config = ctx.getConfig();
 
     CwWidgetCtx? aCtx = ctx;
+    ctxStyleSelected = ctx;
+    //int level = 0;
     while (aCtx != null) {
-      bool isIterable = addPropsLayer(
+      bool isIterable = _addAllWidgetProps(
         aCtx,
         ctx == aCtx ? config : aCtx.getConfig(),
       );
       if (isIterable && listPropsEditor.length > 1) {
-        addIterrableBox(aCtx, ctx);
+        _addIterrableBox(aCtx, ctx);
       }
+      // listStyleSelectorEditor.insert(0, _getSelectorStyle(ctx, aCtx, level));
+      // addOtherSlots(aCtx, ctx, (CwWidgetCtx rowCtx) {
+      //   listStyleSelectorEditor.insert(
+      //     0,
+      //     _getSelectorStyle(ctx, rowCtx, level),
+      //   );
+      // });
       aCtx = aCtx.parentCtx;
+      //level++;
     }
 
     if (keyPropsViewer.currentState?.mounted == true) {
@@ -293,27 +314,48 @@ class WidgetFactory {
     }
 
     // afficher les styles
+    if (keyStyleSelectorViewer.currentState?.mounted == true) {
+      // ignore: invalid_use_of_protected_member
+      keyStyleSelectorViewer.currentState?.setState(
+        () {},
+      ); // force refresh props viewer
+    }
+
+    _doDisplayTabStyle(ctx, ctx);
+    //_initStyle(ctx);
+  }
+
+  void _initStyle(CwWidgetCtx ctx) {
+    // afficher les styles
     listStyleEditor.clear();
+    var config = ctx.getConfig();
+
+    List<Widget> aListStyleEditor = [];
 
     for (CwWidgetProperties prop in config?.style ?? const []) {
-      listStyleEditor.add(prop.input!);
+      aListStyleEditor.add(prop.input!);
     }
 
     var initAlignment = cwFactoryStyle.initAlignment(ctx);
-    addAllStyleWidget(initAlignment, 'Alignment');
+    _addAllStyleWidget(aListStyleEditor, initAlignment, 'Alignment');
     var initPadding = cwFactoryStyle.initPadding(ctx);
-    addAllStyleWidget(initPadding, 'Margin');
+    _addAllStyleWidget(aListStyleEditor, initPadding, 'Margin');
     var initBorder = cwFactoryStyle.initBorder(ctx);
-    addAllStyleWidget(initBorder, 'Border & Elevation');
+    _addAllStyleWidget(aListStyleEditor, initBorder, 'Border & Elevation');
     var initBackground = cwFactoryStyle.initBackground(ctx);
-    addAllStyleWidget(initBackground, 'Background');
+    _addAllStyleWidget(aListStyleEditor, initBackground, 'Background');
     var initMargin = cwFactoryStyle.initMargin(ctx);
-    addAllStyleWidget(initMargin, 'Padding');
+    _addAllStyleWidget(aListStyleEditor, initMargin, 'Padding');
     var initText = cwFactoryStyle.initText(ctx);
-    addAllStyleWidget(initText, 'Text');
+    _addAllStyleWidget(aListStyleEditor, initText, 'Text');
 
-    // var initElevation = cwFactoryStyle.initElevation(ctx);
-    // addAllStyleWidget(initElevation, 'Elevation');
+    listStyleEditor.add(
+      WidgetHoverCmp(
+        path: ctx,
+        overMgr: HoverCmpManagerImpl(),
+        child: Column(children: aListStyleEditor),
+      ),
+    );
 
     if (keyStyleViewer.currentState?.mounted == true) {
       // ignore: invalid_use_of_protected_member
@@ -323,28 +365,12 @@ class WidgetFactory {
     }
   }
 
-  void addIterrableBox(CwWidgetCtx aCtx, CwWidgetCtx ctx) {
+  void _addIterrableBox(CwWidgetCtx aCtx, CwWidgetCtx ctx) {
     var aIterable = listPropsEditor.removeLast();
 
-    if (aCtx.isType('table') && !ctx.isType('row')) {
-      if (ctx.slotProps?.type == 'header') {
-        aCtx.dataWidget![cwSlots]?['h-row'] ??= {
-          cwImplement: 'row',
-          cwProps: <String, dynamic>{},
-        };
-        CwWidgetCtx? rowHeaderCtx = aCtx.getSlotCtx('h-row', virtual: true);
-        rowHeaderCtx.selectorCtxIfDesign?.inSlotName = 'header row';
-        addPropsLayer(rowHeaderCtx, rowHeaderCtx.getConfig());
-      } else {
-        aCtx.dataWidget![cwSlots]?['d-row'] ??= {
-          cwImplement: 'row',
-          cwProps: <String, dynamic>{},
-        };
-        CwWidgetCtx? rowCtx = aCtx.getSlotCtx('d-row', virtual: true);
-        rowCtx.selectorCtxIfDesign?.inSlotName = 'data row';
-        addPropsLayer(rowCtx, rowCtx.getConfig());
-      }
-    }
+    addOtherSlots(aCtx, ctx, (CwWidgetCtx rowCtx) {
+      _addAllWidgetProps(rowCtx, rowCtx.getConfig());
+    });
 
     var header = Container(
       margin: EdgeInsets.fromLTRB(10, 5, 0, 0),
@@ -374,16 +400,100 @@ class WidgetFactory {
     listPropsEditor.add(aIterable);
   }
 
-  void addAllStyleWidget(List<CwWidgetProperties> styles, String name) {
-    if (styles.isNotEmpty) {
-      listStyleEditor.add(getHeaderStyle(name));
-      for (CwWidgetProperties prop in styles) {
-        listStyleEditor.add(prop.input!);
+  void addOtherSlots(CwWidgetCtx aCtx, CwWidgetCtx ctx, Function onAddSlot) {
+    if (aCtx.isType(['table']) && !ctx.isType(['row'])) {
+      if (ctx.slotProps?.type == 'header') {
+        aCtx.dataWidget![cwSlots]?['h-row'] ??= {
+          cwImplement: 'row',
+          cwProps: <String, dynamic>{},
+        };
+        CwWidgetCtx? rowHeaderCtx = aCtx.getSlotCtx('h-row', virtual: true);
+        rowHeaderCtx.selectorCtxIfDesign?.inSlotName = 'header row';
+        onAddSlot(rowHeaderCtx);
+      } else {
+        aCtx.dataWidget![cwSlots]?['d-row'] ??= {
+          cwImplement: 'row',
+          cwProps: <String, dynamic>{},
+        };
+        CwWidgetCtx? rowCtx = aCtx.getSlotCtx('d-row', virtual: true);
+        rowCtx.selectorCtxIfDesign?.inSlotName = 'data row';
+        onAddSlot(rowCtx);
       }
     }
   }
 
-  Widget getHeaderStyle(String name) {
+  void _addAllStyleWidget(
+    List<Widget> aListStyleEditor,
+    List<CwWidgetProperties> styles,
+    String name,
+  ) {
+    if (styles.isNotEmpty) {
+      aListStyleEditor.add(_getHeaderStyle(name));
+      for (CwWidgetProperties prop in styles) {
+        aListStyleEditor.add(prop.input!);
+      }
+    }
+  }
+
+  Widget _getSelectorStyle(
+    CwWidgetCtx ctx,
+    CwWidgetCtx aCtx2Display,
+    int level,
+  ) {
+    return WidgetHoverCmp(
+      path: aCtx2Display,
+      overMgr: HoverCmpManagerImpl(),
+      child: InkWell(
+        onTap: () {
+          ctxStyleSelected = aCtx2Display;
+          _doDisplayTabStyle(ctx, aCtx2Display);
+        },
+        child: Container(
+          margin: EdgeInsets.fromLTRB(0, 0, 10.0 * level, 5),
+          width: double.infinity,
+          padding: const EdgeInsets.all(3),
+          color:
+              ctxStyleSelected == aCtx2Display
+                  ? ThemeHolder.theme.colorScheme.primaryContainer
+                  : ThemeHolder.theme.colorScheme.secondaryContainer,
+          child: Center(
+            child: Text(
+              '${aCtx2Display.getData()?[cwImplement] ?? 'Empty'} [${aCtx2Display.selectorCtx.inSlotName}]',
+              style: TextStyle(
+                color:
+                    ctxStyleSelected == aCtx2Display
+                        ? Colors.white
+                        : Colors.white60,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _doDisplayTabStyle(CwWidgetCtx ctx, CwWidgetCtx aCtx2Display) {
+    int level = 0;
+    CwWidgetCtx? aCtx = ctx;
+    listStyleSelectorEditor.clear();
+    while (aCtx != null) {
+      addOtherSlots(aCtx, ctx, (CwWidgetCtx rowCtx) {
+        listStyleSelectorEditor.insert(
+          0,
+          _getSelectorStyle(ctx, rowCtx, level),
+        );
+      });
+      listStyleSelectorEditor.insert(0, _getSelectorStyle(ctx, aCtx, level));
+      aCtx = aCtx.parentCtx;
+      level++;
+    }
+    // ignore: invalid_use_of_protected_member
+    keyStyleSelectorViewer.currentState?.setState(() {});
+    _initStyle(aCtx2Display);
+  }
+
+  Widget _getHeaderStyle(String name) {
     return Container(
       margin: EdgeInsets.fromLTRB(0, 0, 0, 5),
       width: double.infinity,
@@ -398,12 +508,12 @@ class WidgetFactory {
     );
   }
 
-  bool addPropsLayer(CwWidgetCtx aCtx, CwWidgetConfig? config) {
+  bool _addAllWidgetProps(CwWidgetCtx aCtx, CwWidgetConfig? config) {
     List<Widget> listPropsWidget = [];
     var name =
         '${aCtx.getData()?[cwImplement] ?? 'Empty'} [${aCtx.selectorCtx.inSlotName}]';
 
-    listPropsWidget.add(getHeaderProps(name, aCtx));
+    listPropsWidget.add(_getHeaderProps(name, aCtx));
 
     for (CwWidgetProperties prop in config?.properties ?? const []) {
       listPropsWidget.add(prop.input!);
@@ -426,10 +536,10 @@ class WidgetFactory {
       ),
     );
 
-    return aCtx.isType('list') || aCtx.isType('table');
+    return aCtx.isType(['list', 'table']);
   }
 
-  Widget getHeaderProps(String name, CwWidgetCtx aCtx) {
+  Widget _getHeaderProps(String name, CwWidgetCtx aCtx) {
     return GestureDetector(
       onTap: () {
         aCtx.selectOnDesigner();
@@ -458,6 +568,7 @@ class WidgetFactory {
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
             ),
+            const SizedBox(width: 10),
           ],
         ),
       ),

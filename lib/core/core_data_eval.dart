@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_double_and_int_checks
 import 'package:collection/collection.dart';
 import 'package:dart_eval/dart_eval.dart';
 import 'package:dart_eval/dart_eval_bridge.dart';

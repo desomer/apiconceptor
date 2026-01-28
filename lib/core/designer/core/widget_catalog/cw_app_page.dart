@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/core/cw_factory_action.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_theme.dart';
@@ -78,7 +79,10 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
 
   @override
   Widget build(BuildContext context) {
-    return buildWidget(false, ModeBuilderWidget.noConstraint, (ctx, constraints) {
+    return buildWidget(false, ModeBuilderWidget.noConstraint, (
+      ctx,
+      constraints,
+    ) {
       var isDark = getBoolProp(widget.ctx, 'darkMode') ?? false;
       ThemeData theme = getTheme(isDark);
       themeController.setDefaultTheme(theme);
@@ -165,13 +169,18 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
           withBottomBar ? FloatingActionButtonLocation.miniCenterDocked : null,
       bottomNavigationBar:
           withBottomBar
-              ? (getSlot(CwSlotProp(id: 'bottombar', name: 'bottom bar'))
-                ..setDefaultLayout((context, child) {
-                  return BottomAppBar(
-                    shape: const CircularNotchedRectangle(),
-                    child: child,
-                  );
-                }))
+              ? (getSlot(
+                CwSlotProp(
+                  id: 'bottombar',
+                  name: 'bottom bar',
+                  type: 'bottombar',
+                ),
+              )..setDefaultLayout((context, child) {
+                return BottomAppBar(
+                  shape: const CircularNotchedRectangle(),
+                  child: child,
+                );
+              }))
               : null,
 
       // bottomNavigationBar : BottomAppBar(
@@ -213,7 +222,15 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
           width: maxWidth?.toDouble() ?? double.infinity,
           child: Row(
             children: [
-              Expanded(child: getSlot(CwSlotProp(id: 'body', name: 'body'))),
+              Expanded(
+                child: getSlot(
+                  CwSlotProp(
+                    id: 'body',
+                    name: 'body',
+                    onAction: onActionCellBody,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -223,7 +240,13 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
         child: Center(
           child: SizedBox(
             width: maxWidth?.toDouble() ?? double.infinity,
-            child: getSlot(CwSlotProp(id: 'body', name: 'body')),
+            child: getSlot(
+              CwSlotProp(
+                id: 'body',
+                name: 'body',
+                onAction: onActionCellBody,
+              ),
+            ),
           ),
         ),
       );

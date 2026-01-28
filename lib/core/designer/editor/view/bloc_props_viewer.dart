@@ -40,3 +40,24 @@ class _StyleViewerState extends State<StyleViewer> {
     );
   }
 }
+
+class StyleSelectorViewer extends StatefulWidget {
+  const StyleSelectorViewer({super.key, required this.factory});
+  final WidgetFactory factory;
+
+  @override
+  State<StyleSelectorViewer> createState() => _StyleSelectorViewerState();
+}
+
+class _StyleSelectorViewerState extends State<StyleSelectorViewer> {
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: widget.factory.listStyleSelectorEditor.length,
+      itemBuilder: (context, index) {
+        return widget.factory.listStyleSelectorEditor[index];
+      },
+    );
+  }
+}

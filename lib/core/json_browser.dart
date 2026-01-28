@@ -457,6 +457,17 @@ class JsonBrowser<T> {
       aMapInfo.add(info);
     }
 
+    if (bi.ref != null && bi.aJsonPathRef != null) {
+      if (!info.isInitByRef) {
+        var prop = bi.ref!.modelProperties[bi.aJsonPathRef];
+        if (prop != null) {
+          //print("get prop on ref");
+          info.properties = prop;
+          info.isInitByRef = true;
+        }
+      }
+    }
+
     var masterID = model.modelProperties[aJsonPath]?[constMasterID];
     masterID ??= info.properties?[constMasterID];
     info.masterID = masterID;
@@ -473,17 +484,6 @@ class JsonBrowser<T> {
     model.mapInfoByJsonPath[aJsonPath] = info;
 
     info.path = aJsonPath;
-
-    if (bi.ref != null && bi.aJsonPathRef != null) {
-      if (!info.isInitByRef) {
-        var prop = bi.ref!.modelProperties[bi.aJsonPathRef];
-        if (prop != null) {
-          //print("get prop on ref");
-          info.properties = prop;
-          info.isInitByRef = true;
-        }
-      }
-    }
 
     // affecte les properties si 1° fois
     info.properties ??= model.modelProperties[aJsonPath] ?? {};

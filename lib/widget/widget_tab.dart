@@ -12,6 +12,7 @@ class WidgetTab extends StatefulWidget {
     this.heightContent,
     this.tabDisable,
     this.onConfig,
+    this.fgColor,
   });
 
   final List<Widget> listTab;
@@ -21,6 +22,7 @@ class WidgetTab extends StatefulWidget {
   final bool? heightContent;
   final Set<int>? tabDisable;
   final Function? onConfig;
+  final Color? fgColor;
 
   int saveTabIndex = 0;
 
@@ -69,7 +71,7 @@ class _WidgetTabState extends State<WidgetTab>
         //mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch, // toute la largeur
         children: <Widget>[
-          getTabActionLayout(widget.listTab, heightTab),
+          getTabActionLayout(context, widget.listTab, heightTab),
           widget.listTabCont[controllerTab.index],
         ],
       );
@@ -82,7 +84,7 @@ class _WidgetTabState extends State<WidgetTab>
             // mainAxisSize: MainAxisSize.min,
             // crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              getTabActionLayout(widget.listTab, heightTab),
+              getTabActionLayout(context, widget.listTab, heightTab),
               Container(
                 padding: const EdgeInsets.all(0.0),
                 decoration: BoxDecoration(
@@ -107,7 +109,11 @@ class _WidgetTabState extends State<WidgetTab>
     return widget.tabDisable?.contains(idx) ?? false;
   }
 
-  Widget getTabActionLayout(List<Widget> listTab, double heightTab) {
+  Widget getTabActionLayout(
+    BuildContext context,
+    List<Widget> listTab,
+    double heightTab,
+  ) {
     var listT = <Widget>[];
 
     int i = 0;
@@ -131,6 +137,8 @@ class _WidgetTabState extends State<WidgetTab>
       i++;
     }
 
+    var t = Theme.of(context);
+
     return SizedBox(
       height: heightTab,
       child: ColoredBox(
@@ -141,6 +149,8 @@ class _WidgetTabState extends State<WidgetTab>
             children: [
               Expanded(
                 child: TabBar(
+                  indicatorColor: widget.fgColor,
+                  labelColor: widget.fgColor,
                   onTap: (value) {
                     if (isDisable(value)) {
                       setState(() {
@@ -150,8 +160,14 @@ class _WidgetTabState extends State<WidgetTab>
                   },
                   // indicatorSize: TabBarIndicatorSize.label,
                   controller: controllerTab,
-                  indicator: const UnderlineTabIndicator(
-                    borderSide: BorderSide(width: 4, color: Colors.blue),
+                  indicator: UnderlineTabIndicator(
+                    borderSide: BorderSide(
+                      width: 4,
+                      color:
+                          widget.fgColor ??
+                          t.tabBarTheme.indicatorColor ??
+                          t.colorScheme.primary,
+                    ),
                     insets: EdgeInsets.only(left: 0, right: 0, bottom: 0),
                   ),
                   isScrollable: true,

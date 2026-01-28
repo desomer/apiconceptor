@@ -39,6 +39,11 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "name": "Divider, Spacer",
             "icon": Icons.horizontal_rule,
           },
+          {
+            "id": "pager",
+            "name": "Pager",
+            "icon": Icons.pageview_sharp,
+          },          
         ],
       },
       {
@@ -52,7 +57,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "icon": Icons.grid_on_rounded,
           },
           {
-            "id": "tabbar",
+            "id": "bar",
             "name": "Tab, NavBar, Button Bar",
             "icon": Icons.tab,
           },

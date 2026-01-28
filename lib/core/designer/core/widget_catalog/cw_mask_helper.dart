@@ -59,6 +59,15 @@ class TextfieldBuilderInfo {
 
     var numFormatter = NumberFormat(apattern, defaultLocale);
     v = numFormatter.tryParse(vt);
+    if (v != null) {
+      if (bindType == 'INT') {
+        return (v as num).toInt();
+      } else if (bindType == 'DOUBLE' ||
+          bindType == 'CUR' ||
+          bindType == 'PRCT') {
+        return (v as num).toDouble();
+      }
+    }
     return v;
   }
 }
@@ -461,7 +470,7 @@ class NumericInputFormatter extends TextInputFormatter {
       posCur = prefix.length + 1;
     }
 
-    print('====>$valText  nbt=$nbT nbt2=$nbT2  nbgroup=$dblgroup  idx=$posCur');
+    print('TextEditingValue ====>$valText  nbt=$nbT nbt2=$nbT2  nbgroup=$dblgroup  idx=$posCur');
 
     return TextEditingValue(
       text: prefix + valText + suffix,

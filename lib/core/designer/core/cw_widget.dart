@@ -10,14 +10,13 @@ import 'package:jsonschema/core/designer/editor/view/prop_editor/slider_editor.d
 import 'package:jsonschema/core/designer/editor/view/prop_editor/text_editor.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/toogle_editor.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
-import 'package:jsonschema/core/designer/editor/engine/widget_style.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_style.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_list.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 
 class CwWidgetCtxSlot extends CwWidgetCtx {
@@ -117,8 +116,8 @@ class CwWidgetCtx {
     return slotId;
   }
 
-  bool isType(String type) {
-    return dataWidget?[cwImplement] == type;
+  bool isType(List<String> type) {
+    return type.contains(dataWidget?[cwImplement]);
   }
 
   bool isParentOfType(String type, {String? layout}) {
@@ -217,6 +216,7 @@ class CwWidgetCtx {
   ValueChanged<Map> onValueChange({
     bool repaint = true,
     bool resize = true,
+    bool unselect = false,
     List<String>? path,
   }) {
     return (newJson) {
@@ -259,6 +259,8 @@ class CwWidgetCtx {
         SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
           selectOnDesigner(onlyOverlay: true);
         });
+      } else if (unselect) {
+        emitLater(CDDesignEvent.unselect, null);
       } else if (resize) {
         emitLater(CDDesignEvent.reselect, null, multiple: true);
       }
@@ -393,6 +395,13 @@ class CwWidgetCtx {
     });
   }
 
+  void repaint() {
+    if (widgetState != null && widgetState!.mounted) {
+      // ignore: invalid_use_of_protected_member
+      widgetState!.setState(() {});
+    }
+  }
+
   void setSelectorCtx(CwWidgetCtx ctxSrc) {
     _selectorCtx = ctxSrc._selectorCtx;
     widgetState = ctxSrc.widgetState;
@@ -423,20 +432,20 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
   CwRepository? repository;
   StateRepository? stateRepository;
   NodeAttribut? attribut;
+  bool isPrimitiveArrayValue = false; // bind sur un tableau de string ou nombre
 
   void doChangeRow() {
     if (stateRepository != null) {
       String pathContainer;
       (pathContainer, _) = stateRepository!.getPathInfo(pathData);
-      StateContainer? dataContainer;
-      (dataContainer, _) = stateRepository!.getStateContainer(
+      //StateContainer? dataContainer;
+      (_, _) = stateRepository!.getStateContainer(
         pathContainer,
-        setIndex: true,
+        onIndexChange: (int idx) {
+          print("Update data on blur $pathData");
+          stateRepository!.reloadDependentContainers(pathData);
+        },
       );
-      if (dataContainer != null) {
-        print("Update data on blur $pathData");
-        stateRepository!.reloadDependentContainers(pathData);
-      }
     }
   }
 
@@ -458,6 +467,11 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
       } else if (repository != null && bind['from'] == 'data') {
         String? attrId = bind['attr'];
         stateRepository = repository!.dataState;
+        if (attrId?.startsWith('self@') ?? false) {
+          // bind sur un tableau de string ou nombre
+          attrId = attrId!.substring(5);
+          isPrimitiveArrayValue = true;
+        }
         attribut = repository!.ds.modelHttp200!.nodeByMasterId[attrId];
       }
     }
@@ -492,13 +506,19 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
     styleFactory.init();
     styleFactory.setConfigMargin();
     styleFactory.setConfigBox();
+    num? h = widget.ctx.dataWidget?[cwProps]?['height'];
+    num? w = widget.ctx.dataWidget?[cwProps]?['width'];
+    styleFactory.config.height = h?.toDouble();
+    styleFactory.config.width = w?.toDouble();
+
+    Widget builtWidget;
 
     switch (mode) {
       case ModeBuilderWidget.noConstraint:
-        return _buildWidgetInternal(useContainerWrapper, builder, null);
+        builtWidget = _buildWidgetInternal(useContainerWrapper, builder, null);
 
       case ModeBuilderWidget.layoutBuilder:
-        return LayoutBuilder(
+        builtWidget = LayoutBuilder(
           builder: (context, constraints) {
             return _buildWidgetInternal(
               useContainerWrapper,
@@ -511,7 +531,7 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
       case ModeBuilderWidget.constraintBuilder:
         var cacheSizeSlot =
             widget.ctx.aFactory.cacheSizeSlots[widget.ctx.aWidgetPath];
-        return ConstraintBuilder(
+        builtWidget = ConstraintBuilder(
           fixedSize: cacheSizeSlot,
           builder: (context, constraints) {
             //if (cacheSizeSlot == null) {
@@ -531,6 +551,14 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
           },
         );
     }
+
+    builtWidget = styleFactory.getStyledBox(
+      builtWidget,
+      context,
+      initBefore: false,
+      useContainerWrapper: useContainerWrapper,
+    );
+    return builtWidget;
   }
 
   Widget _buildWidgetInternal(
@@ -540,15 +568,10 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
   ) {
     buildtime = DateTime.now().millisecondsSinceEpoch;
     //print('buildWidget ${widget.ctx.aWidgetPath} $buildtime');
-    var ret = builder(widget.ctx, constraints);
+    var builtWidget = builder(widget.ctx, constraints);
     widget.ctx.cleanWidgetData(buildtime);
-    ret = styleFactory.getStyledBox(
-      ret,
-      context,
-      initBefore: false,
-      useContainerWrapper: useContainerWrapper,
-    );
-    return ret;
+
+    return builtWidget;
   }
 
   @override
@@ -654,7 +677,45 @@ class CwWidgetProperties {
     );
   }
 
-  void isInt(CwWidgetCtx ctx, {int defaultValue = 0, List<String>? path}) {
+  void isSize(
+    CwWidgetCtx ctx, {
+    int defaultValue = 0,
+    ValueChanged<Map>? onJsonChanged,
+    List<String>? path,
+  }) {
+    isInt(
+      (ctx),
+      defaultValue: defaultValue,
+      onJsonChanged: onJsonChanged,
+      path: path,
+      config: CwWidgetProperties(id: 'height', name: 'height'),
+    );
+    var i1 = input!;
+    isInt(
+      (ctx),
+      defaultValue: defaultValue,
+      onJsonChanged: (value) {
+        ctx.onValueChange(path: path)(value);
+        if (ctx.isParentOfType('table')) {
+          ctx.parentCtx?.repaint();
+        }
+      },
+      path: path,
+      config: CwWidgetProperties(id: 'width', name: 'width'),
+    );
+    var i2 = input!;
+
+    input = Row(children: [Flexible(child: i1), Flexible(child: i2)]);
+  }
+
+  void isInt(
+    CwWidgetCtx ctx, {
+    int defaultValue = 0,
+    ValueChanged<Map>? onJsonChanged,
+    List<String>? path,
+    CwWidgetProperties? config,
+  }) {
+    var idd = config?.id ?? id;
     var json = jsonFromCtx(ctx, path);
     input = TextEditor(
       info: TextfieldBuilderInfo(
@@ -663,10 +724,10 @@ class CwWidgetProperties {
         editable: true,
         enable: true,
       ),
-      key: ValueKey('$id@${json.hashCode}'),
+      key: ValueKey('$idd@${json.hashCode}@${json[idd] ?? defaultValue}'),
       json: json,
-      config: this,
-      onJsonChanged: ctx.onValueChange(path: path),
+      config: config ?? this,
+      onJsonChanged: onJsonChanged ?? ctx.onValueChange(path: path),
     );
   }
 
@@ -677,6 +738,7 @@ class CwWidgetProperties {
     int max = 100,
     IconData? icon,
     List<String>? path,
+    bool unselect = false,
   }) {
     var json = jsonFromCtx(ctx, path);
     input = SliderEditor(
@@ -686,7 +748,7 @@ class CwWidgetProperties {
       key: ValueKey('$id@${json.hashCode}'),
       json: json,
       config: this,
-      onJsonChanged: ctx.onValueChange(path: path),
+      onJsonChanged: ctx.onValueChange(path: path, unselect: unselect),
     );
   }
 

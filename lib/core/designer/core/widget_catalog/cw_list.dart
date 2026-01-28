@@ -13,7 +13,9 @@ class CwList extends CwWidget {
       id: 'list',
       build: (ctx) => CwList(key: ctx.getKey(), ctx: ctx),
       config: (ctx) {
-        return CwWidgetConfig();
+        return CwWidgetConfig().addProp(
+          CwWidgetProperties(id: 'size', name: 'size')..isSize(ctx),
+        );
       },
     );
   }
@@ -70,10 +72,14 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
       if (stateRepository != null) {
         String? oldPathData = pathData;
 
+        bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
+
         pathData = stateRepository!.getDataPath(
           context,
-          attribut!.info,
+          attribut!.info.path,
+          widgetPath: ctx.aWidgetPath,
           typeListContainer: true,
+          inArray: inArray,
           state: this,
         );
         if (oldPathData != '?' && oldPathData != pathData) {

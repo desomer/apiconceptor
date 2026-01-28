@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:developer' as dev show log;
 import 'dart:math';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 
@@ -45,6 +47,28 @@ class APICallManager {
   APIResponse? aResponse;
 
   List<String> logs = [];
+
+  Future<List<AttributInfo>> getExamples() async {
+    var exampleModel = ModelSchema(
+      category: Category.exampleApi,
+      headerName: 'example',
+      id: 'example/temp/${attrApi.masterID!}',
+      infoManager: InfoManagerApiExample(),
+      ref: null,
+    )..namespace = namespace;
+    await exampleModel.loadYamlAndProperties(
+      cache: false,
+      withProperties: true,
+    );
+
+    var a = BrowseSingle();
+    a.browse(exampleModel, false);
+
+    var examples = exampleModel.mapInfoByJsonPath.values.where((e) {
+      return e.type == 'example';
+    });
+    return examples.toList();
+  }
 
   void clearRequest() {
     params.clear();

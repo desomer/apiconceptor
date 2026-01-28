@@ -31,10 +31,13 @@ class CwSlot extends StatefulWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(kToolbarHeight);
+  State<CwSlot> createState() => CwSlotState();
 
   @override
-  State<CwSlot> createState() => CwSlotState();
+  Size get preferredSize {
+    var h = config.ctx.dataWidget?[cwProps]?['#heightOfSlot'] ?? kToolbarHeight;
+    return Size.fromHeight(h);
+  }
 }
 
 class CwSlotState extends State<CwSlot> {
@@ -60,12 +63,14 @@ class CwSlotState extends State<CwSlot> {
   }
 
   Widget _getDefaultLayout(Widget child) {
+    Widget wid;
     if (widget.config.builderDefault != null &&
         widget.config.innerWidget == null) {
-      return widget.config.builderDefault!(context, child);
+      wid = widget.config.builderDefault!(context, child);
     } else {
-      return child;
+      wid = child;
     }
+    return wid;
   }
 
   Widget getEmptySlot() {

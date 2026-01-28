@@ -74,7 +74,47 @@ class PagesDatasource extends StatelessWidget {
                       },
                     );
                   } else if (value == 'Actions') {
-                    List<Widget> buttons = getActions();
+                    List<Widget> buttons = [];
+                    buttons.add(
+                      getActionButton(
+                        'search',
+                        'Search',
+                        Icon(Icons.smart_button_rounded),
+                      ),
+                    );
+                    buttons.add(
+                      getActionButton(
+                        'pager',
+                        'Pager',
+                        Icon(Icons.pin),
+                      ),
+                    );                    
+                    buttons.add(
+                      getActionButton(
+                        'prevPage',
+                        'Previous Page',
+                        Icon(Icons.navigate_before),
+                      ),
+                    );
+                    buttons.add(
+                      getActionButton(
+                        'nextPage',
+                        'Next Page',
+                        Icon(Icons.navigate_next),
+                      ),
+                    );
+
+                    for (var element
+                        in dsCaller.exampleData ?? const <AttributInfo>[]) {
+                      buttons.add(
+                        getExampleButton(
+                          element,
+                          const Icon(Icons.search_rounded),
+                        ),
+                      );
+                    }
+
+                    buttons.addAll(getLinkActions());
 
                     return Column(children: buttons);
                   } else {
@@ -105,6 +145,8 @@ class PagesDatasource extends StatelessWidget {
                   Icon icon = const Icon(Icons.description);
                   if (item['type'] == 'data_link') {
                     icon = const Icon(Icons.link);
+                  } else if (item['type'] == 'load_criteria_action') {
+                    icon = const Icon(Icons.search_rounded);
                   }
 
                   return Card(
@@ -126,7 +168,7 @@ class PagesDatasource extends StatelessWidget {
     );
   }
 
-  List<Widget> getActions() {
+  List<Widget> getLinkActions() {
     var link = dsCaller.configApp.data.links;
     List<Widget> buttons = [];
 
@@ -137,17 +179,52 @@ class PagesDatasource extends StatelessWidget {
           data: <String, dynamic>{
             'src': 'Actions',
             'type': 'data_link',
-            'id': l,
+            'configLink': l,
             'path': l.title,
           },
           feedback: Material(child: Text(l.title)),
           child: ListTile(
-            title: Text(l.title),
+            dense: true,
+            title: Text("load link ${l.title}"),
             leading: const Icon(Icons.link),
           ),
         ),
       );
     }
     return buttons;
+  }
+
+  Widget getExampleButton(AttributInfo info, Icon? icon) {
+    return Draggable<Map<String, dynamic>>(
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      data: <String, dynamic>{
+        'src': 'Actions',
+        'type': 'load_criteria_action',
+        'id': info.masterID,
+        'label': info.name,
+        'path': 'load ${info.name}',
+      },
+      feedback: Material(child: Text(info.name)),
+      child: ListTile(
+        dense: true,
+        title: Text("load ${info.name}"),
+        leading: icon,
+      ),
+    );
+  }
+
+  Widget getActionButton(String type, String label, Icon? icon) {
+    return Draggable<Map<String, dynamic>>(
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      data: <String, dynamic>{
+        'src': 'Actions',
+        'type': 'action',
+        'id': type,
+        'label': label,
+        'path': 'action $label',
+      },
+      feedback: Material(child: Text(label)),
+      child: ListTile(dense: true, title: Text("action $label"), leading: icon),
+    );
   }
 }

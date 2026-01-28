@@ -21,6 +21,7 @@ class CallerDatasource {
   String apiShortName = '';
   String dsName = '';
   ModelSchema? modelHttp200;
+  List<AttributInfo>? exampleData;
 
   String typeLayout = 'Form';
   List<Map<String, dynamic>> selectionConfig = [];
@@ -48,6 +49,8 @@ class CallerDatasource {
     modelHttp200 = await apiCallInfo.currentAPIResponse!.getSubSchema(
       subNode: 200,
     );
+
+    exampleData = await apiCallInfo.getExamples();
   }
 
   Future<WidgetRequestHelper?> loadConfig(

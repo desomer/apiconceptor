@@ -50,6 +50,9 @@ class _FrozenTableViewState extends State<FrozenTableView> {
   final ScrollController horizontal3 = ScrollController();
 
   Map<int, double> colWidthMap = {};
+  
+  bool topScrollbarVisible = false;
+  double topMargin =  0;
 
   @override
   void initState() {
@@ -254,6 +257,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
     ScrollbarOrientation orientation,
     Widget child,
     bool? alwaysVisible,
+    bool? enableScrollIndicator,
   ) {
     return Listener(
       onPointerSignal: (event) {
@@ -269,14 +273,17 @@ class _FrozenTableViewState extends State<FrozenTableView> {
           );
         }
       },
-      child: Scrollbar(
-        scrollbarOrientation: orientation,
-        interactive: true,
-        controller: controller,
-        thumbVisibility: alwaysVisible, // toujours visible
-        trackVisibility: true, // optionnel
-        child: child,
-      ),
+      child:
+          enableScrollIndicator == true
+              ? Scrollbar(
+                scrollbarOrientation: orientation,
+                interactive: true,
+                controller: controller,
+                thumbVisibility: alwaysVisible, // toujours visible
+                trackVisibility: true, // optionnel
+                child: child,
+              )
+              : child,
     );
   }
 
@@ -292,7 +299,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
         scrollDirection: Axis.horizontal,
 
         child: Container(
-          margin: EdgeInsets.fromLTRB(0, 10, 0, 0),
+          margin: EdgeInsets.fromLTRB(0, topMargin, 0, 0),
           //  height: widget.rowHeight * widget.rowCountTop,
           width: witdh, // <-- FIX
           child: ListView.builder(
@@ -330,6 +337,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
         ),
       ),
       null,
+      topScrollbarVisible,
     );
   }
 
@@ -385,14 +393,20 @@ class _FrozenTableViewState extends State<FrozenTableView> {
         ),
       ),
       true,
+      true,
     );
   }
 
   // Colonne gelée à gauche
   Widget _topFrozenColumn() {
+    if (widget.colFreezeLeftCount == 0) {
+      return SizedBox.shrink();
+    }
+
     var witdh = getWitdhL(0, widget.colFreezeLeftCount);
+
     return Container(
-      margin: EdgeInsets.fromLTRB(0, 10, 0, 0),
+      margin: EdgeInsets.fromLTRB(0, topMargin, 0, 0),
       //height: widget.rowCountTop * widget.rowHeight,
       width: witdh, // <-- FIX
       child: ListView.builder(
@@ -429,6 +443,9 @@ class _FrozenTableViewState extends State<FrozenTableView> {
 
   // Colonne gelée à gauche
   Widget _bottomFrozenColumn() {
+    if (widget.colFreezeLeftCount == 0) {
+      return SizedBox.shrink();
+    }
     var witdh = getWitdhL(0, widget.colFreezeLeftCount);
     return Container(
       margin: EdgeInsets.fromLTRB(0, 0, 0, 10),
@@ -471,6 +488,10 @@ class _FrozenTableViewState extends State<FrozenTableView> {
 
   // Colonne gelée à gauche
   Widget _leftFrozenColumn() {
+    if (widget.colFreezeLeftCount == 0) {
+      return SizedBox.shrink();
+    }
+
     var witdh = getWitdhL(0, widget.colFreezeLeftCount);
     return SizedBox(
       //height: widget.rowCount * widget.rowHeight,

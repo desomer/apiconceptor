@@ -6,7 +6,10 @@ class CwRow {
     factory.register(
       id: 'row',
       config: (ctx) {
-        return CwWidgetConfig();
+        return CwWidgetConfig().addProp(
+          CwWidgetProperties(id: 'height', name: 'height')
+            ..isSlider(ctx, min: 0, max: 100),
+        );
       },
     );
   }

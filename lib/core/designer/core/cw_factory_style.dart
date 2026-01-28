@@ -94,6 +94,7 @@ class CWFactoryStyle {
         max: 20,
         icon: Icons.copy_all_rounded,
         path: [cwStyle],
+        unselect: true
       ),
     );
     listStyle.add(
@@ -103,6 +104,7 @@ class CWFactoryStyle {
         max: 20,
         icon: Icons.highlight_alt_rounded,
         path: [cwStyle],
+        unselect: true
       ),
     );
     listStyle.add(
@@ -112,6 +114,7 @@ class CWFactoryStyle {
         max: 50,
         icon: Icons.panorama_wide_angle_rounded,
         path: [cwStyle],
+        unselect: true
       ),
     );
     listStyle.add(
@@ -154,6 +157,10 @@ class CWFactoryStyle {
       CwWidgetProperties(id: 'bgColor', name: 'background color')
         ..isColor(ctx, icon: Icons.format_color_fill, path: [cwStyle]),
     );
+    listStyle.add(
+      CwWidgetProperties(id: 'fgColor', name: 'foreground color')
+        ..isColor(ctx, icon: Icons.format_color_fill, path: [cwStyle]),
+    );
 
     return listStyle;
   }
@@ -179,7 +186,7 @@ class CWFactoryStyle {
 
     listStyle.add(
       CwWidgetProperties(id: 'tSize', name: 'text size')
-        ..isInt(ctx, path: [cwStyle]),
+        ..isSlider(ctx, max: 40, path: [cwStyle]),
     );
 
     List listTextType = [

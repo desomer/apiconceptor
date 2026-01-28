@@ -86,7 +86,7 @@ class DragComponentCtx extends DragCtx {
 }
 
 class DragNewComponentCtx extends DragCtx {
-  final String idComponent;
+  String idComponent;
   final Map config;
   DragNewComponentCtx({required this.idComponent, required this.config});
 
@@ -161,12 +161,25 @@ class DragNewComponentCtx extends DragCtx {
 
   void doActionDropNewCmp(
     CwWidgetCtx ctx,
-    Map<String, dynamic> param,
+    Map<String, dynamic> childData,
     WidgetSelectableState state,
   ) {
+    if (childData[cwSlots]?.length == 1) {
+      bool notContainerIfSingle =
+          ctx.isParentOfType('container', layout: 'form') ||
+          ctx.slotProps?.id == 'rdrawer' ||
+          ctx.slotProps?.type == 'cell' ||
+          ctx.slotProps?.type == 'header';
+          
+      if (notContainerIfSingle) {
+        childData = childData[cwSlots]['cell_0'];
+        idComponent = childData[cwImplement];
+      }
+    }
+
     var drop = DropCtx(
       parentData: ctx.parentCtx?.dataWidget,
-      childData: param,
+      childData: childData,
       componentId: idComponent,
     );
 

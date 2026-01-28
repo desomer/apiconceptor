@@ -70,7 +70,12 @@ class _TextEditorState extends State<TextEditor> with HelperEditor {
 
     return TextField(
       controller: controller,
-      decoration: getInputDecoration(widget.config.name, 0, info: widget.info),
+      decoration: getInputDecoration(
+        widget.config.name,
+        0,
+        info: widget.info,
+        deleteController: controller,
+      ),
 
       maxLength: widget.info.maxLength,
       buildCounter: buildCounter,

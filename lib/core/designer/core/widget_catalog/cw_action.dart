@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_iconpicker/flutter_iconpicker.dart';
-import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/designer/core/cw_repository_action.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
-import 'package:jsonschema/start_core.dart';
 
 const cwOnPressed = 'onPressed';
 
@@ -31,7 +29,7 @@ class CwAction extends CwWidget {
       build: (ctx) => CwAction(key: ctx.getKey(), ctx: ctx),
       config: (ctx) {
         return CwWidgetConfig()
-            .addProp(
+            .addStyle(
               CwWidgetProperties(id: 'type', name: 'view type')
                 ..isToogle(ctx, listButtonType, defaultValue: 'elevated'),
             )
@@ -39,7 +37,8 @@ class CwAction extends CwWidget {
               CwWidgetProperties(id: 'label', name: 'label')..isText(ctx),
             )
             .addProp(CwWidgetProperties(id: 'url', name: 'url')..isText(ctx))
-            .addProp(CwWidgetProperties(id: 'icon', name: 'icon')..isIcon(ctx));
+            .addProp(CwWidgetProperties(id: 'icon', name: 'icon')..isIcon(ctx))
+            .addProp(CwWidgetProperties(id: 'size', name: 'size')..isSize(ctx));
       },
       populateOnDrag: (ctx, drag) {
         drag.childData![cwProps]['label'] ??= 'New Action';
@@ -62,112 +61,186 @@ class _CwInputState extends CwWidgetStateBindJson<CwAction> with HelperEditor {
       constraints,
     ) {
       Widget button;
-      String? style = getStringProp(widget.ctx, 'type');
-      String? label = getStringProp(widget.ctx, 'label') ?? '';
-      Map<String, dynamic>? iconProp = getObjProp(widget.ctx, 'icon');
+      String? style = getStringProp(ctx, 'type');
+      String? label = getStringProp(ctx, 'label');
+      Map<String, dynamic>? iconProp = getObjProp(ctx, 'icon');
       Icon? icon;
       if (iconProp != null) {
         var iconDes = deserializeIcon(iconProp);
         if (iconDes != null) {
-          icon = Icon(iconDes.data);
+          icon = Icon(iconDes.data, color: styleFactory.getColor('fgColor'));
         }
       }
 
       void onPressed() async {
-        var v = widget.ctx.dataWidget![cwProps][cwOnPressed];
+        Map? infoPress = ctx.dataWidget![cwProps][cwOnPressed];
+        _setSelectedRow(context);
 
-        setSelectedRow(context);
+        var fact = ctx.aFactory;
 
-        if (v != null &&
-            v[cwType] == 'repository' &&
-            ctx.aFactory.isModeViewer()) {
-          CwRepository? repo =
-              widget.ctx.aFactory.mapRepositories[v['repository']];
+        if (infoPress != null &&
+            infoPress[cwType] == 'repository' &&
+            fact.isModeViewer()) {
+          CwRepository? repo = fact.mapRepositories[infoPress['repository']];
+
           if (repo != null) {
-            if (v['operation'] == 'load') {
-              loadRepository(repo, context);
-            } else if (v['operation'] == 'link2Datasrc') {
-              var paramSessionId = await getLinkDataInSession(v['link'], repo);
+            CwRepositoryAction repoAction = CwRepositoryAction(
+              ctx: widget.ctx,
+              repo: repo,
+            );
+            if (infoPress['operation'] == 'action') {
+              switch (infoPress['idAction']) {
+                case 'search':
+                  repoAction.loadData(context);
+                  break;
+                case 'prevPage':
+                  repoAction.doPrevPage(infoPress, 0);
+                  repoAction.loadData(context);
+                case 'nextPage':
+                  repoAction.doNextPage(infoPress, 1000000);
+                  repoAction.loadData(context);
+                default:
+                  break;
+              }
+            } else if (infoPress['operation'] == 'link2Datasrc') {
+              var paramSessionId = await repoAction.getLinkDataInSession(
+                infoPress['link'],
+              );
               CwRepository? repoLink =
-                  widget.ctx.aFactory.mapRepositories[v['link']['repository']];
+                  fact.mapRepositories[infoPress['link']['repository']];
               if (repoLink != null) {
-                // ignore: use_build_context_synchronously
-                loadRepository(
-                  repoLink,
+                CwRepositoryAction repoLinkAction = CwRepositoryAction(
+                  ctx: widget.ctx,
+                  repo: repoLink,
+                );
+                repoLinkAction.loadData(
+                  // ignore: use_build_context_synchronously
                   context,
                   paramSessionId: paramSessionId,
                 );
               }
+            } else if (infoPress['operation'] == 'loadCriteria') {
+              repoAction.loadCriteria(infoPress);
+              repoAction.loadData(context);
             }
           }
         }
 
         String? url = getStringProp(widget.ctx, 'url');
         if (url != null && url.isNotEmpty) {
-          if (ctx.aFactory.isModeDesigner()) {
+          if (fact.isModeDesigner()) {
             int t = DateTime.now().millisecondsSinceEpoch;
             var isPressBeforeSelected =
                 !ctx.isDesignSelected() ||
                 t - currentSelectorManager.lastSelectedTime < 500;
-            //ctx.aFactory.rootCtx?.selectOnDesigner();
+
             if (isPressBeforeSelected) {
               // in designer mode, do not navigate sur la selection
               return;
             }
           }
-          url = ctx.aFactory.mapPath2PathSlot[url] ?? url;
-          ctx.aFactory.router!.push(url);
+          url = fact.mapPath2PathSlot[url] ?? url;
+          fact.router!.push(url);
         }
       }
 
+      var type = ctx.slotProps?.type;
+      if (type == 'tab') {
+        style = 'inner';
+      } else if (type == 'tabslider') {
+        style = 'inner';
+      } else if (type == 'navigationdestination') {
+        style = 'navigationdestination';
+      }
+
+      var styleText = styleFactory.getTextStyle(null);
+
       switch (style) {
+        case 'navigationdestination':
+          button = NavigationDestination(
+            icon:
+                icon ??
+                Icon(Icons.help, color: styleFactory.getColor('fgColor')),
+            label: label ?? '',
+          );
+          break;
+
+        case 'inner':
+          button = Row(
+            spacing: 5,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) icon,
+              if (label != null) Text(style: styleText, label),
+            ],
+          );
+
+          break;
+
         case 'outlined':
           if (icon != null) {
             button = OutlinedButton.icon(
               onPressed: onPressed,
               icon: icon,
-              label: Text(label),
+              label: Text(style: styleText, label ?? ''),
             );
           } else {
-            button = OutlinedButton(onPressed: onPressed, child: Text(label));
+            button = OutlinedButton(
+              onPressed: onPressed,
+              child: Text(style: styleText, label ?? ''),
+            );
           }
           break;
         case 'icon':
           button = IconButton(
+            style: styleFactory.getButtonStyle(null, styleText),
             onPressed: onPressed,
             icon: icon ?? const Icon(Icons.help),
             tooltip: label,
           );
           break;
         case 'listTile':
-          button = ListTile(
-            leading: icon,
-            dense: true,
-            title: Text(label),
-            onTap: onPressed,
+          button = styleFactory.getStyledContainer(
+            ListTile(
+              leading: icon,
+              dense: true,
+              title: Text(style: styleText, label ?? ''),
+              onTap: onPressed,
+            ),
+            context,
           );
           break;
         case 'text':
           if (icon != null) {
             button = TextButton.icon(
+              style: styleFactory.getButtonStyle(null, styleText),
               onPressed: onPressed,
               icon: icon,
-              label: Text(label),
+              label: Text(style: styleText, label ?? ''),
             );
           } else {
-            button = TextButton(onPressed: onPressed, child: Text(label));
+            button = TextButton(
+              style: styleFactory.getButtonStyle(null, styleText),
+              onPressed: onPressed,
+              child: Text(style: styleText, label ?? ''),
+            );
           }
 
         case 'elevated':
         default:
           if (icon != null) {
             button = ElevatedButton.icon(
+              style: styleFactory.getButtonStyle(null, styleText),
               onPressed: onPressed,
               icon: icon,
-              label: Text(label),
+              label: Text(style: styleText, label ?? ''),
             );
           } else {
-            button = ElevatedButton(onPressed: onPressed, child: Text(label));
+            button = ElevatedButton(
+              style: styleFactory.getButtonStyle(null, styleText),
+              onPressed: onPressed,
+              child: Text(style: styleText, label ?? ''),
+            );
           }
           break;
       }
@@ -176,68 +249,37 @@ class _CwInputState extends CwWidgetStateBindJson<CwAction> with HelperEditor {
     });
   }
 
-  void loadRepository(
-    CwRepository repo,
-    BuildContext context, {
-    String? paramSessionId,
-  }) {
-    var h = repo.ds.helper!;
-    repo.dataState.clearDisplayedData();
-
-    if (paramSessionId != null) {
-      // affecte la session du parent
-      h.apiCallInfo.parentData = sessionStorage.get(paramSessionId);
-    }
-
-    // ignore: use_build_context_synchronously
-    h.startCancellableSearch(context, repo.criteriaState.data, () {
-      var data = h.apiCallInfo.aResponse?.reponse?.data;
-      repo.dataState.data = data;
-      repo.dataState.loadDataInContainer(data);
-    });
-  }
-
-  void setSelectedRow(BuildContext context) {
-    if (stateRepository != null) {
+  void _setSelectedRow(BuildContext context) {
+    if (stateRepository != null && attribut != null) {
       //String? oldPathData = pathData;
+      bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
       pathData = stateRepository!.getDataPath(
         // ignore: use_build_context_synchronously
         context,
-        attribut!.info,
+        widgetPath: widget.ctx.aWidgetPath,
+        attribut!.info.path,
         typeListContainer: false,
+        inArray: inArray,
         state: this,
       );
-      doChangeRow();
-    }
-  }
+    } else {
+      var stateArray = widget.ctx.parentCtx?.widgetState;
+      if (stateArray is! CwWidgetStateBindJson) return;
+      var pathJson =
+          'root${stateArray.pathData.replaceAll('/', '>').replaceAll('[*]', '[]')}';
+      pathJson = '$pathJson[]>*';
 
-  Future<String?> getLinkDataInSession(
-    Map<String, dynamic> link,
-    CwRepository repos,
-  ) async {
-    var pages = await loadDataSource("all", false);
-    BrowseSingle().browse(pages, false);
-    String toDatasrc = link['linkTo'];
-    String pathValue = link['onPath'];
-    var attr = pages.mapInfoByName[toDatasrc];
-    if (attr?.isNotEmpty ?? false) {
-      var pth = pathValue.replaceAll("[*]", "[]");
-
-      String pathSelected;
-      (_, pathSelected) = repos.dataState.getStateContainer(pth);
-
-      PageData pageData = PageData(
-        data: repos.dataState.data,
-        path: pathSelected,
+      stateRepository = stateArray.stateRepository;
+      pathData = stateRepository!.getDataPath(
+        // ignore: use_build_context_synchronously
+        context,
+        pathJson,
+        widgetPath: widget.ctx.aWidgetPath,
+        typeListContainer: false,
+        inArray: true,
+        state: this,
       );
-
-      print(
-        'assign link data to session ${pageData.hashCode}, path=$pathSelected',
-      );
-      var key = '${pageData.hashCode}';
-      sessionStorage.put(key, pageData);
-      return key;
     }
-    return null;
+    doChangeRow();
   }
 }

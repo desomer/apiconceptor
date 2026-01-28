@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
+import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_list.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
-import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/start_core.dart';
@@ -83,7 +83,7 @@ class StateRepository extends StateManager {
 
   (StateContainer?, String) getStateContainer(
     String pathData, {
-    bool setIndex = false,
+    Function? onIndexChange,
   }) {
     StringBuffer curPath = StringBuffer("");
     var p = pathData.split('/');
@@ -109,13 +109,18 @@ class StateRepository extends StateManager {
           last = null;
         }
       } else {
-        if (setIndex && path.endsWith(']')) {
+        if (onIndexChange != null && path.endsWith(']')) {
           var startIdx = path.indexOf('[');
           String arrayName = path.substring(0, startIdx);
           var indexStr = path.substring(startIdx + 1, path.length - 1);
           var lastArray = last?.stateChild[arrayName];
-          if (lastArray is StateContainerArray && setIndex) {
-            lastArray.currentIndex = int.parse(indexStr);
+          if (lastArray is StateContainerArray) {
+            int idx = int.parse(indexStr);
+            int oldIdx = lastArray.currentIndex;
+            lastArray.currentIndex = idx;
+            if (oldIdx != idx) {
+              onIndexChange(idx);
+            }
           }
         }
         curPath.write('/$path');
@@ -130,15 +135,16 @@ class StateRepository extends StateManager {
 
   String getDataPath(
     BuildContext context,
-    AttributInfo info, {
+    String path2Json, {
+    required String widgetPath,
     required bool typeListContainer,
-    required State state,
+    required bool inArray,
+    required CwWidgetStateBindJson state,
   }) {
-    StringBuffer curPath = StringBuffer("");
-    List<String> pathJson = info.path.split(">");
+    StringBuffer pathData = StringBuffer("");
+    List<String> pathJson = path2Json.split(">");
     bool nextIsTypeOf = false;
     var lastContainer = statesTreeData[""];
-
     Map<String, CWInheritedRow> listRowState = {};
     var r = getRowState(context);
     r != null ? listRowState[r.path] = r : null;
@@ -169,15 +175,15 @@ class StateRepository extends StateManager {
               lastContainer?.stateChild[arrayName] as StateContainerArray?;
           if (lastArray != null) {
             var rowidx = lastArray.currentIndex;
-            var path = "$curPath/$arrayName";
+            var path = "$pathData/$arrayName";
             var rowState = listRowState[path];
             if (rowState != null) {
               rowidx = rowState.rowIdx;
-            } else if (repository.aFactory.isModeViewer()) {
+            } else if (repository.aFactory.isModeViewer() && !inArray) {
               // print("No row state for ${info.path} at $path");
-              registerRepaintOnSelect(path, info.path, state);
+              registerRepaintOnSelect(widgetPath, path, state);
             }
-            lastContainer = lastContainer?.stateChild['$arrayName[$rowidx]'];
+            //lastContainer = lastContainer?.stateChild['$arrayName[$rowidx]'];
             p = '$arrayName[$rowidx]';
           } else {
             // pas encore d'element dans le tableau
@@ -186,11 +192,12 @@ class StateRepository extends StateManager {
               // cas ou on n'a pas encore de data = 0 par defaut
               p = '$arrayName[0]';
             } else {
-              var path = "$curPath/$arrayName";
+              var path = "$pathData/$arrayName";
               var rowState = listRowState[path];
-              if (rowState == null) {
+              if (rowState == null && !inArray) {
                 // print("No row state for ${info.path} at $path");
-                registerRepaintOnSelect(path, info.path, state);
+
+                registerRepaintOnSelect(widgetPath, path, state);
               }
               // mode viewer on met -1 pour indiquer pas d'element
               p = '$arrayName[0]';
@@ -198,17 +205,22 @@ class StateRepository extends StateManager {
           }
         }
       }
-      curPath.write('/$p');
+      pathData.write('/$p');
       lastContainer = lastContainer?.stateChild[p];
     }
-    return curPath.toString();
+    return pathData.toString();
   }
 
-  void registerRepaintOnSelect(String pathData, String pathJson, State state) {
+  void registerRepaintOnSelect(
+    String pathWidget,
+    String pathData,
+    CwWidgetStateBindJson state,
+  ) {
     //remove all idx
     pathData = pathData.replaceAll(RegExp(r'\[\d+\]'), '[]');
     var pathDeps = listDepsContainerByPath.putIfAbsent(pathData, () => {});
-    pathDeps[pathJson] = state;
+    //print(' register repaint on select for $pathData on $state $pathWidget');
+    pathDeps[pathWidget] = state;
   }
 
   void reloadDependentContainers(String pathData) {
@@ -224,12 +236,20 @@ class StateRepository extends StateManager {
           '[]',
         );
 
+        // print(" reload dependent containers for $pc ");
+        List<String> listDepsToRemove = [];
         listDepsContainerByPath[pc]?.forEach((key, element) {
+          //   print(  "  repaint container $key for element $element ${element.pathData} ");
           if (element.mounted) {
             // ignore: invalid_use_of_protected_member
             element.setState(() {});
+          } else {
+            listDepsToRemove.add(key);
           }
         });
+        for (var key in listDepsToRemove) {
+          listDepsContainerByPath[pc]?.remove(key);
+        }
       }
       pathContainer += '/$path';
     }

@@ -8,7 +8,9 @@ class PageData {
   String path;
 
   dynamic findNearestValueByKey(String key) {
-    Map<String, dynamic> currentRow = getValueFromPath(data, path);
+    Map<String, dynamic> currentRow = Map<String, dynamic>.from(
+      getValueFromPath(data, path),
+    );
     var val = findValueByKey(currentRow, key);
     if (val == null) {
       var pathParent = getParentPath(path);

@@ -1,6 +1,7 @@
 import 'dart:developer' as dev show log;
 
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
@@ -21,6 +22,8 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
   ZoneDesc leftZone = ZoneDesc();
   ZoneDesc deleteZone = ZoneDesc();
   ZoneDesc sizeZone = ZoneDesc();
+
+  GlobalKey boxkey = GlobalKey();
 
   @override
   void dispose() {
@@ -90,6 +93,9 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
       if (selected != null) {
         currentSelect!.ctx!.aFactory.displayProps(currentSelect!.ctx!);
       }
+      if (selected == 'onlyProps') {
+        return;
+      }
 
       CWEventCtx ctx = currentSelect!;
       if (ctx.ctx is CwWidgetCtxVirtual) return;
@@ -101,9 +107,9 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
         ctx.ctx!,
       );
 
-      var h = position.bottom - position.top;
-      var w = position.right - position.left;
-      dev.log("reselect size for ${currentSelect!.ctx!.aWidgetPath} : $w x $h");
+      // var h = position.bottom - position.top;
+      // var w = position.right - position.left;
+      //dev.log("reselect size for ${currentSelect!.ctx!.aWidgetPath} : $w x $h");
 
       if (mounted) {
         setState(() {}); // postionne l'indicateur
@@ -142,25 +148,7 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
     childrenAction.add(getZone(leftZone, position));
 
     childrenAction.add(
-      AnimatedPositioned(
-        duration: Duration(milliseconds: 200),
-        top: position.top,
-        left: position.left,
-        child: IgnorePointer(
-          child: Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.deepOrange, width: 1.5),
-            ),
-            child: OuterGlowBorder(
-              color: Colors.deepOrange,
-              radius: 0,
-              strokeWidth: 2,
-            ),
-          ),
-        ),
-      ),
+      BoxSelected(key: boxkey, rec: position, mode: CWModeBox.content),
     );
 
     return Stack(children: childrenAction);
@@ -405,20 +393,148 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
       double topBtn = 15;
       double leftBtn = 15;
 
-      // sizeZone.actions = [
-      //   //getAddDrag(topBtn, leftBtn, Icons.open_in_full, DesignAction.size),
-      // ];
-      sizeZone.actions = [];
+      sizeZone.actions = [
+        //getAddDrag(topBtn, leftBtn, Icons.open_in_full, DesignAction.size),
+      ];
       addAction(
         sizeZone.actions,
-        getPositionedAction(
-          topBtn,
-          leftBtn,
-          Icons.open_in_full,
-          DesignAction.size,
-        ),
+        getAddDrag(topBtn, leftBtn, Icons.open_in_full, DesignAction.size),
+        // getPositionedAction(
+        //   topBtn,
+        //   leftBtn,
+        //   Icons.open_in_full,
+        //   DesignAction.size,
+        // ),
       );
     };
+  }
+
+  Positioned getAddDrag(
+    double top,
+    double left,
+    IconData ic,
+    DesignAction action,
+  ) {
+    return Positioned(
+      top: top,
+      left: left,
+      child: Draggable(
+        data: 'drag_size',
+        onDragUpdate: (details) {
+          dragInProgess = true;
+          BoxSelectedState box = boxkey.currentState as BoxSelectedState;
+          box.addSize(details.delta.dy, details.delta.dx);
+
+          var ctx = currentSelect!.ctx!;
+
+          var designerKey = ctx.aFactory.designViewPortKey;
+          Offset positionRefMin =
+              TKPosition.getPosition(ctx.aFactory.scaleKeyMin, designerKey)!;
+          Offset positionRef100 =
+              TKPosition.getPosition(ctx.aFactory.scaleKey100, designerKey)!;
+          double previewPixelRatio =
+              (positionRef100.dx - positionRefMin.dx) / 100;
+
+          double h = box.widget.getSize().height / previewPixelRatio;
+          double w = box.widget.getSize().width / previewPixelRatio;
+
+          ctx.initPropsIfNeeded();
+          ctx.dataWidget?[cwProps]['height'] = h.toInt().toDouble();
+          ctx.dataWidget?[cwProps]['width'] = w.toInt().toDouble();
+
+          if (ctx.isParentOfType('table')) {
+            ctx.parentCtx?.repaint();
+          } else {
+            ctx.repaint();
+          }
+
+          emitLater(CDDesignEvent.reselect, "all", waitFrame: 1);
+
+          // var dragSize = action == DesignAction.size;
+          // var selectedSlot =
+          //     CoreDesigner.of().widgetSelector.getSelectedSlotContext();
+
+          // var canSlotResize =
+          //     selectedSlot?.inSlot?.slotAction?.canMoveResize();
+
+          // if (dragSize && (canSlotResize ?? false)) {
+          //   DesignCtx aCtx = DesignCtx().forDesign(selectedSlot!);
+          //   CoreDataEntity prop =
+          //       aCtx.preparePropChange(selectedSlot.loader);
+          //   CDWidget.setHeight(prop, h.toInt());
+          //   CDWidget.setWidth(prop, w.toInt());
+          // } else if (dragSize) {
+          //   var aCtx =
+          //       CoreDesigner.of().widgetSelector.getSelectedWidgetContext();
+          //   aCtx ??= selectedSlot?.getParentCWWidget()?.ctx;
+          //   if (aCtx != null) {
+          //     DesignCtx dCtx = DesignCtx().forDesign(aCtx);
+          //     var prop =
+          //         dCtx.preparePropChange(aCtx.loader, initDesign: false);
+          //     var cl = CWApplication.of()
+          //         .loaderDesigner
+          //         .collectionWidget
+          //         .getClass(prop.type);
+          //     bool isCapable = false;
+          //     if (cl!.getAttrById('height') != null) {
+          //       aCtx.changeProp('height', h.toInt());
+          //       isCapable = true;
+          //     }
+          //     if (cl.getAttrById('width') != null) {
+          //       aCtx.changeProp('width', w.toInt());
+          //       isCapable = true;
+          //     }
+          //     if (isCapable) dCtx.setDesign(prop);
+          //   }
+          // }
+
+          // CoreDesigner.of().widgetSelector.nbChange++;
+
+          if (sizeZone.visibility) {
+            setState(() {
+              rightZone.visibility = false;
+              bottomZone.visibility = false;
+              sizeZone.visibility = false;
+            });
+          }
+
+          // CoreDesigner.of()
+          //     .widgetSelector
+          //     .getSelectedSlotContext()!
+          //     .getParentCWWidget()
+          //     ?.repaint('getAddDrag resize');
+        },
+        onDraggableCanceled: (velocity, offset) {
+          dragInProgess = false;
+          BoxSelectedState box = boxkey.currentState as BoxSelectedState;
+          box.changeSize(
+            position.bottom - position.top,
+            position.right - position.left,
+          );
+          emit(CDDesignEvent.reselect, null);
+        },
+        feedback: SizedBox(
+          height: 20,
+          width: 20,
+          child: Container(color: Colors.deepOrange, child: Icon(ic, size: 15)),
+        ),
+        child: SizedBox(
+          height: 20,
+          width: 20,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrange,
+              padding: const EdgeInsets.all(0),
+            ),
+            child: Icon(ic, size: 15),
+            onPressed: () {
+              debugPrint('doAction size $action');
+              doAction(action);
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   void addAction(List<Widget> a, Widget? w) {
@@ -459,6 +575,10 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
   }
 
   void doAction(DesignAction action) {
+    if (currentSelect?.ctx?.slotProps?.onAction == null) {
+      print('no action handler for $action on ${currentSelect?.ctx?.slotId}');
+      return;
+    }
     currentSelect?.ctx?.slotProps?.onAction?.call(currentSelect!.ctx!, action);
   }
 }
@@ -546,4 +666,74 @@ class _OuterGlowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+enum CWModeBox { slot, content }
+
+class BoxSelected extends StatefulWidget {
+  const BoxSelected({super.key, required this.rec, required this.mode});
+
+  final CWRec rec;
+  final CWModeBox mode;
+
+  Size getSize() {
+    return Size(rec.right - rec.left, rec.bottom - rec.top);
+  }
+
+  @override
+  State<BoxSelected> createState() {
+    return BoxSelectedState();
+  }
+}
+
+class BoxSelectedState extends State<BoxSelected> {
+  void changeSize(double h, double w) {
+    setState(() {
+      widget.rec.bottom = h + widget.rec.top;
+      widget.rec.right = w + widget.rec.left;
+    });
+  }
+
+  void addSize(double h, double w) {
+    setState(() {
+      if (h > 0 || widget.rec.bottom + h > widget.rec.top + 5) {
+        widget.rec.bottom = h + widget.rec.bottom;
+      }
+      if (w > 0 || widget.rec.right + w >= widget.rec.left + 5) {
+        widget.rec.right = w + widget.rec.right;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var rec = widget.rec;
+    return AnimatedPositioned(
+      duration: Duration(milliseconds: 200),
+      top: rec.top,
+      left: rec.left,
+      child: IgnorePointer(
+        child: Container(
+          width: rec.right - rec.left,
+          height: rec.bottom - rec.top,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.deepOrange, width: 1.5),
+          ),
+          child: OuterGlowBorder(
+            color: Colors.deepOrange,
+            radius: 0,
+            strokeWidth: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // @override
+  // void onDragBehaviour(DragBehaviourCtx query) {
+  //   var aWidget = CoreDesigner.of().widgetSelector.getSelectedWidget();
+  //   if (aWidget != null) {
+  //     query.doDragOn(aWidget, context);
+  //   }
+  // }
 }

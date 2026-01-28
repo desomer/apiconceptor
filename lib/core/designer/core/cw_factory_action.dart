@@ -1,5 +1,8 @@
+import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
+import 'package:jsonschema/core/designer/editor/engine/widget_overlay_selector.dart';
+import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 
 class CwFactoryAction {
   final CwWidgetCtx ctx;
@@ -81,4 +84,218 @@ class CwFactoryAction {
       ctx.parentCtx!.dataWidget![cwSlots]?.remove(slotFrom);
     }
   }
+}
+
+//-------------------------------------------------------------------------------
+void onActionCellContainer(CwWidgetCtx ctx, DesignAction action) {
+  var props = ctx.parentCtx!.initPropsIfNeeded();
+  var horiz = HelperEditor.getStringProp(ctx.parentCtx!, 'type') == 'row';
+
+  String actionStr = '';
+  if (horiz) {
+    switch (action) {
+      case DesignAction.delete:
+        actionStr = 'delete';
+        break;
+      case DesignAction.addLeft:
+        actionStr = 'before';
+        break;
+      case DesignAction.addRight:
+        actionStr = 'after';
+        break;
+      case DesignAction.moveRight:
+        actionStr = 'moveBefore';
+        break;
+      case DesignAction.moveLeft:
+        actionStr = 'moveAfter';
+        break;
+      case DesignAction.addBottom:
+        actionStr = 'surround';
+        break;
+      case DesignAction.addTop:
+        actionStr = 'surround1';
+        break;
+      default:
+    }
+  } else {
+    switch (action) {
+      case DesignAction.delete:
+        actionStr = 'delete';
+        break;
+      case DesignAction.addTop:
+        actionStr = 'before';
+        break;
+      case DesignAction.addBottom:
+        actionStr = 'after';
+        break;
+      case DesignAction.moveBottom:
+        actionStr = 'moveAfter';
+        break;
+      case DesignAction.moveTop:
+        actionStr = 'moveBefore';
+        break;
+      case DesignAction.addRight:
+        actionStr = 'surround';
+        break;
+      case DesignAction.addLeft:
+        actionStr = 'surround1';
+        break;
+      default:
+    }
+  }
+
+  int nb = HelperEditor.getIntProp(ctx.parentCtx!, 'nbchild') ?? 2;
+  int idx = int.parse(ctx.slotId.split('_').last);
+  var actMgr = CwFactoryAction(ctx: ctx);
+
+  switch (actionStr) {
+    case "delete":
+      props['nbchild'] = nb - 1;
+      actMgr.deleteSlot('cell_', idx, nb);
+      break;
+    case 'surround':
+      var slotFrom = 'cell_$idx';
+      var slotTo = 'cell_0';
+      actMgr.surround(slotFrom, slotTo, {
+        cwImplement: 'container',
+        cwProps: <String, dynamic>{'type': horiz ? 'column' : 'row'},
+      });
+      break;
+    case 'surround1':
+      var slotFrom = 'cell_$idx';
+      var slotTo = 'cell_1';
+      actMgr.surround(slotFrom, slotTo, {
+        cwImplement: 'container',
+        cwProps: <String, dynamic>{'type': horiz ? 'column' : 'row'},
+      });
+      break;
+    case 'before':
+      props['nbchild'] = nb + 1;
+      actMgr.moveSlot('cell_', nb, idx);
+      break;
+    case "after":
+      props['nbchild'] = nb + 1;
+      actMgr.moveSlot('cell_', nb, idx + 1);
+      break;
+    case 'moveBefore':
+      actMgr.swapSlot('cell_', idx, idx - 1);
+      break;
+    case "moveAfter":
+      actMgr.swapSlot('cell_', idx, idx + 1);
+      break;
+    default:
+  }
+  SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+    ctx.parentCtx!.repaint();
+    ctx.selectParentOnDesigner();
+  });
+}
+
+//-------------------------------------------------------------------------------
+void onActionCellBody(CwWidgetCtx ctx, DesignAction action) {
+  var props = ctx.parentCtx!.initPropsIfNeeded();
+  var horiz = HelperEditor.getStringProp(ctx, 'type') == 'row';
+
+  String actionStr = '';
+  if (horiz) {
+    switch (action) {
+      case DesignAction.delete:
+        actionStr = 'delete';
+        break;
+      case DesignAction.addLeft:
+        actionStr = 'before';
+        break;
+      case DesignAction.addRight:
+        actionStr = 'after';
+        break;
+      case DesignAction.moveRight:
+        actionStr = 'moveBefore';
+        break;
+      case DesignAction.moveLeft:
+        actionStr = 'moveAfter';
+        break;
+      case DesignAction.addBottom:
+        actionStr = 'surround';
+        break;
+      case DesignAction.addTop:
+        actionStr = 'surround1';
+        break;
+      default:
+    }
+  } else {
+    switch (action) {
+      case DesignAction.delete:
+        actionStr = 'delete';
+        break;
+      case DesignAction.addTop:
+        actionStr = 'before';
+        break;
+      case DesignAction.addBottom:
+        actionStr = 'after';
+        break;
+      case DesignAction.moveBottom:
+        actionStr = 'moveAfter';
+        break;
+      case DesignAction.moveTop:
+        actionStr = 'moveBefore';
+        break;
+      case DesignAction.addRight:
+        actionStr = 'surround';
+        break;
+      case DesignAction.addLeft:
+        actionStr = 'surround1';
+        break;
+      default:
+    }
+  }
+
+  switch (actionStr) {
+    case "delete":
+      // props['nbchild'] = nb - 1;
+      // actMgr.deleteSlot('cell_', idx, nb);
+      break;
+    case 'surround':
+      var slotFrom = 'body';
+      var slotTo = 'cell_0';
+      var actMgr = CwFactoryAction(ctx: ctx);
+      actMgr.surround(slotFrom, slotTo, {
+        cwImplement: 'container',
+        cwProps: <String, dynamic>{'type': horiz ? 'column' : 'row'},
+      });
+      break;
+    case 'surround1':
+      var slotFrom = 'body';
+      var slotTo = 'cell_1';
+      var actMgr = CwFactoryAction(ctx: ctx);
+      actMgr.surround(slotFrom, slotTo, {
+        cwImplement: 'container',
+        cwProps: <String, dynamic>{'type': horiz ? 'column' : 'row'},
+      });
+      break;
+    case 'before':
+      int nb = HelperEditor.getIntProp(ctx, 'nbchild') ?? 2;
+      int idx = int.parse(ctx.slotId.split('_').lastOrNull ?? '0');
+      var actMgr = CwFactoryAction(ctx: ctx);
+      props['nbchild'] = nb + 1;
+      actMgr.moveSlot('cell_', nb, idx);
+      break;
+    case "after":
+      int nb = HelperEditor.getIntProp(ctx, 'nbchild') ?? 2;
+      int idx = int.parse(ctx.slotId.split('_').lastOrNull ?? '0');
+      var actMgr = CwFactoryAction(ctx: ctx);
+      props['nbchild'] = nb + 1;
+      actMgr.moveSlot('cell_', nb, idx + 1);
+      break;
+    // case 'moveBefore':
+    //   actMgr.swapSlot('cell_', idx, idx - 1);
+    //   break;
+    // case "moveAfter":
+    //   actMgr.swapSlot('cell_', idx, idx + 1);
+    //   break;
+    default:
+  }
+  SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+    ctx.parentCtx!.repaint();
+    ctx.selectParentOnDesigner();
+  });
 }

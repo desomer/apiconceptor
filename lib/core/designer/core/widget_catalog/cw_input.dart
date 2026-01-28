@@ -39,6 +39,7 @@ class CwInput extends CwWidget {
             .addProp(
               CwWidgetProperties(id: 'label', name: 'label')..isText(ctx),
             )
+            .addProp(CwWidgetProperties(id: 'size', name: 'size')..isSize(ctx))
             .addStyle(
               CwWidgetProperties(id: 'appearance', name: 'appearance')
                 ..isToogle(
@@ -50,7 +51,7 @@ class CwInput extends CwWidget {
             );
       },
       populateOnDrag: (ctx, drag) {
-        drag.childData![cwProps]['label'] = 'Title';
+        drag.childData![cwProps]['label'] ??= 'Title';
       },
     );
   }
@@ -77,14 +78,14 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
       focusNode = FocusNode();
       if (modeViewer) {
         ctrlInput?.addListener(() {
-          if (stateRepository != null) {
+          if (stateRepository != null && isPrimitiveArrayValue == false) {
             String pathContainer;
             String attrName;
             (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
             StateContainer? dataContainer;
             (dataContainer, _) = stateRepository!.getStateContainer(
               pathContainer,
-              setIndex: false,
+              //onIndexChange: (int idx) {},
             );
             if (dataContainer != null) {
               var value = ctrlInput!.text;
@@ -112,120 +113,162 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
 
   @override
   Widget build(BuildContext context) {
-    String style = getStringProp(widget.ctx, 'type') ?? 'label';
+    String widgetType = getStringProp(widget.ctx, 'type') ?? 'label';
 
-    return buildWidget(style != 'textfield', ModeBuilderWidget.noConstraint, (
-      ctx,
-      constraints,
-    ) {
-      var modeDesigner = ctx.aFactory.isModeDesigner();
-      if (stateRepository != null) {
-        String? oldPathData = pathData;
-        pathData = stateRepository!.getDataPath(
-          context,
-          attribut!.info,
-          typeListContainer: false,
-          state: this,
-        );
-        if (oldPathData != '?' && oldPathData != pathData) {
-          stateRepository!.disposeInput(oldPathData, this);
-        }
-        stateRepository!.registerInput(pathData, this);
+    return buildWidget(
+      widgetType != 'textfield',
+      ModeBuilderWidget.noConstraint,
+      (ctx, constraints) {
+        bool inTable = ctx.isParentOfType('table');
+        bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
 
-        String pathContainer;
-        String attrName;
-        (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+        var modeDesigner = ctx.aFactory.isModeDesigner();
+        if (stateRepository != null && attribut != null) {
+          String? oldPathData = pathData;
 
-        StateContainer? dataContainer;
-        (dataContainer, _) = stateRepository!.getStateContainer(pathContainer);
-        if (dataContainer != null) {
-          dynamic val = dataContainer.jsonData[attrName];
-          if (modeDesigner) {
-            ctrlInput?.text = pathData;
-          } else {
+          pathData = stateRepository!.getDataPath(
+            context,
+            isPrimitiveArrayValue
+                ? '${attribut!.info.path}>*'
+                : attribut!.info.path,
+            typeListContainer: false,
+            widgetPath: ctx.aWidgetPath,
+            inArray: inArray,
+            state: this,
+          );
+
+          if (isPrimitiveArrayValue) {
+            // bind sur un tableau de string ou nombre
+            int i = pathData.lastIndexOf('[');
+            int i2 = pathData.lastIndexOf(']');
+            var substring = pathData.substring(i + 1, i2);
+            pathData = pathData.substring(0, i);
+            int idx = int.tryParse(substring) ?? 0;
+            StateContainer? dataContainer;
+            (dataContainer, _) = stateRepository!.getStateContainer(pathData);
+            //print('object $pathData => ${dataContainer?.jsonData} + $idx');
+            dynamic val = dataContainer!.jsonData[idx];
             ctrlInput?.text = val?.toString() ?? '';
+          } else {
+            if (oldPathData != '?' && oldPathData != pathData) {
+              stateRepository!.disposeInput(oldPathData, this);
+            }
+            stateRepository!.registerInput(pathData, this);
+
+            String pathContainer;
+            String attrName;
+            (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+
+            StateContainer? dataContainer;
+            (dataContainer, _) = stateRepository!.getStateContainer(
+              pathContainer,
+            );
+            if (dataContainer != null) {
+              dynamic val = dataContainer.jsonData[attrName];
+              if (modeDesigner) {
+                ctrlInput?.text = pathData;
+              } else {
+                ctrlInput?.text = val?.toString() ?? '';
+              }
+            }
           }
         }
-      }
 
-      var appearanceBorder = {
-        "border": OutlineInputBorder(
-          borderSide: styleFactory.config.side ?? const BorderSide(),
-          borderRadius:
-              styleFactory.config.borderRadius ??
-              const BorderRadius.all(Radius.circular(4.0)),
-        ),
-        "fill": UnderlineInputBorder(
-          borderSide: styleFactory.config.side ?? const BorderSide(),
-          borderRadius:
-              styleFactory.config.borderRadius ??
-              const BorderRadius.only(
-                topLeft: Radius.circular(4.0),
-                topRight: Radius.circular(4.0),
-              ),
-        ),
-        "under": UnderlineInputBorder(
-          borderSide: styleFactory.config.side ?? const BorderSide(),
-          borderRadius:
-              styleFactory.config.borderRadius ??
-              const BorderRadius.only(
-                topLeft: Radius.circular(4.0),
-                topRight: Radius.circular(4.0),
-              ),
-        ),
-        "custom": InputBorder.none,
-      };
-
-      bool inTable = ctx.isParentOfType('table');
-      var appearance = styleFactory.getStyleString("appearance", "border");
-      InputDecoration decoration = InputDecoration(
-        isDense: inTable,
-        filled:
-            styleFactory.config.decoration?.color != null ||
-            appearance == 'fill',
-        fillColor: styleFactory.config.decoration?.color,
-        labelText: inTable ? null : getStringProp(ctx, 'label') ?? '',
-        enabledBorder: appearanceBorder[appearance],
-        focusedBorder: appearanceBorder[appearance],
-        contentPadding: styleFactory.config.edgePadding,
-      );
-
-      if (style == 'textfield') {
-        focusNode?.canRequestFocus = !modeDesigner;
-        focusNode?.skipTraversal = modeDesigner;
-
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 300, maxHeight: 50),
-          child: AbsorbPointer(
-            absorbing: modeDesigner,
-            child: TextField(
-              style: styleFactory.getTextStyle(null),
-              focusNode: focusNode,
-              //readOnly: modeDesigner ? true : false,
-              //onTap: modeDesigner ? () {} : null,
-              controller: ctrlInput,
-              decoration: decoration,
-            ),
+        var appearanceBorder = {
+          "border": OutlineInputBorder(
+            borderSide: styleFactory.config.side ?? const BorderSide(),
+            borderRadius:
+                styleFactory.config.borderRadius ??
+                const BorderRadius.all(Radius.circular(4.0)),
           ),
+          "fill": UnderlineInputBorder(
+            borderSide: styleFactory.config.side ?? const BorderSide(),
+            borderRadius:
+                styleFactory.config.borderRadius ??
+                const BorderRadius.only(
+                  topLeft: Radius.circular(4.0),
+                  topRight: Radius.circular(4.0),
+                ),
+          ),
+          "under": UnderlineInputBorder(
+            borderSide: styleFactory.config.side ?? const BorderSide(),
+            borderRadius:
+                styleFactory.config.borderRadius ??
+                const BorderRadius.only(
+                  topLeft: Radius.circular(4.0),
+                  topRight: Radius.circular(4.0),
+                ),
+          ),
+          "custom": InputBorder.none,
+        };
+
+        var appearance = styleFactory.getStyleString("appearance", "border");
+        InputDecoration decoration = InputDecoration(
+          isDense: inTable,
+          filled:
+              styleFactory.config.decoration?.color != null ||
+              appearance == 'fill',
+          fillColor: styleFactory.config.decoration?.color,
+          labelText: inTable ? null : getStringProp(ctx, 'label') ?? '',
+          enabledBorder: appearanceBorder[appearance],
+          focusedBorder: appearanceBorder[appearance],
+          contentPadding: styleFactory.config.edgePadding,
         );
-      } else if (style == 'checkbox') {
-        return Row(
-          spacing: 8,
-          children: [
-            Text(
-              style: styleFactory.getTextStyle(null),
-              getStringProp(widget.ctx, 'label') ?? '',
+
+        Widget widgetInput;
+
+        if (widgetType == 'textfield') {
+          focusNode?.canRequestFocus = !modeDesigner;
+          focusNode?.skipTraversal = modeDesigner;
+          var isSizeDefined = styleFactory.isSizeDefined();
+
+          widgetInput = ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isSizeDefined ? double.infinity : 300,
+              maxHeight: isSizeDefined ? double.infinity : 50,
             ),
-            Checkbox(value: false, onChanged: (value) {}),
-          ],
-        );
-      } else {
-        return Text(
-          style: styleFactory.getTextStyle(null),
-          getStringProp(widget.ctx, 'label') ?? '',
-        );
-      }
-    });
+            child: AbsorbPointer(
+              absorbing: modeDesigner,
+              child: TextField(
+                style: styleFactory.getTextStyle(null),
+                focusNode: focusNode,
+                //readOnly: modeDesigner ? true : false,
+                //onTap: modeDesigner ? () {} : null,
+                controller: ctrlInput,
+                decoration: decoration,
+              ),
+            ),
+          );
+
+          var elevation = styleFactory.getElevation();
+          if (elevation != null && elevation > 0) {
+            widgetInput = Material(
+              elevation: elevation,
+              borderRadius: styleFactory.config.borderRadius,
+              child: widgetInput,
+            );
+          }
+        } else if (widgetType == 'checkbox') {
+          widgetInput = Row(
+            spacing: 8,
+            children: [
+              Text(
+                style: styleFactory.getTextStyle(null),
+                getStringProp(widget.ctx, 'label') ?? '',
+              ),
+              Checkbox(value: false, onChanged: (value) {}),
+            ],
+          );
+        } else {
+          widgetInput = Text(
+            style: styleFactory.getTextStyle(null),
+            ctrlInput?.text ?? getStringProp(widget.ctx, 'label') ?? '',
+          );
+        }
+
+        return widgetInput;
+      },
+    );
   }
 }
 

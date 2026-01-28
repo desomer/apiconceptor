@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
+import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/designer/core/cw_factory_action.dart';
 
@@ -144,20 +146,16 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
             content: IntrinsicHeight(
               child: Column(
                 children: [
-                  getWrapItem(
-                    context,
-                    context2,
-                    'Tab',
-                    'CWTab',
-                    'Cont0',
-                    Icons.tab,
-                  ),
+                  getWrapItem(context, context2, 'Tab', 'bar', 'tabview_0', {
+                    'bottomView': true,
+                  }, Icons.tab),
                   getWrapItem(
                     context,
                     context2,
                     'Row',
                     'CWRow',
                     'Cont0',
+                    {},
                     Icons.view_week,
                   ),
                   getWrapItem(
@@ -166,6 +164,7 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
                     'Column',
                     'CWColumn',
                     'Cont0',
+                    {},
                     Icons.table_rows_rounded,
                   ),
                 ],
@@ -191,6 +190,7 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
     String text,
     String type,
     String slot,
+    Map<String, dynamic> props,
     IconData icon,
   ) {
     return SizedBox(
@@ -198,10 +198,24 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
       width: 200,
       child: InkWell(
         onTap: () {
-          // var w = CoreDesigner.of().widgetSelector.getSelectedSlotContext();
-          // if (w != null) {
-          //   DesignActionManager().doWrapWith(w, type, slot);
-          // }
+          var ctx = currentSelectorManager.lastSelectedCtx!;
+
+          var drop = DropCtx(
+            parentData: ctx.parentCtx?.dataWidget,
+            childData: {cwImplement: type, cwProps: props},
+            componentId: type,
+          );
+
+          // appel de la config de drop si existante
+          ctx.aFactory.builderDragConfig[type]?.call(ctx, drop);
+
+          var actMgr = CwFactoryAction(ctx: ctx);
+          actMgr.surround(ctx.slotId, slot, drop.childData!);
+
+          SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+            ctx.parentCtx!.repaint();
+            ctx.selectParentOnDesigner();
+          });
 
           Navigator.pop(context);
           Navigator.pop(context2);

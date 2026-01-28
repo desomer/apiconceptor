@@ -47,6 +47,8 @@ class _PageDesignerState extends State<PageDesigner> {
         //   widget.factory.rootCtx?.selectOnDesigner();
         // });
       }
+    } else {
+      isInitialized = true;
     }
     super.initState();
   }
@@ -58,6 +60,7 @@ class _PageDesignerState extends State<PageDesigner> {
     var rootSlot = widget.factory.getRootSlot('/');
 
     if (isInitialized) {
+      isInitialized = false;
       widget.factory.onStarted?.call();
     }
 
@@ -85,7 +88,7 @@ class _PageDesignerState extends State<PageDesigner> {
               child: Row(
                 spacing: 5,
                 mainAxisSize: MainAxisSize.min,
-                children: const [Icon(Icons.layers_outlined), Text("Stack")],
+                children: const [Icon(Icons.layers_outlined), Text("layout")],
               ),
             ), //icon: Icon(Icons.layers_outlined)
             Tab(
@@ -95,16 +98,34 @@ class _PageDesignerState extends State<PageDesigner> {
                 children: const [Icon(Icons.style), Text("Style")],
               ),
             ), //icon: Icon(Icons.style)
+            Tab(
+              child: Row(
+                spacing: 5,
+                mainAxisSize: MainAxisSize.min,
+                children: const [Icon(Icons.electric_bolt_rounded), Text("Behavior")],
+              ),
+            ), //icon: Icon(Icons.style)
           ],
           listTabCont: [
             PropsViewer(
               key: widget.factory.keyPropsViewer,
               factory: widget.factory,
             ),
-            StyleViewer(
-              key: widget.factory.keyStyleViewer,
-              factory: widget.factory,
+            Column(
+              children: [
+                StyleSelectorViewer(
+                  key: widget.factory.keyStyleSelectorViewer,
+                  factory: widget.factory,
+                ),
+                Expanded(
+                  child: StyleViewer(
+                    key: widget.factory.keyStyleViewer,
+                    factory: widget.factory,
+                  ),
+                ),
+              ],
             ),
+            Container(),
           ],
           heightTab: 40,
         ),

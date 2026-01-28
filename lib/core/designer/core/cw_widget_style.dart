@@ -79,11 +79,13 @@ class CWStyleFactory {
     return v is double ? v : (v as int).toDouble();
   }
 
-  double? getStyleNDouble(String id) {
+  double? getStyleNDouble(String id, double min) {
     dynamic v = style[id];
     if (v == null) return null;
 
-    return v is double ? v : (v as int).toDouble();
+    var r = v is double ? v : (v as int).toDouble();
+    if (r < min) return min;
+    return r;
   }
 
   String? getStyleString(String id, String? def) {
@@ -94,7 +96,7 @@ class CWStyleFactory {
   }
 
   double? getElevation() {
-    return getStyleNDouble('elevation');
+    return getStyleNDouble('elevation', 0);
   }
 
   Color? getColor(String id) {
@@ -217,6 +219,14 @@ class CWStyleFactory {
         );
       }
 
+      if (isSizeDefined()) {
+        content = SizedBox(
+          height: config.height,
+          width: config.width,
+          child: content,
+        );
+      }
+
       if (config.align != null) {
         return _getVisibility(
           Container(
@@ -228,6 +238,11 @@ class CWStyleFactory {
         return _getVisibility(getMarginByDragCapable(content));
       }
     }
+  }
+
+  bool isSizeDefined() {
+    var isHeightOrWidthDefined = config.height != null || config.width != null;
+    return isHeightOrWidthDefined;
   }
 
   void setConfigMargin() {
@@ -383,13 +398,15 @@ class CWStyleFactory {
   // .addAttr('gEnter2', CDAttributType.int)
 
   TextStyle getTextStyle(double? fontSize) {
+    var tcolor = getColor('tColor');
+    var fgColor = getColor('fgColor');
     return TextStyle(
-      color: getColor('tColor'),
+      color: tcolor ?? fgColor,
       fontWeight: hasTag('textstyle', 'bold') ? FontWeight.bold : null,
       fontStyle: hasTag('textstyle', 'italic') ? FontStyle.italic : null,
-      fontSize: getStyleNDouble('tSize') ?? fontSize,
+      fontSize: getStyleNDouble('tSize', 4) ?? fontSize,
       overflow: TextOverflow.clip,
-      decorationColor: getColor('tColor'),
+      decorationColor: tcolor ?? fgColor,
       decoration:
           hasTag('textstyle', 'underline')
               ? TextDecoration.underline
@@ -398,6 +415,32 @@ class CWStyleFactory {
                   : (hasTag('textstyle', 'overline')
                       ? TextDecoration.overline
                       : null)),
+    );
+  }
+
+  ButtonStyle getButtonStyle(double? fontSize, TextStyle? styleText) {
+    var fgcolor = getColor('fgColor');
+    var bgcolor = getColor('bgColor');
+    var roundedRectangleBorder = getRoundedRectangleBorder();
+    return ButtonStyle(
+      shape:
+          roundedRectangleBorder != null
+              ? WidgetStateProperty.all(roundedRectangleBorder)
+              : null,
+      elevation:
+          getElevation() != null
+              ? WidgetStateProperty.all(getElevation())
+              : null,
+      foregroundColor:
+          fgcolor != null ? WidgetStateProperty.all(fgcolor) : null,
+      textStyle: WidgetStateProperty.all(styleText),
+      backgroundColor:
+          bgcolor != null ? WidgetStateProperty.all(bgcolor) : null,
+
+      padding:
+          config.edgePadding != null
+              ? WidgetStateProperty.all(config.edgePadding)
+              : null,
     );
   }
 

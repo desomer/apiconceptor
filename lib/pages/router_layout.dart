@@ -16,6 +16,8 @@ bool showLoginDialog = true;
 bool connectBdd = true;
 bool autoLoging = true;
 
+ValueNotifier<String> dataProviderMode = ValueNotifier<String>('api');
+
 // ignore: must_be_immutable
 class Layout extends StatefulWidget {
   const Layout({super.key, required this.navChild, required this.routerState});
@@ -148,15 +150,44 @@ class _LayoutState extends State<Layout> {
                   onPressed: () {
                     prefs.remove("page_designer_data");
                     String keyFactory = 'factoryName';
-                    WidgetFactory? f;
-                    f = cacheLinkPage.get(keyFactory);
-                    if (f != null) {
-                      f.getEmptyApp();
-                      f.pageDesignerKey.currentState?.setState(() {});
-                      f.rootCtx?.selectOnDesigner();
+                    WidgetFactory? aFactory = cacheLinkPage.get(keyFactory);
+                    if (aFactory != null) {
+                      aFactory.getEmptyApp();
+                      aFactory.pageDesignerKey.currentState?.setState(() {});
+                      aFactory.rootCtx?.selectOnDesigner();
                     }
                   },
                   icon: Icon(Icons.delete),
+                ),
+                ValueListenableBuilder(
+                  valueListenable: dataProviderMode,
+                  builder: (context, value, child) {
+                    return SizedBox(
+                      width: 400,
+                      child: Row(
+                        children: [
+                          Text('Data from mock  '),
+                          Padding(
+                            padding: const EdgeInsets.all(0),
+                            child: Checkbox(
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+
+                              visualDensity: const VisualDensity(
+                                horizontal: -4,
+                                vertical: -4,
+                              ),
+                              value: value == 'mock',
+                              onChanged: (bool? newValue) {
+                                dataProviderMode.value =
+                                    (newValue ?? false ? 'mock' : 'api');
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 Spacer(),
                 Text('API Architect by Desomer G. V1.0.3.24'),

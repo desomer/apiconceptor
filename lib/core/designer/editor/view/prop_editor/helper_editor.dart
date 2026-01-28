@@ -71,7 +71,9 @@ mixin HelperEditor {
       suffixIcon:
           deleteController != null
               ? IconButton(
-                icon: const Icon(Icons.clear),
+                padding: EdgeInsets.zero, // retire le padding interne
+                constraints: const BoxConstraints(),
+                icon: const Icon(Icons.delete_forever),
                 onPressed: () {
                   deleteController.clear();
                 },

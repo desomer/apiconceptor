@@ -406,6 +406,7 @@ class WidgetRequestHelper with WidgetHelper {
     BuildContext context,
     Map<String, dynamic>? criteria,
     Function onRequestComplete,
+    {Function? onRequestError}
   ) async {
     bool isCancelled = false;
     final cancelToken = CancelToken();
@@ -432,6 +433,7 @@ class WidgetRequestHelper with WidgetHelper {
         context,
         apiCallInfo.aResponse,
       );
+      onRequestError?.call();
     }
   }
 

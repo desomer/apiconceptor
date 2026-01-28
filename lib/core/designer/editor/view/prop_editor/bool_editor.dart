@@ -40,22 +40,52 @@ class _BoolEditorState extends State<BoolEditor> with HelperEditor {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      contentPadding: const EdgeInsets.fromLTRB(5, 1, 5, 0),
-      dense: true,
-      title: Text(widget.config.name),
-      // This bool value toggles the switch.
-      value: controller.text.toLowerCase() == 'true',
-      onChanged: (v) {
-        setState(() {
-          controller.text = v.toString();
-          if (v == false) {
-            widget.json.remove(widget.config.id);
-          } else {
-            widget.json[widget.config.id] = v;
-          }
-        });
-      },
+    return SizedBox(
+      height: 30,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            widget.config.name,
+          ),
+          Transform.scale(
+            scale: 0.75,
+            child: Switch(
+              value: controller.text.toLowerCase() == 'true',
+              onChanged: (v) {
+                setState(() {
+                  controller.text = v.toString();
+                  if (v == false) {
+                    widget.json.remove(widget.config.id);
+                  } else {
+                    widget.json[widget.config.id] = v;
+                  }
+                });
+              },
+            ),
+          ),
+        ],
+      ),
     );
+
+    // return SwitchListTile(
+    //   contentPadding: const EdgeInsets.fromLTRB(5, 1, 5, 0),
+    //   dense: true,
+    //   title: Text(widget.config.name),
+    //   // This bool value toggles the switch.
+    //   value: controller.text.toLowerCase() == 'true',
+    //   onChanged: (v) {
+    //     setState(() {
+    //       controller.text = v.toString();
+    //       if (v == false) {
+    //         widget.json.remove(widget.config.id);
+    //       } else {
+    //         widget.json[widget.config.id] = v;
+    //       }
+    //     });
+    //   },
+    // );
   }
 }

@@ -56,7 +56,11 @@ class _SlideEditorState extends State<SliderEditor> with HelperEditor {
       ret.addAll([Icon(widget.icon), const SizedBox(width: 5)]);
     }
     ret.addAll([
-      Text(widget.config.name),
+      Text(
+        widget.config.name,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+      ),
       const Spacer(),
       SizedBox(
         width: 100,
@@ -80,10 +84,13 @@ class _SlideEditorState extends State<SliderEditor> with HelperEditor {
     ]);
 
     // slider avec label + title
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: ret,
+    return SizedBox(
+      height: 30,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: ret,
+      ),
     );
   }
 

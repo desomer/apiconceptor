@@ -42,7 +42,7 @@ class CwFactoryBloc with NameMixin {
           );
         }
         if (loadLater) {
-          Future.delayed(Duration(seconds: 1), () {
+          Future.delayed(Duration(seconds: 2), () {
             loadAllData(repo);
           });
         } else {
@@ -69,32 +69,31 @@ class CwFactoryBloc with NameMixin {
     CallerDatasource ds,
     CwWidgetCtx ctx,
   ) async {
-    bool withActionCriteria = false;
-    List<Map<String, dynamic>> actions = [];
+    // bool withActionCriteria = false;
     String typeContainer = "criteria";
     String? listPathArray;
 
-    String repositoryId = await getRepositoryIdAndCreateIfNeeded(
+    String repositoryId = await _getRepositoryIdAndCreateIfNeeded(
       config,
       ctx,
       ds,
     );
 
+    var listAttrSelected = ds.selectionConfig;
     var propContainer = <String, dynamic>{};
-    Map<String, dynamic> containerData = initContainer(
+    Map<String, dynamic>? containerData = _initContainer(
       ds,
       propContainer,
       repositoryId,
       ctx,
     );
 
-    var listAttrSelected = ds.selectionConfig;
     for (var i = 0; i < listAttrSelected.length; i++) {
       ModelSchema? model;
       bool isAttribute = false;
 
       if (listAttrSelected[i]['src'] == 'Actions') {
-        await addAction(
+        await _addAction(
           model,
           listAttrSelected,
           i,
@@ -106,7 +105,7 @@ class CwFactoryBloc with NameMixin {
       } else if (listAttrSelected[i]['src'] == 'Criteria') {
         model = ds.helper!.apiCallInfo.currentAPIRequest!;
         typeContainer = 'criteria';
-        withActionCriteria = true;
+        //withActionCriteria = true;
         isAttribute = true;
       } else if (listAttrSelected[i]['src'] == 'Data') {
         model = ds.modelHttp200!;
@@ -115,7 +114,7 @@ class CwFactoryBloc with NameMixin {
       }
 
       if (isAttribute) {
-        var aListPathArray = addAttribute(
+        var aListPathArray = _addAttribute(
           model,
           listAttrSelected,
           i,
@@ -130,18 +129,19 @@ class CwFactoryBloc with NameMixin {
       }
     }
 
-    if (withActionCriteria) {
-      addActionCriteria(ctx, repositoryId, actions);
-    }
-    for (var i = 0; i < actions.length; i++) {
-      ctx.aFactory.addInSlot(
-        containerData,
-        'cell_${listAttrSelected.length + i}',
-        actions[i],
-      );
-    }
+    // List<Map<String, dynamic>> actions = [];
+    // if (withActionCriteria) {
+    //   addActionCriteria(ctx, repositoryId, actions);
+    // }
+    // for (var i = 0; i < actions.length; i++) {
+    //   ctx.aFactory.addInSlot(
+    //     containerData,
+    //     'cell_${listAttrSelected.length + i}',
+    //     actions[i],
+    //   );
+    // }
 
-    propContainer['nbchild'] = listAttrSelected.length + actions.length;
+    propContainer['nbchild'] = listAttrSelected.length /*+ actions.length*/;
 
     if (ds.typeLayout == 'List') {
       // surround par un list widget
@@ -164,7 +164,7 @@ class CwFactoryBloc with NameMixin {
     return containerData;
   }
 
-  Future<String> getRepositoryIdAndCreateIfNeeded(
+  Future<String> _getRepositoryIdAndCreateIfNeeded(
     Map<dynamic, dynamic> config,
     CwWidgetCtx ctx,
     CallerDatasource ds,
@@ -194,7 +194,7 @@ class CwFactoryBloc with NameMixin {
     return repositoryId ?? '?';
   }
 
-  Map<String, dynamic> initContainer(
+  Map<String, dynamic> _initContainer(
     CallerDatasource ds,
     Map<String, dynamic> propContainer,
     String repositoryId,
@@ -243,7 +243,7 @@ class CwFactoryBloc with NameMixin {
     return containerData;
   }
 
-  String? addAttribute(
+  String? _addAttribute(
     ModelSchema? model,
     List<Map<String, dynamic>> listAttrSelected,
     int i,
@@ -256,6 +256,7 @@ class CwFactoryBloc with NameMixin {
     var attrSelected = listAttrSelected[i];
     var info = model!.nodeByMasterId[attrSelected['id']]!.info;
     var v = info.path;
+
     int it = v.lastIndexOf("[]");
     if (it > 0) {
       var lp = v.substring(0, it + 2);
@@ -265,13 +266,22 @@ class CwFactoryBloc with NameMixin {
       }
     }
 
-    ctx.aFactory.addInSlot(containerData, 'cell_$i', {
+    var attr = info.masterID;
+    if (v.endsWith('[]')) {
+      // tableau de string ou nombre
+      attr = 'self@${info.masterID}';
+    }
+
+    var container = containerData;
+    String slot = 'cell_$i';
+
+    ctx.aFactory.addInSlot(container, slot, {
       cwImplement: 'input',
       cwProps: <String, dynamic>{
         'label': camelCaseToWords(info.name),
         'type': 'textfield',
         'bind': {
-          'attr': info.masterID,
+          'attr': attr,
           'from': attrSelected['src'].toString().toLowerCase(),
           'repository': repositoryId,
         },
@@ -281,7 +291,7 @@ class CwFactoryBloc with NameMixin {
 
     if (ds.typeLayout == 'Table') {
       // ajout des header
-      ctx.aFactory.addInSlot(containerData, 'header_$i', {
+      ctx.aFactory.addInSlot(container, 'header_$i', {
         cwImplement: 'input',
         cwProps: <String, dynamic>{
           'label': camelCaseToWords(info.name),
@@ -292,7 +302,7 @@ class CwFactoryBloc with NameMixin {
     return listPathArray;
   }
 
-  Future<String?> addAction(
+  Future<String?> _addAction(
     ModelSchema? model,
     List<Map<String, dynamic>> listAttrSelected,
     int i,
@@ -303,64 +313,112 @@ class CwFactoryBloc with NameMixin {
   ) async {
     String? listPathArray;
     var attrSelected = listAttrSelected[i];
-    var link = attrSelected['id'] as ConfigLink;
 
-    var infoLink = {"linkTo": link.toDatasrc, "onPath": link.onPath};
-    CallerDatasource dsDest = CallerDatasource();
-    await dsDest.loadDs('#name=${link.toDatasrc}', null);
-
-    Map<String, dynamic> repos = ctx.aFactory.appData[cwRepos];
-    var repo = repos.values.firstWhereOrNull((element) {
-      return element[cwProps]["name"] == link.toDatasrc;
-    });
-    if (repo == null) {
-      var infoDS = {
-        'domain': dsDest.domainDs,
-        'dsId': dsDest.dsId,
-        'name': dsDest.dsName,
-      };
-      infoLink['repository'] = await getRepositoryIdAndCreateIfNeeded(
-        {cwType: 'datasource', cwProps: infoDS},
-        ctx,
-        dsDest,
-      );
-      componentValueListenable.value++;
-    } else {
-      infoLink['repository'] = repo[cwSlotId];
-    }
-
+    Map onPress;
+    String label;
     AttributInfo? info;
-    if (attrSelected['type'] == 'data_link') {
-      var jsonPath =
-          'root${link.onPath.replaceAll('/', '>').replaceAll('[*]', '[]')}';
-      info = ds.modelHttp200!.mapInfoByJsonPath[jsonPath]!;
-    }
+    String type = "action";
 
-    ctx.aFactory.addInSlot(containerData, 'cell_$i', {
-      cwImplement: 'action',
-      cwProps: <String, dynamic>{
-        'label': camelCaseToWords(link.title),
-        'bind': {
-          'attr': info?.masterID ?? '?',
-          'from': attrSelected['type'] == 'data_link' ? 'data' : 'criteria',
-          'repository': repositoryId,
-        },
-        cwOnPressed: {
+    switch (attrSelected['type']) {
+      case 'load_criteria_action':
+        onPress = {
+          cwType: "repository",
+          "operation": "loadCriteria",
+          "repository": repositoryId,
+          "idParam": attrSelected['id'],
+        };
+        label = attrSelected['label'];
+        break;
+
+      case 'action':
+        onPress = {
+          cwType: "repository",
+          "operation": "action",
+          "repository": repositoryId,
+          "idAction": attrSelected['id'],
+        };
+        label = attrSelected['label'];
+        if (attrSelected['id'] == 'pager') {
+          type = 'pager';
+        }
+        break;
+
+      case 'data_link':
+        var link = attrSelected['configLink'] as ConfigLink;
+
+        var infoLink = {"linkTo": link.toDatasrc, "onPath": link.onPath};
+        CallerDatasource dsDest = CallerDatasource();
+        await dsDest.loadDs('#name=${link.toDatasrc}', null);
+
+        Map<String, dynamic> repos = ctx.aFactory.appData[cwRepos];
+        var repo = repos.values.firstWhereOrNull((element) {
+          return element[cwProps]["name"] == link.toDatasrc;
+        });
+        if (repo == null) {
+          var infoDS = {
+            'domain': dsDest.domainDs,
+            'dsId': dsDest.dsId,
+            'name': dsDest.dsName,
+          };
+          infoLink['repository'] = await _getRepositoryIdAndCreateIfNeeded(
+            {cwType: 'datasource', cwProps: infoDS},
+            ctx,
+            dsDest,
+          );
+          componentValueListenable.value++;
+        } else {
+          infoLink['repository'] = repo[cwSlotId];
+        }
+
+        if (attrSelected['type'] == 'data_link') {
+          var jsonPath =
+              'root${link.onPath.replaceAll('/', '>').replaceAll('[*]', '[]')}';
+          info = ds.modelHttp200!.mapInfoByJsonPath[jsonPath]!;
+        }
+        onPress = {
           cwType: "repository",
           "operation": "link2Datasrc",
-          "link": infoLink,
           "repository": repositoryId,
+          "link": infoLink,
+        };
+        label = link.title;
+
+      default:
+        return null;
+    }
+
+    var container = containerData;
+    String slot = 'cell_$i';
+
+    if (type == 'action') {
+      ctx.aFactory.addInSlot(container, slot, {
+        cwImplement: 'action',
+        cwProps: <String, dynamic>{
+          'label': camelCaseToWords(label),
+          'bind': {
+            'attr': info?.masterID ?? '?',
+            'from': attrSelected['type'] == 'data_link' ? 'data' : 'criteria',
+            'repository': repositoryId,
+          },
+          cwOnPressed: onPress,
+          if (ds.typeLayout == 'Table') "style": {"appearance": "custom"},
         },
-        if (ds.typeLayout == 'Table') "style": {"appearance": "custom"},
-      },
-    });
+      });
+    } else if (type == 'pager') {
+      ctx.aFactory.addInSlot(container, slot, {
+        cwImplement: 'pager',
+        cwProps: <String, dynamic>{
+          'bind': {'repository': repositoryId},
+        },
+      });
+    }
 
     if (ds.typeLayout == 'Table') {
       // ajout des header
-      ctx.aFactory.addInSlot(containerData, 'header_$i', {
+      ctx.aFactory.addInSlot(container, 'header_$i', {
         cwImplement: 'input',
         cwProps: <String, dynamic>{
-          'label': camelCaseToWords(link.title),
+          'label': camelCaseToWords(label),
           "style": {"boxAlignH": "0", "boxAlignV": "0"},
         },
       });

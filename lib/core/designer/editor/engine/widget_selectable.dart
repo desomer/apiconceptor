@@ -497,7 +497,7 @@ class WidgetSelectableState extends State<WidgetSelectable> {
       setState(() {});
 
       //repost le click aprés le unlock
-      Future.delayed(Duration(milliseconds: 200), () {
+      Future.delayed(Duration(milliseconds: 100), () {
         if (currentSelectorManager.draggingWidget == null) {
           if (mounted) {
             onPointerDown(d);

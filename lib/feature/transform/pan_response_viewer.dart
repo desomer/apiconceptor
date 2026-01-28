@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
@@ -11,12 +10,10 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/core/api/widget_request_helper.dart';
-import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 
@@ -361,24 +358,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
 
   Future<List<Widget>> getAllExampleSelectorBtn() async {
     List<Widget> paramSelector = <Widget>[];
-    var exampleModel = ModelSchema(
-      category: Category.exampleApi,
-      headerName: 'example',
-      id: 'example/temp/${apiCallInfo.attrApi.masterID!}',
-      infoManager: InfoManagerApiExample(),
-      ref: null,
-    )..namespace = apiCallInfo.namespace;
-    await exampleModel.loadYamlAndProperties(
-      cache: false,
-      withProperties: true,
-    );
-
-    var a = BrowseSingle();
-    a.browse(exampleModel, false);
-
-    var examples = exampleModel.mapInfoByJsonPath.values.where((e) {
-      return e.type == 'example';
-    });
+    Iterable<AttributInfo> examples = await apiCallInfo.getExamples();
 
     for (var element in examples) {
       paramSelector.add(

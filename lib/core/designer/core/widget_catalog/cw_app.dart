@@ -19,10 +19,10 @@ class CwApp extends CwWidget {
             // ..addSlot(CwWidgetSlotConfig(id: "bottombar"))
             // ..addSlot(CwWidgetSlotConfig(id: "floatingActionButton"))
             // ..addSlot(CwWidgetSlotConfig(id: "body"))
-            .addProp(
+            .addStyle(
               CwWidgetProperties(id: 'color', name: 'seed color')..isColor(ctx),
             )
-            .addProp(
+            .addStyle(
               CwWidgetProperties(id: 'darkMode', name: 'dark mode')
                 ..isBool(ctx),
             );
@@ -162,24 +162,24 @@ class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
       cwStyle,
     ]);
 
-    Color barForegroundColor =
-        (mainColor.computeLuminance() > 0.400)
-            ? lightenOrDarken(true, mainColor, 0.5) // dark
-            : lightenOrDarken(false, mainColor, 0.5);
+    // Color barForegroundColor =
+    //     (mainColor.computeLuminance() > 0.400)
+    //         ? lightenOrDarken(true, mainColor, 0.5) // dark
+    //         : lightenOrDarken(false, mainColor, 0.5);
 
-    var colorScheme2 = ColorScheme.fromSeed(
+    var colorScheme = ColorScheme.fromSeed(
       seedColor: mainColor,
       brightness: isDark ? Brightness.dark : Brightness.light,
     );
 
     var theme = ThemeData(
       //scaffoldBackgroundColor: mainColor,
-      appBarTheme: AppBarTheme(
-        foregroundColor: barForegroundColor,
-        backgroundColor: mainColor,
-      ),
+      // appBarTheme: AppBarTheme(
+      //   foregroundColor: barForegroundColor,
+      //   backgroundColor: mainColor,
+      // ),
       useMaterial3: true,
-      colorScheme: colorScheme2,
+      colorScheme: colorScheme,
       scaffoldBackgroundColor: bgColor,
     );
     return theme;

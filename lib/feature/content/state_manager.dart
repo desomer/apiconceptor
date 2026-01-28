@@ -1,5 +1,6 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
@@ -115,7 +116,7 @@ class StateManager {
   final Map<String, List<WidgetBindJsonState>> listInputByPath = {};
   final Map<String, List<State>> listContainerByPath = {};
 
-  final Map<String, Map<String, State>> listDepsContainerByPath = {};
+  final Map<String, Map<String, CwWidgetStateBindJson>> listDepsContainerByPath = {};
 
   // pathData de type /objet/child1/child2 or /array[0]/child1/child2
 
