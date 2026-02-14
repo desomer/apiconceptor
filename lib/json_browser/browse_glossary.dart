@@ -4,6 +4,8 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:lemmatizerx/lemmatizerx.dart';
 //import 'package:text_analysis/text_analysis.dart';
 //import 'package:text_analysis/extensions.dart';
@@ -34,7 +36,12 @@ class BrowseGlossary<T extends Map> extends JsonBrowser<T> {
   }
 
   @override
-  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     return parent;
   }
 
@@ -219,39 +226,15 @@ class GlossaryInfo {
 }
 
 //************************************************************************* */
-class InfoManagerGlossary extends InfoManager {
+class InfoManagerGlossary extends InfoManager with WidgetHelper {
   InfoManagerGlossary();
 
   @override
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
-      if (name.startsWith(constRefOn)) {
-        typeStr = '\$ref';
-      } else if (name.startsWith(constTypeAnyof)) {
-        typeStr = '\$anyOf';
-      } else if (name.endsWith('[]')) {
-        node.bgcolor = Colors.blue.withAlpha(50);
-        typeStr = 'Array';
-      } else {
         node.bgcolor = Colors.blueGrey.withAlpha(50);
         typeStr = 'Category';
-      }
-    } else if (type is List) {
-      if (name.endsWith('[]')) {
-        typeStr = 'Array';
-        node.bgcolor = Colors.blue.withAlpha(50);
-      } else {
-        typeStr = 'Object';
-      }
-    } else if (type is int) {
-      typeStr = 'number';
-    } else if (type is double) {
-      typeStr = 'number';
-    } else if (type is String) {
-      if (type.startsWith('\$')) {
-        typeStr = 'Object';
-      }
     }
     typeStr ??= '$type';
     return typeStr;
@@ -268,8 +251,6 @@ class InfoManagerGlossary extends InfoManager {
     bool valid = [
       'category',
       ...autorizedGlossaryType,
-      '\$ref',
-      '\$anyof',
     ].contains(type);
     if (!valid) {
       return InvalidInfo(color: Colors.red);
@@ -327,8 +308,51 @@ class InfoManagerGlossary extends InfoManager {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
-    // TODO: implement getRowHeader
-    throw UnimplementedError();
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
+    Widget? icon;
+    var isRoot = node.isRoot;
+
+    if (isRoot) {
+      icon = Icon(Icons.business);
+    } else if (node.data.info.type == 'Category') {
+      icon = Icon(Icons.folder);
+    } else {
+      icon = Icon(Icons.label_outline);
+    }
+
+    var attr = node.data;
+
+    bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
+    hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
+
+    return NoOverflowErrorFlex(
+      direction: Axis.horizontal,
+      children: [
+        Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
+
+        Expanded(
+          child: InkWell(
+            onTap: () {
+              node.doTapHeader();
+            },
+            child: Row(
+              children: [
+                Text(
+                  node.data.info.name,
+                  style: (node.data.info.type == 'Category')
+                      ? const TextStyle(fontWeight: FontWeight.bold)
+                      : null,
+                ),
+                Spacer(),
+                getChip(
+                  Text(node.data.info.type),
+                  color: hasError ? Colors.red : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

@@ -28,7 +28,9 @@ class DesignModelDetailPage extends GenericPageStateless {
     BuildContext context,
     PageInit? pageInit,
   ) {
-    query = routerState.uri.queryParameters['id'] ?? currentCompany.currentModel!.id;
+    query =
+        routerState.uri.queryParameters['id'] ??
+        currentCompany.currentModel!.id;
     var attr = currentCompany.listModel!.nodeByMasterId[query];
     var name = attr?.info.name;
 
@@ -70,13 +72,13 @@ class DesignModelDetailPage extends GenericPageStateless {
       ]
       ..breadcrumbs = [
         BreadNode(
-          settings: const RouteSettings(name: 'List model'),
-          type: BreadNodeType.widget,
+          settings: const RouteSettings(name: 'Domain'),
+          type: BreadNodeType.domain,
           path: Pages.models.urlpath,
         ),
         BreadNode(
-          settings: const RouteSettings(name: 'Domain'),
-          type: BreadNodeType.domain,
+          settings: const RouteSettings(name: 'List model'),
+          type: BreadNodeType.widget,
           path: Pages.models.urlpath,
         ),
         BreadNode(

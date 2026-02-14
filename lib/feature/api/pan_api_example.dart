@@ -155,7 +155,7 @@ class InfoManagerApiExample extends InfoManager with WidgetHelper {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     Widget? icon;
     var isRoot = node.isRoot;
     var isFolder = node.data.info.type == 'folder';

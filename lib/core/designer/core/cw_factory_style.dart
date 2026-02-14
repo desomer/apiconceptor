@@ -3,10 +3,12 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 
 class CWFactoryStyle {
+  bool withEditor = true;
+
   List<CwWidgetProperties> initMargin(CwWidgetCtx ctx) {
     List<CwWidgetProperties> listStyle = [];
     listStyle.add(
-      CwWidgetProperties(id: 'mtop', name: 'padding top')..isSlider(
+      CwWidgetProperties(id: 'mtop', name: 'padding top', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -15,7 +17,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'mbottom', name: 'padding bottom')..isSlider(
+      CwWidgetProperties(id: 'mbottom', name: 'padding bottom', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -24,7 +26,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'mleft', name: 'padding left')..isSlider(
+      CwWidgetProperties(id: 'mleft', name: 'padding left', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -33,7 +35,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'mright', name: 'padding right')..isSlider(
+      CwWidgetProperties(id: 'mright', name: 'padding right', withEditor: withEditor )..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -47,7 +49,7 @@ class CWFactoryStyle {
   List<CwWidgetProperties> initPadding(CwWidgetCtx ctx) {
     List<CwWidgetProperties> listStyle = [];
     listStyle.add(
-      CwWidgetProperties(id: 'ptop', name: 'margin top')..isSlider(
+      CwWidgetProperties(id: 'ptop', name: 'margin top', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -56,7 +58,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'pbottom', name: 'margin bottom')..isSlider(
+      CwWidgetProperties(id: 'pbottom', name: 'margin bottom', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -65,7 +67,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'pleft', name: 'margin left')..isSlider(
+      CwWidgetProperties(id: 'pleft', name: 'margin left', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -74,7 +76,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'pright', name: 'margin right')..isSlider(
+      CwWidgetProperties(id: 'pright', name: 'margin right', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -88,7 +90,7 @@ class CWFactoryStyle {
   List<CwWidgetProperties> initBorder(CwWidgetCtx ctx) {
     List<CwWidgetProperties> listStyle = [];
     listStyle.add(
-      CwWidgetProperties(id: 'elevation', name: 'elevation')..isSlider(
+      CwWidgetProperties(id: 'elevation', name: 'elevation', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 20,
@@ -98,7 +100,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'bSize', name: 'border size')..isSlider(
+      CwWidgetProperties(id: 'bSize', name: 'border size', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 20,
@@ -108,7 +110,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'bRadius', name: 'b. radius')..isSlider(
+      CwWidgetProperties(id: 'bRadius', name: 'b. radius', withEditor: withEditor)..isSlider(
         ctx,
         min: 0,
         max: 50,
@@ -118,7 +120,7 @@ class CWFactoryStyle {
       ),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'bColor', name: 'border color')
+      CwWidgetProperties(id: 'bColor', name: 'border color', withEditor: withEditor)
         ..isColor(ctx, icon: Icons.border_color_rounded, path: [cwStyle]),
     );
     return listStyle;
@@ -140,11 +142,11 @@ class CWFactoryStyle {
     ];
 
     listStyle.add(
-      CwWidgetProperties(id: 'boxAlignH', name: 'Box align H.')
+      CwWidgetProperties(id: 'boxAlignH', name: 'Box align H.', withEditor: withEditor)
         ..isToogle(ctx, path: [cwStyle], listCross),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'boxAlignV', name: 'Box align V.')
+      CwWidgetProperties(id: 'boxAlignV', name: 'Box align V.', withEditor: withEditor)
         ..isToogle(ctx, path: [cwStyle], listAxis),
     );
     return listStyle;
@@ -154,11 +156,11 @@ class CWFactoryStyle {
     List<CwWidgetProperties> listStyle = [];
 
     listStyle.add(
-      CwWidgetProperties(id: 'bgColor', name: 'background color')
+      CwWidgetProperties(id: 'bgColor', name: 'background color', withEditor: withEditor)
         ..isColor(ctx, icon: Icons.format_color_fill, path: [cwStyle]),
     );
     listStyle.add(
-      CwWidgetProperties(id: 'fgColor', name: 'foreground color')
+      CwWidgetProperties(id: 'fgColor', name: 'foreground color', withEditor: withEditor)
         ..isColor(ctx, icon: Icons.format_color_fill, path: [cwStyle]),
     );
 
@@ -175,17 +177,17 @@ class CWFactoryStyle {
     ];
 
     listStyle.add(
-      CwWidgetProperties(id: 'textalign', name: 'text align')
+      CwWidgetProperties(id: 'textalign', name: 'text align', withEditor: withEditor)
         ..isToogle(ctx, path: [cwStyle], listTextAlign),
     );
 
     listStyle.add(
-      CwWidgetProperties(id: 'tColor', name: 'text color')
+      CwWidgetProperties(id: 'tColor', name: 'text color', withEditor: withEditor)
         ..isColor(ctx, icon: Icons.format_color_text_rounded, path: [cwStyle]),
     );
 
     listStyle.add(
-      CwWidgetProperties(id: 'tSize', name: 'text size')
+      CwWidgetProperties(id: 'tSize', name: 'text size', withEditor: withEditor)
         ..isSlider(ctx, max: 40, path: [cwStyle]),
     );
 
@@ -198,7 +200,7 @@ class CWFactoryStyle {
     ];
 
     listStyle.add(
-      CwWidgetProperties(id: 'textstyle', name: 'text style')
+      CwWidgetProperties(id: 'textstyle', name: 'text style', withEditor: withEditor)
         ..isToogle(ctx, path: [cwStyle], listTextType, isMultiple: true),
     );
 

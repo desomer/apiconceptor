@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
-import 'package:jsonschema/core/designer/core/widget_catalog/cw_list.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
@@ -48,6 +48,7 @@ class StateRepository extends StateManager {
     var browserEmpty = Export2FakeJson(
       modeArray: ModeArrayEnum.anyInstance,
       mode: ModeEnum.empty,
+      propMode: PropertyRequiredEnum.all
     );
     await browserEmpty.browseSync(schema, false, 0);
     dataEmpty = browserEmpty.json;
@@ -56,6 +57,7 @@ class StateRepository extends StateManager {
       var browserData = Export2FakeJson(
         modeArray: ModeArrayEnum.anyInstance,
         mode: ModeEnum.empty,
+        propMode: PropertyRequiredEnum.all
       );
       await browserData.browseSync(schema, false, 0);
       data = browserData.json;
@@ -83,6 +85,8 @@ class StateRepository extends StateManager {
 
   (StateContainer?, String) getStateContainer(
     String pathData, {
+    required BuildContext? context,
+    required String? pathWidgetRepos,
     Function? onIndexChange,
   }) {
     StringBuffer curPath = StringBuffer("");
@@ -120,6 +124,16 @@ class StateRepository extends StateManager {
             lastArray.currentIndex = idx;
             if (oldIdx != idx) {
               onIndexChange(idx);
+              if (context != null && pathWidgetRepos != null) {
+                var r = getRowState(context);
+                lastArray.setIndexChanged(
+                  repository,
+                  idx,
+                  pathWidgetRepos,
+                  "$curPath/$arrayName",
+                  r!.rowkey.currentState,
+                );
+              }
             }
           }
         }
@@ -196,7 +210,6 @@ class StateRepository extends StateManager {
               var rowState = listRowState[path];
               if (rowState == null && !inArray) {
                 // print("No row state for ${info.path} at $path");
-
                 registerRepaintOnSelect(widgetPath, path, state);
               }
               // mode viewer on met -1 pour indiquer pas d'element
@@ -219,7 +232,7 @@ class StateRepository extends StateManager {
     //remove all idx
     pathData = pathData.replaceAll(RegExp(r'\[\d+\]'), '[]');
     var pathDeps = listDepsContainerByPath.putIfAbsent(pathData, () => {});
-    //print(' register repaint on select for $pathData on $state $pathWidget');
+    //print(' register repaint on select for $pathData on $state $pathWidget id= ${repository.hashCode}');
     pathDeps[pathWidget] = state;
   }
 
@@ -236,13 +249,12 @@ class StateRepository extends StateManager {
           '[]',
         );
 
-        // print(" reload dependent containers for $pc ");
+        //print(" reload dependent containers for $pc id= ${repository.hashCode}");
         List<String> listDepsToRemove = [];
         listDepsContainerByPath[pc]?.forEach((key, element) {
-          //   print(  "  repaint container $key for element $element ${element.pathData} ");
+          //print("repaint container $key for element $element ${element.pathData} ");
           if (element.mounted) {
-            // ignore: invalid_use_of_protected_member
-            element.setState(() {});
+            element.widget.ctx.repaint();
           } else {
             listDepsToRemove.add(key);
           }

@@ -4,6 +4,8 @@ import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/core_expression.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -33,11 +35,41 @@ class PanResponseViewer extends StatefulWidget {
   State<PanResponseViewer> createState() => _PanResponseViewerState();
 }
 
-class ConfigApp {
+class ConfigDataSource {
   String? name;
   AttributInfo? paramToLoad;
   ConfigBlock criteria = ConfigBlock();
   ConfigBlock data = ConfigBlock();
+  WidgetFactory? aFactory;
+  String? repositoryId;
+  List<ComputedValue> computedProps = [];
+}
+
+class ComputedValue {
+  String id;
+  String name;
+  String expression;
+
+  ComputedValue({
+    required this.id,
+    required this.name,
+    required this.expression,
+  });
+
+  dynamic eval(List<String> logs) async {
+    CoreExpression run = CoreExpression();
+    dynamic r;
+
+    try {
+      run.init(expression, logs: logs);
+      r = await run.eval(logs: logs, variables: {});
+      print('script return =  $r');
+    } catch (e) {
+      print(e);
+    }
+
+    return r;
+  }
 }
 
 class ConfigLink {
@@ -124,6 +156,7 @@ mixin UIMixin {
       var dataEmpty = Export2FakeJson(
         modeArray: ModeArrayEnum.anyInstance,
         mode: ModeEnum.empty,
+        propMode: PropertyRequiredEnum.all,
       );
       await dataEmpty.browseSync(modelLoaded!, false, 0);
       stateManager.dataEmpty = dataEmpty.json;
@@ -132,6 +165,7 @@ mixin UIMixin {
         var data = Export2FakeJson(
           modeArray: ModeArrayEnum.anyInstance,
           mode: ModeEnum.empty,
+          propMode: PropertyRequiredEnum.all,
         );
         await data.browseSync(modelLoaded, false, 0);
         stateManager.data = data.json;
@@ -202,7 +236,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       json2ui,
       widget.modeLegacy,
       context,
-      widget.callerDatasource?.configApp.criteria,
+      widget.callerDatasource?.config.criteria,
     );
 
     return ret.widget;
@@ -226,7 +260,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       widget.modeLegacy,
       // ignore: use_build_context_synchronously
       context,
-      widget.callerDatasource?.configApp.criteria,
+      widget.callerDatasource?.config.criteria,
     );
 
     return ret.widget;
@@ -255,7 +289,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       widget.modeLegacy,
       // ignore: use_build_context_synchronously
       context,
-      widget.callerDatasource?.configApp.data,
+      widget.callerDatasource?.config.data,
     );
 
     return ret.widget;
@@ -272,8 +306,8 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
     Widget data = await getUIResponse();
 
     var paginationVariable =
-        widget.callerDatasource?.configApp.criteria.paginationVariable;
-    var paginationMin = widget.callerDatasource?.configApp.criteria.min ?? 0;
+        widget.callerDatasource?.config.criteria.paginationVariable;
+    var paginationMin = widget.callerDatasource?.config.criteria.min ?? 0;
 
     return SingleChildScrollView(
       child: Column(
@@ -420,12 +454,12 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
         future: getUIPage(),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            if (widget.callerDatasource?.configApp.paramToLoad != null &&
+            if (widget.callerDatasource?.config.paramToLoad != null &&
                 firstLoad) {
               firstLoad = false;
-              loadCriteria(
-                widget.callerDatasource!.configApp.paramToLoad!,
-              ).then((value) {
+              loadCriteria(widget.callerDatasource!.config.paramToLoad!).then((
+                value,
+              ) {
                 // ignore: use_build_context_synchronously
                 startSearch(context);
               });

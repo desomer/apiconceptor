@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/tree_editor/widget_json_row.dart';
 import 'package:uuid/uuid.dart';
 // import 'package:nanoid/async.dart';
+
+const cstAntiloop = 20;
 
 String getKeyParamFromYaml(dynamic key) {
   return (key is Map ? '{${key.keys.firstOrNull}}' : key).toString();
@@ -28,7 +32,7 @@ class JsonBrowser<T> {
     int antiloop,
   ) async {
     var ret = browse(model, unknowedMode);
-    if (ret.wait != null && antiloop < 20) {
+    if (ret.wait != null && antiloop < cstAntiloop) {
       //await Future.delayed(Duration(milliseconds: 300));
       await ret.wait;
       ret = await browseSync(model, unknowedMode, antiloop + 1);
@@ -178,7 +182,7 @@ class JsonBrowser<T> {
     } else {
       // la structure à changer
       for (var element in browser.unknownAttribut) {
-        // recherche AttributInfo par mon si renommage
+        // recherche AttributInfo par nom si renommage
         _doSearchNode(model, element);
       }
     }
@@ -195,6 +199,16 @@ class JsonBrowser<T> {
         if (info != null) {
           break;
         }
+      }
+    }
+    if (info == null && model.lastDeleteAttr != null) {
+      // recherche AttributInfo par position si renommage
+      // recherche si editor à la position de l'ancien noeud info supprimer
+      var pos = currentYamlTree?.getTextSelection();
+      var abs = ((pos?.start ?? 0) - model.lastDeleteEditorStartAt).abs();
+      if (abs < 2) {
+        info = model.lastDeleteAttr;
+        model.lastDeleteAttr = null;
       }
     }
 
@@ -244,7 +258,7 @@ class JsonBrowser<T> {
       attr.browser.nbLevelMax = attr.level;
     }
 
-    if (attr.level > 10) {
+    if (attr.level > cstAntiloop) {
       return;
     }
 
@@ -270,6 +284,7 @@ class JsonBrowser<T> {
         info:
             info ??
             (AttributInfo()
+              ..inRef = onRef != null
               ..masterID = masterID
               ..name = yamlAttrName
               ..treePosition = yamlPathAttr),
@@ -310,7 +325,10 @@ class JsonBrowser<T> {
           mapChild.value.toString().startsWith('\$')) {
         // gestion de $ref
         var refName = (mapChild.value as String).substring(1);
-        _doRef(mapChild, browserAttrInfo, model, refName, false);
+        if (refName != model.headerName) {
+          // evite les ref circulaire sur lui même
+          _doRef(mapChild, browserAttrInfo, model, refName, false);
+        }
       }
 
       if (attr.browser.selectedPath?.contains(aJsonPath) ?? false) {
@@ -409,6 +427,7 @@ class JsonBrowser<T> {
         browserAttrInfo.nodeAttribut.info.error?.remove(EnumErrorType.errorRef);
       }
     } else {
+      browserAttrInfo.nodeAttribut.info.isRefError = refName;
       browserAttrInfo.nodeAttribut.info.error ??= {};
       browserAttrInfo.nodeAttribut.info.error![EnumErrorType
           .errorRef] = AttributError(
@@ -667,6 +686,8 @@ class AttributInfo {
   String type = '';
   String path = '';
   String? isRef;
+  String? isRefError;
+  bool inRef = false;
   Map<String, dynamic>? properties;
   Map<EnumErrorType, AttributError>? error;
   String? tooltipError;
@@ -685,6 +706,14 @@ class AttributInfo {
   String? action;
   int numUpdateForKey = 0;
   bool selected = false;
+
+  String? getRefName() {
+    return isRefError ?? isRef;
+  }
+
+  bool isRefAttr() {
+    return inRef || isInitByRef;
+  }
 
   void repaint() {
     timeLastChange = DateTime.now();
@@ -742,7 +771,6 @@ class AttributInfo {
     }
     return curPath.toString();
   }
-
 }
 
 class BrowserAttrInfo {
@@ -774,6 +802,9 @@ class AttributError {
 }
 
 abstract class InfoManager {
+  PanYamlTree? editor;
+  ModelSchema? modelSchema;
+
   /// permet egalement d'affecter une couleur de fond node.bgcolor
   String getTypeTitle(NodeAttribut node, String name, dynamic type);
 
@@ -784,7 +815,7 @@ abstract class InfoManager {
     String typeTitle,
   );
 
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node);
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context);
   void addRowWidget(
     NodeAttribut attr,
     ModelSchema schema,

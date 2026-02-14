@@ -405,7 +405,7 @@ class CWStyleFactory {
       fontWeight: hasTag('textstyle', 'bold') ? FontWeight.bold : null,
       fontStyle: hasTag('textstyle', 'italic') ? FontStyle.italic : null,
       fontSize: getStyleNDouble('tSize', 4) ?? fontSize,
-      overflow: TextOverflow.clip,
+      overflow: TextOverflow.ellipsis,
       decorationColor: tcolor ?? fgColor,
       decoration:
           hasTag('textstyle', 'underline')

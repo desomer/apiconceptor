@@ -186,7 +186,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     Widget icon = Container();
     var isRoot = node.isRoot;
     var type = node.data.info.type;
@@ -331,7 +331,7 @@ class InfoManagerTrashAPI extends InfoManager with WidgetHelper {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     // TODO: implement getRowHeader
     throw UnimplementedError();
   }

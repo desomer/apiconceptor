@@ -43,7 +43,8 @@ class _AttributPropertiesState extends State<AttributProperties> {
             listTabCont: [
               SingleChildScrollView(child: getInfoForm(model)),
               SingleChildScrollView(child: getTypeValidator(model)),
-              if (widget.typeAttr == TypeAttr.detailmodel) Container(),
+              if (widget.typeAttr == TypeAttr.detailmodel)
+                SingleChildScrollView(child: getTypeFake(model)),
               if (widget.typeAttr == TypeAttr.detailmodel) Container(),
               if (widget.typeAttr == TypeAttr.detailmodel) Container(),
             ],
@@ -52,6 +53,48 @@ class _AttributPropertiesState extends State<AttributProperties> {
         ),
       ],
     );
+  }
+
+  Widget getTypeFake(ModelSchema? model) {
+    if (model?.selectedAttr == null) {
+      return Container();
+    }
+    if (model!.selectedAttr!.info.isInitByRef) {
+      return TextButton(onPressed: () {}, child: Text("Go to definition"));
+    }
+
+    var ret = <Widget>[SizedBox(height: 10)];
+    String type = model.selectedAttr!.info.type.toLowerCase();
+    if (type.endsWith('[]')) {
+      type = 'array';
+      // type.substring(0, type.length - 2);
+    }
+    if (type == 'array') {
+      ret.add(
+        CellEditor(
+          key: ValueKey('#minItems#${model.selectedAttr!.hashCode}'),
+          acces: ModelAccessorAttr(
+            node: model.selectedAttr!,
+            schema: model,
+            propName: '#minItems',
+          ),
+          inArray: false,
+        ),
+      );
+      ret.add(
+        CellEditor(
+          key: ValueKey('#maxItems#${model.selectedAttr!.hashCode}'),
+          acces: ModelAccessorAttr(
+            node: model.selectedAttr!,
+            schema: model,
+            propName: '#maxItems',
+          ),
+          inArray: false,
+        ),
+      );      
+    }
+
+    return Column(spacing: 5, children: ret);
   }
 
   Widget getTypeValidator(ModelSchema? model) {
@@ -69,7 +112,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     Widget? ret;
     if (type == 'string') {
       ret = getValidatorStringForm(model, listProp == null);
-    } else if (type == 'number') {
+    } else if (type == 'number' || type == 'integer') {
       ret = getValidatorNumberForm(model, listProp == null);
     } else if (type == 'boolean') {
       ret = getValidatorBoolForm(model, listProp == null);
@@ -313,14 +356,14 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
 
-          CellEditor(
+          CellDropMenuEditor(
             key: ValueKey('format#${info.hashCode}'),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
               propName: 'format',
             ),
-            inArray: false,
+           // inArray: false,
           ),
 
           CellEditor(

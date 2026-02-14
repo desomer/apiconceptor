@@ -2,6 +2,7 @@ import 'package:highlight/languages/yaml.dart' show yaml;
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
@@ -24,7 +25,9 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   final ValueNotifier<double> _showAttrEditor = ValueNotifier(0);
 
-  final GlobalKey keyTreeEditor = GlobalKey(debugLabel: 'treeEditor');
+  final GlobalKey<TreeViewState> keyTreeEditor = GlobalKey(
+    debugLabel: 'treeEditor',
+  );
   final GlobalKey keyAttrEditor = GlobalKey(debugLabel: 'keyAttrEditor');
 
   final TreeViewBrowserWidget jsonBrowserWidget = TreeViewBrowserWidget();
@@ -32,6 +35,11 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   // State? rowSelectedState;
 
   void onInit(BuildContext context) {}
+  void onInitSchema(BuildContext context) {}
+
+  TextSelection? getTextSelection() {
+    return _yamlConfig?.codeEditorState?.controller.selection;
+  }
 
   Widget getLoader() {
     return Center(child: CircularProgressIndicator());
@@ -40,6 +48,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   @override
   Widget build(BuildContext context) {
     onInit(context);
+    currentYamlTree = this;
 
     if (showable != null && showable!() == false) {
       return Container();
@@ -52,7 +61,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             _schema = snapshot.data!;
-
+            onInitSchema(context);
             _cacheContent = _getContent(context);
             if (_yamlConfig != null) {
               _schema.initEventListener(_yamlConfig!);
@@ -68,6 +77,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
       );
     } else {
       _schema = futureModel as ModelSchema;
+      onInitSchema(context);
       _cacheContent = _getContent(context);
       return _cacheContent!;
     }
@@ -162,6 +172,11 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         type: (_schema.infoManager as InfoManagerModel).typeMD,
       );
     }
+    if (_schema.infoManager is InfoManagerListModel) {
+      return WidgetMdDoc(
+        type: (_schema.infoManager as InfoManagerListModel).typeMD,
+      );
+    }
     return null;
   }
 
@@ -180,8 +195,11 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         return node.data == _schema.selectedAttr;
       },
       onBuild: (state, ctx) {
+        _schema.infoManager.modelSchema = _schema;
+        _schema.infoManager.editor = this;
         _yamlConfig?.treeJsonState = state;
         jsonBrowserWidget.repaintRowState = state;
+        currentYamlTree = this;
       },
       getNodes: () {
         NodeBrowser browser = jsonBrowserWidget.browse(_schema, true);
@@ -206,11 +224,11 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
                 color: Colors.blueAccent,
               ),
             ),
-            child: _schema.infoManager.getRowHeader(node),
+            child: _schema.infoManager.getRowHeader(node, context),
           );
         }
 
-        return _schema.infoManager.getRowHeader(node);
+        return _schema.infoManager.getRowHeader(node, context);
       },
       getDataRow: (node) {
         var ret = <Widget>[];
@@ -264,6 +282,14 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return Container(
       color: Colors.black,
       child: TextEditor(
+        onSelection: (String yamlPath) {
+          print("on Selection go to path $yamlPath");
+          // var attr = _schema.getAttrFromYaml(yaml, config);
+          // if (attr != null) {
+          //   doSelectedRow(attr);
+          //   doShowAttrEditor(attr);
+          // }
+        },
         header: getHeaderCode(),
         onHelp:
             doc != null
@@ -343,6 +369,55 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     List<Widget> row,
     BuildContext context,
   ) {}
+
+  void reload() {
+    _cacheContent = null;
+    var schema = getSchemaFct();
+    if (schema is Future<ModelSchema>) {
+      schema.then((value) {
+        _schema = value;
+        _cacheContent = null;
+        keyTreeEditor.currentState?.repaintInProgess =
+            DateTime.now().millisecondsSinceEpoch;
+        // ignore: invalid_use_of_protected_member
+        keyTreeEditor.currentState?.setState(() {});
+      });
+    } else {
+      _schema = schema as ModelSchema;
+      _cacheContent = null;
+      keyTreeEditor.currentState?.repaintInProgess =
+          DateTime.now().millisecondsSinceEpoch;
+      // ignore: invalid_use_of_protected_member
+      keyTreeEditor.currentState?.setState(() {});
+    }
+    _yamlConfig?.repaintCode();
+  }
+
+  void setOpenFactor(double value) {
+    keyTreeEditor.currentState?.openFactor = value.toInt();
+    keyTreeEditor.currentState?.openFactorInProgess =
+        DateTime.now().millisecondsSinceEpoch;
+    keyTreeEditor.currentState?.repaintInProgess =
+        DateTime.now().millisecondsSinceEpoch;
+    // ignore: invalid_use_of_protected_member
+    keyTreeEditor.currentState?.setState(() {});
+  }
+
+  void setOpenStructure(bool open) {
+    keyTreeEditor.currentState?.openStructure = open;
+    keyTreeEditor.currentState?.openFactorInProgess =
+        DateTime.now().millisecondsSinceEpoch;
+    keyTreeEditor.currentState?.repaintInProgess =
+        DateTime.now().millisecondsSinceEpoch;
+    // ignore: invalid_use_of_protected_member
+    keyTreeEditor.currentState?.setState(() {});
+
+  }
+
+  void updateYaml(String aYaml) {
+    _yamlConfig?.onChange(aYaml, _yamlConfig);
+    _yamlConfig?.repaintCode();
+  }
 }
 
 //-------------------------------------------------------------------------------

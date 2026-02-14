@@ -19,7 +19,7 @@ class CwRepositoryAction {
 
   void doNextPage(Map info, int max) {
     var criteria = repo.criteriaState.data;
-    var paginationVariable = repo.ds.configApp.criteria.paginationVariable!;
+    var paginationVariable = repo.ds.config.criteria.paginationVariable!;
 
     var page = findValueByKey(criteria, paginationVariable);
     dynamic numpage = 0;
@@ -40,7 +40,7 @@ class CwRepositoryAction {
 
   void doPrevPage(Map info, int min) {
     var criteria = repo.criteriaState.data;
-    var paginationVariable = repo.ds.configApp.criteria.paginationVariable!;
+    var paginationVariable = repo.ds.config.criteria.paginationVariable!;
     var page = findValueByKey(criteria, paginationVariable);
     dynamic numpage = 0;
     if (page is String) {
@@ -104,6 +104,7 @@ class CwRepositoryAction {
       var browserEmpty = Export2FakeJson(
         modeArray: ModeArrayEnum.randomInstance,
         mode: ModeEnum.fake,
+        propMode: PropertyRequiredEnum.all
       );
       await browserEmpty.browseSync(repo.dataState.schema!, false, 0);
       var data = browserEmpty.json;
@@ -125,6 +126,7 @@ class CwRepositoryAction {
         var browserEmpty = Export2FakeJson(
           modeArray: ModeArrayEnum.randomInstance,
           mode: ModeEnum.fake,
+          propMode: PropertyRequiredEnum.all
         );
         await browserEmpty.browseSync(repo.dataState.schema!, false, 0);
         var data = browserEmpty.json;
@@ -144,7 +146,11 @@ class CwRepositoryAction {
       var pth = pathValue.replaceAll("[*]", "[]");
 
       String pathSelected;
-      (_, pathSelected) = repo.dataState.getStateContainer(pth);
+      (_, pathSelected) = repo.dataState.getStateContainer(
+        pth,
+        context: null,
+        pathWidgetRepos: null,
+      );
 
       PageData pageData = PageData(
         data: repo.dataState.data,
@@ -163,9 +169,13 @@ class CwRepositoryAction {
 
   void goToPage(BuildContext context, int page) {
     var criteria = repo.criteriaState.data;
-    var paginationVariable = repo.ds.configApp.criteria.paginationVariable!;
+    var paginationVariable = repo.ds.config.criteria.paginationVariable!;
 
-    findValueByKey(criteria, paginationVariable, valueToSet: page);
+    findValueByKey(
+      criteria,
+      paginationVariable,
+      valueToSet: page + repo.ds.config.criteria.min,
+    );
     repo.criteriaState.loadDataInContainer(criteria);
     loadData(context);
   }

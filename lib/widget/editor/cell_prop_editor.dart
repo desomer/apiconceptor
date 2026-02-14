@@ -12,7 +12,7 @@ class CellEditor extends StatefulWidget {
     required this.inArray,
     this.line,
     this.isNumber = false,
-    this.widthInfinite = false
+    this.widthInfinite = false,
   });
   final int? line;
   final ValueAccessor acces;
@@ -100,7 +100,10 @@ class CellEditorState extends State<CellEditor> {
 
   SizedBox getWidgetModeEdit(TextStyle textStyleLabel) {
     return SizedBox(
-      width: widget.inArray && !widget.widthInfinite ? (250 * (zoom.value / 100)) : double.infinity,
+      width:
+          widget.inArray && !widget.widthInfinite
+              ? (250 * (zoom.value / 100))
+              : double.infinity,
       height: widget.inArray ? 30 : null,
       child: TextField(
         focusNode: focus,
@@ -146,7 +149,7 @@ class CellEditorState extends State<CellEditor> {
           maxLines: 1,
           style: TextStyle(
             fontSize: 16,
-            color: !isEditable ? Colors.white : null,
+            color: !isEditable ? Colors.grey : null,
           ),
         ),
       );
@@ -160,7 +163,10 @@ class CellEditorState extends State<CellEditor> {
         border: Border.fromBorderSide(BorderSide(color: Colors.grey.shade600)),
         borderRadius: const BorderRadius.all(Radius.circular(4.0)),
       ),
-      child: Text(widget.acces.getName(), style: textStyleLabel),
+      child: Text(
+        isEditable ? widget.acces.getName() : '',
+        style: textStyleLabel,
+      ),
     );
   }
 }
@@ -216,6 +222,44 @@ class _EditOnHoverState extends State<EditOnHover> {
   }
 }
 
+class CellDropMenuEditor extends StatefulWidget {
+  const CellDropMenuEditor({super.key, required this.acces});
+  final ValueAccessor acces;
+
+  @override
+  State<CellDropMenuEditor> createState() => _CellDropMenuEditorState();
+}
+
+class _CellDropMenuEditorState extends State<CellDropMenuEditor> {
+  @override
+  Widget build(BuildContext context) {
+    return DropdownMenu<String>(
+      hintText: widget.acces.getName(),
+      label: Text(widget.acces.getName()),
+      initialSelection: widget.acces.get(),
+      enabled: widget.acces.isEditable(),
+      dropdownMenuEntries: [
+        DropdownMenuEntry(value: '', label: '-'),
+        DropdownMenuEntry(value: 'email', label: 'Email'),
+        DropdownMenuEntry(value: 'date-time', label: 'Date-time'),
+        DropdownMenuEntry(value: 'date', label: 'Date'),
+        DropdownMenuEntry(value: 'time', label: 'Time'),
+        DropdownMenuEntry(value: 'duration', label: 'Duration'),
+        DropdownMenuEntry(value: 'url', label: 'Url'),        
+      ],
+      onSelected: (value) {
+        // Handle menu item selection
+        setState(() {
+          if (value == '') {
+            widget.acces.remove();
+            return;
+          }
+          widget.acces.set(value);
+        });
+      },
+    );
+  }
+}
 //-------------------------------------------------------------------------
 
 class CellCheckEditor extends StatefulWidget {
@@ -383,7 +427,7 @@ class ModelAccessorAttr extends ValueAccessor {
   void set(dynamic value) {
     var path = '${node.info.path}.prop.$propName';
     if (node.info.properties?[propName] == value) return;
-    
+
     var propChangeValue = node.info.properties?[propName];
     schema.addHistory(node, path, ChangeOpe.change, propChangeValue, value);
     node.info.properties?[propName] = value;

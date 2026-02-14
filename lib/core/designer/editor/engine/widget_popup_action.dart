@@ -3,7 +3,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
-import 'package:jsonschema/core/designer/core/cw_factory_action.dart';
+import 'package:jsonschema/core/designer/editor/engine/overlay_action.dart';
 
 class WidgetPopupAction extends StatefulWidget {
   const WidgetPopupAction({super.key});
@@ -211,7 +211,6 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
 
           var actMgr = CwFactoryAction(ctx: ctx);
           actMgr.surround(ctx.slotId, slot, drop.childData!);
-
           SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
             ctx.parentCtx!.repaint();
             ctx.selectParentOnDesigner();

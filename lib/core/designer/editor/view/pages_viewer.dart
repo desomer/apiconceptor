@@ -104,6 +104,7 @@ class _PagesDesignerViewerState extends State<PagesDesignerViewer> {
     var resizer = WidgetMeasureSize(
       onChange: (size) {
         debugPrint("Nouvelle taille : $size");
+        widget.aFactory?.largeDesigner = size.width > 1600;
         resizeSelector();
       },
 

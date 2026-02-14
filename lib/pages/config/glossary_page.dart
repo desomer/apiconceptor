@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/feature/glossary/pan_glossary.dart';
+import 'package:jsonschema/feature/glossary/pan_glossary_new.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -17,9 +18,12 @@ class GlossaryPage extends GenericPageStateless {
         Tab(text: 'Available suffix & prefix'),
       ],
       listTabCont: [
-        WidgetGlossary(
-          schemaGlossary: currentCompany.listGlossary,
-          typeModel: 'Notion Glossary',
+        PanGlossary(
+          getSchemaFct: () async {
+            currentCompany.glossaryManager.dico.clear();
+            currentCompany.listGlossary = await loadGlossary('glossary', 'Glossary');
+            return currentCompany.listGlossary;
+          },
         ),
         WidgetGlossary(
           schemaGlossary: currentCompany.listGlossarySuffixPrefix,
@@ -34,7 +38,7 @@ class GlossaryPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
-    PageInit? pageInit
+    PageInit? pageInit,
   ) {
     return NavigationInfo();
   }

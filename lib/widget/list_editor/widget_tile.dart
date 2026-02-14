@@ -141,7 +141,7 @@ class _WidgetTileState<T extends NodeAttribut> extends State<WidgetTile<T>> {
                         onDragStarted:
                             () => setState(() => draggingItem = item),
                         onDraggableCanceled:
-                            (_, __) => setState(() => draggingItem = null),
+                            (_, _) => setState(() => draggingItem = null),
                         onDragCompleted:
                             () => setState(() => draggingItem = null),
                         feedback: Material(

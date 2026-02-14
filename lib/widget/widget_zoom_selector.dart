@@ -1,6 +1,8 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart' show stateOpenFactor;
 import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 
@@ -31,6 +33,10 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
               setState(() {
                 bool open = value > widget.zoom.value;
                 widget.zoom.value = value;
+                if (currentYamlTree != null) {
+                  currentYamlTree!.setOpenFactor(value);
+                }
+
                 if (_stateList?.mounted ?? false) {
                   var root =
                       _stateList!.modelInfo.treeController?.tree
@@ -52,9 +58,22 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
         ),
         IconButton(
           onPressed: () {
-            _stateList!.setState(() {});
-            _stateList!.keyTree.currentState!.setState(() {});
-            _stateList!.keyJsonList.currentState!.setState(() {});
+            if (currentYamlTree != null) {
+              currentYamlTree!.setOpenStructure(true);
+            }
+          },
+          icon: Icon(Icons.auto_awesome_motion_outlined),
+        ),
+        IconButton(
+          onPressed: () {
+            bddStorage.localCache.clear();
+            bddStorage.lastVersionByMaster.clear();
+            currentYamlTree?.reload();
+            if (_stateList?.mounted ?? false) {
+              _stateList!.setState(() {});
+              _stateList!.keyTree.currentState!.setState(() {});
+              _stateList!.keyJsonList.currentState!.setState(() {});
+            }
           },
           icon: Icon(Icons.replay_outlined),
         ),

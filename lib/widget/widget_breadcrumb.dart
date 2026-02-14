@@ -173,6 +173,8 @@ class _BreadButton extends StatelessWidget {
         color:
             type == BreadNodeType.domain
                 ? Colors.blue
+                : enable
+                ? Colors.blue.withAlpha(50)
                 : Theme.of(context).highlightColor,
         child: Padding(
           padding: EdgeInsetsDirectional.only(
@@ -183,10 +185,7 @@ class _BreadButton extends StatelessWidget {
           ),
           child:
               child ??
-              Text(
-                text,
-                style: enable ? _textStyle : _textStyleDisable,
-              ),
+              Text(text, style: enable ? _textStyle : _textStyleDisable),
         ),
       ),
     );

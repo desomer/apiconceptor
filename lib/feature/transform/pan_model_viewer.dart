@@ -20,9 +20,10 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
 class PanContentViewer extends StatefulWidget {
-  const PanContentViewer({super.key, this.masterIdModel});
+  const PanContentViewer({super.key, this.masterIdModel, required this.nameModel});
 
   final String? masterIdModel;
+  final String? nameModel;
 
   @override
   State<PanContentViewer> createState() => _PanContentViewerState();
@@ -61,11 +62,11 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
     return null;
   }
 
-  Future<ModelSchema?> getModelByMasterId(String idModel) async {
+  Future<ModelSchema?> getModelByMasterId(String idModel, String nameModel) async {
     var aModel = ModelSchema(
       category: Category.model,
       infoManager: InfoManagerModel(typeMD: TypeMD.model),
-      headerName: "model",
+      headerName: nameModel,
       id: idModel,
       ref: currentCompany.listModel,
     );
@@ -92,7 +93,7 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
 
   Future<Widget> getUI(BuildContext context) async {
     if (widget.masterIdModel != null && json2ui.stateMgr.data == null) {
-      modelLoaded ??= await getModelByMasterId(widget.masterIdModel!);
+      modelLoaded ??= await getModelByMasterId(widget.masterIdModel!, widget.nameModel!);
       // charge les layout
       json2ui.stateMgr.loadJSonConfigLayout(modelLoaded!);
 
@@ -100,6 +101,7 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
       var dataFake = Export2FakeJson(
         modeArray: ModeArrayEnum.randomInstance,
         mode: ModeEnum.fake,
+        propMode: PropertyRequiredEnum.all,
       );
       await dataFake.browseSync(modelLoaded!, false, 0);
       json2ui.stateMgr.data = dataFake.json;
@@ -183,6 +185,7 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
         var dataFake = Export2FakeJson(
           modeArray: ModeArrayEnum.randomInstance,
           mode: ModeEnum.fake,
+          propMode: PropertyRequiredEnum.all,
         );
         await dataFake.browseSync(modelLoaded!, false, 0);
         json2ui.loadData(dataFake.json);
@@ -247,7 +250,7 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
         typeStr = 'Array';
       }
     } else if (type is int) {
-      typeStr = 'number';
+      typeStr = 'integer';
     } else if (type is double) {
       typeStr = 'number';
     } else if (type is String) {
@@ -285,6 +288,7 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
 
       'string',
       'number',
+      'integer',
       'object',
       'array',
       'boolean',
@@ -298,7 +302,7 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     Widget? icon;
     var isRoot = node.isRoot;
     var isFolder = node.data.info.type == 'folder';

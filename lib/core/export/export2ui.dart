@@ -62,7 +62,12 @@ class Export2UI<T> extends JsonBrowser<T> {
     } else if (type == '\$ref') {
       toAdd = doRefOf(name, node);
     } else if (type == 'object') {
-      if (node.info.isRef != null) {
+      if (name.toLowerCase() == constInline) {
+        toAdd =
+            doAnyOf(name, node)
+              ..parentOfChild = parent
+              ..add = false;
+      } else if (node.info.isRef != null) {
         toAdd = doRef(name, node);
       } else {
         toAdd = doObject(name, node);
@@ -152,7 +157,8 @@ class Export2UI<T> extends JsonBrowser<T> {
   }
 
   NodeJson doRef(String name, NodeAttribut node) {
-    var child = {};
+    Map<String, dynamic> child = {};
+    child[cstProp] = node.info;
     return NodeJson(name: name, value: child);
   }
 
@@ -204,7 +210,7 @@ class Export2UI<T> extends JsonBrowser<T> {
 
     var lowerCase = name.toLowerCase();
 
-    if (type == "number") {
+    if (type == "number" || type == "integer") {
       return faker.randomGenerator.integer(100);
     } else if (type == "boolean") {
       return faker.randomGenerator.boolean();
@@ -229,7 +235,7 @@ class Export2UI<T> extends JsonBrowser<T> {
   }
 
   Object getValueTyped(String type, String vString) {
-    if (type == "number") {
+    if (type == "number" || type == "integer") {
       int? vint = int.tryParse(vString);
       if (vint != null) return vint;
       double? vdouble = double.tryParse(vString);

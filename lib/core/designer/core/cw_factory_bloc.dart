@@ -1,10 +1,10 @@
 import 'package:collection/collection.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
+import 'package:jsonschema/core/designer/editor/engine/behavior_manager.dart';
 import 'package:jsonschema/core/designer/editor/view/bloc_drag_components.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
-import 'package:jsonschema/core/designer/core/widget_catalog/cw_action.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
@@ -34,9 +34,9 @@ class CwFactoryBloc with NameMixin {
 
         var h = repo.ds.helper!;
 
-        if (repo.ds.configApp.paramToLoad != null) {
+        if (repo.ds.config.paramToLoad != null) {
           await h.loadCriteriaFromParam(
-            repo.ds.configApp.paramToLoad!,
+            repo.ds.config.paramToLoad!,
             repo.viewerState.criteriaState.data,
             repo.viewerState.criteriaState.dataEmpty,
           );
@@ -70,7 +70,7 @@ class CwFactoryBloc with NameMixin {
     CwWidgetCtx ctx,
   ) async {
     // bool withActionCriteria = false;
-    String typeContainer = "criteria";
+    String onCriteriaOrData = "criteria";
     String? listPathArray;
 
     String repositoryId = await _getRepositoryIdAndCreateIfNeeded(
@@ -104,12 +104,16 @@ class CwFactoryBloc with NameMixin {
         );
       } else if (listAttrSelected[i]['src'] == 'Criteria') {
         model = ds.helper!.apiCallInfo.currentAPIRequest!;
-        typeContainer = 'criteria';
+        onCriteriaOrData = 'criteria';
         //withActionCriteria = true;
         isAttribute = true;
       } else if (listAttrSelected[i]['src'] == 'Data') {
         model = ds.modelHttp200!;
-        typeContainer = 'data';
+        onCriteriaOrData = 'data';
+        isAttribute = true;
+      } else if (listAttrSelected[i]['src'] == 'Computed') {
+        model = ds.modelHttp200!;
+        onCriteriaOrData = 'data';
         isAttribute = true;
       }
 
@@ -150,7 +154,7 @@ class CwFactoryBloc with NameMixin {
         cwProps: <String, dynamic>{
           'bind': {
             'repository': repositoryId,
-            'from': typeContainer,
+            'from': onCriteriaOrData,
             'attr': listPathArray,
           },
         },
@@ -159,6 +163,16 @@ class CwFactoryBloc with NameMixin {
       containerData = list;
     } else if (ds.typeLayout == 'Table') {
       propContainer['bind']['attr'] = listPathArray;
+    }
+
+    var repositoryData = ctx.aFactory.appData[cwRepos][repositoryId];
+    repositoryData[cwComputed] = {};
+    for (var cv in ds.config.computedProps) {
+      repositoryData[cwComputed][cv.id] = {
+        "id": cv.id,
+        "name": cv.name,
+        "expression": cv.expression,
+      };
     }
 
     return containerData;
@@ -252,24 +266,35 @@ class CwFactoryBloc with NameMixin {
     String repositoryId,
     CallerDatasource ds,
   ) {
+    AttributInfo? info;
+    Map bind;
+
     String? listPathArray;
     var attrSelected = listAttrSelected[i];
-    var info = model!.nodeByMasterId[attrSelected['id']]!.info;
-    var v = info.path;
-
-    int it = v.lastIndexOf("[]");
-    if (it > 0) {
-      var lp = v.substring(0, it + 2);
-      var attr = model.mapInfoByJsonPath[lp];
-      if (attr != null) {
-        listPathArray = attr.masterID ?? attr.properties?[constMasterID];
+    if (attrSelected['src'] == 'Computed') {
+      // computed prop
+      bind = {'computedId': attrSelected['id'], 'repository': repositoryId};
+    } else {
+      info = model!.nodeByMasterId[attrSelected['id']]!.info;
+      String? attr = info.masterID;
+      String v = info.path;
+      int inArrayIdx = v.lastIndexOf("[]");
+      if (inArrayIdx > 0) {
+        var lp = v.substring(0, inArrayIdx + 2);
+        var attr = model.mapInfoByJsonPath[lp];
+        if (attr != null) {
+          listPathArray = attr.masterID ?? attr.properties?[constMasterID];
+        }
       }
-    }
-
-    var attr = info.masterID;
-    if (v.endsWith('[]')) {
-      // tableau de string ou nombre
-      attr = 'self@${info.masterID}';
+      if (v.endsWith('[]')) {
+        // tableau de string ou nombre
+        attr = 'self@${info.masterID}';
+      }
+      bind = {
+        'attr': attr,
+        'from': attrSelected['src'].toString().toLowerCase(),
+        'repository': repositoryId,
+      };
     }
 
     var container = containerData;
@@ -278,13 +303,9 @@ class CwFactoryBloc with NameMixin {
     ctx.aFactory.addInSlot(container, slot, {
       cwImplement: 'input',
       cwProps: <String, dynamic>{
-        'label': camelCaseToWords(info.name),
+        'label': camelCaseToWords(info?.name ?? attrSelected['label']),
         'type': 'textfield',
-        'bind': {
-          'attr': attr,
-          'from': attrSelected['src'].toString().toLowerCase(),
-          'repository': repositoryId,
-        },
+        'bind': bind,
         if (ds.typeLayout == 'Table') "style": {"appearance": "custom"},
       },
     });
@@ -294,7 +315,7 @@ class CwFactoryBloc with NameMixin {
       ctx.aFactory.addInSlot(container, 'header_$i', {
         cwImplement: 'input',
         cwProps: <String, dynamic>{
-          'label': camelCaseToWords(info.name),
+          'label': camelCaseToWords(info?.name ?? attrSelected['label']),
           "style": {"boxAlignH": "0", "boxAlignV": "0"},
         },
       });
@@ -314,7 +335,7 @@ class CwFactoryBloc with NameMixin {
     String? listPathArray;
     var attrSelected = listAttrSelected[i];
 
-    Map onPress;
+    Map<String, dynamic> onPress;
     String label;
     AttributInfo? info;
     String type = "action";
@@ -322,7 +343,6 @@ class CwFactoryBloc with NameMixin {
     switch (attrSelected['type']) {
       case 'load_criteria_action':
         onPress = {
-          cwType: "repository",
           "operation": "loadCriteria",
           "repository": repositoryId,
           "idParam": attrSelected['id'],
@@ -332,7 +352,6 @@ class CwFactoryBloc with NameMixin {
 
       case 'action':
         onPress = {
-          cwType: "repository",
           "operation": "action",
           "repository": repositoryId,
           "idAction": attrSelected['id'],
@@ -376,7 +395,6 @@ class CwFactoryBloc with NameMixin {
           info = ds.modelHttp200!.mapInfoByJsonPath[jsonPath]!;
         }
         onPress = {
-          cwType: "repository",
           "operation": "link2Datasrc",
           "repository": repositoryId,
           "link": infoLink,
@@ -391,7 +409,7 @@ class CwFactoryBloc with NameMixin {
     String slot = 'cell_$i';
 
     if (type == 'action') {
-      ctx.aFactory.addInSlot(container, slot, {
+      var data = {
         cwImplement: 'action',
         cwProps: <String, dynamic>{
           'label': camelCaseToWords(label),
@@ -400,10 +418,12 @@ class CwFactoryBloc with NameMixin {
             'from': attrSelected['type'] == 'data_link' ? 'data' : 'criteria',
             'repository': repositoryId,
           },
-          cwOnPressed: onPress,
+          // cwOnPressed: onPress,
           if (ds.typeLayout == 'Table') "style": {"appearance": "custom"},
         },
-      });
+      };
+      BehaviorManager.addBehavior(data, type: 'repository', data: onPress);
+      ctx.aFactory.addInSlot(container, slot, data);
     } else if (type == 'pager') {
       ctx.aFactory.addInSlot(container, slot, {
         cwImplement: 'pager',
@@ -426,37 +446,37 @@ class CwFactoryBloc with NameMixin {
     return listPathArray;
   }
 
-  void addActionCriteria(
-    CwWidgetCtx ctx,
-    String repositoryId,
-    List<Map<String, dynamic>> actions,
-  ) {
-    var actionBar = {
-      cwImplement: "container",
-      cwProps: <String, dynamic>{
-        "type": "row",
-        "nbchild": 1,
-        "mainAxisAlign": "end",
-      },
-    };
+  // void addActionCriteria(
+  //   CwWidgetCtx ctx,
+  //   String repositoryId,
+  //   List<Map<String, dynamic>> actions,
+  // ) {
+  //   var actionBar = {
+  //     cwImplement: "container",
+  //     cwProps: <String, dynamic>{
+  //       "type": "row",
+  //       "nbchild": 1,
+  //       "mainAxisAlign": "end",
+  //     },
+  //   };
 
-    ctx.aFactory.addCmpInSlot(
-      actionBar,
-      "cell_0",
-      cmpType: "action",
-      props: <String, dynamic>{
-        'label': 'search',
-        "type": "elevated",
-        "icon": {"pack": "material", "key": "youtube_searched_for"},
-        cwOnPressed: {
-          cwType: "repository",
-          "operation": "load",
-          "repository": repositoryId,
-        },
-      },
-      slotProps: <String, dynamic>{"fit": "inner"},
-    );
+  //   ctx.aFactory.addCmpInSlot(
+  //     actionBar,
+  //     "cell_0",
+  //     cmpType: "action",
+  //     props: <String, dynamic>{
+  //       'label': 'search',
+  //       "type": "elevated",
+  //       "icon": {"pack": "material", "key": "youtube_searched_for"},
+  //       cwOnPressed: {
+  //         cwType: "repository",
+  //         "operation": "load",
+  //         "repository": repositoryId,
+  //       },
+  //     },
+  //     slotProps: <String, dynamic>{"fit": "inner"},
+  //   );
 
-    actions.add(actionBar);
-  }
+  //   actions.add(actionBar);
+  // }
 }

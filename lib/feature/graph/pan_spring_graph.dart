@@ -10,13 +10,12 @@ import 'package:jsonschema/feature/graph/edge_painter.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:yaml/yaml.dart';
 import 'package:collection/collection.dart';
 
 import 'widget_graph_node.dart';
-
-
 
 class Edge {
   int from, to;
@@ -77,8 +76,8 @@ class _PanModelGraphState extends State<PanModelGraph> {
 
   void _addModel(AttributInfo value) {
     var node = ModelNode(
-      100 + Random().nextDouble() * 800,
-      100 + Random().nextDouble() * 500,
+      value.properties!['#x'] ?? 100 + Random().nextDouble() * 800,
+      value.properties!['#y'] ?? 100 + Random().nextDouble() * 500,
       value.name,
       value,
     );
@@ -86,6 +85,28 @@ class _PanModelGraphState extends State<PanModelGraph> {
     nodes.add(node);
     initDomain(value, node);
     _initModelLink(value, node);
+  }
+
+  void savePosition() {
+    k = 0;
+    final mapEntryEmpty = const MapEntry('', null);
+    for (var node in nodes) {
+      if (node is ModelNode && node.model != null) {
+        var info = node.info;
+        var accessor = ModelAccessorAttr(
+          node: NodeAttribut(yamlNode: mapEntryEmpty, info: info, parent: null),
+          schema: currentCompany.listModel!,
+          propName: '#x',
+        );
+        accessor.set(node.x);
+        accessor = ModelAccessorAttr(
+          node: NodeAttribut(yamlNode: mapEntryEmpty, info: info, parent: null),
+          schema: currentCompany.listModel!,
+          propName: '#y',
+        );
+        accessor.set(node.y);
+      }
+    }
   }
 
   void _addApi(AttributInfo value) {
@@ -208,16 +229,38 @@ class _PanModelGraphState extends State<PanModelGraph> {
     super.dispose();
   }
 
+  double k = 0; // Constante de force de répulsion
+
   void _applyForces() {
-    const double springLength = 300;
-    const double k = 1000;
-    const double damping = 0.8;
+    const double springLength = 300; // Longueur naturelle des ressorts
+    const double damping = 0.8; // Amortissement pour éviter les oscillations
 
     for (var node in nodes) {
       node.dx = 0;
       node.dy = 0;
     }
 
+    doReplusion(k);
+    k =
+        k -
+        100; // Diminue progressivement la force de répulsion pour stabiliser le graph
+    if (k < 0) {
+      k = 0; // Limite la force de répulsion minimale
+    }
+
+    for (var edge in edges) {
+      springNode(edge, springLength);
+    }
+
+    for (var node in nodes) {
+      node.x = (node.x + node.dx * damping).clamp(0.0, areaWidth);
+      node.y = (node.y + node.dy * damping).clamp(0.0, areaHeight);
+    }
+
+    setState(() {});
+  }
+
+  void doReplusion(double k) {
     for (int i = 0; i < nodes.length; i++) {
       for (int j = i + 1; j < nodes.length; j++) {
         var dx =
@@ -238,77 +281,70 @@ class _PanModelGraphState extends State<PanModelGraph> {
         nodes[j].dy += fy;
       }
     }
+  }
 
-    for (var edge in edges) {
-      var a = nodes[edge.from];
-      var b = nodes[edge.to];
-      var dx = (b.x + (b.width / 2)) - (a.x + (a.width / 2));
-      var dy = (b.y + (b.height / 2)) - (a.y + (a.height / 2));
-      var dx1 = dx.abs();
-      var dy1 = dy.abs();
-      var springLengthX = springLength;
-      var springLengthY = springLength;
+  void springNode(Edge edge, double springLength) {
+    Node a = nodes[edge.from];
+    Node b = nodes[edge.to];
+    var dx = (b.x + (b.width / 2)) - (a.x + (a.width / 2));
+    var dy = (b.y + (b.height / 2)) - (a.y + (a.height / 2));
+    var dx1 = dx.abs();
+    var dy1 = dy.abs();
+    var springLengthX = springLength;
+    var springLengthY = springLength;
 
-      if (dx1 < dy1) {
-        // en dessous ou dessus
-        if (dx1 < 100) {
-          // proche du vertical
-          springLengthX = ((a.height / 2) + (b.height / 2)) + 50;
-        } else if (dx1 < 200) {
-          // proche du vertical
-          springLengthX = ((a.height / 2) + (b.height / 2)) + 100;
-        } else {
-          var w1 = a.width / 2;
-          var h1 = a.height / 2;
-          var d1c2r = sqrt(w1 * w1 + h1 * h1);
-          var w2 = b.width / 2;
-          var h2 = b.height / 2;
-          var d2c2r = sqrt(w2 * w2 + h2 * h2);
-
-          springLengthX = d1c2r + d2c2r + 20;
-        }
-        springLengthY = springLengthX;
-      } else if (dx1 > dy1) {
-        // a droite ou a gauche
-        if (dy1 < 100) {
-          // proche de l'horizontal
-          springLengthX = ((a.width / 2) + (b.width / 2)) + 50;
-        } else if (dy1 < 200) {
-          // proche de l'horizontal
-          springLengthX = ((a.width / 2) + (b.width / 2)) + 100;
-        } else {
-          var w1 = a.width / 2;
-          var h1 = a.height / 2;
-          var d1c2r = sqrt(w1 * w1 + h1 * h1);
-          var w2 = b.width / 2;
-          var h2 = b.height / 2;
-          var d2c2r = sqrt(w2 * w2 + h2 * h2);
-
-          springLengthX = d1c2r + d2c2r + 20;
-        }
-        springLengthY = springLengthX;
+    if (dx1 < dy1) {
+      // en dessous ou dessus
+      if (dx1 < 100) {
+        // proche du vertical
+        springLengthX = ((a.height / 2) + (b.height / 2)) + 50;
+      } else if (dx1 < 200) {
+        // proche du vertical
+        springLengthX = ((a.height / 2) + (b.height / 2)) + 100;
       } else {
-        print("object");
+        var w1 = a.width / 2;
+        var h1 = a.height / 2;
+        var d1c2r = sqrt(w1 * w1 + h1 * h1);
+        var w2 = b.width / 2;
+        var h2 = b.height / 2;
+        var d2c2r = sqrt(w2 * w2 + h2 * h2);
+
+        springLengthX = d1c2r + d2c2r + 20;
       }
+      springLengthY = springLengthX;
+    } else if (dx1 > dy1) {
+      // a droite ou a gauche
+      if (dy1 < 100) {
+        // proche de l'horizontal
+        springLengthX = ((a.width / 2) + (b.width / 2)) + 50;
+      } else if (dy1 < 200) {
+        // proche de l'horizontal
+        springLengthX = ((a.width / 2) + (b.width / 2)) + 100;
+      } else {
+        var w1 = a.width / 2;
+        var h1 = a.height / 2;
+        var d1c2r = sqrt(w1 * w1 + h1 * h1);
+        var w2 = b.width / 2;
+        var h2 = b.height / 2;
+        var d2c2r = sqrt(w2 * w2 + h2 * h2);
 
-      var dist = max(1.0, sqrt(dx * dx + dy * dy));
-      var forcex = (dist - springLengthX) * 0.05;
-      var forcey = (dist - springLengthY) * 0.05;
-      var fx = forcex * dx / dist;
-      var fy = forcey * dy / dist;
-
-      a.dx += fx;
-      a.dy += fy;
-      b.dx -= fx;
-      b.dy -= fy;
+        springLengthX = d1c2r + d2c2r + 20;
+      }
+      springLengthY = springLengthX;
+    } else {
+      print("object");
     }
 
-    for (var node in nodes) {
-      node.x = (node.x + node.dx * damping).clamp(0.0, areaWidth);
-      node.y = (node.y + node.dy * damping).clamp(0.0, areaHeight);
-    }
+    var dist = max(1.0, sqrt(dx * dx + dy * dy));
+    var forcex = (dist - springLengthX) * 0.05;
+    var forcey = (dist - springLengthY) * 0.05;
+    var fx = forcex * dx / dist;
+    var fy = forcey * dy / dist;
 
-    setState(() {});
+    a.dx += fx;
+    a.dy += fy;
+    b.dx -= fx;
+    b.dy -= fy;
   }
 
   Widget? stack;
@@ -347,6 +383,7 @@ class _PanModelGraphState extends State<PanModelGraph> {
               child: GestureDetector(
                 onPanUpdate: (details) {
                   setState(() {
+                    k = 10000; // Augmente la force de répulsion pendant le déplacement
                     node.x = (node.x + details.delta.dx).clamp(0.0, areaWidth);
                     node.y = (node.y + details.delta.dy).clamp(0.0, areaHeight);
                   });
@@ -369,7 +406,18 @@ class _PanModelGraphState extends State<PanModelGraph> {
       scaleEnabled: scaleEnabled,
       child: stack!,
     );
-    return interactiveViewer;
+    return Stack(
+      children: [
+        interactiveViewer,
+        Positioned(
+          left: 0,
+          top: 0,
+          child: ElevatedButton(
+            onPressed: savePosition,
+            child: Text('Save Positions'),
+          ),
+        ),
+      ],
+    );
   }
-
 }

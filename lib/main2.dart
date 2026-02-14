@@ -53,7 +53,12 @@ class _NewWidgetState extends State<NewWidget> {
               }
               return 50;
             },
-            buildRow: (int row, bool isStartCols, Widget child) {
+            buildRow: (
+              int row,
+              bool isStartCols,
+              Widget child,
+              FrozenTableViewState info,
+            ) {
               return child;
             },
           ),

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:jsonschema/core/designer/core/cw_factory_action.dart';
-import 'package:jsonschema/core/designer/editor/engine/widget_overlay_selector.dart';
+import 'package:jsonschema/core/designer/editor/engine/overlay_action.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
@@ -10,12 +8,14 @@ import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_tab_slider.dart';
 
 class CwBar extends CwWidget {
-  const CwBar({super.key, required super.ctx});
+  const CwBar({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'bar',
-      build: (ctx) => CwBar(key: ctx.getKey(), ctx: ctx),
+      build:
+          (ctx) =>
+              CwBar(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
       config: (ctx) {
         return CwWidgetConfig()
             .addProp(
@@ -68,9 +68,10 @@ class _CwTabBarState extends CwWidgetState<CwBar>
 
   @override
   Widget build(BuildContext context) {
-    return buildWidget(true, ModeBuilderWidget.constraintBuilder, (
+    return buildWidget(true, ModeBuilderWidget.layoutBuilder, (
       ctx,
       constraints,
+      _,
     ) {
       List<Widget> tabs = [];
       List<Widget> tabsView = [];
@@ -79,39 +80,6 @@ class _CwTabBarState extends CwWidgetState<CwBar>
       String apparence = getStringProp(ctx, 'type') ?? 'tab';
       if (apparence == 'bar' && nbTab < 2) {
         nbTab = 2;
-      }
-
-      void onActionCell(CwWidgetCtx ctx, DesignAction action) {
-        int nbCol = getIntProp(ctx.parentCtx!, 'nbchild') ?? 1;
-        var props = ctx.parentCtx!.initPropsIfNeeded();
-        int idx = int.parse(ctx.slotId.split('_').last);
-        var actMgr = CwFactoryAction(ctx: ctx);
-        print('OnActionCell action=$action');
-        switch (action) {
-          case DesignAction.delete:
-            break;
-          case DesignAction.addLeft:
-            props['nbchild'] = nbCol + 1;
-            actMgr.moveSlot('tab_', nbCol, idx);
-            actMgr.moveSlot('tabview_', nbCol, idx);
-            break;
-          case DesignAction.addRight:
-            props['nbchild'] = nbCol + 1;
-            actMgr.moveSlot('tab_', nbCol, idx + 1);
-            actMgr.moveSlot('tabview_', nbCol, idx + 1);
-            break;
-          case DesignAction.addBottom:
-            break;
-          case DesignAction.addTop:
-            break;
-          default:
-        }
-        SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-          if (mounted) {
-            setState(() {});
-            ctx.selectParentOnDesigner();
-          }
-        });
       }
 
       String? typeAction;
@@ -136,7 +104,7 @@ class _CwTabBarState extends CwWidgetState<CwBar>
               CwSlotProp(
                 id: 'tab_$i',
                 name: 'Tab',
-                onAction: onActionCell,
+                onAction: onActionCellTab,
                 type: typeAction,
               ),
             ),
@@ -147,7 +115,7 @@ class _CwTabBarState extends CwWidgetState<CwBar>
             CwSlotProp(
               id: 'tabview_$i',
               name: 'Tab view',
-              onAction: onActionCell,
+              onAction: onActionCellTab,
             ),
           ),
         );

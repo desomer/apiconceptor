@@ -58,8 +58,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   @override
   NodeJson doArrayOfObject(String name, NodeAttribut node) {
     var prop = {...node.info.properties ?? {}};
-    prop.remove(constMasterID);
-    prop.remove('required');
+    initProp(prop);
     Map<String, dynamic> child = {'type': 'array', ...prop};
     Map<String, dynamic> items = {'type': 'object'};
     addPropObject(items, node);
@@ -72,8 +71,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   @override
   NodeJson doArrayOfType(String name, String type, NodeAttribut node) {
     var prop = {...node.info.properties ?? {}};
-    prop.remove(constMasterID);
-    prop.remove('required');
+    initProp(prop);
     var enumer = prop.remove('enum');
     Map<String, dynamic> child = {'type': 'array', ...prop};
     if (node.child.firstOrNull?.info.name == constType) {
@@ -111,11 +109,18 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     return NodeJson(name: name, value: child);
   }
 
+  void initProp(Map<String, dynamic> prop) {
+    prop.remove(constMasterID);
+    prop.remove('required');
+    prop.removeWhere((key, value) {
+      return key.startsWith('#');
+    });
+  }
+
   @override
   NodeJson doArrayWithAnyOf(String name, NodeAttribut node) {
     var prop = {...node.info.properties ?? {}};
-    prop.remove(constMasterID);
-    prop.remove('required');
+    initProp(prop);
     Map<String, dynamic> child = {'type': 'array', ...prop};
     child['items'] = {};
     node.addInAttr = ''; // ajoute le anyOf à la racine
@@ -167,8 +172,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     return NodeJson(name: name, value: child);
   }
 
-  void addPropObject(Map<String, dynamic> child, NodeAttribut node) {
-    child["additionalProperties"] = false;
+  void addPropObject(Map<String, dynamic> prop, NodeAttribut node) {
+    prop.addAll(node.info.properties ?? {});
+    initProp(prop);
+    prop["additionalProperties"] = false;
 
     List<String> aRequired = [];
     for (var child in node.child) {
@@ -179,7 +186,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       }
     }
     if (aRequired.isNotEmpty) {
-      child['required'] = aRequired;
+      prop['required'] = aRequired;
     }
   }
 
@@ -192,7 +199,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     }
     Map<String, dynamic> prop = getProp(node);
     bool nullable = node.info.properties?['#nullable'] ?? false;
-    Map<String, dynamic> child = {'type': nullable ? [type, 'null'] : type, ...prop};
+    Map<String, dynamic> child = {
+      'type': nullable ? [type, 'null'] : type,
+      ...prop,
+    };
     return NodeJson(name: name, value: child);
   }
 
@@ -210,12 +220,49 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       );
       prop['enum'] = enumer;
     }
-    // if (node.info.properties?['format'] != null)
+    if (node.info.properties?['format'] != null) {
+      prop['format'] = node.info.properties!['format'];
+      switch (prop['format']) {
+        case 'date':
+          prop['pattern'] =
+              r'^(?:19\d{2}|20\d{2})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12]\d|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))$';
+          break;
+        case 'time':
+          prop['pattern'] =
+              r'^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)?$';
+          break;
+        case 'date-time':
+          // date time au format ISO 8601
+          prop['pattern'] =
+              r'^(?:19\d{2}|20\d{2})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12]\d|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)$';
+          break;
+        case 'email':
+          prop['pattern'] = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+          break;
+        // add more formats as needed
+      }
+    }
     // {
     //   prop['\$schema'] = 'https://json-schema.org/draft/2020-12/schema';
     // }
 
     return prop;
+  }
+
+  @override
+  NodeJson doAllOf(
+    NodeAttribut parent,
+    dynamic parentNodeJson,
+    String name,
+    NodeAttribut node,
+  ) {
+    parent.addInAttr = "";
+    var child = [];
+    name = 'allOf';
+    parentNodeJson as Map<String, dynamic>;
+    parentNodeJson.remove('properties');
+    parentNodeJson.remove('additionalProperties');
+    return NodeJson(name: name, value: child);
   }
 }
 

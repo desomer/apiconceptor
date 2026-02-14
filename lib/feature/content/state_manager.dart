@@ -1,6 +1,8 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
@@ -116,7 +118,8 @@ class StateManager {
   final Map<String, List<WidgetBindJsonState>> listInputByPath = {};
   final Map<String, List<State>> listContainerByPath = {};
 
-  final Map<String, Map<String, CwWidgetStateBindJson>> listDepsContainerByPath = {};
+  final Map<String, Map<String, CwWidgetStateBindJson>>
+  listDepsContainerByPath = {};
 
   // pathData de type /objet/child1/child2 or /array[0]/child1/child2
 
@@ -158,11 +161,12 @@ class StateManager {
 
   void _doReloadContainer(String pathData) {
     var containerState = listContainerByPath[pathData];
-    for (var state in containerState ?? const []) {
-      //print("check reload container ${element.key} for $pathData");
-      if (state?.mounted ?? false) {
+    for (State state in containerState ?? const []) {
+      if (state is CwWidgetState) {
+        state.widget.ctx.repaint();
+      } else if (state.mounted) {
         // ignore: invalid_use_of_protected_member
-        state!.setState(() {});
+        state.setState(() {});
       }
     }
   }
@@ -185,7 +189,6 @@ class StateManager {
           } else {
             // print("no visible pathData: $pathData $antiLoop > $json");
             antiLoop++;
-
             _initInputControleur(pathData, json, antiLoop);
           }
         }
@@ -201,7 +204,10 @@ class StateManager {
       list = [];
       listInputByPath[pathData] = list;
     }
-    list.add(ctrl);
+    if (!list.contains(ctrl)) {
+      list.add(ctrl);
+    }
+    list.removeWhere((role) => role.mounted == false);
   }
 
   void disposeInput(String pathData, WidgetBindJsonState ctrl) {
@@ -218,7 +224,10 @@ class StateManager {
       list = [];
       listContainerByPath[pathData] = list;
     }
-    list.add(widgetState);
+    if (!list.contains(widgetState)) {
+      list.add(widgetState);
+    }
+    list.removeWhere((role) => role.mounted == false);
     //print("addContainer $pathData");
   }
 
@@ -274,6 +283,50 @@ class StateContainerObject extends StateContainer {}
 
 class StateContainerArray extends StateContainer {
   int currentIndex = 0;
+  Map<String, State> rowSelected = {};
+
+  void setIndexChanged(
+    CwRepository repos,
+    int idx,
+    String pathWidgetArray,
+    String pathData,
+    State? rowSelectedState,
+  ) {
+    print("  setIndexChanged $pathData to $idx old=$currentIndex");
+    repos.dataState.listContainerByPath[pathData]?.removeWhere((state) {
+      return state.mounted == false;
+    });
+    repos.dataState.listContainerByPath[pathData]?.forEach((state) {
+      if (state is CwWidgetStateBindJson) {
+        state.setSelectedRowIndex(idx);
+      }
+    });
+
+    // deselectionne les autres
+    for (var state in rowSelected.values) {
+      if (state.mounted) {
+        // ignore: invalid_use_of_protected_member
+        state.setState(() {});
+        print('key row changed ${state.widget.key}');
+      }
+    }
+    if (rowSelectedState != null) {
+      rowSelected[pathWidgetArray] = rowSelectedState;
+    } else {
+      rowSelected.remove(pathWidgetArray);
+    }
+  }
+
+  void initSelected(int idx, String pathWidgetArray, CwTableRowState rowSelectedState) {
+    rowSelected[pathWidgetArray] = rowSelectedState;
+    print(" initSelected $pathWidgetArray at $idx  on ${rowSelectedState.widget.key} ${rowSelectedState.widget.info.data.hashCode}");
+  }
+
+  CWInheritedRow? getRowState(BuildContext context) {
+    CWInheritedRow? row =
+        context.getInheritedWidgetOfExactType<CWInheritedRow>();
+    return row;
+  }
 }
 
 //--------------------------------------------------------------------------

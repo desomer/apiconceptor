@@ -51,7 +51,12 @@ class BrowseModel<T extends Map> extends JsonBrowser<T> {
   }
 
   @override
-  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     return parent;
   }
 
@@ -69,16 +74,164 @@ class BrowseSingle<T extends Map> extends JsonBrowser<T> {
   }
 
   @override
-  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     root.add(node);
     return parent;
+  }
+}
+
+class InfoManagerListModel extends InfoManager with WidgetHelper {
+  InfoManagerListModel({required this.typeMD});
+  final TypeMD typeMD;
+
+  @override
+  String getTypeTitle(NodeAttribut node, String name, dynamic type) {
+    String? typeStr;
+    if (type is Map) {
+      node.bgcolor = Colors.blueGrey.withAlpha(50);
+      typeStr = typeMD == TypeMD.listmodel ? 'folder' : 'Object';
+    }
+
+    typeStr ??= '$type';
+    return typeStr;
+  }
+
+  @override
+  InvalidInfo? isTypeValid(
+    NodeAttribut nodeAttribut,
+    String name,
+    dynamic type,
+    String typeTitle,
+  ) {
+    var type = typeTitle.toLowerCase();
+
+    bool valid = ['folder', 'model'].contains(type);
+    if (!valid) {
+      return InvalidInfo(color: Colors.red);
+    }
+    return null;
+  }
+
+  @override
+  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+    return Container();
+  }
+
+  @override
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
+    Widget? icon;
+    var isRoot = node.isRoot;
+    var attr = node.data.info;
+    var isFolder = attr.type == 'folder';
+    var isModel = attr.type == 'model';
+
+    String name = attr.name;
+
+    Color? iconColor =
+        attr.isRefAttr() ? Colors.grey.shade800 : Colors.blueGrey;
+
+    if (isRoot) {
+      icon = Icon(Icons.business, color: iconColor);
+    } else if (isFolder) {
+      icon = Icon(Icons.folder, color: iconColor);
+    } else if (isModel) {
+      icon = Icon(Icons.data_object, color: iconColor);
+    }
+
+    return NoOverflowErrorFlex(
+      direction: Axis.horizontal,
+      children: [
+        if (icon != null)
+          Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
+
+        Expanded(
+          child: InkWell(
+            onTap: () {
+              node.doTapHeader();
+            },
+            child: Row(
+              children: [
+                Text(name),
+                Spacer(),
+                getWidgetType(node.data, isModel, isRoot, context),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget getWidgetType(
+    NodeAttribut attr,
+    bool isModel,
+    bool isRoot,
+    BuildContext context,
+  ) {
+    if (isRoot) return Container();
+
+    bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
+    hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
+    //String msg = hasError ? 'error type' : '';
+
+    var w = getChip(
+      isModel
+          ? Row(
+            spacing: 5,
+            children: [
+              Text(attr.info.type),
+              Icon(Icons.arrow_forward_ios, size: 10),
+            ],
+          )
+          : hasError
+          ? Row(
+            spacing: 5,
+            children: [
+              Text(attr.info.type),
+              Icon(Icons.arrow_drop_down, size: 15),
+            ],
+          )
+          : Text(attr.info.type),
+      color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
+    );
+
+    bool canEditType = !isRoot && attr.info.type != 'folder';
+    if (canEditType && hasError) {
+      return getEditorType(attr, context, w);
+    }
+    return w;
+  }
+
+  Widget getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
+    GlobalKey? k = GlobalKey();
+
+    return GestureDetector(
+      key: k,
+      onTap: () {
+        var listOptions = [
+          OptionSelect(
+            label: 'model',
+            name: 'model',
+            icon: Icons.data_object,
+            color: Colors.blueGrey,
+          ),
+        ];
+
+        openTypeSelector(editor!, context, listOptions, attr, k);
+      },
+      child: child,
+    );
   }
 }
 
 //************************************************************************* */
 class InfoManagerModel extends InfoManager with WidgetHelper {
   InfoManagerModel({required this.typeMD});
-
   final TypeMD typeMD;
 
   @override
@@ -106,7 +259,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
         typeStr = 'Object';
       }
     } else if (type is int) {
-      typeStr = 'number';
+      typeStr = 'integer';
     } else if (type is double) {
       typeStr = 'number';
     } else if (type is String) {
@@ -141,8 +294,8 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     bool valid = [
       'folder',
       'model',
-
       'string',
+      'integer',
       'number',
       'object',
       'array',
@@ -201,39 +354,42 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     Widget? icon;
     var isRoot = node.isRoot;
-    var isFolder = node.data.info.type == 'folder';
-    var isModel = node.data.info.type == 'model';
+    var attr = node.data.info;
+    var isFolder = attr.type == 'folder';
+    var isModel = attr.type == 'model';
 
-    var isObject = node.data.info.type == 'Object';
-    var isOneOf = node.data.info.type == '\$anyOf';
-    var isRef = node.data.info.type == '\$ref';
-    var isType = node.data.info.name == constType;
-    var isArray =
-        node.data.info.type == 'Array' || node.data.info.type.endsWith('[]');
-    String name = node.data.info.name;
+    var isObject = attr.type == 'Object';
+    var isOneOf = attr.type == '\$anyOf';
+    var isRef = attr.type == '\$ref';
+    var isType = attr.name == constType;
+    var isArray = attr.type == 'Array' || attr.type.endsWith('[]');
+    String name = attr.name;
+
+    Color? iconColor =
+        attr.isRefAttr() ? Colors.grey.shade800 : Colors.blueGrey;
 
     if (isRoot) {
-      icon = Icon(Icons.business);
+      icon = Icon(Icons.business, color: iconColor);
     } else if (isFolder) {
-      icon = Icon(Icons.folder);
+      icon = Icon(Icons.folder, color: iconColor);
     } else if (isModel) {
-      icon = Icon(Icons.data_object);
+      icon = Icon(Icons.data_object, color: iconColor);
     } else if (isObject) {
-      icon = Icon(Icons.data_object);
+      icon = Icon(Icons.data_object, color: iconColor);
     } else if (isRef) {
-      icon = Icon(Icons.link);
+      icon = Icon(Icons.link, color: iconColor);
       name = '\$${node.data.info.properties?[constRefOn] ?? '?'}';
     } else if (isOneOf) {
       name = '\$anyOf';
-      icon = Icon(Icons.looks_one_rounded);
+      icon = Icon(Icons.looks_one_rounded, color: iconColor);
     } else if (isArray) {
-      icon = Icon(Icons.data_array);
+      icon = Icon(Icons.data_array, color: iconColor);
     } else if (isType) {
       name = '\$type';
-      icon = Icon(Icons.type_specimen_outlined);
+      icon = Icon(Icons.type_specimen_outlined, color: iconColor);
     }
 
     return NoOverflowErrorFlex(
@@ -253,11 +409,16 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
                   name,
                   style:
                       (isObject || isArray)
-                          ? const TextStyle(fontWeight: FontWeight.bold)
-                          : null,
+                          ? TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: (attr.isRefAttr() ? Colors.grey : null),
+                          )
+                          : (attr.isRefAttr()
+                              ? TextStyle(color: Colors.grey)
+                              : null),
                 ),
                 Spacer(),
-                getWidgetType(node.data, isModel, isRoot),
+                getWidgetType(node.data, isModel, isRoot, context),
               ],
             ),
           ),
@@ -266,27 +427,102 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     );
   }
 
-  Widget getWidgetType(NodeAttribut attr, bool isModel, bool isRoot) {
-    if (isRoot) return Container();
+  Widget getWidgetType(
+    NodeAttribut attr,
+    bool isModel,
+    bool isRoot,
+    BuildContext context,
+  ) {
+    if (isRoot) return Text('${modelSchema?.useAttributInfo.length} properties');
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
     hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
-    String msg = hasError ? 'string\nnumber\nboolean\n\$type' : '';
+    //String msg = hasError ? 'error type' : '';
 
-    return Tooltip(
-      message: msg,
-      child: getChip(
-        isModel
-            ? Row(
-              spacing: 5,
-              children: [
-                Text(attr.info.type),
-                Icon(Icons.arrow_forward_ios, size: 10),
-              ],
-            )
-            : Text(attr.info.type),
-        color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
-      ),
+    var w = getChip(
+      isModel
+          ? Row(
+            spacing: 5,
+            children: [
+              Text(attr.info.type),
+              Icon(Icons.arrow_forward_ios, size: 10),
+            ],
+          )
+          : hasError
+          ? Row(
+            spacing: 5,
+            children: [
+              Text(attr.info.type),
+              Icon(Icons.arrow_drop_down, size: 15),
+            ],
+          )
+          : Text(attr.info.type),
+      color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
+    );
+
+    bool canEditType =
+        !isRoot && !attr.info.inRef && !attr.info.type.startsWith(r'$');
+    if (canEditType) {
+      return getEditorType(attr, context, w);
+    }
+    return w;
+  }
+
+  Widget getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
+    GlobalKey? k = GlobalKey();
+
+    return GestureDetector(
+      key: k,
+      onTap: () {
+        var listOptions = [
+          OptionSelect(
+            label: 'string',
+            name: 'string',
+            icon: Icons.text_fields,
+            color: Colors.green,
+          ),
+          OptionSelect(
+            label: 'integer',
+            name: 'integer',
+            icon: Icons.numbers,
+            color: Colors.orange,
+          ),
+          OptionSelect(
+            label: 'number',
+            name: 'number',
+            icon: Icons.calculate,
+            color: Colors.blue,
+          ),
+          OptionSelect(
+            label: 'boolean',
+            name: 'boolean',
+            icon: Icons.toggle_on,
+            color: Colors.purple,
+          ),
+          // OptionSelect(
+          //   label: '\$type',
+          //   name: '\$type',
+          //   icon: Icons.type_specimen_outlined,
+          //   color: Colors.brown,
+          // ),
+        ];
+
+        currentCompany.listModel?.mapInfoByTreePath.forEach((key, value) {
+          if (value.type == 'model') {
+            listOptions.add(
+              OptionSelect(
+                label: '\$${value.name}',
+                name: key,
+                icon: Icons.data_object,
+                color: Colors.blueGrey,
+              ),
+            );
+          }
+        });
+
+        openTypeSelector(editor!, context, listOptions, attr, k);
+      },
+      child: child,
     );
   }
 }

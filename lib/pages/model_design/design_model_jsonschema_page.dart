@@ -66,13 +66,13 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
       ]
       ..breadcrumbs = [
         BreadNode(
-          settings: const RouteSettings(name: 'List model'),
-          type: BreadNodeType.widget,
+          settings: const RouteSettings(name: 'Domain'),
+          type: BreadNodeType.domain,
           path: Pages.models.urlpath,
         ),
         BreadNode(
-          settings: const RouteSettings(name: 'Domain'),
-          type: BreadNodeType.domain,
+          settings: const RouteSettings(name: 'List model'),
+          type: BreadNodeType.widget,
           path: Pages.models.urlpath,
         ),
         BreadNode(

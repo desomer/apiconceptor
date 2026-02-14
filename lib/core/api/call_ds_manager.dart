@@ -3,6 +3,7 @@ import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/widget_request_helper.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
@@ -15,7 +16,7 @@ import 'package:yaml/yaml.dart';
 
 class CallerDatasource {
   WidgetRequestHelper? helper;
-  ConfigApp configApp = ConfigApp();
+  ConfigDataSource config = ConfigDataSource();
   String domainDs = '';
   String dsId = '';
   String apiShortName = '';
@@ -89,15 +90,15 @@ class CallerDatasource {
     var pagination = getValueFromPath(config, 'pagination');
     List? links = getValueFromPath(config, 'links');
 
-    configApp.name = apiShortName;
+    this.config.name = apiShortName;
 
     if (pagination != null) {
-      configApp.criteria.paginationVariable = pagination['variable'];
-      configApp.criteria.min = pagination['min'] ?? 0;
+      this.config.criteria.paginationVariable = pagination['variable'];
+      this.config.criteria.min = pagination['min'] ?? 0;
     }
 
     for (var link in links ?? const []) {
-      configApp.data.links.add(
+      this.config.data.links.add(
         ConfigLink(
           onPath: link['link']['on'],
           title: link['link']['title'],
@@ -151,16 +152,16 @@ class CallerDatasource {
           a.browse(paramModel, false);
 
           var paramAttr = paramModel.mapInfoByName[param]?.firstOrNull;
-          configApp.paramToLoad = paramAttr;
+          this.config.paramToLoad = paramAttr;
         }
 
         var v = getValueFromPath(config, '/data/path');
         if (v != null) {
-          configApp.data.dataDisplayPath = v.toString().split(';');
+          this.config.data.dataDisplayPath = v.toString().split(';');
         }
         v = getValueFromPath(config, '/criteria/path');
         if (v != null) {
-          configApp.criteria.dataDisplayPath = v.toString().split(';');
+          this.config.criteria.dataDisplayPath = v.toString().split(';');
         }
 
         helper = WidgetRequestHelper(
@@ -170,5 +171,22 @@ class CallerDatasource {
       }
     }
     return helper;
+  }
+
+  void initComputedProps() {
+    if (config.aFactory == null || config.repositoryId == null) return;
+    var repositoryData = config.aFactory!.appData[cwRepos][config.repositoryId];
+    Map computedProps = repositoryData[cwComputed] ?? {};
+    config.computedProps.clear();
+    for (var key in computedProps.keys) {
+      var cpConfig = computedProps[key];
+      config.computedProps.add(
+        ComputedValue(
+          id: cpConfig['id'],
+          name: cpConfig['name'],
+          expression: cpConfig['expression'],
+        ),
+      );
+    }
   }
 }

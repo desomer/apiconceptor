@@ -10,10 +10,11 @@ import 'package:jsonschema/widget/widget_breadcrumb.dart';
 class DesignModelUIPage extends GenericPageStateless {
   DesignModelUIPage({super.key});
   String model = '';
+  String nameModel='';
 
   @override
   Widget build(BuildContext context) {
-    return PanContentViewer(masterIdModel: model);
+    return PanContentViewer(masterIdModel: model, nameModel: nameModel);
   }
 
   @override
@@ -26,7 +27,7 @@ class DesignModelUIPage extends GenericPageStateless {
         routerState.uri.queryParameters['id'] ??
         currentCompany.currentModel!.id;
     var attr = currentCompany.listModel!.nodeByMasterId[model];
-    var name = attr?.info.name;
+    nameModel = attr!.info.name;
 
     return NavigationInfo()
       ..navLeft = [
@@ -66,17 +67,17 @@ class DesignModelUIPage extends GenericPageStateless {
       ]
       ..breadcrumbs = [
         BreadNode(
-          settings: const RouteSettings(name: 'List model'),
-          type: BreadNodeType.widget,
-          path: Pages.models.urlpath,
-        ),
-        BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
           path: Pages.models.urlpath,
         ),
         BreadNode(
-          settings: RouteSettings(name: name),
+          settings: const RouteSettings(name: 'List model'),
+          type: BreadNodeType.widget,
+          path: Pages.models.urlpath,
+        ),
+        BreadNode(
+          settings: RouteSettings(name: nameModel),
           type: BreadNodeType.widget,
         ),
       ];

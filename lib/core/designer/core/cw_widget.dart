@@ -1,7 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_iconpicker/Serialization/icondata_serialization.dart';
+import 'package:jsonschema/core/core_expression.dart';
 import 'package:jsonschema/core/designer/core/cw_constraint_builder.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_mask_helper.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
+import 'package:jsonschema/core/designer/editor/engine/undo_manager.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/bool_editor.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/color_editor.dart';
@@ -15,7 +21,6 @@ import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
-import 'package:jsonschema/core/designer/core/widget_catalog/cw_list.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 
@@ -37,6 +42,8 @@ class CwWidgetCtxVirtual extends CwWidgetCtx {
 
 class CwWidgetCtx {
   int buildSlotTime = 0;
+  int changeTime = 0;
+  //Map<String, CwSlot> cacheWidgetSlots = {};
 
   final WidgetFactory aFactory;
   final String slotId;
@@ -81,7 +88,7 @@ class CwWidgetCtx {
     }
     selectorCtx._widgetKey = GlobalKey(
       debugLabel:
-          'key -${parentCtx == null ? slotId : '${parentCtx!.aWidgetPath}/$slotId'}',
+          'cw path ${parentCtx == null ? slotId : '${parentCtx!.aWidgetPath}/$slotId'}',
     );
     return selectorCtx._widgetKey;
   }
@@ -123,7 +130,7 @@ class CwWidgetCtx {
   bool isParentOfType(String type, {String? layout}) {
     if (parentCtx?.dataWidget?[cwImplement] == type) {
       var lay = parentCtx?.dataWidget?[cwProps]?['layout'];
-      if (lay == layout) {
+      if (layout == null || lay == layout) {
         return true;
       }
     }
@@ -181,6 +188,15 @@ class CwWidgetCtx {
     }
   }
 
+  List<Map<String, dynamic>> initBehaviorIfNeeded() {
+    var props = getData()![cwBehaviors];
+    if (props == null) {
+      props = <Map<String, dynamic>>[];
+      getData()![cwBehaviors] = props;
+    }
+    return props;
+  }
+
   Map<String, dynamic> initPropsIfNeeded({List<String>? path}) {
     var props = getData()![getPropsName()];
     if (props == null) {
@@ -213,58 +229,136 @@ class CwWidgetCtx {
     return aFactory.builderConfig[getData()![cwImplement]]!(this);
   }
 
-  ValueChanged<Map> onValueChange({
+  ValueChanged<Map> onValueChange(
+    CwWidgetProperties properties, {
     bool repaint = true,
+    bool repaintParent = false,
     bool resize = true,
     bool unselect = false,
     List<String>? path,
   }) {
     return (newJson) {
-      createDataOnParentIfNeeded();
-      Map? prop = getData()![getPropsName()];
+      var propBeforeChange = getData()![getPropsName()];
       if (path != null) {
         getData()![getPropsName()] ??= <String, dynamic>{};
-        prop = getData()![getPropsName()];
+        propBeforeChange = getData()![getPropsName()];
         for (var i = 0; i < path.length; i++) {
-          prop![path[i]] ??= <String, dynamic>{};
-          prop = prop[path[i]];
+          propBeforeChange![path[i]] ??= <String, dynamic>{};
+          propBeforeChange = propBeforeChange[path[i]];
         }
       }
-      if (prop == null) {
-        getData()![getPropsName()] = newJson;
-      } else {
-        prop.addAll(newJson);
-      }
+      final deepClone = jsonDecode(jsonEncode(propBeforeChange));
+      print(
+        "do onValueChange for $aWidgetPath value = $propBeforeChange with $newJson",
+      );
 
-      if (repaint) {
-        if (this is CwWidgetCtxVirtual) {
-          widgetState = parentCtx?.widgetState;
-        }
-
-        CwWidgetState? aWidgetState = widgetState;
-        if (aWidgetState == null || aWidgetState.mounted == false) {
-          // cas de slot vide
-          aWidgetState = parentCtx?.widgetState;
-        }
-        if (aWidgetState == null || aWidgetState.mounted == false) {
-          print('ERROR: onValueChange state is null for $aWidgetPath');
-          return;
-        }
-        // ignore: invalid_use_of_protected_member
-        aWidgetState.setState(() {});
-      }
-
-      if (currentSelectorManager.getSelectedPath() != aWidgetPath) {
-        // changement d'un parent, on reselectionne onlyOverlay
-        SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-          selectOnDesigner(onlyOverlay: true);
-        });
-      } else if (unselect) {
-        emitLater(CDDesignEvent.unselect, null);
-      } else if (resize) {
-        emitLater(CDDesignEvent.reselect, null, multiple: true);
-      }
+      globalUndoManager.execute(
+        UndoAction(
+          doAction: () {
+            doChange(
+              properties: properties,
+              repaint: repaint,
+              repaintParent: repaintParent,
+              resize: resize,
+              unselect: unselect,
+              path: path,
+              newJson: newJson,
+            );
+          },
+          undoAction: () {
+            doChange(
+              properties: properties,
+              repaint: repaint,
+              repaintParent: repaintParent,
+              resize: resize,
+              unselect: unselect,
+              path: path,
+              newJson: deepClone,
+            );
+          },
+        ),
+      );
     };
+  }
+
+  void doChange({
+    required CwWidgetProperties properties,
+    required bool repaint,
+    required bool repaintParent,
+    required bool resize,
+    required bool unselect,
+    List<String>? path,
+    required Map newJson,
+  }) {
+    createDataOnParentIfNeeded();
+    Map? prop = getData()![getPropsName()];
+    if (path != null) {
+      getData()![getPropsName()] ??= <String, dynamic>{};
+      prop = getData()![getPropsName()];
+      for (var i = 0; i < path.length; i++) {
+        prop![path[i]] ??= <String, dynamic>{};
+        prop = prop[path[i]];
+      }
+    }
+    if (prop == null) {
+      getData()![getPropsName()] = newJson;
+    } else {
+      if (newJson[properties.id] == null) {
+        prop.remove(properties.id);
+      } else {
+        prop[properties.id] = newJson[properties.id];
+      }
+    }
+
+    initChanged();
+
+    if (repaint) {
+      if (this is CwWidgetCtxVirtual) {
+        widgetState = parentCtx?.widgetState;
+      }
+
+      CwWidgetState? aWidgetState = widgetState;
+      if (aWidgetState == null || aWidgetState.mounted == false) {
+        // cas de slot vide
+        parentCtx?.initChanged();
+        aWidgetState = parentCtx?.widgetState;
+      }
+      if (aWidgetState == null || aWidgetState.mounted == false) {
+        print('ERROR: onValueChange state is null for $aWidgetPath');
+        return;
+      }
+      aWidgetState.widget.ctx.repaint();
+      // // ignore: invalid_use_of_protected_member
+      // aWidgetState.setState(() {});
+    }
+
+    if (repaintParent) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        parentCtx!.repaint();
+      });
+    }
+
+    if (currentSelectorManager.getSelectedPath() != aWidgetPath) {
+      // changement d'un parent, on reselectionne onlyOverlay
+      SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+        selectOnDesigner(onlyOverlay: true);
+      });
+    } else if (unselect) {
+      emitLater(CDDesignEvent.unselect, null);
+    } else if (resize) {
+      emitLater(CDDesignEvent.reselect, null, multiple: true);
+    }
+  }
+
+  void initChanged() {
+    changeTime = DateTime.now().millisecondsSinceEpoch;
+  }
+
+  bool hasChangedSince(int time) {
+    if (!withWidgetCache) {
+      return true;
+    }
+    return changeTime > time;
   }
 
   void cleanWidgetData(int buildtime) {
@@ -352,9 +446,7 @@ class CwWidgetCtx {
         ..extra = {'displayProps': false}
         ..ctx = parentCtx
         ..path = parentCtx!.aWidgetPath
-        ..callback = () {
-          //repaintSelector();
-        },
+        ..callback = () {},
       multiple: true,
     );
   }
@@ -395,7 +487,14 @@ class CwWidgetCtx {
     });
   }
 
+  void clearWidgetCache({bool clearInnerWidget = false}) {
+    initChanged();
+    widgetState?.clearWidgetCache(clearInnerWidget: clearInnerWidget);
+  }
+
   void repaint() {
+    initChanged();
+    _selectorCtx?.slotState?.repaint();
     if (widgetState != null && widgetState!.mounted) {
       // ignore: invalid_use_of_protected_member
       widgetState!.setState(() {});
@@ -411,20 +510,32 @@ class CwWidgetCtx {
 class CWWidgetCtxSelector {
   Size? lastSize;
   String? inSlotName;
+  CwSlotState? slotState;
 
   GlobalKey? _widgetKey;
   GlobalKey? _innerKey;
   bool withPadding = false;
 
   WidgetSelectableState? selectableState;
-  CwSlotState? slotState;
 
   Map<String, dynamic>? extraRenderingData;
 }
 
+class CachedWidget {
+  int buildtime = 0;
+  Widget? builtWidget;
+  BoxConstraints? lastConstraints;
+
+  void dispose() {
+    builtWidget = null;
+  }
+}
+
 abstract class CwWidget extends StatefulWidget {
+  //final CachedWidget cacheWidget = CachedWidget();
+  final CachedWidget cacheWidget;
   final CwWidgetCtx ctx;
-  const CwWidget({super.key, required this.ctx});
+  const CwWidget({super.key, required this.ctx, required this.cacheWidget});
 }
 
 class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
@@ -433,17 +544,69 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
   StateRepository? stateRepository;
   NodeAttribut? attribut;
   bool isPrimitiveArrayValue = false; // bind sur un tableau de string ou nombre
+  CoreExpression? eval;
 
-  void doChangeRow() {
+  void setSelectedRow(
+    BuildContext context, {
+    CwWidgetStateBindJson? stateArray,
+  }) {
+    String r;
+    if (stateArray == null && stateRepository != null && attribut != null) {
+      //String? oldPathData = pathData;
+      bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
+      r = stateRepository!.getDataPath(
+        // ignore: use_build_context_synchronously
+        context,
+        widgetPath: widget.ctx.aWidgetPath,
+        attribut!.info.path,
+        typeListContainer: false,
+        inArray: inArray,
+        state: this,
+      );
+      pathData = r;
+    } else {
+      var s = stateArray ?? widget.ctx.parentCtx?.widgetState;
+      if (s is! CwWidgetStateBindJson) return;
+      var pathJson =
+          'root${s.pathData.replaceAll('/', '>').replaceAll('[*]', '[]')}';
+      pathJson = '$pathJson[]>*';
+
+      stateRepository = s.stateRepository;
+      r = stateRepository!.getDataPath(
+        // ignore: use_build_context_synchronously
+        context,
+        pathJson,
+        widgetPath: widget.ctx.aWidgetPath,
+        typeListContainer: false,
+        inArray: true,
+        state: this,
+      );
+      if (stateArray == null) {
+        pathData = r;
+      }
+    }
+    doChangeRow(
+      rowContext: context,
+      pathRow: r,
+      pathWidgetRepos: stateArray?.widget.ctx.aWidgetPath,
+    );
+  }
+
+  void doChangeRow({
+    String? pathWidgetRepos,
+    String? pathRow,
+    BuildContext? rowContext,
+  }) {
     if (stateRepository != null) {
       String pathContainer;
-      (pathContainer, _) = stateRepository!.getPathInfo(pathData);
-      //StateContainer? dataContainer;
+      (pathContainer, _) = stateRepository!.getPathInfo(pathRow ?? pathData);
       (_, _) = stateRepository!.getStateContainer(
         pathContainer,
+        context: rowContext ?? context,
+        pathWidgetRepos: pathWidgetRepos,
         onIndexChange: (int idx) {
-          print("Update data on blur $pathData");
-          stateRepository!.reloadDependentContainers(pathData);
+          print("Update data on blur ${pathRow ?? pathData} to index $idx");
+          stateRepository!.reloadDependentContainers(pathRow ?? pathData);
         },
       );
     }
@@ -473,16 +636,30 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
           isPrimitiveArrayValue = true;
         }
         attribut = repository!.ds.modelHttp200!.nodeByMasterId[attrId];
+      } else if (repository != null && bind['computedId'] != null) {
+        if (widget.ctx.aFactory.isModeViewer()) {
+          stateRepository = repository!.dataState;
+          Map computedInfo =
+              widget.ctx.aFactory.appData[cwRepos][repoId][cwComputed];
+          String computedId = bind['computedId'];
+          if (computedInfo[computedId] != null) {
+            String expression = computedInfo[computedId]['expression'];
+            eval = CoreExpression();
+            eval!.init(expression, logs: []);
+          }
+        }
       }
     }
   }
+
+  void setSelectedRowIndex(int idx) {}
 }
 
 enum ModeBuilderWidget { noConstraint, layoutBuilder, constraintBuilder }
 
 class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
-  int buildtime = 0;
   late CWStyleFactory styleFactory;
+  late CachedWidget cacheWidget;
 
   CWInheritedRow? getRowState(BuildContext context) {
     CWInheritedRow? row =
@@ -494,32 +671,38 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
   void initState() {
     widget.ctx.widgetState = this;
     styleFactory = CWStyleFactory(widget.ctx);
+    cacheWidget = widget.cacheWidget;
     super.initState();
+  }
+
+  bool isWidgetCacheEnable(BoxConstraints? constraints) {
+    return true;
+  }
+
+  bool clearWidgetCache({bool clearInnerWidget = false}) {
+    cacheWidget.dispose();
+    if (clearInnerWidget) {
+      widget.ctx._selectorCtx?.slotState?.widget.config.innerWidget = null;
+    }
+    return true;
   }
 
   Widget buildWidget(
     bool useContainerWrapper,
     ModeBuilderWidget mode,
-    CacheWidget builder,
+    CacheWidgetBuilder builder,
   ) {
     widget.ctx.widgetState = this;
-    styleFactory.init();
-    styleFactory.setConfigMargin();
-    styleFactory.setConfigBox();
-    num? h = widget.ctx.dataWidget?[cwProps]?['height'];
-    num? w = widget.ctx.dataWidget?[cwProps]?['width'];
-    styleFactory.config.height = h?.toDouble();
-    styleFactory.config.width = w?.toDouble();
-
-    Widget builtWidget;
+    Widget retWidget;
 
     switch (mode) {
       case ModeBuilderWidget.noConstraint:
-        builtWidget = _buildWidgetInternal(useContainerWrapper, builder, null);
+        retWidget = _buildWidgetInternal(useContainerWrapper, builder, null);
 
       case ModeBuilderWidget.layoutBuilder:
-        builtWidget = LayoutBuilder(
+        retWidget = LayoutBuilder(
           builder: (context, constraints) {
+            cacheWidget.lastConstraints = constraints;
             return _buildWidgetInternal(
               useContainerWrapper,
               builder,
@@ -531,10 +714,9 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
       case ModeBuilderWidget.constraintBuilder:
         var cacheSizeSlot =
             widget.ctx.aFactory.cacheSizeSlots[widget.ctx.aWidgetPath];
-        builtWidget = ConstraintBuilder(
+        retWidget = ConstraintBuilder(
           fixedSize: cacheSizeSlot,
           builder: (context, constraints) {
-            //if (cacheSizeSlot == null) {
             SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
               if (context.mounted) {
                 final box = context.findRenderObject() as RenderBox;
@@ -542,7 +724,7 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
                     box.size;
               }
             });
-            //}
+            cacheWidget.lastConstraints = constraints;
             return _buildWidgetInternal(
               useContainerWrapper,
               builder,
@@ -551,27 +733,47 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
           },
         );
     }
-
-    builtWidget = styleFactory.getStyledBox(
-      builtWidget,
-      context,
-      initBefore: false,
-      useContainerWrapper: useContainerWrapper,
-    );
-    return builtWidget;
+    return retWidget;
   }
 
   Widget _buildWidgetInternal(
     bool useContainerWrapper,
-    CacheWidget builder,
+    CacheWidgetBuilder builder,
     BoxConstraints? constraints,
   ) {
-    buildtime = DateTime.now().millisecondsSinceEpoch;
-    //print('buildWidget ${widget.ctx.aWidgetPath} $buildtime');
-    var builtWidget = builder(widget.ctx, constraints);
-    widget.ctx.cleanWidgetData(buildtime);
+    bool hasChanged = widget.ctx.hasChangedSince(cacheWidget.buildtime);
+    if (isWidgetCacheEnable(constraints) &&
+        !hasChanged &&
+        cacheWidget.builtWidget != null) {
+      return cacheWidget.builtWidget!;
+    }
 
-    return builtWidget;
+    styleFactory.init();
+    styleFactory.setConfigMargin();
+    styleFactory.setConfigBox();
+    num? h = widget.ctx.dataWidget?[cwProps]?['height'];
+    num? w = widget.ctx.dataWidget?[cwProps]?['width'];
+    styleFactory.config.height = h?.toDouble();
+    styleFactory.config.width = w?.toDouble();
+
+    if (debugCreateSlotWidget) {
+      print(
+        ' build CwWidget ${widget.ctx.aWidgetPath} ${cacheWidget.buildtime}',
+      );
+    }
+
+    cacheWidget.buildtime = DateTime.now().millisecondsSinceEpoch;
+    cacheWidget.builtWidget = builder(widget.ctx, constraints, BuildInfo());
+    widget.ctx.cleanWidgetData(cacheWidget.buildtime);
+
+    cacheWidget.builtWidget = styleFactory.getStyledBox(
+      cacheWidget.builtWidget!,
+      context,
+      initBefore: false,
+      useContainerWrapper: useContainerWrapper,
+    );
+
+    return cacheWidget.builtWidget!;
   }
 
   @override
@@ -581,7 +783,7 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
 
   @override
   void dispose() {
-    // widget.ctx.state = null;
+    cacheWidget.dispose();
     super.dispose();
   }
 
@@ -594,15 +796,30 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
   // }
 
   CwSlot getSlot(CwSlotProp slotProp, {CwWidgetCtx? fromCtx}) {
-    var ret = widget.ctx.aFactory.getSlot(fromCtx ?? widget.ctx, slotProp.id);
-    ret.config.ctx.selectorCtxIfDesign?.inSlotName = slotProp.name;
-    ret.config.ctx.slotProps = slotProp;
-    ret.config.ctx.buildSlotTime = buildtime;
-    return ret;
+    CwSlot aSlot = widget.ctx.aFactory.getSlot(
+      fromCtx ?? widget.ctx,
+      slotProp.id,
+    );
+    aSlot.config.ctx.selectorCtxIfDesign?.inSlotName = slotProp.name;
+    aSlot.config.ctx.slotProps = slotProp;
+    aSlot.config.ctx.buildSlotTime = cacheWidget.buildtime;
+    return aSlot;
   }
 
   String? getStringProp(CwWidgetCtx ctx, String propName) {
     return HelperEditor.getStringProp(ctx, propName);
+  }
+
+  Icon? getIconProp(CwWidgetCtx ctx, String propName) {
+    Map<String, dynamic>? iconProp = getObjProp(ctx, propName);
+    Icon? icon;
+    if (iconProp != null) {
+      var iconDes = deserializeIcon(iconProp);
+      if (iconDes != null) {
+        icon = Icon(iconDes.data, color: styleFactory.getColor('fgColor'));
+      }
+    }
+    return icon;
   }
 
   Map<String, dynamic>? getObjProp(CwWidgetCtx ctx, String propName) {
@@ -627,16 +844,16 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
 }
 
 class CwWidgetConfig {
-  Map<String, CwWidgetSlotConfig> slotsConfig = {};
+  //Map<String, CwWidgetSlotConfig> slotsConfig = {};
   List<CwWidgetProperties> properties = [];
   List<CwWidgetProperties> style = [];
 
   CwWidgetConfig();
 
-  CwWidgetConfig addSlot(CwWidgetSlotConfig prop) {
-    slotsConfig[prop.id] = prop;
-    return this;
-  }
+  // CwWidgetConfig addSlot(CwWidgetSlotConfig prop) {
+  //   slotsConfig[prop.id] = prop;
+  //   return this;
+  // }
 
   CwWidgetConfig addProp(CwWidgetProperties prop) {
     properties.add(prop);
@@ -659,21 +876,33 @@ class CwWidgetProperties {
   final String id;
   final String name;
   Widget? input;
+  Map<String, dynamic>? json;
+  final bool withEditor;
 
-  CwWidgetProperties({required this.id, required this.name});
+  CwWidgetProperties({
+    required this.id,
+    required this.name,
+    this.withEditor = true,
+  });
 
   Map<String, dynamic> jsonFromCtx(CwWidgetCtx ctx, List<String>? path) {
     ctx.createDataOnParentIfNeeded();
-    return ctx.initPropsIfNeeded(path: path);
+    json = ctx.initPropsIfNeeded(path: path);
+    final deepClone = jsonDecode(jsonEncode(json));
+    return deepClone!;
   }
 
   void isIcon(CwWidgetCtx ctx, {List<String>? path}) {
     var json = jsonFromCtx(ctx, path);
+    if (withEditor == false) {
+      input = null;
+      return;
+    }
     input = IconEditor(
       key: ValueKey('$id@${json.hashCode}'),
       json: json,
       config: this,
-      onJsonChanged: ctx.onValueChange(path: path),
+      onJsonChanged: ctx.onValueChange(this, path: path),
     );
   }
 
@@ -683,28 +912,48 @@ class CwWidgetProperties {
     ValueChanged<Map>? onJsonChanged,
     List<String>? path,
   }) {
-    isInt(
-      (ctx),
-      defaultValue: defaultValue,
-      onJsonChanged: onJsonChanged,
-      path: path,
-      config: CwWidgetProperties(id: 'height', name: 'height'),
+    var cwPropHeight = CwWidgetProperties(
+      id: 'height',
+      name: 'height',
+      withEditor: withEditor,
     );
-    var i1 = input!;
     isInt(
       (ctx),
       defaultValue: defaultValue,
       onJsonChanged: (value) {
-        ctx.onValueChange(path: path)(value);
-        if (ctx.isParentOfType('table')) {
-          ctx.parentCtx?.repaint();
-        }
+        ctx.onValueChange(
+          cwPropHeight,
+          path: path,
+          repaintParent: ctx.isParentOfType('table'),
+        )(value);
       },
       path: path,
-      config: CwWidgetProperties(id: 'width', name: 'width'),
+      config: cwPropHeight,
+    );
+    var i1 = input!;
+    var cwPropWidth = CwWidgetProperties(
+      id: 'width',
+      name: 'width',
+      withEditor: withEditor,
+    );
+    isInt(
+      (ctx),
+      defaultValue: defaultValue,
+      onJsonChanged: (value) {
+        ctx.onValueChange(
+          cwPropWidth,
+          path: path,
+          repaintParent: ctx.isParentOfType('table'),
+        )(value);
+      },
+      path: path,
+      config: cwPropWidth,
     );
     var i2 = input!;
-
+    if (withEditor == false) {
+      input = null;
+      return;
+    }
     input = Row(children: [Flexible(child: i1), Flexible(child: i2)]);
   }
 
@@ -717,6 +966,10 @@ class CwWidgetProperties {
   }) {
     var idd = config?.id ?? id;
     var json = jsonFromCtx(ctx, path);
+    if (withEditor == false) {
+      input = null;
+      return;
+    }
     input = TextEditor(
       info: TextfieldBuilderInfo(
         label: name,
@@ -727,7 +980,7 @@ class CwWidgetProperties {
       key: ValueKey('$idd@${json.hashCode}@${json[idd] ?? defaultValue}'),
       json: json,
       config: config ?? this,
-      onJsonChanged: onJsonChanged ?? ctx.onValueChange(path: path),
+      onJsonChanged: onJsonChanged ?? ctx.onValueChange(this, path: path),
     );
   }
 
@@ -741,6 +994,10 @@ class CwWidgetProperties {
     bool unselect = false,
   }) {
     var json = jsonFromCtx(ctx, path);
+    if (withEditor == false) {
+      input = null;
+      return;
+    }
     input = SliderEditor(
       min: min,
       max: max,
@@ -748,18 +1005,22 @@ class CwWidgetProperties {
       key: ValueKey('$id@${json.hashCode}'),
       json: json,
       config: this,
-      onJsonChanged: ctx.onValueChange(path: path, unselect: unselect),
+      onJsonChanged: ctx.onValueChange(this, path: path, unselect: unselect),
     );
   }
 
   void isColor(CwWidgetCtx ctx, {IconData? icon, List<String>? path}) {
     var json = jsonFromCtx(ctx, path);
+    if (withEditor == false) {
+      input = null;
+      return;
+    }
     input = HexColorEditor(
       key: ValueKey('$id@${json.hashCode}'),
       json: json,
       config: this,
       icon: icon,
-      onJsonChanged: ctx.onValueChange(path: path),
+      onJsonChanged: ctx.onValueChange(this, path: path),
     );
   }
 
@@ -769,11 +1030,15 @@ class CwWidgetProperties {
     List<String>? path,
   }) {
     var json = jsonFromCtx(ctx, path);
+    if (withEditor == false) {
+      input = null;
+      return;
+    }
     input = BoolEditor(
       key: ValueKey('$id@${json.hashCode}'),
       json: json,
       config: this,
-      onJsonChanged: onJsonChanged ?? ctx.onValueChange(path: path),
+      onJsonChanged: onJsonChanged ?? ctx.onValueChange(this, path: path),
     );
   }
 
@@ -786,6 +1051,10 @@ class CwWidgetProperties {
     List<String>? path,
   }) {
     var json = jsonFromCtx(ctx, path);
+    if (withEditor == false) {
+      input = null;
+      return;
+    }
     input = ToogleEditor(
       defaultValue: defaultValue,
       key: GlobalKey(
@@ -793,7 +1062,7 @@ class CwWidgetProperties {
       ), //ValueKey('$id@${json.hashCode}'),
       json: json,
       config: this,
-      onJsonChanged: onJsonChanged ?? ctx.onValueChange(path: path),
+      onJsonChanged: onJsonChanged ?? ctx.onValueChange(this, path: path),
       items: items,
       isMultiple: isMultiple,
     );
@@ -801,6 +1070,10 @@ class CwWidgetProperties {
 
   void isText(CwWidgetCtx ctx, {List<String>? path}) {
     var json = jsonFromCtx(ctx, path);
+    if (withEditor == false) {
+      input = null;
+      return;
+    }
     input = TextEditor(
       info: TextfieldBuilderInfo(
         label: name,
@@ -811,7 +1084,7 @@ class CwWidgetProperties {
       key: ValueKey('$id@${json.hashCode}'),
       json: json,
       config: this,
-      onJsonChanged: ctx.onValueChange(path: path),
+      onJsonChanged: ctx.onValueChange(this, path: path),
     );
   }
 }

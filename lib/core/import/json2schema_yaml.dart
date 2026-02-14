@@ -53,7 +53,9 @@ class JsonToSchemaYaml {
   }
 
   String getType(dynamic v) {
-    if (v is num) {
+    if (v is int) {
+      return 'integer';
+    } else if (v is num) {
       return 'number';
     } else if (v is bool) {
       return 'boolean';

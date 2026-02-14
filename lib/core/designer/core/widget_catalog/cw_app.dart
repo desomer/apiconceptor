@@ -7,18 +7,16 @@ import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 
 class CwApp extends CwWidget {
-  const CwApp({super.key, required super.ctx});
+  const CwApp({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'app',
-      build: (ctx) => CwApp(key: ctx.getKey(), ctx: ctx),
+      build:
+          (ctx) =>
+              CwApp(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
       config: (ctx) {
         return CwWidgetConfig()
-            // ..addSlot(CwWidgetSlotConfig(id: "appbar"))
-            // ..addSlot(CwWidgetSlotConfig(id: "bottombar"))
-            // ..addSlot(CwWidgetSlotConfig(id: "floatingActionButton"))
-            // ..addSlot(CwWidgetSlotConfig(id: "body"))
             .addStyle(
               CwWidgetProperties(id: 'color', name: 'seed color')..isColor(ctx),
             )
@@ -52,6 +50,8 @@ class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
 
   @override
   void dispose() {
+    widget.ctx.aFactory.routeControllerViewer = null;
+    widget.ctx.aFactory.routeControllerDesigner = null;
     themeController.dispose();
     routeController.dispose();
     routerBuilderController.dispose();
@@ -60,7 +60,11 @@ class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
 
   @override
   Widget build(BuildContext context) {
-    return buildWidget(false, ModeBuilderWidget.noConstraint, (ctx, constraints) {
+    return buildWidget(false, ModeBuilderWidget.noConstraint, (
+      ctx,
+      constraints,
+      _,
+    ) {
       var isDark = getBoolProp(widget.ctx, 'darkMode') ?? false;
       ThemeData theme = getTheme(isDark);
       themeController.setDefaultTheme(theme);
@@ -77,17 +81,6 @@ class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
           );
         },
       );
-
-      // return MaterialApp(
-      //   debugShowCheckedModeBanner: false,
-      //   theme: theme,
-      //   home: AnimatedBuilder(
-      //     animation: themeController,
-      //     builder: (context, _) {
-      //       return getResponsiveDrawerScaffold(context, '/');
-      //     },
-      //   ),
-      // );
       return ret;
     });
   }
@@ -96,47 +89,67 @@ class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
     return true;
   }
 
+  @override
+  bool clearWidgetCache({bool clearInnerWidget = false}) {
+    //routerBuilderController.value++;
+    widget.ctx.aFactory.cachePagesDesign.clear();
+    widget.ctx.aFactory.cachePagesViewer.clear();
+    return super.clearWidgetCache(clearInnerWidget: clearInnerWidget);
+  }
 
   GoRouter goRouter() {
-    List<GoRoute> routes = [];
-
     var appRoutes = widget.ctx.aFactory.appData[cwApp][cwSlots] as Map;
+    List<GoRoute> routes = [];
+    if (routes.isEmpty) {
+      for (var route in appRoutes.entries) {
+        var routeData = route.value;
+        routes.add(
+          GoRoute(
+            path: routeData[cwRoutePath],
+            //name: routeData[cwRouteName],
+            pageBuilder: (context, state) {
+              var cachePages =
+                  widget.ctx.aFactory.isModeDesigner()
+                      ? widget.ctx.aFactory.cachePagesDesign
+                      : widget.ctx.aFactory.cachePagesViewer;
 
-    for (var route in appRoutes.entries) {
-      var routeData = route.value;
-      routes.add(
-        GoRoute(
-          path: routeData[cwRoutePath],
-          //name: routeData[cwRouteName],
-          pageBuilder:
-              (context, state) => NoTransitionPage(
-                child: getPage(context, route.value[cwRouteId]),
-              ),
-        ),
-      );
+              Widget? page = cachePages[route.value[cwRouteId]];
+              if (page == null) {
+                page = getPage(context, route.value[cwRouteId]);
+                if (withWidgetCache) {
+                  cachePages[route.value[cwRouteId]] = page;
+                }
+              }
+
+              return NoTransitionPage(child: page);
+            },
+          ),
+        );
+      }
+
+      for (var i = 0; i < 10; i++) {
+        routes.add(
+          GoRoute(
+            path: '/temp/page_slot_$i',
+            //name: routeData[cwRouteName],
+            pageBuilder: (context, state) {
+              var route = widget.ctx.aFactory.listSlotsPageInRouter[i];
+
+              return NoTransitionPage(
+                child: getPage(context, route[cwRouteId]),
+              );
+            },
+          ),
+        );
+      }
     }
 
-    for (var i = 0; i < 10; i++) {
-      routes.add(
-        GoRoute(
-          path: '/temp/page_slot_$i',
-          //name: routeData[cwRouteName],
-          pageBuilder: (context, state) {
-            var route = widget.ctx.aFactory.listSlotsPageInRouter[i];
-
-            return NoTransitionPage(child: getPage(context, route[cwRouteId]));
-          },
-        ),
-      );
-    }
-
-    var myRouteObserver = MyRouteObserver(factory : widget.ctx.aFactory);
+    var myRouteObserver = MyRouteObserver(factory: widget.ctx.aFactory);
     var router = GoRouter(
       observers: [myRouteObserver],
       initialLocation: routeController.value,
       routes: [
         ShellRoute(
-          //navigatorKey: widget.ctx.aFactory.rootNavigatorKey,
           builder: (context, state, child) {
             return child;
           },
@@ -149,7 +162,6 @@ class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
   }
 
   Widget getPage(BuildContext context, String routeId) {
-    //CwWidgetCtx pageCtx = widget.ctx.aFactory.getPageCtx(widget.ctx, routeId);
     return getSlot(CwSlotProp(id: routeId, name: 'page'));
   }
 
@@ -207,7 +219,7 @@ class MyRouteObserver extends NavigatorObserver {
 
   @override
   void didPush(Route route, Route? previousRoute) {
-    print("Route push: ${route.settings.name} ${router.state.path}");
+    //print("Route push: ${route.settings.name} ${router.state.path}");
     factory.routeControllerDesigner?.value = router.state.path!;
     factory.routeControllerViewer?.value = router.state.path!;
   }

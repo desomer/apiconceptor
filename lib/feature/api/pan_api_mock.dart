@@ -135,6 +135,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
                 var export = Export2FakeJson(
                   modeArray: ModeArrayEnum.anyInstance,
                   mode: ModeEnum.fake,
+                  propMode: PropertyRequiredEnum.all
                 )..browse(aSchema, false);
                 widget.requestHelper.apiCallInfo.mock = export.json;
                 widget.requestHelper.apiCallInfo.mockStr = export

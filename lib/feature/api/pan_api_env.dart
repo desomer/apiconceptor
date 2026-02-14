@@ -56,7 +56,7 @@ class InfoManagerEnv extends InfoManager with WidgetHelper {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     // TODO: implement getRowHeader
     throw UnimplementedError();
   }

@@ -37,7 +37,7 @@ mixin PanModelEditorHelper {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey('${attr.info.name}%${attr.info.numUpdateForKey}'),
+        key: ValueKey('${schema.getVersionId()}%${attr.info.name}%${attr.info.numUpdateForKey}'),
         acces: ModelAccessorAttr(node: attr, schema: schema, propName: 'title'),
       ),
     );
@@ -62,6 +62,8 @@ mixin PanModelEditorHelper {
       if (attr.info.properties?['enum'] != null) Icon(Icons.checklist),
       if (attr.info.properties?['pattern'] != null)
         getChip(Text('regex'), color: null),
+      if (attr.info.properties?['format'] != null)
+        getChip(Text(attr.info.properties?['format']), color: null),        
       if (minmax) Icon(Icons.tune),
       if (attr.info.properties?['#link'] != null)
         getChip(Text('link'), color: Colors.blue),

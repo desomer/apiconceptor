@@ -285,7 +285,7 @@ final GoRouter router = GoRouter(
   routes: [
     ShellRoute(
       navigatorKey: navigatorKey,
-      builder: (context, state, child2) {
+      builder: (context, state, childPage) {
         return ValueListenableBuilder(
           valueListenable: zoom,
           builder: (context, value, child) {
@@ -299,7 +299,7 @@ final GoRouter router = GoRouter(
               ),
               child: Layout(
                 routerState: state,
-                navChild: child2, // 🔥 route actuelle
+                navChild: childPage, // 🔥 route actuelle
               ),
             );
           },
@@ -384,6 +384,11 @@ final GoRouter router = GoRouter(
           AppsPageDesigner(mode: DesignMode.designer),
         ),
         addRouteBy(Pages.pageViewer, AppsPageDesigner(mode: DesignMode.viewer)),
+        // addRoute(
+        //   GoRoute(path: Pages.pageViewer.urlpath, pageBuilder: getPageNoAnim),
+        //   (context, state) => AppsPageDesigner(mode: DesignMode.viewer),
+        // ),
+
         addRouteBy(Pages.pageDebug, AppsPageDesignerDebug()),
         //----------------------------------------------------------------
         addRouteBy(Pages.log, LogPage()),

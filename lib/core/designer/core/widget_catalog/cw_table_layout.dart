@@ -1,5 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 
 class FrozenTableView extends StatefulWidget {
   final int rowCount;
@@ -16,7 +18,13 @@ class FrozenTableView extends StatefulWidget {
   final Widget Function(int row, int col) buildBottomCell;
   final Widget Function(int row, int col) buildLeftCell;
   final Widget Function(int row, int col) buildBodyCell;
-  final Widget Function(int row, bool isStartCols, Widget child) buildRow;
+  final Widget Function(
+    int row,
+    bool isStartCols,
+    Widget child,
+    FrozenTableViewState tableState,
+  )
+  buildRow;
   final double Function(int col) getColWidth;
   final double? Function(int row) getRowHeight;
 
@@ -39,10 +47,16 @@ class FrozenTableView extends StatefulWidget {
   });
 
   @override
-  State<FrozenTableView> createState() => _FrozenTableViewState();
+  State<FrozenTableView> createState() => FrozenTableViewState();
 }
 
-class _FrozenTableViewState extends State<FrozenTableView> {
+class CwRowCache {
+  final CwTableRowState cwTableRowState;
+  CwRowCache(this.cwTableRowState);
+  List<Widget>? rowCells;
+}
+
+class FrozenTableViewState extends State<FrozenTableView> {
   final ScrollController vertical = ScrollController();
   final ScrollController vertical2 = ScrollController();
   final ScrollController horizontal1 = ScrollController();
@@ -50,9 +64,128 @@ class _FrozenTableViewState extends State<FrozenTableView> {
   final ScrollController horizontal3 = ScrollController();
 
   Map<int, double> colWidthMap = {};
-  
+
   bool topScrollbarVisible = false;
-  double topMargin =  0;
+  double topMargin = 0;
+
+  Map<int, CwRowCache> visibleRowKeyA = {};
+  Map<int, CwRowCache> visibleRowKeyB = {};
+
+  CwTableRow? getCacheTableRowState(CwRowInfo info, Widget child) {
+    CwTableRowState? cache = getCacheRow(info)?.cwTableRowState;
+    if (cache != null) {
+      cache.setNewChild(child);
+      cache.setState(() {});
+    }
+    return cache?.widget;
+  }
+
+  CwRowCache? getCacheRow(CwRowInfo info) {
+    if (!withWidgetCache) {
+      return null;
+    }
+    if (info.isStartCols) {
+      return visibleRowKeyA[info.row];
+    } else {
+      return visibleRowKeyB[info.row];
+    }
+  }
+
+  CwRowCache? getCacheRowByIdx(int row, bool isStartCols) {
+    if (!withWidgetCache) {
+      return null;
+    }
+    if (isStartCols) {
+      return visibleRowKeyA[row];
+    } else {
+      return visibleRowKeyB[row];
+    }
+  }
+
+  void disposeRowState(CwRowInfo info, CwTableRowState cwTableRowState) {
+    if (info.isStartCols) {
+      if (visibleRowKeyA[info.row]?.cwTableRowState == cwTableRowState) {
+        visibleRowKeyA.remove(info.row);
+      }
+    } else {
+      if (visibleRowKeyB[info.row]?.cwTableRowState == cwTableRowState) {
+        visibleRowKeyB.remove(info.row);
+      }
+    }
+  }
+
+  void initRowState(CwRowInfo info, CwTableRowState cwTableRowState) {
+    if (info.isStartCols) {
+      if (visibleRowKeyA[info.row]?.cwTableRowState != cwTableRowState) {
+        visibleRowKeyA[info.row] = CwRowCache(cwTableRowState);
+      }
+    } else {
+      if (visibleRowKeyB[info.row]?.cwTableRowState != cwTableRowState) {
+        visibleRowKeyB[info.row] = CwRowCache(cwTableRowState);
+      }
+    }
+  }
+
+  void setSelectedRowIndex(int row, {bool scrollIntoView = true}) {
+    // int max = 0;
+    // int min = widget.rowCount + 1;
+    var rowFreezeTop = widget.rowCountTop;
+
+    visibleRowKeyA[row + rowFreezeTop]?.cwTableRowState.setState(() {});
+    visibleRowKeyB[row + rowFreezeTop]?.cwTableRowState.setState(() {});
+
+    if (!scrollIntoView) {
+      return;
+    }
+
+    final pos = vertical2.position;
+    final viewMin = vertical2.position.pixels;
+    final viewMax = vertical2.position.pixels + pos.viewportDimension;
+
+    double topPos = 0;
+    for (int r = rowFreezeTop; r < row + rowFreezeTop; r++) {
+      topPos += widget.getRowHeight(r) ?? 30;
+    }
+    if (topPos < viewMin) {
+      // scroll up
+      //print("setSelectedRowIndex row=$row min=$min max=$max offset=$topPos");
+      vertical2.animateTo(
+        topPos,
+        duration: Duration(milliseconds: 1000),
+        curve: Curves.easeInOut,
+      );
+    }
+    var bottomPos = topPos + (widget.getRowHeight(row + rowFreezeTop) ?? 30);
+    if (bottomPos > viewMax) {
+      // scroll down
+      //print("setSelectedRowIndex row=$row min=$min max=$max offset=$topPos");
+      double viewHeight = vertical2.position.viewportDimension;
+      vertical2.animateTo(
+        bottomPos - viewHeight,
+        duration: Duration(milliseconds: 1000),
+        curve: Curves.easeInOut,
+      );
+    }
+
+    // if (row < min) {
+    //   // scroll up
+    //   double offset = 0;
+    //   for (int r = 0; r < row; r++) {
+    //     offset += widget.getRowHeight(r) ?? 30;
+    //   }
+    //   //vertical.jumpTo(offset);
+    //   vertical2.animateTo(offset, duration: Duration(milliseconds: 300), curve: Curves.easeInOut);
+    // } else if (row > max) {
+    //   // scroll down
+    //   double offset = 0;
+    //   for (int r = 0; r <= row; r++) {
+    //     offset += widget.getRowHeight(r) ?? 30;
+    //   }
+    //   double viewHeight = vertical2.position.viewportDimension;
+    //   //vertical.jumpTo(offset - viewHeight);
+    //   vertical2.jumpTo(offset - viewHeight);
+    // }
+  }
 
   @override
   void initState() {
@@ -63,7 +196,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
       }
     });
     vertical2.addListener(() {
-      if (vertical.offset != vertical2.offset) {
+      if (vertical.hasClients && vertical.offset != vertical2.offset) {
         vertical.jumpTo(vertical2.offset);
       }
     });
@@ -154,10 +287,15 @@ class _FrozenTableViewState extends State<FrozenTableView> {
   }
 
   double getColWidth(int colIndex) {
+    double r = 0;
     if (colWidthMap.containsKey(colIndex)) {
-      return colWidthMap[colIndex]!;
+      r = colWidthMap[colIndex]!;
+      //print(' getColWidth $colIndex = $r');
+      return r;
     }
-    return widget.getColWidth(colIndex);
+    r = widget.getColWidth(colIndex);
+    //print(' getColWidth $colIndex = $r');
+    return r;
   }
 
   Widget getHeader(Widget child, int rowIndex, int colIndex) {
@@ -289,7 +427,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
 
   // Ligne gelée en haut
   Widget _topFrozenRow() {
-    var witdh = getWitdhR(widget.colFreezeLeftCount, widget.colCount);
+    var witdhRow = getWitdhR(widget.colFreezeLeftCount, widget.colCount);
 
     return _getWeellPointerScrollBehavior(
       horizontal1,
@@ -301,38 +439,41 @@ class _FrozenTableViewState extends State<FrozenTableView> {
         child: Container(
           margin: EdgeInsets.fromLTRB(0, topMargin, 0, 0),
           //  height: widget.rowHeight * widget.rowCountTop,
-          width: witdh, // <-- FIX
+          width: witdhRow, // <-- FIX
           child: ListView.builder(
             primary: false,
             shrinkWrap: true,
             itemCount: widget.rowCountTop,
-            itemBuilder:
-                (_, row) => widget.buildRow(
-                  row,
-                  false,
-                  SizedBox(
-                    // height: widget.getRowHeight(row),
-                    width: witdh, // <-- FIX
-                    child: Row(
-                      children: [
-                        for (
-                          int col = widget.colFreezeLeftCount;
-                          col < widget.colCount;
-                          col++
-                        )
-                          SizedBox(
-                            width: getColWidth(col),
-                            height: widget.getRowHeight(row),
-                            child: getHeader(
-                              widget.buildTopCell(row, col),
-                              row,
-                              col,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+            itemBuilder: (_, row) {
+              return getRowHeader(row, 0, witdhRow);
+              // return widget.buildRow(
+              //   row,
+              //   false,
+              //   SizedBox(
+              //     // height: widget.getRowHeight(row),
+              //     width: witdh, // <-- FIX
+              //     child: Row(
+              //       children: [
+              //         for (
+              //           int col = widget.colFreezeLeftCount;
+              //           col < widget.colCount;
+              //           col++
+              //         )
+              //           SizedBox(
+              //             width: getColWidth(col),
+              //             height: widget.getRowHeight(row),
+              //             child: getHeader(
+              //               widget.buildTopCell(row, col),
+              //               row,
+              //               col,
+              //             ),
+              //           ),
+              //       ],
+              //     ),
+              //   ),
+              //   this,
+              // );
+            },
           ),
         ),
       ),
@@ -388,6 +529,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
                       ],
                     ),
                   ),
+                  this,
                 ),
           ),
         ),
@@ -436,6 +578,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
                   ],
                 ),
               ),
+              this,
             ),
       ),
     );
@@ -481,6 +624,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
                   ],
                 ),
               ),
+              this,
             ),
       ),
     );
@@ -521,6 +665,7 @@ class _FrozenTableViewState extends State<FrozenTableView> {
                       ),
                   ],
                 ),
+                this,
               ),
             ),
       ),
@@ -529,54 +674,117 @@ class _FrozenTableViewState extends State<FrozenTableView> {
 
   // Corps du tableau
   Widget _body() {
-    var witdh = getWitdhR(widget.colFreezeLeftCount, widget.colCount);
-    return SingleChildScrollView(
-      controller: vertical2,
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        controller: horizontal3,
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          //height: widget.rowHeight * widget.rowCount,
-          width: witdh,
-          // (widget.colCount - widget.colFreezeLeftCount) *
-          // widget.colWidth, // <-- FIX
-          child: ListView.builder(
-            primary: false,
-            shrinkWrap: true,
-            itemCount:
-                widget.rowCount - widget.rowCountTop - widget.rowCountBottom,
-            itemBuilder:
-                (_, row) => widget.buildRow(
-                  row + widget.rowCountTop,
-                  false,
-                  SizedBox(
-                    // height: widget.getRowHeight(row + widget.rowCountTop),
-                    width: witdh, // <-- FIX
-                    child: Row(
-                      children: [
-                        for (
-                          int col = widget.colFreezeLeftCount;
-                          col < widget.colCount;
-                          col++
-                        )
-                          SizedBox(
-                            width: getColWidth(col),
-                            height: widget.getRowHeight(
-                              row + widget.rowCountTop,
-                            ),
-                            child: widget.buildBodyCell(
-                              row + widget.rowCountTop,
-                              col,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-          ),
+    var witdhRow = getWitdhR(widget.colFreezeLeftCount, widget.colCount);
+    var heightRowCache = widget.getRowHeight(0 + widget.rowCountTop);
+    return //SingleChildScrollView(
+    //controller: vertical2,
+    //scrollDirection: Axis.vertical,
+    //child:
+    SingleChildScrollView(
+      controller: horizontal3,
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: witdhRow,
+        //height: 200,
+        child: ListView.builder(
+          controller: vertical2,
+          primary: false,
+          shrinkWrap: true,
+          cacheExtent: 10,
+          itemExtent: heightRowCache,
+          itemCount:
+              widget.rowCount - widget.rowCountTop - widget.rowCountBottom,
+          itemBuilder: (_, row) {
+            return getRow(row, widget.rowCountTop, witdhRow);
+          },
         ),
       ),
+      // ),
     );
+  }
+
+  Widget getRow(int row, int rowTop, double witdhRow) {
+    var heightRow = widget.getRowHeight(row + rowTop);
+    var cacheRow = getCacheRowByIdx(row + rowTop, false);
+    // if (cacheRow != null) {
+    //   print(
+    //     'Using cached row for row index ${row + rowTop} ${cacheRow.cwTableRowState}',
+    //   );
+    // }
+    List<Widget> aRowCells;
+    if (cacheRow?.rowCells != null) {
+      aRowCells = cacheRow!.rowCells!;
+    } else {
+      aRowCells = [];
+      for (int col = widget.colFreezeLeftCount; col < widget.colCount; col++) {
+        aRowCells.add(widget.buildBodyCell(row + rowTop, col));
+      }
+      if (cacheRow != null) {
+        cacheRow.rowCells = aRowCells;
+      }
+    }
+
+    var aRow = Row(
+      children: [
+        for (int col = widget.colFreezeLeftCount; col < widget.colCount; col++)
+          SizedBox(
+            width: getColWidth(col),
+            height: heightRow,
+            child: aRowCells[col - widget.colFreezeLeftCount],
+          ),
+      ],
+    );
+    return widget.buildRow(
+      row + rowTop,
+      false,
+      SizedBox(width: witdhRow, child: aRow),
+      this,
+    );
+  }
+
+  Widget getRowHeader(int row, int rowTop, double witdhRow) {
+    var heightRow = widget.getRowHeight(row + rowTop);
+    var cacheRow = getCacheRowByIdx(row + rowTop, false);
+    // if (cacheRow != null) {
+    //   print(
+    //     'Using cached row for row index ${row + rowTop} ${cacheRow.cwTableRowState}',
+    //   );
+    // }
+    List<Widget> aRowCells;
+    if (cacheRow?.rowCells != null) {
+      aRowCells = cacheRow!.rowCells!;
+    } else {
+      aRowCells = [];
+      for (int col = widget.colFreezeLeftCount; col < widget.colCount; col++) {
+        aRowCells.add(
+          getHeader(widget.buildTopCell(row + rowTop, col), row + rowTop, col),
+        );
+      }
+      if (cacheRow != null) {
+        cacheRow.rowCells = aRowCells;
+      }
+    }
+
+    var aRow = Row(
+      children: [
+        for (int col = widget.colFreezeLeftCount; col < widget.colCount; col++)
+          SizedBox(
+            width: getColWidth(col),
+            height: heightRow,
+            child: aRowCells[col - widget.colFreezeLeftCount],
+          ),
+      ],
+    );
+    return widget.buildRow(
+      row + rowTop,
+      false,
+      SizedBox(width: witdhRow, child: aRow),
+      this,
+    );
+  }
+
+  void clearWidgetCache() {
+    visibleRowKeyA.clear();
+    visibleRowKeyB.clear();
   }
 }

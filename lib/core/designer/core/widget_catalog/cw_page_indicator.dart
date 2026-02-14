@@ -6,12 +6,21 @@ import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 
 class CwAdvancedPager extends CwWidget {
-  const CwAdvancedPager({super.key, required super.ctx});
+  const CwAdvancedPager({
+    super.key,
+    required super.ctx,
+    required super.cacheWidget,
+  });
 
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'pager',
-      build: (ctx) => CwAdvancedPager(key: ctx.getKey(), ctx: ctx),
+      build:
+          (ctx) => CwAdvancedPager(
+            key: ctx.getKey(),
+            ctx: ctx,
+            cacheWidget: CachedWidget(),
+          ),
       config: (ctx) {
         return CwWidgetConfig();
       },
@@ -29,6 +38,8 @@ class _AdvancedPagerState extends CwWidgetState<CwAdvancedPager>
   CwRepository? repos;
 
   void goTo(BuildContext context, int page) {
+    if (widget.ctx.aFactory.isModeDesigner()) return;
+
     setState(() {
       currentPage = page;
       CwRepositoryAction(ctx: widget.ctx, repo: repos!).goToPage(context, page);
@@ -37,9 +48,10 @@ class _AdvancedPagerState extends CwWidgetState<CwAdvancedPager>
 
   @override
   Widget build(BuildContext context) {
-    return buildWidget(true, ModeBuilderWidget.constraintBuilder, (
+    return buildWidget(true, ModeBuilderWidget.layoutBuilder, (
       ctx,
       constraints,
+      _,
     ) {
       repos =
           ctx.aFactory.mapRepositories[ctx
@@ -101,7 +113,8 @@ class _AdvancedPagerState extends CwWidgetState<CwAdvancedPager>
         // Previous
         FilledButton.tonal(
           style: bs,
-          onPressed: currentPage > 0 ? () => goTo(context, currentPage - 1) : null,
+          onPressed:
+              currentPage > 0 ? () => goTo(context, currentPage - 1) : null,
           child: const Text("<"),
         ),
 
@@ -138,7 +151,9 @@ class _AdvancedPagerState extends CwWidgetState<CwAdvancedPager>
         FilledButton.tonal(
           style: bs,
           onPressed:
-              currentPage < pageCount - 1 ? () => goTo(context, currentPage + 1) : null,
+              currentPage < pageCount - 1
+                  ? () => goTo(context, currentPage + 1)
+                  : null,
           child: const Text(">"),
         ),
 
@@ -146,7 +161,9 @@ class _AdvancedPagerState extends CwWidgetState<CwAdvancedPager>
         FilledButton.tonal(
           style: bs,
           onPressed:
-              currentPage < pageCount - 1 ? () => goTo(context, pageCount - 1) : null,
+              currentPage < pageCount - 1
+                  ? () => goTo(context, pageCount - 1)
+                  : null,
           child: const Text(">>"),
         ),
       ],

@@ -73,7 +73,7 @@ class HomePage extends GenericPageStateless {
       bodyBuilder:
           (_, animation) => FadeTransition(opacity: animation, child: child),
       expansibleBuilder:
-          (_, header, body, __) => Column(
+          (_, header, body, _) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.start,
             children: [header, body],

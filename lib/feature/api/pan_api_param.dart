@@ -239,6 +239,7 @@ class _PanApiParamState extends State<PanApiParam> {
               var export = Export2FakeJson(
                 modeArray: ModeArrayEnum.anyInstance,
                 mode: ModeEnum.fake,
+                propMode: PropertyRequiredEnum.all
               )..browse(aSchema, false);
               widget.requestHelper.apiCallInfo.body = export.json;
               widget.requestHelper.apiCallInfo.bodyStr = export.prettyPrintJson(

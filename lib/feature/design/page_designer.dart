@@ -57,12 +57,11 @@ class _PageDesignerState extends State<PageDesigner> {
   Widget build(BuildContext context) {
     widget.factory.mode = widget.mode;
 
-    var rootSlot = widget.factory.getRootSlot('/');
-
     if (isInitialized) {
       isInitialized = false;
       widget.factory.onStarted?.call();
     }
+    Widget rootSlot = widget.factory.getRootSlot('/');
 
     if (widget.mode == DesignMode.viewer) {
       var j = jsonEncode(widget.factory.appData);
@@ -102,7 +101,10 @@ class _PageDesignerState extends State<PageDesigner> {
               child: Row(
                 spacing: 5,
                 mainAxisSize: MainAxisSize.min,
-                children: const [Icon(Icons.electric_bolt_rounded), Text("Behavior")],
+                children: const [
+                  Icon(Icons.electric_bolt_rounded),
+                  Text("Behavior"),
+                ],
               ),
             ), //icon: Icon(Icons.style)
           ],
@@ -125,34 +127,43 @@ class _PageDesignerState extends State<PageDesigner> {
                 ),
               ],
             ),
-            Container(),
+            BehaviorSelectorViewer(
+              key: widget.factory.keyBehaviorViewer,
+              factory: widget.factory,
+            ),
           ],
           heightTab: 40,
         ),
-        SplitView(
-          secondaryWidth: 300,
-          primaryWidth: -1,
-          children: [
-            GestureDetector(
-              onTap: () {}, // evite le bip au cliq
-              child: PagesDesignerViewer(
-                cWDesignerMode: true,
-                aFactory: widget.factory,
-                child: rootSlot,
-              ),
-            ),
-
-            WidgetTab(
-              listTab: [Tab(text: 'Components'), Tab(text: 'Pages & dialogs')],
-              listTabCont: [
-                WidgetChoiser(factory: widget.factory),
-                WidgetPages(factory: widget.factory),
-              ],
-              heightTab: 30,
-            ),
-          ],
-        ),
+        widget.factory.largeDesigner
+            ? SplitView(
+              secondaryWidth: 300,
+              primaryWidth: -1,
+              children: [getPageViewer(rootSlot), getTabComponent()],
+            )
+            : getPageViewer(rootSlot),
       ],
+    );
+  }
+
+  Widget getPageViewer(Widget rootSlot) {
+    return GestureDetector(
+      onTap: () {}, // evite le bip au cliq
+      child: PagesDesignerViewer(
+        cWDesignerMode: true,
+        aFactory: widget.factory,
+        child: rootSlot,
+      ),
+    );
+  }
+
+  Widget getTabComponent() {
+    return WidgetTab(
+      listTab: [Tab(text: 'Components'), Tab(text: 'Pages & dialogs')],
+      listTabCont: [
+        WidgetChoiser(factory: widget.factory),
+        WidgetPages(factory: widget.factory),
+      ],
+      heightTab: 30,
     );
   }
 }

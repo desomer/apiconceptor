@@ -136,7 +136,7 @@ class InfoManagerDomain extends InfoManager with WidgetHelper {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     // TODO: implement getRowHeader
     throw UnimplementedError();
   }
@@ -182,7 +182,7 @@ class InfoManagerDomainVariables extends InfoManager with WidgetHelper {
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     // TODO: implement getRowHeader
     throw UnimplementedError();
   }

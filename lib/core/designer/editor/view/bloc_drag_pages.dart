@@ -1,12 +1,14 @@
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 
 class WidgetPages extends StatefulWidget {
-  const WidgetPages({super.key, required this.factory});
+  const WidgetPages({super.key, required this.factory, this.contextPopUp});
   final WidgetFactory factory;
+  final OverlayEntry? contextPopUp;
 
   @override
   State<WidgetPages> createState() => _WidgetPagesState();
@@ -56,6 +58,12 @@ class _WidgetPagesState extends State<WidgetPages> {
           );
         }
         return Draggable<DragNewComponentCtx>(
+          onDragCompleted: () {
+            if (widget.contextPopUp != null) {
+              widget.contextPopUp?.remove();
+              activeOverlayEntry = null;
+            }
+          },
           data: DragNewComponentCtx(
             idComponent: 'action',
             config: {

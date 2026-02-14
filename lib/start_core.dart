@@ -157,7 +157,7 @@ Future<ModelSchema> loadGlossary(String id, String name) async {
     infoManager: InfoManagerGlossary(),
     ref: null,
   );
-
+  schema.namespace = "default";
   if (withBdd) {
     try {
       await schema.loadYamlAndProperties(cache: false, withProperties: true);
@@ -253,6 +253,10 @@ Future<ModelSchema> loadSchema(
   JsonBrowser? browser,
   String? namespace,
 }) async {
+  if (category == null && type == TypeMD.listmodel) {
+    infoManager = InfoManagerListModel(typeMD: type);
+  }
+
   var m = ModelSchema(
     category: category ?? Category.allModel,
     headerName: name,
@@ -276,6 +280,8 @@ Future<ModelSchema> loadSchema(
 
 const constMasterID = '\$\$__id__';
 const constTypeAnyof = '\$\$__anyof__';
+const constNameAllof = '\$allof';
+const constInline = '\$inline';
 //const constTypeOneof = '\$\$__oneOf__';
 const constRefOn = '\$\$__ref__';
 const constType = '\$\$__type__';

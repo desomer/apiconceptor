@@ -4,12 +4,17 @@ import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 
 class CwDivider extends CwWidget {
-  const CwDivider({super.key, required super.ctx});
+  const CwDivider({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'divider',
-      build: (ctx) => CwDivider(key: ctx.getKey(), ctx: ctx),
+      build:
+          (ctx) => CwDivider(
+            key: ctx.getKey(),
+            ctx: ctx,
+            cacheWidget: CachedWidget(),
+          ),
       config: (ctx) {
         return CwWidgetConfig()
             .addProp(
@@ -32,7 +37,11 @@ class CwDivider extends CwWidget {
 class _CwTabBarState extends CwWidgetState<CwDivider> with HelperEditor {
   @override
   Widget build(BuildContext context) {
-    return buildWidget(true, ModeBuilderWidget.constraintBuilder, (ctx, constraints) {
+    return buildWidget(true, ModeBuilderWidget.constraintBuilder, (
+      ctx,
+      constraints,
+      _,
+    ) {
       double height = 1;
       var label = getStringProp(ctx, 'label');
       var spacer = getStringProp(ctx, 'type') == 'spacer';

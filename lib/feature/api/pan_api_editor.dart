@@ -283,7 +283,7 @@ class InfoManagerAPIParam extends InfoManagerModel with WidgetHelper {
   InfoManagerAPIParam({required super.typeMD});
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     var isParam = node.data.info.type == 'param';
     if (isParam) {
       String name = node.data.info.name;
@@ -294,7 +294,7 @@ class InfoManagerAPIParam extends InfoManagerModel with WidgetHelper {
         isArray: false,
       );
     }
-    return super.getRowHeader(node);
+    return super.getRowHeader(node, context);
   }
 
   @override

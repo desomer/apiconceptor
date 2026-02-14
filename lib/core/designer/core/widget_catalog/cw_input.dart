@@ -5,7 +5,7 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 
 class CwInput extends CwWidget {
-  const CwInput({super.key, required super.ctx});
+  const CwInput({super.key, required super.ctx, required super.cacheWidget});
 
   @override
   State<CwInput> createState() => _CwInputState();
@@ -26,7 +26,9 @@ class CwInput extends CwWidget {
 
     factory.register(
       id: 'input',
-      build: (ctx) => CwInput(key: ctx.getKey(), ctx: ctx),
+      build:
+          (ctx) =>
+              CwInput(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
       config: (ctx) {
         return CwWidgetConfig()
             .addProp(
@@ -48,6 +50,9 @@ class CwInput extends CwWidget {
                   defaultValue: 'border',
                   path: [cwStyle],
                 ),
+            )
+            .addStyle(
+              CwWidgetProperties(id: 'icon', name: 'icon')..isIcon(ctx),
             );
       },
       populateOnDrag: (ctx, drag) {
@@ -62,11 +67,22 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
   void setBindJsonValue(value) {
     if (widget.ctx.aFactory.isModeViewer()) {
       ctrlInput?.text = value?.toString() ?? '';
+      widget.ctx.repaint(); // pour les text widget
+    } else {
+      ctrlInput?.text = pathData;
     }
   }
 
   TextEditingController? ctrlInput;
   FocusNode? focusNode;
+
+  @override
+  void dispose() {
+    stateRepository?.disposeInput(pathData, this);
+    ctrlInput?.dispose();
+    focusNode?.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -78,13 +94,17 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
       focusNode = FocusNode();
       if (modeViewer) {
         ctrlInput?.addListener(() {
-          if (stateRepository != null && isPrimitiveArrayValue == false) {
+          if (stateRepository != null &&
+              attribut != null &&
+              isPrimitiveArrayValue == false) {
             String pathContainer;
             String attrName;
             (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
             StateContainer? dataContainer;
             (dataContainer, _) = stateRepository!.getStateContainer(
               pathContainer,
+              context: context,
+              pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
               //onIndexChange: (int idx) {},
             );
             if (dataContainer != null) {
@@ -96,19 +116,11 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
 
         focusNode?.addListener(() {
           if (focusNode!.hasFocus) {
-            doChangeRow();
+            doChangeRow(pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath);
           }
         });
       }
     }
-  }
-
-  @override
-  void dispose() {
-    stateRepository?.disposeInput(pathData, this);
-    ctrlInput?.dispose();
-    focusNode?.dispose();
-    super.dispose();
   }
 
   @override
@@ -118,59 +130,30 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
     return buildWidget(
       widgetType != 'textfield',
       ModeBuilderWidget.noConstraint,
-      (ctx, constraints) {
+      (ctx, constraints, _) {
         bool inTable = ctx.isParentOfType('table');
         bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
 
         var modeDesigner = ctx.aFactory.isModeDesigner();
         if (stateRepository != null && attribut != null) {
-          String? oldPathData = pathData;
-
-          pathData = stateRepository!.getDataPath(
-            context,
-            isPrimitiveArrayValue
-                ? '${attribut!.info.path}>*'
-                : attribut!.info.path,
-            typeListContainer: false,
-            widgetPath: ctx.aWidgetPath,
-            inArray: inArray,
-            state: this,
+          initCtrlValue(context, ctx, inArray, modeDesigner);
+        } else if (stateRepository != null && eval != null) {
+          var r = eval!.eval(
+            variables: {
+              '\$\$__ctx__\$\$': ctx,
+              '\$\$__buildctx__\$\$': context,
+            },
+            logs: [],
           );
-
-          if (isPrimitiveArrayValue) {
-            // bind sur un tableau de string ou nombre
-            int i = pathData.lastIndexOf('[');
-            int i2 = pathData.lastIndexOf(']');
-            var substring = pathData.substring(i + 1, i2);
-            pathData = pathData.substring(0, i);
-            int idx = int.tryParse(substring) ?? 0;
-            StateContainer? dataContainer;
-            (dataContainer, _) = stateRepository!.getStateContainer(pathData);
-            //print('object $pathData => ${dataContainer?.jsonData} + $idx');
-            dynamic val = dataContainer!.jsonData[idx];
-            ctrlInput?.text = val?.toString() ?? '';
-          } else {
-            if (oldPathData != '?' && oldPathData != pathData) {
-              stateRepository!.disposeInput(oldPathData, this);
-            }
-            stateRepository!.registerInput(pathData, this);
-
-            String pathContainer;
-            String attrName;
-            (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
-
-            StateContainer? dataContainer;
-            (dataContainer, _) = stateRepository!.getStateContainer(
-              pathContainer,
-            );
-            if (dataContainer != null) {
-              dynamic val = dataContainer.jsonData[attrName];
-              if (modeDesigner) {
-                ctrlInput?.text = pathData;
-              } else {
-                ctrlInput?.text = val?.toString() ?? '';
+          if (r is Future) {
+            r.then((value) {
+              if (value != null) {
+                ctrlInput?.text = value.toString();
+                //widget.ctx.repaint();
               }
-            }
+            });
+          } else {
+            ctrlInput?.text = r?.toString() ?? '';
           }
         }
 
@@ -260,15 +243,89 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
             ],
           );
         } else {
-          widgetInput = Text(
-            style: styleFactory.getTextStyle(null),
-            ctrlInput?.text ?? getStringProp(widget.ctx, 'label') ?? '',
+          var data =
+              ctrlInput?.text ?? getStringProp(widget.ctx, 'label') ?? '';
+          return addIcon(
+            Text(maxLines: 1, style: styleFactory.getTextStyle(null), data),
           );
         }
 
         return widgetInput;
       },
     );
+  }
+
+  void initCtrlValue(
+    BuildContext context,
+    CwWidgetCtx ctx,
+    bool inArray,
+    bool modeDesigner,
+  ) {
+    String? oldPathData = pathData;
+
+    pathData = stateRepository!.getDataPath(
+      context,
+      isPrimitiveArrayValue ? '${attribut!.info.path}>*' : attribut!.info.path,
+      typeListContainer: false,
+      widgetPath: ctx.aWidgetPath,
+      inArray: inArray,
+      state: this,
+    );
+
+    if (isPrimitiveArrayValue) {
+      // bind sur un tableau de string ou nombre
+      int i = pathData.lastIndexOf('[');
+      int i2 = pathData.lastIndexOf(']');
+      var substring = pathData.substring(i + 1, i2);
+      pathData = pathData.substring(0, i);
+      int idx = int.tryParse(substring) ?? 0;
+      StateContainer? dataContainer;
+      (dataContainer, _) = stateRepository!.getStateContainer(
+        pathData,
+        context: context,
+        pathWidgetRepos: ctx.aWidgetPath,
+      );
+      //print('object $pathData => ${dataContainer?.jsonData} + $idx');
+      dynamic val = dataContainer!.jsonData[idx];
+      ctrlInput?.text = val?.toString() ?? '';
+    } else {
+      if (oldPathData != '?' && oldPathData != pathData) {
+        stateRepository!.disposeInput(oldPathData, this);
+      }
+      stateRepository!.registerInput(pathData, this);
+
+      String pathContainer;
+      String attrName;
+      (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+
+      StateContainer? dataContainer;
+      (dataContainer, _) = stateRepository!.getStateContainer(
+        pathContainer,
+        context: context,
+        pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
+      );
+      if (dataContainer != null) {
+        dynamic val = dataContainer.jsonData[attrName];
+        if (modeDesigner) {
+          ctrlInput?.text = pathData;
+        } else {
+          ctrlInput?.text = val?.toString() ?? '';
+        }
+      }
+    }
+  }
+
+  Widget addIcon(Widget child) {
+    Icon? icon = getIconProp(widget.ctx, 'icon');
+    if (icon != null) {
+      return Row(
+        spacing: 5,
+        mainAxisSize: MainAxisSize.min,
+        children: [icon, child],
+      );
+    } else {
+      return child;
+    }
   }
 }
 

@@ -3,7 +3,7 @@ import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.d
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
-import 'package:jsonschema/core/designer/core/cw_factory_action.dart';
+import 'package:jsonschema/core/designer/editor/engine/overlay_action.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_style.dart';
@@ -42,7 +42,7 @@ List listCrossRow = [
 ];
 
 class CwContainer extends CwWidget with HelperEditor {
-  const CwContainer({super.key, required super.ctx});
+  const CwContainer({super.key, required super.ctx, required super.cacheWidget});
 
   @override
   State<CwContainer> createState() => _CwContainerState();
@@ -50,7 +50,7 @@ class CwContainer extends CwWidget with HelperEditor {
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'container',
-      build: (ctx) => CwContainer(key: ctx.getKey(), ctx: ctx),
+      build: (ctx) => CwContainer(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
       config: (ctx) {
         var horz = HelperEditor.getStringProp(ctx, 'type') == 'row';
 
@@ -174,6 +174,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
         if (autoInsertAtStart) {
           drop.afterAdded = () {
             var actMgr = CwFactoryAction(ctx: ctx);
+            ctx.initChanged();
             actMgr.moveSlot('cell_', nb + 1, 0);
           };
         }
@@ -181,117 +182,12 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
     }
   }
 
-  // void onActionCell(CwWidgetCtx ctx, DesignAction action) {
-  //   var props = ctx.parentCtx!.initPropsIfNeeded();
-  //   var horiz = HelperEditor.getStringProp(ctx.parentCtx!, 'type') == 'row';
-
-  //   String actionStr = '';
-  //   if (horiz) {
-  //     switch (action) {
-  //       case DesignAction.delete:
-  //         actionStr = 'delete';
-  //         break;
-  //       case DesignAction.addLeft:
-  //         actionStr = 'before';
-  //         break;
-  //       case DesignAction.addRight:
-  //         actionStr = 'after';
-  //         break;
-  //       case DesignAction.moveRight:
-  //         actionStr = 'moveBefore';
-  //         break;
-  //       case DesignAction.moveLeft:
-  //         actionStr = 'moveAfter';
-  //         break;
-  //       case DesignAction.addBottom:
-  //         actionStr = 'surround';
-  //         break;
-  //       case DesignAction.addTop:
-  //         actionStr = 'surround1';
-  //         break;
-  //       default:
-  //     }
-  //   } else {
-  //     switch (action) {
-  //       case DesignAction.delete:
-  //         actionStr = 'delete';
-  //         break;
-  //       case DesignAction.addTop:
-  //         actionStr = 'before';
-  //         break;
-  //       case DesignAction.addBottom:
-  //         actionStr = 'after';
-  //         break;
-  //       case DesignAction.moveBottom:
-  //         actionStr = 'moveAfter';
-  //         break;
-  //       case DesignAction.moveTop:
-  //         actionStr = 'moveBefore';
-  //         break;
-  //       case DesignAction.addRight:
-  //         actionStr = 'surround';
-  //         break;
-  //       case DesignAction.addLeft:
-  //         actionStr = 'surround1';
-  //         break;
-  //       default:
-  //     }
-  //   }
-
-  //   int nb = getIntProp(ctx.parentCtx!, 'nbchild') ?? 2;
-  //   int idx = int.parse(ctx.slotId.split('_').last);
-  //   var actMgr = CwFactoryAction(ctx: ctx);
-
-  //   switch (actionStr) {
-  //     case "delete":
-  //       props['nbchild'] = nb - 1;
-  //       actMgr.deleteSlot('cell_', idx, nb);
-  //       break;
-  //     case 'surround':
-  //       var slotFrom = 'cell_$idx';
-  //       var slotTo = 'cell_0';
-  //       actMgr.surround(slotFrom, slotTo, {
-  //         cwImplement: 'container',
-  //         cwProps: <String, dynamic>{'type': horiz ? 'column' : 'row'},
-  //       });
-  //       break;
-  //     case 'surround1':
-  //       var slotFrom = 'cell_$idx';
-  //       var slotTo = 'cell_1';
-  //       actMgr.surround(slotFrom, slotTo, {
-  //         cwImplement: 'container',
-  //         cwProps: <String, dynamic>{'type': horiz ? 'column' : 'row'},
-  //       });
-  //       break;
-  //     case 'before':
-  //       props['nbchild'] = nb + 1;
-  //       actMgr.moveSlot('cell_', nb, idx);
-  //       break;
-  //     case "after":
-  //       props['nbchild'] = nb + 1;
-  //       actMgr.moveSlot('cell_', nb, idx + 1);
-  //       break;
-  //     case 'moveBefore':
-  //       actMgr.swapSlot('cell_', idx, idx - 1);
-  //       break;
-  //     case "moveAfter":
-  //       actMgr.swapSlot('cell_', idx, idx + 1);
-  //       break;
-  //     default:
-  //   }
-  //   SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-  //     if (mounted) {
-  //       setState(() {});
-  //       ctx.selectParentOnDesigner();
-  //     }
-  //   });
-  // }
-
   @override
   Widget build(BuildContext context) {
     return buildWidget(true, ModeBuilderWidget.layoutBuilder, (
       ctx,
       constraints,
+      _
     ) {
       // print('path ${ctx.aPath} $constraints ${ctx.lastSize} ');
       List<Widget> child = [];

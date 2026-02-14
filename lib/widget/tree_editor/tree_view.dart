@@ -191,8 +191,13 @@ class TreeViewState<T> extends State<TreeView<T>> {
   final ScrollController _scrollController = ScrollController();
   late BuildContext ctx;
   int repaintInProgess = 0;
+  int openFactorInProgess = 0;
+  int openFactor = 10;
   int dragInProgess = 0;
   bool isDisposed = false;
+
+  State? rowSelectedState;
+  bool openStructure = false;
 
   @override
   void initState() {
@@ -213,11 +218,11 @@ class TreeViewState<T> extends State<TreeView<T>> {
     }
 
     TreeViewData<T> data = widget.getNodes();
-
     List<TreeNodeData<T>> nodes = data.nodes;
 
     NodeStack stack = NodeStack();
     List<TreeNodeData<T>> list = _flattenNodeTree(stack, 0, nodes);
+    openStructure = false;
 
     var ret = ValueListenableBuilder(
       valueListenable: zoom,
@@ -262,6 +267,8 @@ class TreeViewState<T> extends State<TreeView<T>> {
     List<TreeNodeData<T>> nodes,
   ) {
     List<TreeNodeData<T>> result = [];
+    var millisecondsSinceEpoch2 = DateTime.now().millisecondsSinceEpoch;
+
     for (var node in nodes) {
       node.depth = deep;
       node.isRoot = deep == 0;
@@ -274,6 +281,17 @@ class TreeViewState<T> extends State<TreeView<T>> {
       node.lastChild = r;
       stack.push(node);
 
+      if (millisecondsSinceEpoch2 - openFactorInProgess < 500) {
+        if (openStructure) {
+          node.isExpanded = false;
+          if (hasStructure(node)) {
+            node.isExpanded = true;
+          } 
+        } else {
+          node.isExpanded = deep < openFactor;
+        }
+      }
+
       if (node.children != null &&
           node.children!.isNotEmpty &&
           node.isExpanded) {
@@ -285,11 +303,13 @@ class TreeViewState<T> extends State<TreeView<T>> {
     return result;
   }
 
-  State? rowSelectedState;
-
   Widget getHover(TreeNodeData<T> attr, Widget child) {
     return HoverableCard(
       isSelected: (State state) {
+        if (widget.onBuild != null) {
+          widget.onBuild!(this, ctx);
+        }
+
         bool isSelected = widget.isSelected(attr, state, rowSelectedState);
         if (isSelected) {
           if (state != rowSelectedState) {
@@ -508,6 +528,19 @@ class TreeViewState<T> extends State<TreeView<T>> {
     } else {
       return child;
     }
+  }
+
+  bool hasStructure(TreeNodeData data) {
+    for (var child in data.children ?? const <TreeNodeData>[]) {
+      if (child.data is NodeAttribut) {
+        var info = child.data as NodeAttribut;
+        var type2 = info.info.type.toLowerCase();
+        if ( type2 == 'object' || type2 == 'array' || type2 == '\$ref' || type2 == '\$anyof') {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }
 

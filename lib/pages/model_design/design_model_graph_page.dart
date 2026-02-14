@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
 import 'package:jsonschema/feature/graph/pan_spring_graph.dart';
@@ -52,10 +50,9 @@ class DesignModelGraphPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
-    PageInit? pageInit
+    PageInit? pageInit,
   ) {
-
-    String query = routerState.uri.queryParameters['id']??'? ';
+    String query = routerState.uri.queryParameters['id'] ?? '? ';
     print("query model: $query");
     //var goTo = GoTo();
     // goTo.initApi(query);
@@ -85,13 +82,13 @@ class DesignModelGraphPage extends GenericPageStateless {
       ]
       ..breadcrumbs = [
         BreadNode(
-          settings: const RouteSettings(name: 'List model'),
-          type: BreadNodeType.widget,
-        ),
-        BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
-          path: Pages.models.urlpath
+          path: Pages.models.urlpath,
+        ),
+        BreadNode(
+          settings: const RouteSettings(name: 'List model'),
+          type: BreadNodeType.widget,
         ),
       ];
   }

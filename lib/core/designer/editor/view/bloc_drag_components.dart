@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -7,9 +8,10 @@ import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 
 class WidgetChoiser extends StatefulWidget {
-  const WidgetChoiser({required this.factory, super.key});
+  const WidgetChoiser({required this.factory, super.key, this.contextPopUp});
 
   final WidgetFactory factory;
+  final OverlayEntry? contextPopUp;
 
   @override
   State<WidgetChoiser> createState() => _WidgetChoiserState();
@@ -39,11 +41,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "name": "Divider, Spacer",
             "icon": Icons.horizontal_rule,
           },
-          {
-            "id": "pager",
-            "name": "Pager",
-            "icon": Icons.pageview_sharp,
-          },          
+          {"id": "indicator", "name": "indicator", "icon": Icons.traffic},
         ],
       },
       {
@@ -56,11 +54,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "name": "Row, Column",
             "icon": Icons.grid_on_rounded,
           },
-          {
-            "id": "bar",
-            "name": "Tab, NavBar, Button Bar",
-            "icon": Icons.tab,
-          },
+          {"id": "bar", "name": "Tab, NavBar, Button Bar", "icon": Icons.tab},
           {"id": "menu", "name": "Menu, Popup Menu", "icon": Icons.menu},
         ],
       },
@@ -135,7 +129,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
               });
 
               final nodes = jsonData.map((e) => Node.fromJson(e)).toList();
-              return NodeTree(nodes: nodes);
+              return NodeTree(nodes: nodes, contextPopUp: widget.contextPopUp);
             },
           );
         }
@@ -178,8 +172,9 @@ class Node {
 /// Widget récursif
 class NodeTree extends StatelessWidget {
   final List<Node> nodes;
+  final OverlayEntry? contextPopUp;
 
-  const NodeTree({super.key, required this.nodes});
+  const NodeTree({super.key, required this.nodes, required this.contextPopUp});
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +184,12 @@ class NodeTree extends StatelessWidget {
   Widget _buildNode(Node node) {
     if (node.children.isEmpty) {
       return Draggable<DragNewComponentCtx>(
+        onDragCompleted: () {
+          if (contextPopUp != null) {
+            contextPopUp?.remove();
+            activeOverlayEntry = null;
+          }
+        },
         data: DragNewComponentCtx(idComponent: node.id, config: node.json),
         dragAnchorStrategy: pointerDragAnchorStrategy,
         feedback: SizedBox(

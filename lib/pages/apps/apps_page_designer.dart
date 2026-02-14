@@ -20,15 +20,15 @@ class AppsPageDesigner extends GenericPageStateless {
   bool isCacheValid(GoRouterState state, String uri) {
     String keyFactory = 'factoryName';
     WidgetFactory f = getFactory(keyFactory);
-    f.listPropsEditor = [];
-    f.rootCtx = null;
+    f.cwFactoryProps.listPropsEditor = [];
+    f.cwFactoryProps.listStyleEditor = [];
+    f.cwFactoryProps.listStyleSelectorEditor = [];
     f.onStarted = () {
       f.onStarted = null;
       Future.delayed(Duration(milliseconds: 1000), () {
         // ignore: invalid_use_of_protected_member
         f.pageDesignerKey.currentState?.setState(() {});
-        // ignore: invalid_use_of_protected_member
-        f.rootCtx?.widgetState?.setState(() {});
+        f.rootCtx?.repaint();
         if (f.isModeDesigner()) {
           SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
             f.rootCtx?.selectOnDesigner();
@@ -45,7 +45,6 @@ class AppsPageDesigner extends GenericPageStateless {
     String keyFactory = 'factoryName';
     WidgetFactory f = getFactory(keyFactory);
     f.initAllGlobalKeys();
-
     return PageDesigner(key: f.pageDesignerKey, mode: mode, factory: f);
   }
 

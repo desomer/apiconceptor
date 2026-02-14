@@ -6,6 +6,7 @@ import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
@@ -91,6 +92,9 @@ class ModelSchema {
   bool autoSaveProperties = true;
 
   NodeAttribut? selectedAttr;
+
+  AttributInfo? lastDeleteAttr;
+  int lastDeleteEditorStartAt = 0;
 
   NodeAttribut getExtendedNode(String id) {
     NodeAttribut? exampleExtended = nodeExtended[id];
@@ -221,6 +225,16 @@ class ModelSchema {
     } else if (lastBrowser?.selectedPath != null) {
       lastBrowser?.selectedPath!.remove(path);
     }
+  }
+
+  bool onDeleteAttr(ModelSchema model, AttributInfo attr) {
+    var sel = currentYamlTree?.getTextSelection();
+    print(sel);
+    if (sel?.isCollapsed ?? false) {
+      lastDeleteAttr = attr;
+      lastDeleteEditorStartAt = sel!.start;
+    }
+    return true;
   }
 
   void addHistory(
@@ -509,6 +523,9 @@ class ModelSchema {
       } else {
         currentVersion ??= versions.first;
       }
+      print(
+        'model $headerName $id current version = ${currentVersion!.version} version txt = ${currentVersion!.data['versionTxt']}',
+      );
       bddStorage.lastVersionByMaster[id] = currentVersion!;
     }
   }

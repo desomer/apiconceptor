@@ -64,6 +64,9 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
         ctx.ctx!,
       );
 
+      // print(  "select pos for ${ctx.path} : "
+      //     "t=${position.top} l=${position.left}  ${position.right - position.left} x ${position.bottom - position.top}");
+
       final RenderBox? b =
           keybox.currentContext?.findRenderObject() as RenderBox?;
       ctx.ctx?.selectorCtxIfDesign?.lastSize = b?.size;
@@ -80,7 +83,7 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
         dev.log("select ${ctx.path}");
         if (ctx.ctx != null) {
           var ctxW = ctx.ctx!;
-          ctxW.aFactory.displayProps(ctxW);
+          ctxW.aFactory.cwFactoryProps.displayProps(ctxW);
         }
       }
       ctx.callback?.call();
@@ -91,7 +94,9 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
         return;
       }
       if (selected != null) {
-        currentSelect!.ctx!.aFactory.displayProps(currentSelect!.ctx!);
+        currentSelect!.ctx!.aFactory.cwFactoryProps.displayProps(
+          currentSelect!.ctx!,
+        );
       }
       if (selected == 'onlyProps') {
         return;
@@ -441,55 +446,23 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
           ctx.initPropsIfNeeded();
           ctx.dataWidget?[cwProps]['height'] = h.toInt().toDouble();
           ctx.dataWidget?[cwProps]['width'] = w.toInt().toDouble();
-
+          ctx.initChanged();
           if (ctx.isParentOfType('table')) {
             ctx.parentCtx?.repaint();
+          } else if (ctx.isParentOfType('container')) {
+            var fit = ctx.dataWidget?[cwPropsSlot]?['fit'];
+            if (fit != 'inner') {
+              ctx.dataWidget?[cwPropsSlot]?['fit'] = 'inner';
+              ctx.parentCtx?.repaint();
+            }
+            ctx.repaint();
           } else {
             ctx.repaint();
           }
 
           emitLater(CDDesignEvent.reselect, "all", waitFrame: 1);
 
-          // var dragSize = action == DesignAction.size;
-          // var selectedSlot =
-          //     CoreDesigner.of().widgetSelector.getSelectedSlotContext();
-
-          // var canSlotResize =
-          //     selectedSlot?.inSlot?.slotAction?.canMoveResize();
-
-          // if (dragSize && (canSlotResize ?? false)) {
-          //   DesignCtx aCtx = DesignCtx().forDesign(selectedSlot!);
-          //   CoreDataEntity prop =
-          //       aCtx.preparePropChange(selectedSlot.loader);
-          //   CDWidget.setHeight(prop, h.toInt());
-          //   CDWidget.setWidth(prop, w.toInt());
-          // } else if (dragSize) {
-          //   var aCtx =
-          //       CoreDesigner.of().widgetSelector.getSelectedWidgetContext();
-          //   aCtx ??= selectedSlot?.getParentCWWidget()?.ctx;
-          //   if (aCtx != null) {
-          //     DesignCtx dCtx = DesignCtx().forDesign(aCtx);
-          //     var prop =
-          //         dCtx.preparePropChange(aCtx.loader, initDesign: false);
-          //     var cl = CWApplication.of()
-          //         .loaderDesigner
-          //         .collectionWidget
-          //         .getClass(prop.type);
-          //     bool isCapable = false;
-          //     if (cl!.getAttrById('height') != null) {
-          //       aCtx.changeProp('height', h.toInt());
-          //       isCapable = true;
-          //     }
-          //     if (cl.getAttrById('width') != null) {
-          //       aCtx.changeProp('width', w.toInt());
-          //       isCapable = true;
-          //     }
-          //     if (isCapable) dCtx.setDesign(prop);
-          //   }
-          // }
-
-          // CoreDesigner.of().widgetSelector.nbChange++;
-
+        
           if (sizeZone.visibility) {
             setState(() {
               rightZone.visibility = false;
@@ -498,11 +471,6 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
             });
           }
 
-          // CoreDesigner.of()
-          //     .widgetSelector
-          //     .getSelectedSlotContext()!
-          //     .getParentCWWidget()
-          //     ?.repaint('getAddDrag resize');
         },
         onDraggableCanceled: (velocity, offset) {
           dragInProgess = false;

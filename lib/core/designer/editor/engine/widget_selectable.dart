@@ -469,9 +469,9 @@ class WidgetSelectableState extends State<WidgetSelectable> {
   void onHover(PointerHoverEvent d) {
     currentSelectorManager.doHover(this, d, isExiting: false);
     if (isParentSelected() != _isLockByParent) {
-      print(
-        'change drag lock ${widget.slotConfig?.ctx.aWidgetPath} isLockByParent=$_isLockByParent',
-      );
+      // print(
+      //   'change drag lock ${widget.slotConfig?.ctx.aWidgetPath} isLockByParent=$_isLockByParent',
+      // );
       _isLockByParent = !_isLockByParent;
       // ignore: invalid_use_of_protected_member
       setState(() {});
@@ -548,7 +548,9 @@ class WidgetSelectableState extends State<WidgetSelectable> {
 
     if (boundary == null) return null;
     widget.slotConfig?.ctx.selectorCtx.lastSize = boundary.size;
-
+    if (boundary.debugNeedsPaint) {
+      return null;
+    }
     /// convert boundary to image
     final image = await boundary.toImage(pixelRatio: 0.9);
     final byteData = await image.toByteData(format: ImageByteFormat.png);

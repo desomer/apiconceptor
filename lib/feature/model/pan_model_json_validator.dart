@@ -59,6 +59,14 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                       },
                       label: Text('Generate fake data'),
                     ),
+                    FakeModeWidget(
+                      modePropertyRequiredEnum: modePropertyRequiredEnum,
+                      onSelected: () {
+                        exampleManager.jsonFake = null;
+                        exampleManager.clearSelected();                        
+                        textConfig?.repaintCode();
+                      },
+                    ),
                     exampleManager,
                   ],
                 ),
@@ -101,6 +109,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   JsonSchema? jsonValidator;
   ValueNotifier<String> error = ValueNotifier('');
   ValueNotifier<String> errorParse = ValueNotifier('');
+  ValueNotifier<String> modePropertyRequiredEnum = ValueNotifier('max');
 
   Widget getEditor() {
     if (currentCompany.currentModel == null) {
@@ -136,6 +145,11 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
           var export = Export2FakeJson(
             modeArray: ModeArrayEnum.anyInstance,
             mode: ModeEnum.fake,
+            propMode: switch (modePropertyRequiredEnum.value) {
+              'min' => PropertyRequiredEnum.required,
+              'max' => PropertyRequiredEnum.all,
+              _ => PropertyRequiredEnum.all,
+            },
           )..browse(currentCompany.currentModel!, false);
           exampleManager.jsonFake = export.prettyPrintJson(export.json);
         }
@@ -149,5 +163,33 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     };
 
     return TextEditor(header: "JSON example", config: textConfig!);
+  }
+}
+
+class FakeModeWidget extends StatefulWidget {
+  const FakeModeWidget({super.key, required this.modePropertyRequiredEnum, required this.onSelected});
+  final ValueNotifier<String> modePropertyRequiredEnum;
+  final Function onSelected;
+
+  @override
+  State<FakeModeWidget> createState() => _FakeModeWidgetState();
+}
+
+class _FakeModeWidgetState extends State<FakeModeWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<String>(
+      segments: const [
+        ButtonSegment(value: 'min', label: Text('required only')),
+        ButtonSegment(value: 'max', label: Text('alls properties')),
+      ],
+      selected: {widget.modePropertyRequiredEnum.value},
+      onSelectionChanged: (newSelection) {
+        setState(() {
+          widget.modePropertyRequiredEnum.value = newSelection.first;
+          widget.onSelected();
+        });
+      },
+    );
   }
 }

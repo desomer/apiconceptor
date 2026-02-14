@@ -104,7 +104,7 @@ class DataAcces {
   }
 
   late RealtimeChannel myChannel;
-  Map<String, CacheValue> local = {};
+  Map<String, CacheValue> localCache = {};
   Map<String, OnEvent> doEventListner = {};
   Map<String, ModelVersion> lastVersionByMaster = {};
 
@@ -209,8 +209,8 @@ class DataAcces {
   }) {
     if (delay == -1) {
       String cacheId = getCacheId(model, id, version);
-      if (local[cacheId] != null) {
-        return local[cacheId]!.value;
+      if (localCache[cacheId] != null) {
+        return localCache[cacheId]!.value;
       }
     }
     return null;
@@ -225,8 +225,8 @@ class DataAcces {
   }) {
     if (delay == -1) {
       String cacheId = getCacheId(model, id, version);
-      if (local[cacheId] != null) {
-        return local[cacheId]!.value;
+      if (localCache[cacheId] != null) {
+        return localCache[cacheId]!.value;
       }
     }
     return _getItemAsync(
@@ -262,8 +262,8 @@ class DataAcces {
   }) async {
     ModelVersion? version = model.currentVersion;
     String cacheId = getCacheId(model, model.id, version);
-    if (local[cacheId] != null) {
-      var l = local[cacheId]!.value;
+    if (localCache[cacheId] != null) {
+      var l = localCache[cacheId]!.value;
       if (type == 'YAML') {
         computeSendYamlChangeEvent({
           'old': l,
@@ -310,14 +310,14 @@ class DataAcces {
   }) {
     String cacheId = '$id/$version';
     if (value == patch['old']) {
-      local[cacheId]!.value = patch['new'];
-      return local[cacheId]!.value;
+      localCache[cacheId]!.value = patch['new'];
+      return localCache[cacheId]!.value;
     } else {
       List<Patch> patchDest = patchFromText(patch['patch']);
       DiffMatchPatch dmp = DiffMatchPatch();
       var result = dmp.patch_apply(patchDest, value);
-      local[cacheId]!.value = result.first;
-      return local[cacheId]!.value;
+      localCache[cacheId]!.value = result.first;
+      return localCache[cacheId]!.value;
     }
   }
 
@@ -332,32 +332,38 @@ class DataAcces {
 
     for (var attr in saveAttrDelete) {
       if (attr.masterID != null && !attr.isInitByRef && attr.action != 'D') {
-        attr.action = 'D';
+        if (model.onDeleteAttr(model, attr)) {
+          attr.action = 'D';
 
-        var payload = {
-          'company_id': currentCompany.companyId,
-          'namespace': model.namespace ?? currentCompany.currentNameSpace,
-          'category': model.category.name,
-          'schema_id': model.id,
-          'version': model.getVersionId(),
-          'attr_id': attr.masterID,
-          'path': attr.path,
-          'prop': attr.properties,
-          'state': attr.action ?? 'D',
-          'update_at': DateTime.now().toIso8601String(),
-        };
+          var payload = {
+            'company_id': currentCompany.companyId,
+            'namespace': model.namespace ?? currentCompany.currentNameSpace,
+            'category': model.category.name,
+            'schema_id': model.id,
+            'version': model.getVersionId(),
+            'attr_id': attr.masterID,
+            'path': attr.path,
+            'prop': attr.properties,
+            'state': attr.action ?? 'D',
+            'update_at': DateTime.now().toIso8601String(),
+          };
 
-        var save = SaveEvent(
-          model: model,
-          version: model.currentVersion,
-          id: '${model.id};${attr.masterID}',
-          table: 'attributs',
-          data: payload,
-        );
+          var save = SaveEvent(
+            model: model,
+            version: model.currentVersion,
+            id: '${model.id};${attr.masterID}',
+            table: 'attributs',
+            data: payload,
+          );
 
-        _sendMessage({'typeEvent': 'PROP', 'id': model.id, 'payload': payload});
+          _sendMessage({
+            'typeEvent': 'PROP',
+            'id': model.id,
+            'payload': payload,
+          });
 
-        storeManager.add(save);
+          storeManager.add(save);
+        }
       }
     }
 
@@ -570,11 +576,11 @@ class DataAcces {
       print('setcache $id');
     }
 
-    if (local[id] != null) {
-      local[id]!.time = DateTime.now().millisecondsSinceEpoch;
-      local[id]!.value = value;
+    if (localCache[id] != null) {
+      localCache[id]!.time = DateTime.now().millisecondsSinceEpoch;
+      localCache[id]!.value = value;
     } else {
-      local[id] =
+      localCache[id] =
           CacheValue()
             ..time = DateTime.now().millisecondsSinceEpoch
             ..value = value;

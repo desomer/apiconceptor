@@ -303,6 +303,7 @@ mixin WidgetUIHelper {
       if (!onlyMessage && propAttribut != null) {
         switch (propAttribut.type) {
           case 'number':
+          case 'integer':
             inputDesc.typeInput = InputType.num;
             break;
           case 'boolean':

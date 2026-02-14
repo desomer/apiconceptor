@@ -4,9 +4,13 @@ import 'package:dart_eval/dart_eval.dart';
 import 'package:dart_eval/dart_eval_bridge.dart';
 import 'package:dart_eval/stdlib/core.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:jmespath/jmespath.dart' show search;
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
+import 'package:jsonschema/core/designer/core/cw_widget.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
+import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/start_core.dart';
 
 class CoreDataEval {
@@ -40,6 +44,29 @@ class CoreDataEval {
       var vr = variables![attr];
       return getEvalObj(vr);
     });
+
+    map[$String('getData')] = $Closure((runtime, target, args) {
+      String attr = args[0]!.$value.toString();
+      CwWidgetCtx ctx = variables!['\$\$__ctx__\$\$'];
+      BuildContext context = variables!['\$\$__buildctx__\$\$'];
+      Map bind = ctx.dataWidget?[cwProps]?['bind'];
+      String repoId = bind['repository'];
+      var repository = ctx.aFactory.mapRepositories[repoId];
+      var stateRepository = repository?.dataState;
+      String pathContainer;
+      String attrName;
+      var pathJson = '/${attr.replaceAll('.', '/')}';  
+      (pathContainer, attrName) = stateRepository!.getPathInfo(pathJson);
+      StateContainer? dataContainer;
+      (dataContainer, _) = stateRepository.getStateContainer(
+        pathContainer,
+        context: context,
+        pathWidgetRepos: ctx.parentCtx!.aWidgetPath,
+      );
+      var ret = dataContainer?.jsonData[attrName];
+      return getEvalObj(ret);
+    });
+
     map[$String('setVar')] = $Closure((runtime, target, args) {
       String attr = args[0]!.$value.toString();
       var v = args[1]!.$reified;
@@ -83,6 +110,7 @@ class CoreDataEval {
 
   final regexJmes = RegExp(r'\$\.api\.response\.jmes\[');
   final regexVar = RegExp(r'\$\.var\[');
+  final regexVarData = RegExp(r'\$\.data\[');
 
   ResultCompil compilProgram(List<String> lines, int ligne, Compiler compiler) {
     StringBuffer debug = StringBuffer();
@@ -102,6 +130,15 @@ class CoreDataEval {
         var match = regexJmes.firstMatch(analyzeLine);
         analyzeLine = _doMatch(match, analyzeLine, (str, next) {
           return '${analyzeLine.substring(0, match!.start)}search(_response, $str)$next';
+        });
+
+        match = regexVarData.firstMatch(analyzeLine);
+        analyzeLine = _doMatchVar(match, analyzeLine, (str, next, equal) {
+          if (equal) {
+            return '${analyzeLine.substring(0, match!.start)}setData($str,$next)';
+          } else {
+            return '${analyzeLine.substring(0, match!.start)}getData($str)$next';
+          }
         });
 
         match = regexVar.firstMatch(analyzeLine);
@@ -162,7 +199,9 @@ class CoreDataEval {
     dynamic main(dynamic v, Map<String, Function> callback) async {
       _callback = callback;
       var getVar = callback['getVar'];
-      var setVar = callback['setVar'];var print = callback['print'];
+      var getData = callback['getData'];
+      var setVar = callback['setVar'];
+      var print = callback['print'];
       var search = callback['search'];
       var _\$\$debug = callback['debug'];
       var self = v;
@@ -298,7 +337,11 @@ class CoreDataEval {
 
       if (api != null) {
         String httpOpe = api.name.toLowerCase();
-        var apiCallInfo = APICallManager(namespace: domain, attrApi: api, httpOperation: httpOpe);
+        var apiCallInfo = APICallManager(
+          namespace: domain,
+          attrApi: api,
+          httpOperation: httpOpe,
+        );
         apiCallInfo.getURLfromNode(allApi.nodeByMasterId[api.masterID!]!);
 
         var def = await loadAPI(id: api.masterID!, namespace: r.masterID);

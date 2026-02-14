@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/designer/core/cw_factory_action.dart';
+import 'package:jsonschema/core/designer/editor/engine/overlay_action.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_theme.dart';
@@ -8,12 +8,14 @@ import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 
 class CwPage extends CwWidget {
-  const CwPage({super.key, required super.ctx});
+  const CwPage({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'page',
-      build: (ctx) => CwPage(key: ctx.getKey(), ctx: ctx),
+      build:
+          (ctx) =>
+              CwPage(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
       config: (ctx) {
         return CwWidgetConfig()
             // ..addSlot(CwWidgetSlotConfig(id: "appbar"))
@@ -28,23 +30,12 @@ class CwPage extends CwWidget {
             //     ..isBool(ctx),
             // )
             .addProp(
-              CwWidgetProperties(id: 'drawer', name: 'with drawer')..isBool(
-                ctx,
-                onJsonChanged: (value) {
-                  ctx.onValueChange(repaint: true)(value);
-                  //ctx.parentCtx!.onValueChange()(value);
-                },
-              ),
+              CwWidgetProperties(id: 'drawer', name: 'with drawer')
+                ..isBool(ctx),
             )
             .addProp(
               CwWidgetProperties(id: 'fixDrawer', name: 'fix drawer on desktop')
-                ..isBool(
-                  ctx,
-                  onJsonChanged: (value) {
-                    ctx.onValueChange(repaint: true)(value);
-                    //ctx.parentCtx!.onValueChange()(value);
-                  },
-                ),
+                ..isBool(ctx),
             )
             .addProp(
               CwWidgetProperties(id: 'floating', name: 'floating Action Button')
@@ -82,6 +73,7 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
     return buildWidget(false, ModeBuilderWidget.noConstraint, (
       ctx,
       constraints,
+      _,
     ) {
       var isDark = getBoolProp(widget.ctx, 'darkMode') ?? false;
       ThemeData theme = getTheme(isDark);
@@ -153,13 +145,17 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
               )
               : null,
       drawer: isDesktop && fixDrawer ? null : drawer,
-      body: GestureDetector(
-        onTap: () {
-          // FIX BUG clavier qui reste ouvert
-          FocusScope.of(context).unfocus();
-        },
-        child: getBody(isDesktop && fixDrawer, drawer),
-      ),
+      body:
+          widget.ctx.aFactory.isModeDesigner()
+              ? GestureDetector(
+                onTap: () {
+                  print('unfocus app page');
+                  // FIX BUG clavier qui reste ouvert
+                  FocusScope.of(context).unfocus();
+                },
+                child: getBody(isDesktop && fixDrawer, drawer),
+              )
+              : getBody(isDesktop && fixDrawer, drawer),
 
       // persistentFooterButtons: [
       //   TextButton(onPressed: () {}, child: const Text("Annuler")),
@@ -227,7 +223,7 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
                   CwSlotProp(
                     id: 'body',
                     name: 'body',
-                    onAction: onActionCellBody,
+                    onAction: onActionPageBody,
                   ),
                 ),
               ),
@@ -241,11 +237,7 @@ class CwPageState extends CwWidgetState<CwPage> with HelperEditor {
           child: SizedBox(
             width: maxWidth?.toDouble() ?? double.infinity,
             child: getSlot(
-              CwSlotProp(
-                id: 'body',
-                name: 'body',
-                onAction: onActionCellBody,
-              ),
+              CwSlotProp(id: 'body', name: 'body', onAction: onActionPageBody),
             ),
           ),
         ),

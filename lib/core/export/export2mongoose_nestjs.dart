@@ -71,6 +71,8 @@ class Export2DtoMongooseNestjs {
     switch (type) {
       case 'string':
         return 'string';
+      case 'integer':
+        return 'integer';        
       case 'number':
         return 'number';
       case 'boolean':

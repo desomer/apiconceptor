@@ -54,7 +54,10 @@ class _WidgetContentObjectAnyOfState extends State<WidgetContentObjectAnyOf>
       //deja ajouter par l'array
       widget.info.json2ui.stateMgr.disposeContainer(getPathValue(), this);
     } else {
-      widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathData!, this);
+      widget.info.json2ui.stateMgr.disposeContainer(
+        widget.info.pathData!,
+        this,
+      );
     }
     super.dispose();
   }
@@ -105,10 +108,12 @@ class _WidgetContentObjectAnyOfState extends State<WidgetContentObjectAnyOf>
       List<AttributInfo> listTemplate = [];
 
       if (infoTemplate.panInfoChoised != null) {
-        choiseName =
-            (infoTemplate.panInfoChoised!.dataJsonSchema[cstProp]
-                    as AttributInfo)
-                .name;
+        var dataJsonSchema2 =
+            infoTemplate.panInfoChoised!.dataJsonSchema[cstProp];
+
+        if (dataJsonSchema2 is AttributInfo) {
+          choiseName = dataJsonSchema2.name;
+        }
       }
 
       if (widget.info.panInfo is PanInfoObject) {

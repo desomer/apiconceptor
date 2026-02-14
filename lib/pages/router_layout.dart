@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
+import 'package:jsonschema/core/designer/editor/engine/undo_manager.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/login/login_screen.dart';
+import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_global_zoom.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
@@ -15,6 +17,8 @@ import 'package:jsonschema/widget/widget_zoom_selector.dart';
 bool showLoginDialog = true;
 bool connectBdd = true;
 bool autoLoging = true;
+
+PanYamlTree? currentYamlTree;
 
 ValueNotifier<String> dataProviderMode = ValueNotifier<String>('api');
 
@@ -50,18 +54,6 @@ class _LayoutState extends State<Layout> {
         _dialogBuilder(context);
       });
     }
-
-    // int _index = navigationInfo.navLeft.indexWhere(
-    //   (element) => element.settings.name == navigationInfo.currentPage,
-    // );
-
-    // IndexedStack(index: _index, children: _pages),
-
-    // List<Widget>? pages = []; //getAllPages(context);
-
-    // //int index = indexOfPage(location);
-    // pages.remove(page as Widget);
-    // pages.insert(0, widget.navChild);
 
     return PopScope(
       canPop: false,
@@ -119,7 +111,7 @@ class _LayoutState extends State<Layout> {
             ),
             body: GestureDetector(
               onTap: () {
-                FocusScope.of(context).unfocus();
+                //FocusScope.of(context).unfocus();
               },
               child: Row(
                 children: [
@@ -129,9 +121,8 @@ class _LayoutState extends State<Layout> {
                   ),
                   const VerticalDivider(thickness: 1, width: 1),
                   Expanded(
-                    child:
-                        widget
-                            .navChild, //  IndexedStack(index: 0, children: pages),
+                    child: widget.navChild,
+                    //  IndexedStack(index: 0, children: pages),
                     //child: widget.navChild,
                   ),
                 ],
@@ -154,10 +145,24 @@ class _LayoutState extends State<Layout> {
                     if (aFactory != null) {
                       aFactory.getEmptyApp();
                       aFactory.pageDesignerKey.currentState?.setState(() {});
+                      aFactory.rootCtx?.widgetState?.clearWidgetCache();
+                      aFactory.rootCtx?.repaint();
                       aFactory.rootCtx?.selectOnDesigner();
                     }
                   },
                   icon: Icon(Icons.delete),
+                ),
+                IconButton(
+                  onPressed: () {
+                    globalUndoManager.undo();
+                  },
+                  icon: Icon(Icons.undo),
+                ),
+                IconButton(
+                  onPressed: () {
+                    globalUndoManager.redo();
+                  },
+                  icon: Icon(Icons.redo),
                 ),
                 ValueListenableBuilder(
                   valueListenable: dataProviderMode,
@@ -190,7 +195,7 @@ class _LayoutState extends State<Layout> {
                   },
                 ),
                 Spacer(),
-                Text('API Architect by Desomer G. V1.0.3.24'),
+                Text('API Architect by Desomer G. V1.0.3.38'),
               ],
             ),
           ),
@@ -258,7 +263,7 @@ class _LayoutState extends State<Layout> {
           var r = navigationInfo.navLeft[index - 1];
           if (r.path != null) {
             if (location != r.path) {
-              context.push(r.path!);
+              context.pushReplacement(r.path!);
             }
           }
         }

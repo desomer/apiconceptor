@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
@@ -6,12 +7,14 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 
 class CwList extends CwWidget {
-  const CwList({super.key, required super.ctx});
+  const CwList({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
     factory.register(
       id: 'list',
-      build: (ctx) => CwList(key: ctx.getKey(), ctx: ctx),
+      build:
+          (ctx) =>
+              CwList(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
       config: (ctx) {
         return CwWidgetConfig().addProp(
           CwWidgetProperties(id: 'size', name: 'size')..isSize(ctx),
@@ -66,6 +69,7 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
     return buildWidget(true, ModeBuilderWidget.layoutBuilder, (
       ctx,
       constraints,
+      _,
     ) {
       List listRow = [];
 
@@ -91,7 +95,11 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
         String attrName;
         (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
         StateContainer? dataContainer;
-        (dataContainer, _) = stateRepository!.getStateContainer(pathContainer);
+        (dataContainer, _) = stateRepository!.getStateContainer(
+          pathContainer,
+          context: context,
+          pathWidgetRepos: ctx.aWidgetPath,
+        );
         if (dataContainer != null) {
           listRow = dataContainer.jsonData[attrName] ?? [];
         }
@@ -109,7 +117,8 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
           children: List.generate(listRow.length, (index) {
             // print("add CWInheritedRow 2 $pathData index $index ${listRow[index]}");
             return CWInheritedRow(
-              parentKey: parentKey,
+              rowkey: GlobalKey(debugLabel: 'CWInheritedRow $index'),
+              tableKey: parentKey,
               path: pathData,
               rowIdx: index,
               child: getSlot(
@@ -130,7 +139,8 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
           itemBuilder: (context, index) {
             // print("add CWInheritedRow $pathData index $index ${listRow[index]}");
             return CWInheritedRow(
-              parentKey: parentKey,
+              rowkey: GlobalKey(debugLabel: 'CWInheritedRow $index'),
+              tableKey: parentKey,
               path: pathData,
               rowIdx: index,
               child: getSlot(
@@ -141,33 +151,5 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
         ),
       );
     });
-  }
-}
-
-class CWInheritedRow extends InheritedWidget {
-  const CWInheritedRow({
-    super.key,
-    required super.child,
-    required this.path,
-    required this.rowIdx,
-    required this.parentKey,
-  });
-  final String path;
-  final int rowIdx;
-  final GlobalKey parentKey;
-
-  void getAll(Map<String, CWInheritedRow> list) {
-    var r =
-        parentKey.currentContext
-            ?.getInheritedWidgetOfExactType<CWInheritedRow>();
-    if (r != null) {
-      list[r.path] = r;
-      r.getAll(list);
-    }
-  }
-
-  @override
-  bool updateShouldNotify(covariant InheritedWidget oldWidget) {
-    return true;
   }
 }

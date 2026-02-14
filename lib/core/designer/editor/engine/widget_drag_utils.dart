@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
+import 'package:jsonschema/core/designer/editor/engine/behavior_manager.dart';
+import 'package:jsonschema/core/designer/editor/engine/overlay_action.dart';
+import 'package:jsonschema/core/designer/editor/engine/undo_manager.dart';
 import 'package:jsonschema/core/designer/editor/view/pages_datasource.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
@@ -45,43 +48,42 @@ class DragCtx {
 }
 
 class DragComponentCtx extends DragCtx {
-  final CwWidgetCtx source;
-  DragComponentCtx(this.source);
+  final CwWidgetCtx sourceCtx;
+  DragComponentCtx(this.sourceCtx);
 
   @override
   void doDropOn(WidgetSelectableState state, BuildContext context) {
     var ctxOn = state.widget.slotConfig!.ctx;
-    if (source == ctxOn ||
-        source.parentCtx == ctxOn || // prevent drop on own parent
-        source.dataWidget == null ||
-        source.dataWidget?[cwImplement] == null) {
+    if (sourceCtx == ctxOn ||
+        sourceCtx.parentCtx == ctxOn || // prevent drop on own parent
+        sourceCtx.dataWidget == null ||
+        sourceCtx.dataWidget?[cwImplement] == null) {
       return;
     }
 
-    // var drop = DropCtx(
-    //   parentData: ctxOn.parentCtx?.dataWidget,
-    //   childData: source.dataWidget,
-    //   source: source,
-    // );
+    globalUndoManager.execute(
+      UndoAction(
+        doAction: () {
+          onDragAndDopImpl(ctxOn, sourceCtx);
+        },
+        undoAction: () {
+          onDragAndDopImpl(sourceCtx, ctxOn);
+        },
+      ),
+    );
+  }
 
-    source.parentCtx!.dataWidget![cwSlots]?.remove(source.slotId);
-
+  void onDragAndDopImpl(CwWidgetCtx ctxOn, CwWidgetCtx ctxSource) {
+    ctxSource.parentCtx!.dataWidget![cwSlots]?.remove(ctxSource.slotId);
     ctxOn.aFactory.addInSlot(
       ctxOn.parentCtx!.dataWidget!,
       ctxOn.slotId,
-      source.dataWidget!,
+      ctxSource.dataWidget!,
     );
-    // ignore: invalid_use_of_protected_member
-    ctxOn.parentCtx!.widgetState?.setState(() {});
-    // ignore: invalid_use_of_protected_member
-    source.parentCtx!.widgetState?.setState(() {});
+    ctxOn.parentCtx!.repaint();
+    ctxSource.parentCtx!.repaint();
 
     ctxOn.selectOnDesigner();
-
-    // state.widget.slotConfig!.ctx.aFactory.builderDragConfig[idComponent]?.call(
-    //   ctx,
-    //   drop,
-    // );
   }
 }
 
@@ -96,21 +98,22 @@ class DragNewComponentCtx extends DragCtx {
     var param = <String, dynamic>{
       cwImplement: idComponent,
       cwProps: <String, dynamic>{},
+      cwBehaviors: <Map<String, dynamic>>[],
     };
 
     if (config[cwType] == 'datasource') {
-      showConfigDataSrc(ctx, idComponent, context, config).then((changed) {
+      showDataSource(ctx, idComponent, context, config).then((changed) {
         if (changed != null) {
           param = changed;
-          doActionDropNewCmp(ctx, param, state);
+          doActionDropNewCmp(ctx, param);
         }
       });
     } else if (config[cwType] == 'repository') {
       var dsId = config['ds'];
-      showConfigDataSrc(ctx, dsId, context, config).then((changed) {
+      showDataSource(ctx, dsId, context, config).then((changed) {
         if (changed != null) {
           param = changed;
-          doActionDropNewCmp(ctx, param, state);
+          doActionDropNewCmp(ctx, param);
         }
       });
     } else if (config['type'] == 'route') {
@@ -119,58 +122,76 @@ class DragNewComponentCtx extends DragCtx {
 
       if (pageId == null) {
         //creation de la route dans le factory si besoin
-        pageId = shortid.generate();
-        var url = '/new_page_$pageId';
-        ctx.aFactory.appData[cwApp]![cwSlots]![pageId] = <String, dynamic>{
-          cwImplement: 'page',
-          cwRouteId: pageId,
-          cwRouteName: 'New Page',
-          cwRoutePath: url,
-          cwSlotId: '',
-        };
-        var routeData = ctx.aFactory.appData[cwApp]![cwSlots]![pageId];
-
-        ctx.aFactory.initEmptyPageContent(routeData);
-
-        dragRouteData[cwRouteId] = pageId;
-        dragRouteData[cwRouteName] = 'New Page';
-        dragRouteData[cwRoutePath] = '/new_page_$pageId';
-        //dataRoute['icon'] = Icons.route;
-        dragRouteData['status'] = 'R';
-        int idcache = dragRouteData['intCache'] ?? 0;
-        dragRouteData['intCache'] = idcache + 1;
-        config[cwRoutePath] = url;
-        // ignore: invalid_use_of_protected_member
-        ctx.aFactory.keyPagesViewer.currentState?.setState(() {});
-
-        int i = ctx.aFactory.listSlotsPageInRouter.length;
-        ctx.aFactory.listSlotsPageInRouter.add(routeData);
-        ctx.aFactory.mapPath2PathSlot[config[cwRoutePath]] =
-            '/temp/page_slot_$i';
-
-        //routeRebuildController.value++;
+        doActionDropNewPage(ctx, dragRouteData);
       }
 
-      param[cwProps]['url'] = config[cwRoutePath];
+      BehaviorManager.addBehavior(
+        param,
+        type: 'navigate',
+        data: {
+          'routeId': dragRouteData[cwRouteId],
+          'routeUrl': dragRouteData[cwRoutePath],
+        },
+      );
+
       param[cwProps]['label'] = dragRouteData[cwRouteName];
-      doActionDropNewCmp(ctx, param, state);
+      doActionDropNewCmp(ctx, param);
     } else {
-      doActionDropNewCmp(ctx, param, state);
+      doActionDropNewCmp(ctx, param);
     }
   }
 
-  void doActionDropNewCmp(
-    CwWidgetCtx ctx,
-    Map<String, dynamic> childData,
-    WidgetSelectableState state,
-  ) {
+  void doActionDropNewPage(CwWidgetCtx ctx, dragRouteData) {
+    String pageId = shortid.generate();
+    var url = '/new_page_$pageId';
+    ctx.aFactory.appData[cwApp]![cwSlots]![pageId] = <String, dynamic>{
+      cwImplement: 'page',
+      cwRouteId: pageId,
+      cwRouteName: 'New Page',
+      cwRoutePath: url,
+      cwSlotId: '',
+    };
+    var routeData = ctx.aFactory.appData[cwApp]![cwSlots]![pageId];
+
+    ctx.aFactory.initEmptyPageContent(routeData);
+
+    dragRouteData[cwRouteId] = pageId;
+    dragRouteData[cwRouteName] = 'New Page';
+    dragRouteData[cwRoutePath] = '/new_page_$pageId';
+    //dataRoute['icon'] = Icons.route;
+    dragRouteData['status'] = 'R';
+    int idcache = dragRouteData['intCache'] ?? 0;
+    dragRouteData['intCache'] = idcache + 1;
+    config[cwRoutePath] = url;
+    // ignore: invalid_use_of_protected_member
+    ctx.aFactory.keyPagesViewer.currentState?.setState(() {});
+
+    int i = ctx.aFactory.listSlotsPageInRouter.length;
+    ctx.aFactory.listSlotsPageInRouter.add(routeData);
+    ctx.aFactory.mapPath2PathSlot[config[cwRoutePath]] = '/temp/page_slot_$i';
+  }
+
+  void doActionDropNewCmp(CwWidgetCtx ctx, Map<String, dynamic> childData) {
+    globalUndoManager.execute(
+      UndoAction(
+        doAction: () {
+          doActionDropNewCmpImpl(ctx, childData);
+        },
+        undoAction: () {
+          CwFactoryAction(ctx: ctx).delete();
+        },
+      ),
+    );
+  }
+
+  void doActionDropNewCmpImpl(CwWidgetCtx ctx, Map<String, dynamic> childData) {
     if (childData[cwSlots]?.length == 1) {
       bool notContainerIfSingle =
           ctx.isParentOfType('container', layout: 'form') ||
           ctx.slotProps?.id == 'rdrawer' ||
           ctx.slotProps?.type == 'cell' ||
           ctx.slotProps?.type == 'header';
-          
+
       if (notContainerIfSingle) {
         childData = childData[cwSlots]['cell_0'];
         idComponent = childData[cwImplement];
@@ -184,10 +205,7 @@ class DragNewComponentCtx extends DragCtx {
     );
 
     // appel de la config de drop si existante
-    state.widget.slotConfig!.ctx.aFactory.builderDragConfig[idComponent]?.call(
-      ctx,
-      drop,
-    );
+    ctx.aFactory.builderDragConfig[idComponent]?.call(ctx, drop);
 
     // appel de onDrop des slot parent
     drop.setConfigOnly(ctx);
@@ -202,21 +220,18 @@ class DragNewComponentCtx extends DragCtx {
     );
 
     drop.afterAdded?.call();
-
-    // ignore: invalid_use_of_protected_member
-    ctx.parentCtx!.widgetState?.setState(() {});
-
+    ctx.repaint();
+    ctx.parentCtx!.repaint();
     ctx.selectOnDesigner();
   }
 
-  Future<Map<String, dynamic>?> showConfigDataSrc(
+  Future<Map<String, dynamic>?> showDataSource(
     CwWidgetCtx ctx,
     String dataSourceId,
     BuildContext bctx,
     Map config,
   ) async {
     BuildContext context2 = ctx.aFactory.designerKey.currentContext!;
-
     late BuildContext ctx2;
 
     showDialog(
@@ -230,6 +245,11 @@ class DragNewComponentCtx extends DragCtx {
 
     CallerDatasource ds = CallerDatasource();
     await ds.loadDs(dataSourceId, null);
+    ds.config.aFactory = ctx.aFactory;
+    if (config['type'] == 'repository') {
+      ds.config.repositoryId = config['id'];
+      ds.initComputedProps();
+    }
 
     if (ds.modelHttp200 == null) {
       print('No response model for 200');
@@ -265,25 +285,11 @@ class DragNewComponentCtx extends DragCtx {
             TextButton(
               child: const Text('add data source'),
               onPressed: () async {
-                // BuildContext? ctx3;
-                // showDialog(
-                //   context: context2,
-                //   barrierDismissible: false,
-                //   builder: (ctx) {
-                //     ctx3 = ctx;
-                //     return const Center(child: CircularProgressIndicator());
-                //   },
-                // );
                 ret = await CwFactoryBloc().doDataSrcBloc(config, ds, ctx);
                 // ignore: use_build_context_synchronously
                 emitLater(CDDesignEvent.reselect, null, multiple: true);
                 // ignore: use_build_context_synchronously
                 Navigator.of(context).pop();
-                // ignore: use_build_context_synchronously
-                // if (ctx3 != null) {
-                //   // ignore: use_build_context_synchronously
-                //   Navigator.of(ctx3!).pop();
-                // }
               },
             ),
           ],

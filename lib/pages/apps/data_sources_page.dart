@@ -168,7 +168,7 @@ criteria:
   }
 
   @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node) {
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     // TODO: implement getAttributHeaderOLD
     throw UnimplementedError();
   }

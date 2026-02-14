@@ -278,7 +278,10 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
                 Expanded(
                   child: Container(
                     color: Colors.black,
-                    child: PanContentViewer(masterIdModel: m.first.masterID),
+                    child: PanContentViewer(
+                      masterIdModel: m.first.masterID,
+                      nameModel: m.first.name,
+                    ),
                   ),
                 ),
               ],

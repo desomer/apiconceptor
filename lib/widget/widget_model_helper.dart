@@ -1,12 +1,109 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/login/background_screen_login.dart';
 import 'package:jsonschema/widget/login/heading_text.dart';
+import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'package:jsonschema/widget/widget_dialog_card.dart';
+import 'package:yaml/yaml.dart';
 
 mixin class WidgetHelper {
+
+Future<bool> askUser(BuildContext context) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Question'),
+        content: Text('Can you remove this item ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Yes'),
+          ),
+        ],
+      );
+    },
+  );
+
+  return result ?? false; // Return false if the user dismisses the dialog }
+}
+
+  void openTypeSelector(
+    PanYamlTree editor,
+    BuildContext context,
+    List<OptionSelect> listOptions,
+    NodeAttribut attr,
+    GlobalKey<State<StatefulWidget>> k,
+  ) {
+    BuildContext? bCtx;
+
+    dialogBuilderBelow(
+      context,
+      SizedBox(
+        width: 110,
+        height: 220,
+        child: ListView(
+          children:
+              listOptions.map<Widget>((option) {
+                return ListTile(
+                  dense: true,
+                  leading: Icon(option.icon, color: option.color),
+                  title: Text(option.label),
+                  onTap: () {
+                    var aYaml = editor.getSchema().modelYaml;
+
+                    YamlDocument doc = loadYamlDocument(aYaml);
+                    YamlDoc docYaml = YamlDoc();
+                    docYaml.doAnalyse(doc, aYaml);
+
+                    for (var line in docYaml.listYamlLine) {
+                      YamlLine? l = line;
+                      String path = '';
+                      while (l != null) {
+                        if (path.isNotEmpty) {
+                          path = '>$path';
+                        }
+                        path = '${l.name}$path';
+                        l = l.parent;
+                      }
+                      path = 'root>$path';
+                      if (attr.info.path == path) {
+                        var from = RegExp(
+                          attr.info.getRefName() != null
+                              ? '\\\$${attr.info.getRefName()}'
+                              : attr.info.type,
+                        );
+                        aYaml = aYaml.replaceFirst(
+                          from,
+                          option.label,
+                          line.idxCharStart,
+                        );
+                        editor.updateYaml(aYaml);
+                        break;
+                      }
+                    }
+                    bCtx?.pop();
+                  },
+                );
+              }).toList(),
+        ),
+      ),
+      k,
+      Offset(-40, -20),
+      (BuildContext ctx) {
+        bCtx = ctx;
+      },
+    );
+  }
+
   Future<void> dialogBuilderBelow(
     BuildContext context,
     Widget child,
@@ -259,6 +356,20 @@ mixin class WidgetHelper {
       row.add(getChip(Text(master.toString()), color: null));
     }
   }
+}
+
+class OptionSelect {
+  final String label;
+  final String name;
+  final IconData icon;
+  final Color color;
+
+  OptionSelect({
+    required this.label,
+    required this.name,
+    required this.icon,
+    required this.color,
+  });
 }
 
 class PositionedDialogBelow extends StatelessWidget {

@@ -33,7 +33,7 @@ class PanModelSelector extends PanYamlTree {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey('${attr.info.name}%${attr.info.numUpdateForKey}'),
+        key: ValueKey('${schema.getVersionId()}%${attr.info.name}%${attr.info.numUpdateForKey}'),
         acces: ModelAccessorAttr(node: attr, schema: schema, propName: 'title'),
       ),
     );

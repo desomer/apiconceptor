@@ -91,7 +91,7 @@ class MyApp extends StatelessWidget {
       explicitChildNodes: true,
       excludeSemantics: true,
       child: MaterialApp.router(
-        title: 'App Desktop avec Menu Fixe',
+        title: 'API Architect',
         localizationsDelegates: [
           FleatherLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,

@@ -13,9 +13,9 @@ class _PropsViewerState extends State<PropsViewer> {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      itemCount: widget.factory.listPropsEditor.length,
+      itemCount: widget.factory.cwFactoryProps.listPropsEditor.length,
       itemBuilder: (context, index) {
-        return widget.factory.listPropsEditor[index];
+        return widget.factory.cwFactoryProps.listPropsEditor[index];
       },
     );
   }
@@ -33,9 +33,9 @@ class _StyleViewerState extends State<StyleViewer> {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      itemCount: widget.factory.listStyleEditor.length,
+      itemCount: widget.factory.cwFactoryProps.listStyleEditor.length,
       itemBuilder: (context, index) {
-        return widget.factory.listStyleEditor[index];
+        return widget.factory.cwFactoryProps.listStyleEditor[index];
       },
     );
   }
@@ -54,9 +54,30 @@ class _StyleSelectorViewerState extends State<StyleSelectorViewer> {
   Widget build(BuildContext context) {
     return ListView.builder(
       shrinkWrap: true,
-      itemCount: widget.factory.listStyleSelectorEditor.length,
+      itemCount: widget.factory.cwFactoryProps.listStyleSelectorEditor.length,
       itemBuilder: (context, index) {
-        return widget.factory.listStyleSelectorEditor[index];
+        return widget.factory.cwFactoryProps.listStyleSelectorEditor[index];
+      },
+    );
+  }
+}
+//-------------------------------------------------------
+class BehaviorSelectorViewer extends StatefulWidget {
+  const BehaviorSelectorViewer({super.key, required this.factory});
+  final WidgetFactory factory;
+
+  @override
+  State<BehaviorSelectorViewer> createState() => _BehaviorSelectorViewerState();
+}
+
+class _BehaviorSelectorViewerState extends State<BehaviorSelectorViewer> {
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: widget.factory.cwFactoryProps.listBehaviorEditor.length,
+      itemBuilder: (context, index) {
+        return widget.factory.cwFactoryProps.listBehaviorEditor[index];
       },
     );
   }

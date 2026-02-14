@@ -107,6 +107,9 @@ class Export2DtoNestjs {
           decorators.add('@Matches(RegExp(r\'$pattern\'))');
         }
         break;
+      case 'integer':
+        decorators.add('@IsInteger()');
+        break;        
       case 'number':
         decorators.add('@IsNumber()');
         break;
@@ -153,6 +156,8 @@ class Export2DtoNestjs {
     switch (type) {
       case 'string':
         return 'string';
+      case 'integer':
+        return 'integer';        
       case 'number':
         return 'number';
       case 'boolean':
