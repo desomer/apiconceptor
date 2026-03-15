@@ -1,0 +1,26 @@
+# R015_idempotence_key.yaml
+id: R015
+name: idempotence_key
+category: resilience
+description: Assure idempotence via clé d'idempotence et stratégie de merge
+scope: pipeline
+inputs:
+  - path: idempotence_key
+    type: string
+params:
+  - name: strategy
+    type: string
+    enum: [ignore, overwrite, merge]
+    default: ignore
+  - name: ttl_seconds
+    type: integer
+    default: 86400
+example: "duplicate messages with same key -> only one persisted"
+tests:
+  - id: T_R015_01
+    type: integration
+    description: réinjection du même message n'ajoute pas de doublon
+severity: high
+action_on_error: alert
+complexity: medium
+implementation_notes: "Utiliser store distribué pour tracking keys"

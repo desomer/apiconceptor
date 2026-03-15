@@ -230,6 +230,11 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
   InfoManagerGlossary();
 
   @override
+  Function? getValidateKey() {
+    return null;
+  }
+
+  @override
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {

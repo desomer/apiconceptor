@@ -5,6 +5,7 @@ import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
+@Deprecated('Use PanModelImportDialog instead')
 // ignore: must_be_immutable
 class WidgetModelLink extends StatelessWidget with WidgetHelper {
   WidgetModelLink({super.key, required this.listModel});

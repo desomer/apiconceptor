@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:jsonschema/core/compute/compute_manager.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/designer/editor/engine/overlay_action.dart';
+import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 
 class WidgetPopupAction extends StatefulWidget {
   const WidgetPopupAction({super.key});
@@ -39,12 +41,64 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
     double? l = e.left;
     double? r;
 
+    double hpopup = 200;
+
+    bool noPlaceOnBelow = t + hpopup > MediaQuery.of(context).size.height;
+    if (noPlaceOnBelow) {
+      t = e.top - hpopup;
+    }
+
     showDialog(
       barrierColor: Colors.transparent,
       context: context2,
       builder: (BuildContext context) {
         List<Widget> listActionWidget = [];
         //          var app = CWApplication.of();
+
+        var sel = currentSelectorManager.lastSelectedCtx;
+        Map? bind = sel?.dataWidget?[cwProps]?['bind'];
+        if (bind != null) {
+          String repoId = bind['repository'];
+          //repository = sel!.aFactory.mapRepositories[repoId];
+          Map computedInfo = sel!.aFactory.appData[cwRepos][repoId][cwComputed];
+          String? computedId = bind['computedId'];
+          if (computedId != null && computedInfo[computedId] != null) {
+            String? expression = computedInfo[computedId]['expression'];
+            if (expression != null) {
+              listActionWidget.add(
+                getMenu('Edit compute code...', () {
+                  // openBindDataDialog(context);
+                  Navigator.pop(context);
+                  ComputeManager computeManager = ComputeManager();
+                  ComputedValue cv = ComputedValue(
+                    id: computedId,
+                    name: computedInfo[computedId]['name'],
+                    expression: expression,
+                  );
+                  computeManager.computedProps = [cv];
+                  computeManager.onCloseScriptEditor = () {
+                    // update the bind with new expression
+                    sel.aFactory.appData[cwRepos][repoId][cwComputed][cv.id] = {
+                      'id': cv.id,
+                      'name': cv.name,
+                      'expression': cv.expression,
+                    };
+                    sel.repaint();
+                  };
+                  computeManager.variables = {
+                    '\$\$__ctx__\$\$': sel,
+                    '\$\$__buildctx__\$\$': sel.widgetState!.context,
+                    '\$\$__state__\$\$': sel.widgetState,
+                  };
+                  computeManager.showScriptEditor(cv, context);
+                }),
+              );
+              addMenuSeparator(listActionWidget);
+            }
+            // eval = CoreExpression();
+            // eval!.init(expression, logs: [], isAsync: true);
+          }
+        }
 
         listActionWidget.add(
           getMenu('Change populate...', () {
@@ -56,12 +110,7 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
             openDialogSurround(context);
           }),
         );
-        listActionWidget.add(
-          SizedBox(
-            width: 200,
-            child: Divider(height: 1, thickness: 1, color: Colors.white24),
-          ),
-        );
+        addMenuSeparator(listActionWidget);
         listActionWidget.add(
           getMenu('Copy', () {
             Navigator.pop(context);
@@ -86,17 +135,10 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
             Navigator.pop(context);
           }),
         );
-        listActionWidget.add(
-          SizedBox(
-            width: 200,
-            child: Divider(height: 1, thickness: 1, color: Colors.white24),
-          ),
-        );
+        addMenuSeparator(listActionWidget);
         listActionWidget.add(
           getMenu('Delete...', () {
-            CwFactoryAction(
-              ctx: currentSelectorManager.lastSelectedCtx!,
-            ).delete();
+            CwFactoryAction(ctx: sel!).delete();
 
             Navigator.pop(context);
           }),
@@ -118,6 +160,15 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
           ],
         );
       },
+    );
+  }
+
+  void addMenuSeparator(List<Widget> listActionWidget) {
+    listActionWidget.add(
+      SizedBox(
+        width: 200,
+        child: Divider(height: 1, thickness: 1, color: Colors.white24),
+      ),
     );
   }
 
@@ -149,22 +200,16 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
                   getWrapItem(context, context2, 'Tab', 'bar', 'tabview_0', {
                     'bottomView': true,
                   }, Icons.tab),
-                  getWrapItem(
-                    context,
-                    context2,
-                    'Row',
-                    'CWRow',
-                    'Cont0',
-                    {},
-                    Icons.view_week,
-                  ),
+                  getWrapItem(context, context2, 'Row', 'container', 'cell_0', {
+                    'type': 'row',
+                  }, Icons.view_week),
                   getWrapItem(
                     context,
                     context2,
                     'Column',
-                    'CWColumn',
-                    'Cont0',
-                    {},
+                    'container',
+                    'cell_0',
+                    {'type': 'column'},
                     Icons.table_rows_rounded,
                   ),
                 ],

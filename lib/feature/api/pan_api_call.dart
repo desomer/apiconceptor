@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
@@ -12,7 +12,7 @@ class WidgetApiCall extends StatefulWidget {
     required this.requestHelper,
     required this.idApi,
   });
-  final WidgetRequestHelper requestHelper;
+  final WidgetAPIHelper requestHelper;
   final String idApi;
 
   @override
@@ -32,6 +32,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
         modeSeparator: Separator.right,
         withBtnAddMock: true,
         modeMock: true,
+        autoSave: false,
       ),
       requestHelper: widget.requestHelper,
     );

@@ -128,7 +128,7 @@ class _PanApiSelectorTagState extends State<PanApiSelectorTag>
     );
 
     pathWidget.add(Spacer());
-    pathWidget.add(WidgetVersionState(margeVertical: 2, version: null,));
+    pathWidget.add(WidgetVersionState(margeVertical: 2, version: null));
 
     return ListTile(
       title: Container(
@@ -148,7 +148,7 @@ class _PanApiSelectorTagState extends State<PanApiSelectorTag>
         ),
       ),
       onTap: () {
-        var sel = _schema.nodeByMasterId[tag.node.info.masterID]!;
+        var sel = _schema.getNodeByMasterIdPath(tag.node.info.masterID)!;
         _schema.selectedAttr = sel;
         widget.onSelModel!(tag.node.info.masterID);
       },

@@ -26,6 +26,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     required this.modeArray,
     required this.mode,
     required this.propMode,
+    super.readOnly,
   });
 
   @override
@@ -41,25 +42,25 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     int? loop;
     if (modeArray == ModeArrayEnum.randomInstance) {
       loop = faker.randomGenerator.integer(maxArrayItems);
+      loop = _getLoopItems(loop, node);
     }
-    loop = getLoopItems(loop, node);
 
     return NodeJson(name: name, value: child)
       ..parentOfChild = obj
       ..loop = loop;
   }
 
-  int? getLoopItems(int? loop, NodeAttribut node) {
+  int? _getLoopItems(int? loop, NodeAttribut node) {
     int? min = int.tryParse(node.info.properties?['#minItems'] ?? '');
     int? max = int.tryParse(node.info.properties?['#maxItems'] ?? '');
     if (min != null && max != null && max >= min) {
       if (min == max) {
-        loop = min-1;
+        loop = min - 1;
       } else {
-        loop = faker.randomGenerator.integer(max, min: min-1);
+        loop = faker.randomGenerator.integer(max, min: min - 1);
       }
     } else if (min != null) {
-      loop = min-1;
+      loop = min - 1;
     } else if (max != null) {
       loop = faker.randomGenerator.integer(max, min: 0);
     }
@@ -267,8 +268,8 @@ class Export2FakeJson<T extends Map<String, dynamic>>
       int? loop;
       if (modeArray == ModeArrayEnum.randomInstance) {
         loop = faker.randomGenerator.integer(maxArrayItems);
+        loop = _getLoopItems(loop, node);
       }
-      loop = getLoopItems(loop, node);
       return NodeJson(name: name, value: child)
         ..loop = loop
         ..parentOfChild = obj;
@@ -276,20 +277,21 @@ class Export2FakeJson<T extends Map<String, dynamic>>
       // tableau de type simple
       if (modeArray == ModeArrayEnum.randomInstance) {
         int? nbRow = faker.randomGenerator.integer(maxArrayItems);
-        nbRow = getLoopItems(nbRow, node);
+        nbRow = _getLoopItems(nbRow, node);
         for (var i = 0; i < (nbRow ?? 0); i++) {
           child.add(getValue(name, type, node));
         }
       } else {
-        int? loop;
-        loop = getLoopItems(loop, node);
-        if (loop != null) {
-          for (var i = 0; i < loop; i++) {
-            child.add(getValue(name, type, node));
-          }
-        } else {
-          child.add(getValue(name, type, node));
-        }
+        // int? loop;
+        // loop = getLoopItems(loop, node);
+        // if (loop != null) {
+        //   for (var i = 0; i < loop; i++) {
+        //     child.add(getValue(name, type, node));
+        //   }
+        // } else {
+        //   child.add(getValue(name, type, node));
+        // }
+        child.add(getValue(name, type, node));
       }
     }
     return NodeJson(name: name, value: child);

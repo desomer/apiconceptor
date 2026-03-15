@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_iconpicker/Serialization/icondata_serialization.dart';
-import 'package:jsonschema/core/core_expression.dart';
+import 'package:jsonschema/core/compute/core_expression.dart';
 import 'package:jsonschema/core/designer/core/cw_constraint_builder.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_mask_helper.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
@@ -22,6 +22,7 @@ import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 
 class CwWidgetCtxSlot extends CwWidgetCtx {
@@ -127,12 +128,26 @@ class CwWidgetCtx {
     return type.contains(dataWidget?[cwImplement]);
   }
 
-  bool isParentOfType(String type, {String? layout}) {
-    if (parentCtx?.dataWidget?[cwImplement] == type) {
+  bool isParentOfType(List<String> type, {String? layout}) {
+    if (parentCtx != null && type.contains(parentCtx!.dataWidget?[cwImplement])) {
       var lay = parentCtx?.dataWidget?[cwProps]?['layout'];
       if (layout == null || lay == layout) {
         return true;
       }
+    }
+    return false;
+  }
+
+  bool hasParentOfType(List<String> type, {String? layout}) {
+    if (isParentOfType(type, layout: layout)) {
+      return true;
+    }
+    var current = parentCtx;
+    while (current != null) {
+      if (current.isParentOfType(type, layout: layout)) {
+        return true;
+      }
+      current = current.parentCtx;
     }
     return false;
   }
@@ -505,6 +520,45 @@ class CwWidgetCtx {
     _selectorCtx = ctxSrc._selectorCtx;
     widgetState = ctxSrc.widgetState;
   }
+
+  CwWidgetCtx? findByPath(String path) {
+    if (path == aWidgetPath) {
+      return this;
+    }
+    if (childrenCtx != null) {
+      for (var c in childrenCtx!.values) {
+        var found = c.findByPath(path);
+        if (found?.aWidgetPath == path) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
+  dynamic getDataValueForEval({
+    String? jsonPath,
+    String? pathJson,
+    required Map<String, AttributBindInfo>? listBindInfo,
+    required CwWidgetStateBindJson? state,
+    required BuildContext context,
+  }) {
+    Map bind = dataWidget?[cwProps]?['bind'];
+    String repoId = bind['repository'];
+    var repository = aFactory.mapRepositories[repoId];
+    var stateRepository = repository?.dataState;
+
+    AttributBindInfo bindInfo = AttributBindInfo();
+    bindInfo.stateRepository = stateRepository;
+    bindInfo.repository = repository;
+    bindInfo.bindAttribut = AttributInfo();
+    String path = jsonPath!.replaceAll(".", ">");
+    var p = 'root>$path';
+    bindInfo.bindAttribut!.path = p;
+    bool inArray = parentCtx?.isType(['list', 'table']) ?? false;
+    var ret = bindInfo.getValue(context, this, state!, inArray, false);
+    return ret;
+  }
 }
 
 class CWWidgetCtxSelector {
@@ -538,95 +592,31 @@ abstract class CwWidget extends StatefulWidget {
   const CwWidget({super.key, required this.ctx, required this.cacheWidget});
 }
 
-class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
-  String pathData = '?';
-  CwRepository? repository;
-  StateRepository? stateRepository;
-  NodeAttribut? attribut;
-  bool isPrimitiveArrayValue = false; // bind sur un tableau de string ou nombre
+class AttributBindInfo {
   CoreExpression? eval;
 
-  void setSelectedRow(
-    BuildContext context, {
-    CwWidgetStateBindJson? stateArray,
-  }) {
-    String r;
-    if (stateArray == null && stateRepository != null && attribut != null) {
-      //String? oldPathData = pathData;
-      bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
-      r = stateRepository!.getDataPath(
-        // ignore: use_build_context_synchronously
-        context,
-        widgetPath: widget.ctx.aWidgetPath,
-        attribut!.info.path,
-        typeListContainer: false,
-        inArray: inArray,
-        state: this,
-      );
-      pathData = r;
-    } else {
-      var s = stateArray ?? widget.ctx.parentCtx?.widgetState;
-      if (s is! CwWidgetStateBindJson) return;
-      var pathJson =
-          'root${s.pathData.replaceAll('/', '>').replaceAll('[*]', '[]')}';
-      pathJson = '$pathJson[]>*';
+  CwRepository? repository;
+  StateRepository? stateRepository;
 
-      stateRepository = s.stateRepository;
-      r = stateRepository!.getDataPath(
-        // ignore: use_build_context_synchronously
-        context,
-        pathJson,
-        widgetPath: widget.ctx.aWidgetPath,
-        typeListContainer: false,
-        inArray: true,
-        state: this,
-      );
-      if (stateArray == null) {
-        pathData = r;
-      }
-    }
-    doChangeRow(
-      rowContext: context,
-      pathRow: r,
-      pathWidgetRepos: stateArray?.widget.ctx.aWidgetPath,
-    );
-  }
+  String pathData = '?';
+  AttributInfo? bindAttribut;
+  bool isPrimitiveArrayValue = false; // bind sur un tableau de string ou nombre
 
-  void doChangeRow({
-    String? pathWidgetRepos,
-    String? pathRow,
-    BuildContext? rowContext,
-  }) {
-    if (stateRepository != null) {
-      String pathContainer;
-      (pathContainer, _) = stateRepository!.getPathInfo(pathRow ?? pathData);
-      (_, _) = stateRepository!.getStateContainer(
-        pathContainer,
-        context: rowContext ?? context,
-        pathWidgetRepos: pathWidgetRepos,
-        onIndexChange: (int idx) {
-          print("Update data on blur ${pathRow ?? pathData} to index $idx");
-          stateRepository!.reloadDependentContainers(pathRow ?? pathData);
-        },
-      );
-    }
-  }
+  String? attrName;
+  StateContainer? dataContainer;
 
-  void initBind() {
-    Map? bind = widget.ctx.dataWidget?[cwProps]?['bind'];
+  void initBind(CwWidgetCtx widgetCtx) {
+    Map? bind = widgetCtx.dataWidget?[cwProps]?['bind'];
     if (bind != null) {
       String repoId = bind['repository'];
-      repository = widget.ctx.aFactory.mapRepositories[repoId];
+      repository = widgetCtx.aFactory.mapRepositories[repoId];
       if (repository != null && bind['from'] == 'criteria') {
         String attrId = bind['attr'];
         stateRepository = repository!.criteriaState;
-        attribut =
-            repository!
-                .ds
-                .helper!
-                .apiCallInfo
-                .currentAPIRequest!
-                .nodeByMasterId[attrId];
+        bindAttribut =
+            repository!.ds.helper!.apiCallInfo.currentAPIRequest!
+                .getNodeByMasterIdPath(attrId)
+                ?.info;
       } else if (repository != null && bind['from'] == 'data') {
         String? attrId = bind['attr'];
         stateRepository = repository!.dataState;
@@ -635,21 +625,189 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
           attrId = attrId!.substring(5);
           isPrimitiveArrayValue = true;
         }
-        attribut = repository!.ds.modelHttp200!.nodeByMasterId[attrId];
+        bindAttribut =
+            repository!.ds.modelHttp200!.getNodeByMasterIdPath(attrId)?.info;
       } else if (repository != null && bind['computedId'] != null) {
-        if (widget.ctx.aFactory.isModeViewer()) {
+        if (widgetCtx.aFactory.isModeViewer()) {
           stateRepository = repository!.dataState;
           Map computedInfo =
-              widget.ctx.aFactory.appData[cwRepos][repoId][cwComputed];
+              widgetCtx.aFactory.appData[cwRepos][repoId][cwComputed];
           String computedId = bind['computedId'];
           if (computedInfo[computedId] != null) {
             String expression = computedInfo[computedId]['expression'];
             eval = CoreExpression();
-            eval!.init(expression, logs: []);
+            eval!.init(expression, logs: [], isAsync: true);
           }
         }
       }
     }
+  }
+
+  dynamic getValue(
+    BuildContext context,
+    CwWidgetCtx ctx,
+    CwWidgetStateBindJson state,
+    bool inArray,
+    bool typeListContainer,
+  ) {
+    var modeDesigner = ctx.aFactory.isModeDesigner();
+    String? oldPathData = pathData;
+
+    pathData = stateRepository!.getDataPath(
+      context,
+      isPrimitiveArrayValue ? '${bindAttribut!.path}>*' : bindAttribut!.path,
+      typeListContainer: typeListContainer,
+      widgetPath: ctx.aWidgetPath,
+      inListOrArray: inArray,
+      state: state,
+    );
+
+    if (isPrimitiveArrayValue) {
+      // bind sur un tableau de string ou nombre
+      int i = pathData.lastIndexOf('[');
+      int i2 = pathData.lastIndexOf(']');
+      var substring = pathData.substring(i + 1, i2);
+      pathData = pathData.substring(0, i);
+      int idx = int.tryParse(substring) ?? 0;
+      StateContainer? dataContainer;
+      (dataContainer, _) = stateRepository!.getStateContainer(
+        pathData,
+        context: context,
+        pathWidgetRepos: ctx.aWidgetPath,
+      );
+      //print('object $pathData => ${dataContainer?.jsonData} + $idx');
+      dynamic val = dataContainer!.jsonData[idx];
+      return val?.toString() ?? '';
+    } else {
+      if (oldPathData != '?' && oldPathData != pathData) {
+        if (typeListContainer) {
+          stateRepository!.depsBindingManager.disposeContainer(
+            oldPathData,
+            state,
+          );
+        } else {
+          stateRepository!.depsBindingManager.disposeInput(oldPathData, state);
+        }
+      }
+      if (typeListContainer) {
+        stateRepository!.depsBindingManager.registerContainer(pathData, state);
+      } else {
+        stateRepository!.depsBindingManager.registerInput(pathData, state);
+      }
+
+      String pathContainer;
+      String aAttrName;
+      (pathContainer, aAttrName) = stateRepository!.getSplitPathInfo(pathData);
+      attrName = aAttrName;
+      StateContainer? aDataContainer;
+
+      (aDataContainer, _) = stateRepository!.getStateContainer(
+        pathContainer,
+        context: context,
+        pathWidgetRepos: ctx.parentCtx!.aWidgetPath,
+      );
+      dataContainer = aDataContainer;
+      if (dataContainer != null) {
+        dynamic val = dataContainer!.jsonData[attrName];
+        if (modeDesigner && !typeListContainer) {
+          return pathData;
+        } else {
+          return val;
+        }
+      }
+    }
+  }
+
+  void doChangeRow({
+    String? pathWidgetRepos,
+    String? pathRow,
+    BuildContext? rowContext,
+  }) {
+    var aPathData = pathRow ?? pathData;
+    if (stateRepository != null && aPathData != '?') {
+      String pathContainer;
+      (pathContainer, _) = stateRepository!.getSplitPathInfo(aPathData);
+      (_, _) = stateRepository!.getStateContainer(
+        pathContainer,
+        context: rowContext,
+        pathWidgetRepos: pathWidgetRepos,
+        onIndexChange: (int idx) {
+          print("Update data on blur $aPathData to index $idx");
+          stateRepository!.depsBindingManager.reloadDependentContainers(
+            aPathData,
+          );
+        },
+      );
+    }
+  }
+}
+
+class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
+  AttributBindInfo bindInfo = AttributBindInfo();
+
+  void setSelectedRow(
+    BuildContext context, {
+    CwWidgetStateBindJson? stateArray,
+  }) {
+    var pathRow = getPathData(
+      context,
+      bindInfo: bindInfo,
+      stateArray: stateArray,
+    );
+    bindInfo.doChangeRow(
+      rowContext: context,
+      pathRow: pathRow,
+      pathWidgetRepos: stateArray?.widget.ctx.aWidgetPath,
+    );
+  }
+
+  String? getPathData(
+    BuildContext context, {
+    CwWidgetStateBindJson? stateArray,
+    required AttributBindInfo bindInfo,
+  }) {
+    String r;
+    if (stateArray == null &&
+        bindInfo.stateRepository != null &&
+        bindInfo.bindAttribut != null) {
+      //String? oldPathData = pathData;
+      bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
+      r = bindInfo.stateRepository!.getDataPath(
+        // ignore: use_build_context_synchronously
+        context,
+        widgetPath: widget.ctx.aWidgetPath,
+        bindInfo.bindAttribut!.path,
+        typeListContainer: false,
+        inListOrArray: inArray,
+        state: this,
+      );
+      bindInfo.pathData = r;
+    } else {
+      var s = stateArray ?? widget.ctx.parentCtx?.widgetState;
+      if (s is! CwWidgetStateBindJson) return null;
+      var pathJson =
+          'root${s.bindInfo.pathData.replaceAll('/', '>').replaceAll('[*]', '[]')}';
+      pathJson = '$pathJson[]>*';
+
+      bindInfo.stateRepository = s.bindInfo.stateRepository;
+      r = bindInfo.stateRepository!.getDataPath(
+        // ignore: use_build_context_synchronously
+        context,
+        pathJson,
+        widgetPath: widget.ctx.aWidgetPath,
+        typeListContainer: false,
+        inListOrArray: true,
+        state: this,
+      );
+      if (stateArray == null) {
+        bindInfo.pathData = r;
+      }
+    }
+    return r;
+  }
+
+  void initBind() {
+    bindInfo.initBind(widget.ctx);
   }
 
   void setSelectedRowIndex(int idx) {}
@@ -816,7 +974,11 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
     if (iconProp != null) {
       var iconDes = deserializeIcon(iconProp);
       if (iconDes != null) {
-        icon = Icon(iconDes.data, color: styleFactory.getColor('fgColor'));
+        icon = Icon(
+          iconDes.data,
+          color: styleFactory.getColor('fgColor'),
+          size: styleFactory.getStyleNDouble('tSize', 4),
+        );
       }
     }
     return icon;
@@ -924,7 +1086,7 @@ class CwWidgetProperties {
         ctx.onValueChange(
           cwPropHeight,
           path: path,
-          repaintParent: ctx.isParentOfType('table'),
+          repaintParent: ctx.isParentOfType(['table']),
         )(value);
       },
       path: path,
@@ -943,7 +1105,7 @@ class CwWidgetProperties {
         ctx.onValueChange(
           cwPropWidth,
           path: path,
-          repaintParent: ctx.isParentOfType('table'),
+          repaintParent: ctx.isParentOfType(['table']),
         )(value);
       },
       path: path,

@@ -12,7 +12,6 @@ import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
-import 'package:yaml/yaml.dart';
 import 'package:collection/collection.dart';
 
 import 'widget_graph_node.dart';
@@ -139,15 +138,15 @@ class _PanModelGraphState extends State<PanModelGraph> {
       infoManager: InfoManagerModel(typeMD: TypeMD.model),
       headerName: value.name,
       id: key,
-      ref: currentCompany.listModel,
+      refDomain: currentCompany.listModel,
     );
     node.model = model;
     model.loadYamlAndProperties(cache: false, withProperties: false).then((
       value,
     ) {
       YamlDoc docYaml = YamlDoc();
-      YamlDocument doc = loadYamlDocument(model.modelYaml);
-      docYaml.doAnalyse(doc, model.modelYaml);
+      docYaml.load(model.modelYaml);
+      docYaml.doAnalyse();
       node.listRowYaml = docYaml.doPrettyPrint();
 
       node.nbRow = docYaml.listYamlLine.length;
@@ -173,15 +172,15 @@ class _PanModelGraphState extends State<PanModelGraph> {
       infoManager: InfoManagerAPI(),
       headerName: value.name,
       id: '$prefix$key',
-      ref: currentCompany.listModel,
+      refDomain: currentCompany.listModel,
     );
     node.model = model;
     model.loadYamlAndProperties(cache: false, withProperties: false).then((
       value,
     ) {
       YamlDoc docYaml = YamlDoc();
-      YamlDocument doc = loadYamlDocument(model.modelYaml);
-      docYaml.doAnalyse(doc, model.modelYaml);
+      docYaml.load(model.modelYaml);
+      docYaml.doAnalyse();
 
       // // ajoute les lien
       for (var row in docYaml.listRoot) {
@@ -332,7 +331,7 @@ class _PanModelGraphState extends State<PanModelGraph> {
       }
       springLengthY = springLengthX;
     } else {
-      print("object");
+      //print("object");
     }
 
     var dist = max(1.0, sqrt(dx * dx + dy * dy));

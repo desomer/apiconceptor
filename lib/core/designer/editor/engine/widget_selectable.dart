@@ -343,8 +343,16 @@ class WidgetSelectableState extends State<WidgetSelectable> {
         sizeOnDropAccept = box?.size;
 
         if (widget.slotConfig?.ctx.isEmptySlot() == false) {
-          // refuse le drop si le slot est vide
-          return false;
+          // refuse le drop si le slot n'est vide sauf si c'est un drop de route (pour permettre d'ajouter une route dans un slot déjà utilisé)
+          if (details.data is DragNewComponentCtx) {
+            DragNewComponentCtx newComponent =
+                details.data as DragNewComponentCtx;
+            if (newComponent.config['type'] != 'route') {
+              return false;
+            }
+          } else {
+            return false;
+          }
         }
         setState(() {
           // pour changement visuel si valide
@@ -360,8 +368,21 @@ class WidgetSelectableState extends State<WidgetSelectable> {
       },
 
       onAcceptWithDetails: (details) {
-        details.data.doDropOn(this, context);
-        currentSelectorManager.removeDrag();
+        if (widget.slotConfig?.ctx.isEmptySlot() == false) {
+          if (details.data is DragNewComponentCtx) {
+            DragNewComponentCtx newComponent =
+                details.data as DragNewComponentCtx;
+            if (newComponent.config['type'] == 'route') {
+              newComponent.addRouteBehaviour(
+                widget.slotConfig!.ctx,
+                widget.slotConfig!.ctx.dataWidget!,
+              );
+            }
+          }
+        } else {
+          details.data.doDropOn(this, context);
+          currentSelectorManager.removeDrag();
+        }
         _isValidDrop = false;
       },
       builder: (context, candidateData, rejectedData) {
@@ -551,6 +572,7 @@ class WidgetSelectableState extends State<WidgetSelectable> {
     if (boundary.debugNeedsPaint) {
       return null;
     }
+
     /// convert boundary to image
     final image = await boundary.toImage(pixelRatio: 0.9);
     final byteData = await image.toByteData(format: ImageByteFormat.png);

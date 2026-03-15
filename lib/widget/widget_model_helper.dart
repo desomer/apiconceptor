@@ -8,33 +8,40 @@ import 'package:jsonschema/widget/login/heading_text.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'package:jsonschema/widget/widget_dialog_card.dart';
-import 'package:yaml/yaml.dart';
 
 mixin class WidgetHelper {
+  Future<bool> askUser(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Question'),
+          content: Text('Can you remove this item ?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('No'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
 
-Future<bool> askUser(BuildContext context) async {
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text('Question'),
-        content: Text('Can you remove this item ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('No'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Yes'),
-          ),
-        ],
-      );
-    },
-  );
+    return result ?? false; // Return false if the user dismisses the dialog }
+  }
 
-  return result ?? false; // Return false if the user dismisses the dialog }
-}
+  String replaceLast(String source, String from, String to) {
+    final index = source.lastIndexOf(from);
+    if (index == -1) return source;
+
+    return source.substring(0, index) +
+        to +
+        source.substring(index + from.length);
+  }
 
   void openTypeSelector(
     PanYamlTree editor,
@@ -58,11 +65,14 @@ Future<bool> askUser(BuildContext context) async {
                   leading: Icon(option.icon, color: option.color),
                   title: Text(option.label),
                   onTap: () {
+                    var path2 = attr.info.path;
+                    path2 = path2.replaceAll("$constTypeAnyof>", "");
+
                     var aYaml = editor.getSchema().modelYaml;
 
-                    YamlDocument doc = loadYamlDocument(aYaml);
                     YamlDoc docYaml = YamlDoc();
-                    docYaml.doAnalyse(doc, aYaml);
+                    docYaml.load(aYaml);
+                    docYaml.doAnalyse();
 
                     for (var line in docYaml.listYamlLine) {
                       YamlLine? l = line;
@@ -75,7 +85,7 @@ Future<bool> askUser(BuildContext context) async {
                         l = l.parent;
                       }
                       path = 'root>$path';
-                      if (attr.info.path == path) {
+                      if (path2 == path) {
                         var from = RegExp(
                           attr.info.getRefName() != null
                               ? '\\\$${attr.info.getRefName()}'
@@ -84,7 +94,7 @@ Future<bool> askUser(BuildContext context) async {
                         aYaml = aYaml.replaceFirst(
                           from,
                           option.label,
-                          line.idxCharStart,
+                          aYaml.indexOf(":", line.idxCharStart),
                         );
                         editor.updateYaml(aYaml);
                         break;
@@ -109,8 +119,9 @@ Future<bool> askUser(BuildContext context) async {
     Widget child,
     GlobalKey targetKey,
     Offset? offset,
-    Function getCtx,
-  ) {
+    Function getCtx, {
+    double hpopup = 250,
+  }) {
     return showDialog(
       context: context,
       //barrierColor: Colors.transparent, // Pour éviter le fond sombre
@@ -119,6 +130,7 @@ Future<bool> askUser(BuildContext context) async {
         return Stack(
           children: [
             PositionedDialogBelow(
+              hpopup: hpopup,
               pos: offset ?? Offset(0, 0),
               targetKey: targetKey,
               child: AlertDialog(
@@ -376,12 +388,14 @@ class PositionedDialogBelow extends StatelessWidget {
   final GlobalKey targetKey;
   final Widget child;
   final Offset pos;
+  final double hpopup;
 
   const PositionedDialogBelow({
     super.key,
     required this.targetKey,
     required this.child,
     required this.pos,
+    required this.hpopup,
   });
 
   @override
@@ -394,11 +408,14 @@ class PositionedDialogBelow extends StatelessWidget {
       final position = renderBox.localToGlobal(Offset.zero);
       final size = renderBox.size;
 
-      return Positioned(
-        left: position.dx + pos.dx,
-        top: position.dy + size.height + pos.dy,
-        child: child,
-      );
+      var t = position.dy + size.height + pos.dy;
+
+      bool noPlaceOnBelow = t + hpopup > MediaQuery.of(context).size.height;
+      if (noPlaceOnBelow) {
+        t = t - hpopup;
+      }
+
+      return Positioned(left: position.dx + pos.dx, top: t, child: child);
     }
     return Container();
   }

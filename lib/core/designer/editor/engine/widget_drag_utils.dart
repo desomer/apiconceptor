@@ -117,28 +117,33 @@ class DragNewComponentCtx extends DragCtx {
         }
       });
     } else if (config['type'] == 'route') {
-      var dragRouteData = config['data'];
-      var pageId = dragRouteData[cwRouteId];
-
-      if (pageId == null) {
-        //creation de la route dans le factory si besoin
-        doActionDropNewPage(ctx, dragRouteData);
-      }
-
-      BehaviorManager.addBehavior(
-        param,
-        type: 'navigate',
-        data: {
-          'routeId': dragRouteData[cwRouteId],
-          'routeUrl': dragRouteData[cwRoutePath],
-        },
-      );
+      var dragRouteData = addRouteBehaviour(ctx, param);
 
       param[cwProps]['label'] = dragRouteData[cwRouteName];
       doActionDropNewCmp(ctx, param);
     } else {
       doActionDropNewCmp(ctx, param);
     }
+  }
+
+  dynamic addRouteBehaviour(CwWidgetCtx ctx, Map<String, dynamic> param) {
+    var dragRouteData = config['data'];
+    var pageId = dragRouteData[cwRouteId];
+
+    if (pageId == null) {
+      //creation de la route dans le factory si besoin
+      doActionDropNewPage(ctx, dragRouteData);
+    }
+
+    BehaviorManager.addBehavior(
+      param,
+      type: 'navigate',
+      data: {
+        'routeId': dragRouteData[cwRouteId],
+        'routeUrl': dragRouteData[cwRoutePath],
+      },
+    );
+    return dragRouteData;
   }
 
   void doActionDropNewPage(CwWidgetCtx ctx, dragRouteData) {
@@ -187,7 +192,7 @@ class DragNewComponentCtx extends DragCtx {
   void doActionDropNewCmpImpl(CwWidgetCtx ctx, Map<String, dynamic> childData) {
     if (childData[cwSlots]?.length == 1) {
       bool notContainerIfSingle =
-          ctx.isParentOfType('container', layout: 'form') ||
+          ctx.isParentOfType(['container'], layout: 'form') ||
           ctx.slotProps?.id == 'rdrawer' ||
           ctx.slotProps?.type == 'cell' ||
           ctx.slotProps?.type == 'header';

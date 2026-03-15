@@ -5,7 +5,6 @@ import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
-
 // ignore: must_be_immutable
 class CallAPIPageDetail extends GenericPageStateless {
   CallAPIPageDetail({super.key});
@@ -26,39 +25,43 @@ class CallAPIPageDetail extends GenericPageStateless {
     var goTo = GoTo();
     // goTo.initApi(query);
 
-
     return NavigationInfo()
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.api_outlined),
-          settings: const RouteSettings(name: 'API Definition'),
+          settings: const RouteSettings(name: 'API Spec.'),
           type: BreadNodeType.widget,
-          path: Pages.apiDetail.id(query)
+          path: Pages.apiDetail.id(query),
         ),
 
         BreadNode(
           icon: const Icon(Icons.api_outlined),
           settings: const RouteSettings(name: 'API UI'),
           type: BreadNodeType.widget,
-          path: Pages.apiUI.id(query)
+          path: Pages.apiUI.id(query),
         ),
-
+        BreadNode(
+          icon: const Icon(Icons.airplane_ticket),
+          settings: const RouteSettings(name: 'Scrum'),
+          type: BreadNodeType.widget,
+          path: Pages.apiScrum.id(query),
+        ),        
       ]
       ..breadcrumbs = [
-        BreadNode(
-          settings: const RouteSettings(name: 'List API'),
-          type: BreadNodeType.widget,
-          path: Pages.api.urlpath,    
-          onTap: () {
-            context.pop();
-          },                
-        ),
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
           path: Pages.api.urlpath,
         ),
-        ...goTo.getBreadcrumbApi(query)
+        BreadNode(
+          settings: const RouteSettings(name: 'List API'),
+          type: BreadNodeType.widget,
+          path: Pages.api.urlpath,
+          onTap: () {
+            context.pop();
+          },
+        ),
+        ...goTo.getBreadcrumbApi(query),
       ];
   }
 }

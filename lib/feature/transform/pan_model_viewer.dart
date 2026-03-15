@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:animated_tree_view/tree_view/tree_node.dart';
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
@@ -20,7 +19,11 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
 class PanContentViewer extends StatefulWidget {
-  const PanContentViewer({super.key, this.masterIdModel, required this.nameModel});
+  const PanContentViewer({
+    super.key,
+    this.masterIdModel,
+    required this.nameModel,
+  });
 
   final String? masterIdModel;
   final String? nameModel;
@@ -32,43 +35,16 @@ class PanContentViewer extends StatefulWidget {
 class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
   ModelSchema? modelLoaded;
 
-  Future<ModelSchema?> getModel(String idDomain, String idModel) async {
-    var aDomain = currentCompany.listDomain.mapInfoByName[idDomain];
-    var attr = aDomain?.firstOrNull;
-    if (attr != null) {
-      var listModel = await loadSchema(
-        TypeMD.listmodel,
-        'model',
-        'Business models',
-        TypeModelBreadcrumb.businessmodel,
-        namespace: attr.masterID!,
-      );
-      var m = listModel.mapInfoByName[idModel]?.first;
-      if (m != null) {
-        var aModel = ModelSchema(
-          category: Category.model,
-          infoManager: InfoManagerModel(typeMD: TypeMD.model),
-          headerName: m.name,
-          id: m.masterID!,
-          ref: listModel,
-        );
-        aModel.namespace = attr.masterID!;
-        await aModel.loadYamlAndProperties(cache: false, withProperties: true);
-        //print(m);
-        return aModel;
-      }
-    }
-
-    return null;
-  }
-
-  Future<ModelSchema?> getModelByMasterId(String idModel, String nameModel) async {
+  Future<ModelSchema?> getModelByMasterId(
+    String idModel,
+    String nameModel,
+  ) async {
     var aModel = ModelSchema(
       category: Category.model,
       infoManager: InfoManagerModel(typeMD: TypeMD.model),
       headerName: nameModel,
       id: idModel,
-      ref: currentCompany.listModel,
+      refDomain: currentCompany.listModel,
     );
     aModel.namespace = currentCompany.currentNameSpace;
     await aModel.loadYamlAndProperties(cache: false, withProperties: true);
@@ -93,7 +69,10 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
 
   Future<Widget> getUI(BuildContext context) async {
     if (widget.masterIdModel != null && json2ui.stateMgr.data == null) {
-      modelLoaded ??= await getModelByMasterId(widget.masterIdModel!, widget.nameModel!);
+      modelLoaded ??= await getModelByMasterId(
+        widget.masterIdModel!,
+        widget.nameModel!,
+      );
       // charge les layout
       json2ui.stateMgr.loadJSonConfigLayout(modelLoaded!);
 
@@ -226,6 +205,11 @@ class PanContentSelectorTree extends PanYamlTree {
 
 //************************************************************************* */
 class InfoManagerContent extends InfoManager with WidgetHelper {
+  @override
+  Function? getValidateKey() {
+    return null;
+  }
+
   @override
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;

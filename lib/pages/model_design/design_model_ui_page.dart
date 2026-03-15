@@ -10,7 +10,7 @@ import 'package:jsonschema/widget/widget_breadcrumb.dart';
 class DesignModelUIPage extends GenericPageStateless {
   DesignModelUIPage({super.key});
   String model = '';
-  String nameModel='';
+  String nameModel = '';
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +26,7 @@ class DesignModelUIPage extends GenericPageStateless {
     model =
         routerState.uri.queryParameters['id'] ??
         currentCompany.currentModel!.id;
-    var attr = currentCompany.listModel!.nodeByMasterId[model];
+    var attr = currentCompany.listModel!.getNodeByMasterIdPath(model);
     nameModel = attr!.info.name;
 
     return NavigationInfo()

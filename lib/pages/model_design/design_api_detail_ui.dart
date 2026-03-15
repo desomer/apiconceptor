@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
@@ -13,14 +13,14 @@ import 'package:jsonschema/widget/widget_breadcrumb.dart';
 class CallAPIPageDetailUI extends GenericPageStateless {
   CallAPIPageDetailUI({super.key});
   String query = '';
-  late WidgetRequestHelper requestHelper;
+  late WidgetAPIHelper requestHelper;
 
   @override
   Widget build(BuildContext context) {
-    var attr = currentCompany.listAPI!.nodeByMasterId[query]!;
+    var attr = currentCompany.listAPI!.getNodeByMasterIdPath(query)!;
     currentCompany.listAPI!.selectedAttr = attr;
 
-    requestHelper = WidgetRequestHelper(
+    requestHelper = WidgetAPIHelper(
       apiNode: attr,
       apiCallInfo: getAPICall(
         currentCompany.currentNameSpace,
@@ -55,7 +55,7 @@ class CallAPIPageDetailUI extends GenericPageStateless {
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.api_outlined),
-          settings: const RouteSettings(name: 'API Definition'),
+          settings: const RouteSettings(name: 'API Spec.'),
           type: BreadNodeType.widget,
           path: Pages.apiDetail.id(query),
         ),
@@ -66,8 +66,20 @@ class CallAPIPageDetailUI extends GenericPageStateless {
           type: BreadNodeType.widget,
           path: Pages.apiUI.id(query),
         ),
+
+        BreadNode(
+          icon: const Icon(Icons.api_outlined),
+          settings: const RouteSettings(name: 'Scrum'),
+          type: BreadNodeType.widget,
+          path: Pages.apiScrum.id(query),
+        ),
       ]
       ..breadcrumbs = [
+        BreadNode(
+          settings: const RouteSettings(name: 'Domain'),
+          type: BreadNodeType.domain,
+          path: Pages.api.urlpath,
+        ),
         BreadNode(
           settings: const RouteSettings(name: 'List API'),
           type: BreadNodeType.widget,
@@ -75,11 +87,6 @@ class CallAPIPageDetailUI extends GenericPageStateless {
           onTap: () {
             context.pop();
           },
-        ),
-        BreadNode(
-          settings: const RouteSettings(name: 'Domain'),
-          type: BreadNodeType.domain,
-          path: Pages.api.urlpath,
         ),
         ...goTo.getBreadcrumbApi(query),
       ];

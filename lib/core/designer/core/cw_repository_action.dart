@@ -91,6 +91,10 @@ class CwRepositoryAction {
     }
   }
 
+  int getMaxPageNumber() {
+    return repo.dataState.maxPageNumer;
+  }
+
   void loadData(BuildContext context, {String? paramSessionId}) async {
     var h = repo.ds.helper!;
     repo.dataState.clearDisplayedData();
@@ -104,12 +108,14 @@ class CwRepositoryAction {
       var browserEmpty = Export2FakeJson(
         modeArray: ModeArrayEnum.randomInstance,
         mode: ModeEnum.fake,
-        propMode: PropertyRequiredEnum.all
+        propMode: PropertyRequiredEnum.all,
       );
       await browserEmpty.browseSync(repo.dataState.schema!, false, 0);
       var data = browserEmpty.json;
       repo.dataState.data = data;
       repo.dataState.loadDataInContainer(data);
+      repo.dataState.maxPageNumer = 10;
+      repo.pagerCtx?.repaint();
       return;
     }
 
@@ -121,17 +127,21 @@ class CwRepositoryAction {
         var data = h.apiCallInfo.aResponse?.reponse?.data;
         repo.dataState.data = data;
         repo.dataState.loadDataInContainer(data);
+        repo.dataState.maxPageNumer = _getMaxPage();
+        repo.pagerCtx?.repaint();
       },
       onRequestError: () async {
         var browserEmpty = Export2FakeJson(
           modeArray: ModeArrayEnum.randomInstance,
           mode: ModeEnum.fake,
-          propMode: PropertyRequiredEnum.all
+          propMode: PropertyRequiredEnum.all,
         );
         await browserEmpty.browseSync(repo.dataState.schema!, false, 0);
         var data = browserEmpty.json;
         repo.dataState.data = data;
         repo.dataState.loadDataInContainer(data);
+        repo.dataState.maxPageNumer = _getMaxPage();
+        repo.pagerCtx?.repaint();
       },
     );
   }
@@ -178,5 +188,17 @@ class CwRepositoryAction {
     );
     repo.criteriaState.loadDataInContainer(criteria);
     loadData(context);
+  }
+
+  int _getMaxPage() {
+    var data = repo.dataState.data;
+    var paginationVariable = repo.ds.config.data.paginationVariable!;
+    var page = findValueByKey(data, paginationVariable);
+    if (page is String) {
+      return int.tryParse(page) ?? 0;
+    } else if (page is int) {
+      return page;
+    }
+    return 0;
   }
 }

@@ -99,6 +99,12 @@ class PanDomain extends StatelessWidget {
 
 //-------------------------------------------------------------
 class InfoManagerDomain extends InfoManager with WidgetHelper {
+
+  @override
+  Function? getValidateKey() {
+    return null;
+  }
+
   @override
   void addRowWidget(
     NodeAttribut attr,
@@ -144,6 +150,12 @@ class InfoManagerDomain extends InfoManager with WidgetHelper {
 
 //-------------------------------------------------------------
 class InfoManagerDomainVariables extends InfoManager with WidgetHelper {
+
+  @override
+  Function? getValidateKey() {
+    return null;
+  }
+
   @override
   void addRowWidget(
     NodeAttribut attr,

@@ -164,8 +164,9 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
           await _goToAPI(attr, 1);
         },
         child: HoverableCard(
+          onBuild: (state, ctx) {},
           isSelected: (State state) {
-            attr.widgetSelectState = state;
+            attr.widgetRowHoverState = state;
             bool isSelected = schema.selectedAttr == attr;
             if (isSelected) {
               rowSelected = state;
@@ -197,9 +198,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
     keyAttrEditor.currentState?.setState(() {});
   }
 
-  Future<void> _goToAPI(
-    NodeAttribut attr,
-    int tabNumber) async {
+  Future<void> _goToAPI(NodeAttribut attr, int tabNumber) async {
     if (attr.level == 2) {
       //stateApi.tabDisable.clear();
       // ignore: invalid_use_of_protected_member
@@ -229,7 +228,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
         infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
         headerName: 'trashcan/${attr.info.type}',
         id: key,
-        ref: currentCompany.listModel,
+        refDomain: currentCompany.listModel,
       );
 
       await currentCompany.currentAPIResquest!.loadYamlAndProperties(
@@ -246,7 +245,7 @@ class PanAPITrashcan extends StatelessWidget with WidgetHelper {
         infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
         headerName: attr.info.name,
         id: 'response/$key',
-        ref: currentCompany.listModel,
+        refDomain: currentCompany.listModel,
       );
 
       await currentCompany.currentAPIResponse!.loadYamlAndProperties(

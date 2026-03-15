@@ -31,7 +31,7 @@ class CwAppBar extends CwWidget {
       );
     }
 
-    factory.register(
+    factory.registerComponent(
       id: 'appbar',
       build:
           (ctx) => CwAppBar(

@@ -31,8 +31,12 @@ class DesignModelDetailPage extends GenericPageStateless {
     query =
         routerState.uri.queryParameters['id'] ??
         currentCompany.currentModel!.id;
-    var attr = currentCompany.listModel!.nodeByMasterId[query];
+    var attr = currentCompany.listModel!.getNodeByMasterIdPath(query);
     var name = attr?.info.name;
+    var version = attr?.info.properties?['#version'] ?? '0.0.1';
+    if (currentCompany.currentModel?.id == query) {
+      version = currentCompany.currentModel!.getVersionText();
+    }
 
     return NavigationInfo()
       ..navLeft = [
@@ -83,6 +87,10 @@ class DesignModelDetailPage extends GenericPageStateless {
         ),
         BreadNode(
           settings: RouteSettings(name: name),
+          type: BreadNodeType.widget,
+        ),
+        BreadNode(
+          settings: RouteSettings(name: version),
           type: BreadNodeType.widget,
         ),
       ];

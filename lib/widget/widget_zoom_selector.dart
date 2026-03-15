@@ -23,7 +23,7 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
       children: [
         Text(widget.zoom.value.toInt().toString()),
         SizedBox(
-          width: 150,
+          width: 100,
           child: Slider(
             min: 1,
             max: 10,

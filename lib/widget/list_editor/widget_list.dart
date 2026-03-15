@@ -175,6 +175,8 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
 
   Widget getHover(Key key, T attr, Widget child) {
     return HoverableCard(
+      onBuild: (state, ctx) {
+      },
       key: key,
       isSelected: (State state) {
         bool isSelected = widget.isSelected(attr, state, rowSelectedState);

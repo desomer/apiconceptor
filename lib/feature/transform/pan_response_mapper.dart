@@ -16,8 +16,6 @@ class PanResponseMapper extends StatefulWidget {
 }
 
 class _PanResponseMapperState extends State<PanResponseMapper> {
-
-
   @override
   Widget build(BuildContext context) {
     Response? reponse = widget.apiCallInfo.aResponse?.reponse;
@@ -38,27 +36,16 @@ class _PanResponseMapperState extends State<PanResponseMapper> {
   }
 }
 
-// ignore: must_be_immutable
-class PanModelResponse extends PanYamlTree {
-  PanModelResponse({
-    super.key,
-    required super.getSchemaFct,
-    required super.showable,
-    required this.retJson,
-  });
-  final Map? retJson;
+mixin class WidgetModelViewerHelper {
   Map<String, int> idxArray = {};
+  dynamic jsonToDisplay;
 
-  @override
-  void addRowWidget(
-    TreeNodeData<NodeAttribut> node,
-    ModelSchema schema,
+  void addViewWidget(
+    NodeAttribut attr,
     List<Widget> row,
-    BuildContext context,
   ) {
-    var attr = node.data;
     var path = attr.info.getJsonPath().split('.');
-    dynamic value = retJson;
+    dynamic value = jsonToDisplay;
     StringBuffer curPath = StringBuffer("root");
     List? lastArray;
     bool parentNull = false;
@@ -145,16 +132,6 @@ class PanModelResponse extends PanYamlTree {
     }
   }
 
-  @override
-  bool isReadOnly() {
-    return true;
-  }
-
-  @override
-  bool withEditor() {
-    return false;
-  }
-
   List<Widget> getNextPrevBtn(NodeAttribut attr) {
     return [
       InkWell(
@@ -195,4 +172,39 @@ class PanModelResponse extends PanYamlTree {
       idxArray.remove(key);
     }
   }
+}
+
+// ignore: must_be_immutable
+class PanModelResponse extends PanYamlTree with WidgetModelViewerHelper {
+  PanModelResponse({
+    super.key,
+    required super.getSchemaFct,
+    required super.showable,
+    required this.retJson,
+  });
+
+  final dynamic retJson;
+
+  @override
+  void addRowWidget(
+    TreeNodeData<NodeAttribut> node,
+    ModelSchema schema,
+    List<Widget> row,
+    BuildContext context,
+  ) {
+    var attr = node.data;
+    jsonToDisplay = retJson;
+    return addViewWidget(attr, row);
+  }
+
+  @override
+  bool isReadOnly() {
+    return true;
+  }
+
+  @override
+  bool withEditor() {
+    return false;
+  }
+
 }

@@ -10,6 +10,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   Map<String, dynamic> json = {};
   Map<String, NodeJson> ref = {};
 
+  Export2JsonSchema({super.readOnly});
+
   @override
   void onInit(ModelSchema model) {
     List example = [];
@@ -65,8 +67,11 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     child['items'] = items;
     node.addChildOn = "items";
     node.addInAttr = "properties";
+
     return NodeJson(name: name, value: child);
   }
+
+
 
   @override
   NodeJson doArrayOfType(String name, String type, NodeAttribut node) {
@@ -74,6 +79,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     initProp(prop);
     var enumer = prop.remove('enum');
     Map<String, dynamic> child = {'type': 'array', ...prop};
+
     if (node.child.firstOrNull?.info.name == constType) {
       // ajoute le type et ses properties
       child['items'] = {'type': type, ...getProp(node.child.first)};
@@ -152,6 +158,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     node.addInAttr = "properties";
     var refName = node.info.isRef!;
     var child = {'\$ref': '#/\$def/$refName'};
+
     ref[refName] = NodeJson(
       name: name,
       value: {
@@ -160,8 +167,13 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
         "properties": {},
       },
     );
-    return NodeJson(name: name, value: child)
-      ..parentOfChild = ref[refName]!.value;
+    var propObj = ref[refName]!.value;
+    if (node.info.properties?["title"]!=null)
+     {
+      propObj['title'] = node.info.properties!["title"];
+     }
+    addRequired(node.child.first, propObj);
+    return NodeJson(name: name, value: child)..parentOfChild = propObj;
   }
 
   @override
@@ -176,7 +188,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     prop.addAll(node.info.properties ?? {});
     initProp(prop);
     prop["additionalProperties"] = false;
+    addRequired(node, prop);
+  }
 
+  void addRequired(NodeAttribut node, Map<String, dynamic> prop) {
     List<String> aRequired = [];
     for (var child in node.child) {
       if (child.info.properties?['required'] ?? false) {
@@ -203,7 +218,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       'type': nullable ? [type, 'null'] : type,
       ...prop,
     };
-    return NodeJson(name: name, value: child);
+    var ret = NodeJson(name: name, value: child);
+    return ret;
   }
 
   Map<String, dynamic> getProp(NodeAttribut node) {

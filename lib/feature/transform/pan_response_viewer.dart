@@ -4,14 +4,13 @@ import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
-import 'package:jsonschema/core/core_expression.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/pan_to_ui.dart';
@@ -27,7 +26,7 @@ class PanResponseViewer extends StatefulWidget {
     this.callerDatasource,
   });
 
-  final WidgetRequestHelper requestHelper;
+  final WidgetAPIHelper requestHelper;
   final bool modeLegacy;
   final CallerDatasource? callerDatasource;
 
@@ -56,20 +55,20 @@ class ComputedValue {
     required this.expression,
   });
 
-  dynamic eval(List<String> logs) async {
-    CoreExpression run = CoreExpression();
-    dynamic r;
+  // dynamic eval(List<String> logs) async {
+  //   CoreExpression run = CoreExpression();
+  //   dynamic r;
 
-    try {
-      run.init(expression, logs: logs);
-      r = await run.eval(logs: logs, variables: {});
-      print('script return =  $r');
-    } catch (e) {
-      print(e);
-    }
+  //   try {
+  //     run.init(expression, logs: logs, isAsync: true);
+  //     r = await run.eval(logs: logs, variables: {});
+  //     print('script return =  $r');
+  //   } catch (e) {
+  //     print(e);
+  //   }
 
-    return r;
-  }
+  //   return r;
+  // }
 }
 
 class ConfigLink {
@@ -192,13 +191,13 @@ mixin UIMixin {
             "",
             [],
           )!;
-      // SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
-      //   var data = aJson2ui.stateMgr.data;
-      //   if (data != null) {
-      //     // recharge les bonnes datas
-      //     aJson2ui.loadData(data);
-      //   }
-      // });
+      SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
+        var data = aJson2ui.stateMgr.data;
+        if (data != null) {
+          // recharge les bonnes datas
+          aJson2ui.loadData(data);
+        }
+      });
     }
     return ret;
   }

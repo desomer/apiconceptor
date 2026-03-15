@@ -42,15 +42,24 @@ List listCrossRow = [
 ];
 
 class CwContainer extends CwWidget with HelperEditor {
-  const CwContainer({super.key, required super.ctx, required super.cacheWidget});
+  const CwContainer({
+    super.key,
+    required super.ctx,
+    required super.cacheWidget,
+  });
 
   @override
   State<CwContainer> createState() => _CwContainerState();
 
   static void initFactory(WidgetFactory factory) {
-    factory.register(
+    factory.registerComponent(
       id: 'container',
-      build: (ctx) => CwContainer(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
+      build:
+          (ctx) => CwContainer(
+            key: ctx.getKey(),
+            ctx: ctx,
+            cacheWidget: CachedWidget(),
+          ),
       config: (ctx) {
         var horz = HelperEditor.getStringProp(ctx, 'type') == 'row';
 
@@ -187,7 +196,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
     return buildWidget(true, ModeBuilderWidget.layoutBuilder, (
       ctx,
       constraints,
-      _
+      _,
     ) {
       // print('path ${ctx.aPath} $constraints ${ctx.lastSize} ');
       List<Widget> child = [];
@@ -271,7 +280,7 @@ class _CwContainerState extends CwWidgetState<CwContainer> with HelperEditor {
       if (layout == 'form') {
         layoutStyle.layout = 'form';
         layoutStyle.spacing = 8.0;
-        ctx.isParentOfType('container', layout: 'form')
+        ctx.isParentOfType(['container'], layout: 'form')
             ? layoutStyle.padding =
                 0.0 // deja dans un form
             : layoutStyle.padding = 8.0;

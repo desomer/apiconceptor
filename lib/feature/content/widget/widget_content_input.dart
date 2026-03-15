@@ -46,7 +46,7 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
       print("init ctrl $ctrlName");
     }
 
-    widget.info.json2ui.stateMgr.registerInput(ctrlName, this);
+    widget.info.json2ui.stateMgr.depsBindingManager.registerInput(ctrlName, this);
 
     ctrl.addListener(() {
       setValue(widget.info, typeInput, pathDataContainer, ctrl.text);
@@ -120,7 +120,7 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
       ctrlName = pathDataContainer;
     }
 
-    widget.info.json2ui.stateMgr.disposeInput(ctrlName, this);
+    widget.info.json2ui.stateMgr.depsBindingManager.disposeInput(ctrlName, this);
     ctrl.dispose();
     super.dispose();
   }

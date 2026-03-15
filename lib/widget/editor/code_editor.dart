@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:highlight/highlight_core.dart';
@@ -7,7 +8,6 @@ import 'package:jsonschema/widget/widget_error_banner.dart';
 // ignore: implementation_imports
 import 'package:flutter_code_editor/src/code_field/actions/tab.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
-import 'package:yaml/yaml.dart';
 
 class TextEditor extends StatefulWidget {
   const TextEditor({
@@ -17,11 +17,13 @@ class TextEditor extends StatefulWidget {
     this.actions,
     this.onHelp,
     this.onSelection,
+    this.onHistory,
   });
   final CodeEditorConfig config;
   final String header;
   final List<Widget>? actions;
   final Function? onHelp;
+  final Function? onHistory;
   final Function? onSelection;
 
   @override
@@ -44,9 +46,32 @@ class TextEditorState extends State<TextEditor> {
   late CodeController controller;
   late ScrollController verticalScroll;
   late ScrollController horizontalScroll;
+  int lastRow = -1;
+  final textStyle = const TextStyle(fontFamily: 'SourceCode', fontSize: 14);
+  late final double _lineHeight;
+
+  int getCursorLine(CodeController controller) {
+    final cursorIndex = controller.selection.start;
+
+    // On prend tout le texte avant le curseur
+    final beforeCursor = controller.text.substring(0, cursorIndex);
+
+    // Le numéro de ligne = nombre de '\n' + 1
+    return '\n'.allMatches(beforeCursor).length + 1;
+  }
+
+  double computeLineHeight() {
+    final painter = TextPainter(
+      text: TextSpan(text: 'X', style: textStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    return painter.height;
+  }
 
   @override
   void initState() {
+    _lineHeight = computeLineHeight();
     controller = CodeController(language: widget.config.mode);
 
     controller.actions[TabKeyIntent] = TabKeyAction2(controller: controller);
@@ -55,6 +80,14 @@ class TextEditorState extends State<TextEditor> {
     horizontalScroll = ScrollController();
     verticalScroll = ScrollController();
     controller.addListener(() {
+      // final current = controller.selection;
+      // var l = getCursorLine(controller);
+      // if (!current.isCollapsed && l != lastRow) {
+      //   lastRow = l;
+      //   if (widget.onSelection != null) {
+      //     onSelectedRow();
+      //   }
+      // }
       if (dispatch) {
         widget.config.onChange(controller.fullText, widget.config);
       }
@@ -71,6 +104,64 @@ class TextEditorState extends State<TextEditor> {
   }
 
   bool dispatch = true;
+  int _lastTap = 0;
+
+  void _handleTap() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    if (now - _lastTap < 250) {
+      _onDoubleClick();
+    }
+
+    _lastTap = now;
+  }
+
+  void _onDoubleClick() {
+    onSelectedCode();
+  }
+
+  void scrollToLine(int lineNumber) {
+    focusNode.requestFocus();
+    int delay = 0;
+    if (controller.selection.isValid == false) {
+      controller.setCursor(0);
+      delay = 300;
+    }
+
+    final targetOffset = (lineNumber - 1) * _lineHeight;
+
+    print('scroll to line $lineNumber $targetOffset');
+
+    final text = controller.fullText;
+
+    // Séparer le texte en lignes
+    final lines = text.split('\n');
+    int charIndex = 0;
+    for (int i = 0; i < lineNumber; i++) {
+      charIndex += lines[i].length + 1; // +1 pour le '\n'
+    }
+    // recherle le : dans la ligne
+    int idx = lines[lineNumber].indexOf(':');
+    if (idx > 0) {
+      charIndex += idx;
+    }
+
+    Future.delayed(Duration(milliseconds: delay), () {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        controller.selection = TextSelection(
+          baseOffset: charIndex,
+          extentOffset: charIndex,
+        );
+        verticalScroll.animateTo(
+          targetOffset,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      });
+    });
+  }
+
+  final focusNode = FocusNode();
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +174,21 @@ class TextEditorState extends State<TextEditor> {
     if (aText != controller.fullText) {
       controller.fullText = aText;
     }
+
+    Widget code = CodeField(
+      gutterStyle: const GutterStyle(
+        //textStyle: TextStyle(height: 1.5),
+        margin: 0,
+        width: 80,
+        showErrors: true,
+        showFoldingHandles: true,
+        showLineNumbers: true,
+      ),
+      controller: controller,
+      textStyle: textStyle,
+      focusNode: focusNode,
+      readOnly: widget.config.readOnly,
+    );
 
     // dispatch = false;
     // controller.text = widget.config.getYaml();
@@ -98,12 +204,13 @@ class TextEditorState extends State<TextEditor> {
             children: [
               Expanded(child: Center(child: Text(widget.header))),
               ...widget.actions ?? [],
-              InkWell(
-                onTap: () {
-                  // if (widget.onHelp != null) widget.onHelp!(context);
-                },
-                child: const Icon(Icons.history, size: 20),
-              ),
+              if (widget.onHistory != null)
+                InkWell(
+                  onTap: () {
+                    widget.onHistory!(context);
+                  },
+                  child: const Icon(Icons.history, size: 20),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
                 child: InkWell(
@@ -118,29 +225,7 @@ class TextEditorState extends State<TextEditor> {
                   child: Icon(Icons.double_arrow_sharp),
                   onTap: () {
                     //print(controller.selection);
-                    var curPos = controller.selection.baseOffset;
-                    YamlDocument doc = loadYamlDocument(controller.fullText);
-                    YamlDoc docYaml = YamlDoc();
-                    docYaml.doAnalyse(doc, controller.fullText);
-
-                    String path = '';
-
-                    for (var line in docYaml.listYamlLine) {
-                      if (curPos > line.idxCharStart &&
-                          curPos < line.idxCharStop) {
-                        YamlLine? l = line;
-                        while (l != null) {
-                          if (path.isNotEmpty) {
-                            path = '>$path';
-                          }
-                          path = '${l.name}$path';
-                          l = l.parent;
-                        }
-                        path = 'root>$path';
-                        widget.onSelection!(path);
-                        break;
-                      }
-                    }
+                    onSelectedCode();
                   },
                 ),
             ],
@@ -155,17 +240,10 @@ class TextEditorState extends State<TextEditor> {
               trackVisibility: true,
               child: SingleChildScrollView(
                 controller: verticalScroll,
-                child: CodeField(
-                  gutterStyle: const GutterStyle(
-                    textStyle: TextStyle(height: 1.5),
-                    margin: 0,
-                    width: 80,
-                    showErrors: true,
-                    showFoldingHandles: true,
-                    showLineNumbers: true,
-                  ),
-                  controller: controller,
-                  readOnly: widget.config.readOnly,
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (_) => _handleTap(),
+                  child: code,
                 ),
               ),
             ),
@@ -174,6 +252,54 @@ class TextEditorState extends State<TextEditor> {
         WidgetErrorBanner(error: widget.config.notifError),
       ],
     );
+  }
+
+  void scrollToJsonPath(String aPath) {
+    YamlDoc docYaml = YamlDoc();
+    docYaml.load(controller.fullText);
+    docYaml.doAnalyse();
+
+    for (var line in docYaml.listYamlLine) {
+      YamlLine? l = line;
+      String path = '';
+      while (l != null) {
+        if (path.isNotEmpty) {
+          path = '.$path';
+        }
+        path = '${l.name}$path';
+        l = l.parent;
+      }
+      path = 'root.$path';
+      if (path == aPath) {
+        scrollToLine(line.index);
+        return;
+      }
+    }
+  }
+
+  void onSelectedCode() {
+    var curPos = controller.selection.baseOffset;
+    YamlDoc docYaml = YamlDoc();
+    docYaml.load(controller.fullText);
+    docYaml.doAnalyse();
+
+    String path = '';
+
+    for (var line in docYaml.listYamlLine) {
+      if (curPos > line.idxCharStart && curPos < line.idxCharStop) {
+        YamlLine? l = line;
+        while (l != null) {
+          if (path.isNotEmpty) {
+            path = '.$path';
+          }
+          path = '${l.name}$path';
+          l = l.parent;
+        }
+        path = 'root.$path';
+        widget.onSelection!(path);
+        break;
+      }
+    }
   }
 }
 
@@ -184,10 +310,12 @@ class CodeEditorConfig {
     required this.onChange,
     required this.notifError,
     this.readOnly = false,
+    this.validateKey,
   });
   Mode mode;
   late Function onChange;
   late Function getText;
+  Function? validateKey;
   late ValueNotifier<String> notifError;
   bool readOnly;
 

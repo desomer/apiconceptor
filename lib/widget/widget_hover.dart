@@ -5,20 +5,24 @@ class HoverableCard extends StatefulWidget {
     super.key,
     required this.child,
     required this.isSelected,
+    required this.onBuild,
+
   });
   final Widget child;
   final Function isSelected;
+  final Function? onBuild;
 
   @override
-  State<HoverableCard> createState() => _HoverableCardState();
+  State<HoverableCard> createState() => HoverableCardState();
 }
 
-class _HoverableCardState extends State<HoverableCard> {
+class HoverableCardState extends State<HoverableCard> {
   bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
   //  if (true) return widget.child;
+    widget.onBuild?.call(this, context);
 
     return MouseRegion(
       onEnter: (context) => setState(() => _isHovered = true),

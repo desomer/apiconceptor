@@ -62,7 +62,7 @@ class Export2UI<T> extends JsonBrowser<T> {
     } else if (type == '\$ref') {
       toAdd = doRefOf(name, node);
     } else if (type == 'object') {
-      if (name.toLowerCase() == constInline) {
+      if (name.toLowerCase() == constInherit) {
         toAdd =
             doAnyOf(name, node)
               ..parentOfChild = parent

@@ -38,7 +38,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
     with WidgetUIHelper, NameMixin {
   @override
   void initState() {
-    widget.info.json2ui.stateMgr.registerContainer(
+    widget.info.json2ui.stateMgr.depsBindingManager.registerContainer(
       widget.info.pathValue!,
       this,
     );
@@ -47,7 +47,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
 
   @override
   void dispose() {
-    widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathValue!, this);
+    widget.info.json2ui.stateMgr.depsBindingManager.disposeContainer(widget.info.pathValue!, this);
     super.dispose();
   }
 

@@ -8,6 +8,16 @@ class YamlDoc {
   List<String>? indexBy;
   Map<String, YamlLineIndex> index = {};
   Map<String, YamlLineIndex> refs = {};
+  late YamlDocument docYaml;
+  late String doc;
+
+  void load(String aYaml) {
+    if (aYaml.isNotEmpty && !aYaml.endsWith('\n')) {
+      aYaml = '$aYaml\n';
+    }
+    doc = aYaml;
+    docYaml = loadYamlDocument(aYaml);
+  }
 
   List<Widget> doPrettyPrint() {
     List<Widget> listRows = [];
@@ -51,7 +61,7 @@ class YamlDoc {
     return listRows;
   }
 
-  void doAnalyse(YamlDocument docYaml, String doc) {
+  void doAnalyse() {
     var v = docYaml.contents;
     YamlMap val = v.value ?? YamlMap();
     var allLine = doc.split('\n');
@@ -67,7 +77,13 @@ class YamlDoc {
       i++;
     }
 
-    _doNode(0, val, [], -1, false);
+    _doAnalyseNode(0, val, [], -1, false);
+
+    // for (var i = 0; i < listYamlLine.length; i++) {
+    //   print(
+    //     'line ${listYamlLine[i].index} - ${listYamlLine[i].text} - endIndex ${listYamlLine[i].endIndex}',
+    //   );
+    // }
   }
 
   String getDoc() {
@@ -81,6 +97,11 @@ class YamlDoc {
   }
 
   YamlLine addAtEnd(String key, dynamic value) {
+    if (listYamlLine.length == 1 && listYamlLine.last.text.trim().isEmpty) {
+      // si le document est vide, on ajoute à la première ligne
+      listYamlLine.removeLast();
+    }
+
     StringBuffer nl = StringBuffer();
     nl.write('$key : $value');
 
@@ -93,24 +114,27 @@ class YamlDoc {
     newLine.value = value;
     newLine.parent = null;
     newLine.level = 0;
+
     listYamlLine.insert(listYamlLine.length, newLine);
     return newLine;
   }
 
   YamlLine addChild(YamlLine row, String key, dynamic value) {
+    // on cherche si la clé existe déjà dans les enfants
     for (var i = 0; i < (row.child?.length ?? 0); i++) {
       var l = row.child![i];
       if (l.name == key) {
         return l;
       }
     }
-    int newIdx = row.index + 1;
+
+    int newIdx = row.index;
     if (row.child != null) {
       newIdx = row.child!.last.endIndex;
     }
 
     // passes les lignes vides et les commentaires
-    int i = newIdx - 1;
+    int i = newIdx;
     if (i > 0) {
       var l = listYamlLine[i];
       var txt = l.text.trim();
@@ -119,19 +143,11 @@ class YamlDoc {
         l = listYamlLine[i];
         txt = l.text.trim();
       }
-      newIdx = i + 1;
     }
+    newIdx = i + 1;
 
-    StringBuffer nl = StringBuffer();
-    int nbLevel = (row.level + 1) * 3;
-    if (row.child?.first != null) {
-      var withoutBlank = row.child!.first.text.trimLeft();
-      nbLevel = row.child!.first.text.indexOf(withoutBlank);
-    }
-    for (var i = 0; i < nbLevel; i++) {
-      nl.write(' ');
-    }
-    nl.write('$key : $value');
+    StringBuffer nl = _addValueWithTab(row, key, value);
+
     YamlLine newLine = YamlLine(
       index: newIdx,
       endIndex: newIdx,
@@ -149,32 +165,55 @@ class YamlDoc {
       addIndex(key, value, newLine);
     }
 
+    // les lignes après la nouvelle ligne doivent être décalées de 1
     for (var i = newIdx + 1; i < listYamlLine.length; i++) {
       listYamlLine[i].index++;
       listYamlLine[i].endIndex++;
     }
+    // la ligne parente doit être étendue pour englober la nouvelle ligne
     row.endIndex++;
+    // les lignes parentes doivent être étendues pour englober la nouvelle ligne
     while (row.parent != null) {
       row = row.parent!;
       row.endIndex++;
     }
 
+    for (var i = 0; i < listYamlLine.length; i++) {
+      print(
+        'line ${listYamlLine[i].index} - ${listYamlLine[i].text} - endIndex ${listYamlLine[i].endIndex}',
+      );
+    }
+
     return newLine;
   }
 
-  int _doNode(
+  StringBuffer _addValueWithTab(YamlLine row, String key, value) {
+    StringBuffer nl = StringBuffer();
+    int nbLevel = (row.level + 1) * 3;
+    if (row.child?.first != null) {
+      var withoutBlank = row.child!.first.text.trimLeft();
+      nbLevel = row.child!.first.text.indexOf(withoutBlank);
+    }
+    for (var i = 0; i < nbLevel; i++) {
+      nl.write(' ');
+    }
+    nl.write('$key : $value');
+    return nl;
+  }
+
+  int _doAnalyseNode(
     int level,
-    YamlMap val,
+    YamlMap valYamlMap,
     List<String> path,
     int line,
     bool isItemArray,
   ) {
     var aPath = [...path];
 
-    int searchIndex = val.span.start.line - 1;
+    int searchIndex = valYamlMap.span.start.line - 1;
     if (searchIndex < 0) searchIndex = 0;
     var allLine = listYamlLine;
-    for (var e in val.entries) {
+    for (var e in valYamlMap.entries) {
       dynamic v = e.value;
       if (v is YamlMap) {
         if (v.length == 1) {
@@ -192,10 +231,8 @@ class YamlDoc {
           k = '{${e.key.keys.first.toString()}}';
         }
 
-        // object
-
         path.add(k);
-        int i = getIndexKey(searchIndex, val, allLine, k);
+        int i = getIndexKey(searchIndex, valYamlMap, allLine, k);
         print('level $level objet ${e.key}  $i');
         allLine[i].isItemArray = isItemArray;
         allLine[i].name = k;
@@ -209,8 +246,8 @@ class YamlDoc {
         } else {
           listRoot.add(allLine[i]);
         }
-        searchIndex = _doNode(level + 1, v, path, i, false);
-        allLine[i].endIndex = searchIndex + 1;
+        searchIndex = _doAnalyseNode(level + 1, v, path, i, false);
+        allLine[i].endIndex = searchIndex - 1;
         if (indexBy?.contains(k) ?? false) {
           addIndex(k, v, allLine[i]);
         }
@@ -218,7 +255,7 @@ class YamlDoc {
       } else if (v is List) {
         String k = e.key.toString();
         path.add(k);
-        int i = getIndexKey(searchIndex, val, allLine, k);
+        int i = getIndexKey(searchIndex, valYamlMap, allLine, k);
         allLine[i].name = k;
         allLine[i].isItemArray = isItemArray;
         allLine[i].value = e.value;
@@ -235,8 +272,8 @@ class YamlDoc {
         for (var item in v) {
           // boucle sur les type d'items
           if (item is YamlMap) {
-            searchIndex = _doNode(level + 1, item, path, i, true);
-            allLine[i].endIndex = searchIndex + 1;
+            searchIndex = _doAnalyseNode(level + 1, item, path, i, true);
+            allLine[i].endIndex = searchIndex - 1;
             if (indexBy?.contains(k) ?? false) {
               addIndex(k, v, allLine[i]);
             }
@@ -246,7 +283,7 @@ class YamlDoc {
       } else {
         // attribut
         String k = e.key.toString();
-        int i = getIndexKey(searchIndex, val, allLine, k);
+        int i = getIndexKey(searchIndex, valYamlMap, allLine, k);
         searchIndex = i + 1;
         allLine[i].name = k;
         allLine[i].value = e.value;
@@ -273,7 +310,7 @@ class YamlDoc {
         //print('level $level key ${e.key}  v=${e.value} $i');
       }
     }
-    return val.span.end.line - 1;
+    return valYamlMap.span.end.line;
   }
 
   int getIndexKey(
@@ -340,11 +377,13 @@ class YamlLine {
 
 class ParseYamlManager {
   Map? mapYaml;
+  Function? validateKey;
 
   bool doParseYaml(String yaml, CodeEditorConfig? config) {
     bool parseOk = false;
     try {
       var r = loadYaml(yaml);
+
       if (r == null && yaml.trim() == '') {
         mapYaml = {};
         parseOk = true;
@@ -353,6 +392,11 @@ class ParseYamlManager {
         mapYaml = r;
         parseOk = true;
         config?.notifError.value = '';
+
+        //browse all nodes to check if naming rule is ok (no dot in key for example)
+        if (validateKey != null) {
+          browseNode(r);
+        }
       } else {
         config?.notifError.value = 'no valid';
       }
@@ -360,5 +404,20 @@ class ParseYamlManager {
       config?.notifError.value = '$e';
     }
     return parseOk;
+  }
+
+  void browseNode(dynamic node) {
+    if (node is Map) {
+      node.forEach((key, value) {
+        if (key is String) {
+          validateKey?.call(key);
+        }
+        browseNode(value);
+      });
+    } else if (node is List) {
+      for (var item in node) {
+        browseNode(item);
+      }
+    }
   }
 }

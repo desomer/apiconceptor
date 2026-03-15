@@ -57,13 +57,14 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                         exampleManager.clearSelected();
                         textConfig?.repaintCode();
                       },
-                      label: Text('Generate fake data'),
+                      label: Text('Generate fake'),
                     ),
                     FakeModeWidget(
                       modePropertyRequiredEnum: modePropertyRequiredEnum,
+                      modeItemsArrayEnum: modeItemsArrayEnum,
                       onSelected: () {
                         exampleManager.jsonFake = null;
-                        exampleManager.clearSelected();                        
+                        exampleManager.clearSelected();
                         textConfig?.repaintCode();
                       },
                     ),
@@ -84,7 +85,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       return Text('select model first');
     }
     var export =
-        Export2JsonSchema()..browse(currentCompany.currentModel!, false);
+        Export2JsonSchema(readOnly: false)..browse(currentCompany.currentModel!, false);
     jsonSchema = export.json;
     try {
       jsonValidator = JsonSchema.create(jsonSchema);
@@ -110,6 +111,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   ValueNotifier<String> error = ValueNotifier('');
   ValueNotifier<String> errorParse = ValueNotifier('');
   ValueNotifier<String> modePropertyRequiredEnum = ValueNotifier('max');
+  ValueNotifier<String> modeItemsArrayEnum = ValueNotifier('any');
 
   Widget getEditor() {
     if (currentCompany.currentModel == null) {
@@ -142,15 +144,22 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       },
       getText: () {
         if (exampleManager.jsonFake == null) {
-          var export = Export2FakeJson(
-            modeArray: ModeArrayEnum.anyInstance,
-            mode: ModeEnum.fake,
-            propMode: switch (modePropertyRequiredEnum.value) {
-              'min' => PropertyRequiredEnum.required,
-              'max' => PropertyRequiredEnum.all,
-              _ => PropertyRequiredEnum.all,
-            },
-          )..browse(currentCompany.currentModel!, false);
+          var export =
+              Export2FakeJson(
+                  modeArray: switch (modeItemsArrayEnum.value) {
+                    'any' => ModeArrayEnum.anyInstance,
+                    'random' => ModeArrayEnum.randomInstance,
+                    _ => ModeArrayEnum.anyInstance,
+                  },
+                  mode: ModeEnum.fake,
+                  propMode: switch (modePropertyRequiredEnum.value) {
+                    'min' => PropertyRequiredEnum.required,
+                    'max' => PropertyRequiredEnum.all,
+                    _ => PropertyRequiredEnum.all,
+                  },
+                )
+                ..maxArrayItems = 4
+                ..browse(currentCompany.currentModel!, false);
           exampleManager.jsonFake = export.prettyPrintJson(export.json);
         }
 
@@ -167,8 +176,14 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
 }
 
 class FakeModeWidget extends StatefulWidget {
-  const FakeModeWidget({super.key, required this.modePropertyRequiredEnum, required this.onSelected});
+  const FakeModeWidget({
+    super.key,
+    required this.modePropertyRequiredEnum,
+    required this.onSelected,
+    required this.modeItemsArrayEnum,
+  });
   final ValueNotifier<String> modePropertyRequiredEnum;
+  final ValueNotifier<String> modeItemsArrayEnum;
   final Function onSelected;
 
   @override
@@ -178,18 +193,46 @@ class FakeModeWidget extends StatefulWidget {
 class _FakeModeWidgetState extends State<FakeModeWidget> {
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<String>(
-      segments: const [
-        ButtonSegment(value: 'min', label: Text('required only')),
-        ButtonSegment(value: 'max', label: Text('alls properties')),
+    return Row(
+      spacing: 10,
+      children: [
+        Text('Items'),
+        SegmentedButton<String>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+              value: 'any',
+              label: Icon(Icons.one_x_mobiledata_outlined),
+            ),
+            ButtonSegment(value: 'random', label: Icon(Icons.shuffle)),
+          ],
+          selected: {widget.modeItemsArrayEnum.value},
+          onSelectionChanged: (newSelection) {
+            setState(() {
+              widget.modeItemsArrayEnum.value = newSelection.first;
+              widget.onSelected();
+            });
+          },
+        ),
+        Text('Required'),
+        SegmentedButton<String>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+              value: 'max',
+              label: Icon(Icons.check_box_outline_blank),
+            ),
+            ButtonSegment(value: 'min', label: Icon(Icons.check_box)),
+          ],
+          selected: {widget.modePropertyRequiredEnum.value},
+          onSelectionChanged: (newSelection) {
+            setState(() {
+              widget.modePropertyRequiredEnum.value = newSelection.first;
+              widget.onSelected();
+            });
+          },
+        ),
       ],
-      selected: {widget.modePropertyRequiredEnum.value},
-      onSelectionChanged: (newSelection) {
-        setState(() {
-          widget.modePropertyRequiredEnum.value = newSelection.first;
-          widget.onSelected();
-        });
-      },
     );
   }
 }

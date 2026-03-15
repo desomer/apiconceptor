@@ -1,0 +1,26 @@
+# R011_encrypt_field.yaml
+id: R011
+name: encrypt_field
+category: security
+description: Chiffre une valeur avec clé gérée
+scope: field
+inputs:
+  - path: field
+    type: string
+params:
+  - name: key_id
+    type: string
+  - name: algorithm
+    type: string
+    default: AES-GCM-256
+example:
+  input: { "card_number": "4111111111111111" }
+  output: { "card_number_enc": "<ciphertext>" }
+tests:
+  - id: T_R011_01
+    type: unit
+    description: chiffrement/déchiffrement roundtrip
+severity: critical
+action_on_error: alert
+complexity: medium
+implementation_notes: "Ne jamais stocker clé en clair; rotation de clés planifiée"

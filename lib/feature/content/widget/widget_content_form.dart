@@ -42,7 +42,7 @@ class _WidgetContentFormState extends State<WidgetContentForm>
 
   @override
   void initState() {
-    widget.info.json2ui.stateMgr.registerContainer(
+    widget.info.json2ui.stateMgr.depsBindingManager.registerContainer(
       widget.info.pathValue!,
       this,
     );
@@ -66,7 +66,7 @@ class _WidgetContentFormState extends State<WidgetContentForm>
   @override
   void dispose() {
     aScrollController.dispose();
-    widget.info.json2ui.stateMgr.disposeContainer(widget.info.pathValue!, this);
+    widget.info.json2ui.stateMgr.depsBindingManager.disposeContainer(widget.info.pathValue!, this);
     super.dispose();
   }
 

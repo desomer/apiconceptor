@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/list_editor/widget_choise.dart';
@@ -10,7 +10,7 @@ import 'package:jsonschema/widget/widget_overflow.dart';
 class WidgetChoiseEnv extends StatefulWidget {
   const WidgetChoiseEnv({super.key, required this.widgetRequestHelper});
 
-  final WidgetRequestHelper widgetRequestHelper;
+  final WidgetAPIHelper widgetRequestHelper;
 
   @override
   State<WidgetChoiseEnv> createState() => _WidgetChoiseEnvState();

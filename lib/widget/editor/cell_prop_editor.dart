@@ -85,12 +85,15 @@ class CellEditorState extends State<CellEditor> {
 
   @override
   Widget build(BuildContext context) {
+    bool isEditable = widget.acces.isEditable();
     if (widget.inArray) {
+      if (!isEditable) return getWidgetModeView(isEditable, textStyleLabel);
+
       return EditOnHover(
         focus: focus!,
         childOnHover: getWidgetModeEdit(textStyleLabel),
         childFct: () {
-          return getWidgetModeView(textStyleLabel);
+          return getWidgetModeView(isEditable, textStyleLabel);
         },
       );
     }
@@ -99,6 +102,8 @@ class CellEditorState extends State<CellEditor> {
   }
 
   SizedBox getWidgetModeEdit(TextStyle textStyleLabel) {
+    var name = widget.acces.getName().replaceAll("#", "");
+
     return SizedBox(
       width:
           widget.inArray && !widget.widthInfinite
@@ -117,31 +122,36 @@ class CellEditorState extends State<CellEditor> {
           contentPadding:
               widget.inArray ? const EdgeInsets.fromLTRB(5, 0, 5, 0) : null,
           border: const OutlineInputBorder(),
-          labelText: !widget.inArray ? widget.acces.getName() : null,
+          labelText: !widget.inArray ? name : null,
           labelStyle: textStyleLabel,
-          hintText: widget.inArray ? widget.acces.getName() : null,
+          hintText: widget.inArray ? name : null,
           hintStyle: textStyleLabel,
         ),
       ),
     );
   }
 
-  Container getWidgetModeView(TextStyle textStyleLabel) {
+  Container getWidgetModeView(bool isEditable, TextStyle textStyleLabel) {
     var value = widget.acces.get()?.toString() ?? '';
-    bool isEditable = widget.acces.isEditable();
     bool hasValue = value.isNotEmpty;
+
+    BoxDecoration? deco = BoxDecoration(
+      border: Border.fromBorderSide(
+        BorderSide(color: isEditable ? Colors.grey.shade600 : Colors.grey),
+      ),
+      borderRadius: const BorderRadius.all(Radius.circular(4.0)),
+    );
+
+    if (!isEditable) {
+      deco = null;
+    }
 
     if (hasValue) {
       return Container(
         padding: const EdgeInsets.fromLTRB(4, 2, 5, 0),
         width: (250 * (zoom.value / 100)),
         height: 30,
-        decoration: BoxDecoration(
-          border: Border.fromBorderSide(
-            BorderSide(color: isEditable ? Colors.grey.shade600 : Colors.grey),
-          ),
-          borderRadius: const BorderRadius.all(Radius.circular(4.0)),
-        ),
+        decoration: deco,
         child: Text(
           value,
           overflow: TextOverflow.clip,
@@ -159,10 +169,7 @@ class CellEditorState extends State<CellEditor> {
       padding: const EdgeInsets.fromLTRB(4, 2, 5, 0),
       width: (250 * (zoom.value / 100)),
       height: 30,
-      decoration: BoxDecoration(
-        border: Border.fromBorderSide(BorderSide(color: Colors.grey.shade600)),
-        borderRadius: const BorderRadius.all(Radius.circular(4.0)),
-      ),
+      decoration: deco,
       child: Text(
         isEditable ? widget.acces.getName() : '',
         style: textStyleLabel,
@@ -245,7 +252,7 @@ class _CellDropMenuEditorState extends State<CellDropMenuEditor> {
         DropdownMenuEntry(value: 'date', label: 'Date'),
         DropdownMenuEntry(value: 'time', label: 'Time'),
         DropdownMenuEntry(value: 'duration', label: 'Duration'),
-        DropdownMenuEntry(value: 'url', label: 'Url'),        
+        DropdownMenuEntry(value: 'url', label: 'Url'),
       ],
       onSelected: (value) {
         // Handle menu item selection
@@ -296,8 +303,9 @@ class CellCheckEditorState extends State<CellCheckEditor> {
   }
 
   Widget getFormSwitch() {
+    var name = widget.acces.getName().replaceAll("#", "");
     return SwitchListTile(
-      title: Text(widget.acces.getName()),
+      title: Text(name),
       value: widget.acces.get() ?? false,
       activeThumbColor: Colors.blue,
       onChanged: (bool value) {
@@ -418,34 +426,42 @@ class ModelAccessorAttr extends ValueAccessor {
   final String propName;
   final bool editable;
 
+  NodeAttribut getNode() {
+    var path = node.info.getMasterIDPath();
+    if (path.isEmpty) path = node.info.masterID!;
+    return schema.getNodeByMasterIdPath(path) ?? node;
+  }
+
   @override
   get() {
-    return node.info.properties?[propName];
+    return getNode().info.properties?[propName];
   }
 
   @override
   void set(dynamic value) {
-    var path = '${node.info.path}.prop.$propName';
-    if (node.info.properties?[propName] == value) return;
+    var aNode = getNode();
+    var path = '${aNode.info.path}.prop.$propName';
+    if (aNode.info.properties?[propName] == value) return;
 
-    var propChangeValue = node.info.properties?[propName];
-    schema.addHistory(node, path, ChangeOpe.change, propChangeValue, value);
-    node.info.properties?[propName] = value;
+    var propChangeValue = aNode.info.properties?[propName];
+    schema.addHistory(aNode, path, ChangeOpe.change, propChangeValue, value);
+    aNode.info.properties?[propName] = value;
     schema.saveProperties();
-    node.repaint();
+    aNode.repaint();
   }
 
   @override
   void remove() {
-    var path = '${node.info.path}.prop.$propName';
-    var propChangeValue = node.info.properties?[propName];
-    schema.addHistory(node, path, ChangeOpe.clear, propChangeValue, '');
+    var aNode = getNode();
+    var path = '${aNode.info.path}.prop.$propName';
+    var propChangeValue = aNode.info.properties?[propName];
+    schema.addHistory(aNode, path, ChangeOpe.clear, propChangeValue, '');
 
-    node.info.properties?.remove(propName);
+    aNode.info.properties?.remove(propName);
 
     schema.saveProperties();
     // ignore: invalid_use_of_protected_member
-    node.repaint();
+    aNode.repaint();
   }
 
   @override

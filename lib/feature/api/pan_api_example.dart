@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
+import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
@@ -30,16 +31,34 @@ class ExampleConfig {
 class PanApiExample extends PanYamlTree {
   PanApiExample({
     required this.config,
-    required this.requesthelper,
+    required this.requestHelper,
     super.key,
     required super.getSchemaFct,
   });
-  final WidgetRequestHelper requesthelper;
+  final WidgetAPIHelper requestHelper;
   final ExampleConfig config;
 
   @override
   bool withEditor() {
     return config.mode == ModeExample.design;
+  }
+
+  @override
+  Widget? getBottomWidget(BuildContext context) {
+    if (config.mode == ModeExample.design) {
+      return PanApiParam(
+        config: ApiParamConfig(
+          action: null,
+          modeSeparator: Separator.top,
+          withBtnAddMock: true,
+          modeMock: true,
+          autoSave: true,
+        ),
+        requestHelper: requestHelper,
+      );
+    } else {
+      return null;
+    }
   }
 
   @override
@@ -73,12 +92,12 @@ class PanApiExample extends PanYamlTree {
 
       if (config.mode == ModeExample.design) {
         row.add(SizedBox(width: 10));
-        row.add(WidgetVersionState(margeVertical: 2, version: null,));
+        row.add(WidgetVersionState(margeVertical: 2, version: null));
         row.add(
           TextButton.icon(
             icon: Icon(Icons.assignment_turned_in),
             onPressed: () async {
-              await gotoTestApi(node.data, true);
+              await gotoTestApi(node.data, true, false);
             },
             label: Text('Mock response'),
           ),
@@ -87,7 +106,7 @@ class PanApiExample extends PanYamlTree {
           TextButton.icon(
             icon: Icon(Icons.import_export),
             onPressed: () async {
-              await gotoTestApi(node.data, false);
+              await gotoTestApi(node.data, false, true);
             },
             label: Text('Test API'),
           ),
@@ -102,35 +121,41 @@ class PanApiExample extends PanYamlTree {
     BuildContext context,
   ) async {
     var attr = node.data;
-    await gotoTestApi(attr, false);
+    await gotoTestApi(attr, false, false);
   }
 
-  Future<void> gotoTestApi(NodeAttribut attr, bool mock) async {
-    requesthelper.apiCallInfo.selectedExample = attr.info;
+  Future<void> gotoTestApi(NodeAttribut attr, bool mock, bool api) async {
+    requestHelper.apiCallInfo.selectedExample = attr.info;
     var jsonParam = await bddStorage.getAPIParam(
-      requesthelper.apiCallInfo.currentAPIRequest!,
+      requestHelper.apiCallInfo.currentAPIRequest!,
       attr.info.masterID!,
     );
 
-    requesthelper.apiCallInfo.clearRequest();
+    requestHelper.apiCallInfo.clearRequest();
 
     if (jsonParam != null) {
-      requesthelper.apiCallInfo.initWithParamJson(jsonParam);
+      requestHelper.apiCallInfo.initWithParamJson(jsonParam);
     }
     repaintManager.doRepaint(ChangeTag.apiparam);
 
     if (mock) {
       config.onSelectMock();
-    } else {
+    } else if (api) {
       config.onSelectHeader();
     }
 
-    requesthelper.changeUrl.value++;
-    requesthelper.changeScript.value++;
+    requestHelper.changeUrl.value++;
+    requestHelper.changeScript.value++;
   }
 }
 
 class InfoManagerApiExample extends InfoManager with WidgetHelper {
+
+  @override
+  Function? getValidateKey() {
+    return null;
+  }
+
   @override
   Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
     return getChip(Text(node.data!.info.name), color: null);

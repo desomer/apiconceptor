@@ -13,7 +13,7 @@ class CwTable extends CwWidget {
   const CwTable({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
-    factory.register(
+    factory.registerComponent(
       id: 'table',
       build:
           (ctx) =>
@@ -41,7 +41,10 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
 
   @override
   void dispose() {
-    stateRepository!.disposeContainer(pathData, this);
+    bindInfo.stateRepository!.depsBindingManager.disposeContainer(
+      bindInfo.pathData,
+      this,
+    );
     super.dispose();
   }
 
@@ -72,45 +75,58 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
       List listRow = [];
       StateContainerArray? arrayContainer;
 
-      if (stateRepository != null && attribut != null) {
-        String? oldPathData = pathData;
-
-        pathData = stateRepository!.getDataPath(
-          context,
-          attribut!.info.path,
-          widgetPath: ctx.aWidgetPath,
-          typeListContainer: true,
-          inArray: false,
-          state: this,
-        );
-        if (oldPathData != '?' && oldPathData != pathData) {
-          stateRepository!.disposeContainer(oldPathData, this);
-        }
-        stateRepository!.registerContainer(pathData, this);
-
-        String pathContainer;
-        String attrName;
-        (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
-        StateContainer? dataContainer;
-        (dataContainer, _) = stateRepository!.getStateContainer(
-          pathContainer,
-          context: context,
-          pathWidgetRepos: ctx.aWidgetPath,
-        );
-
-        if (dataContainer != null) {
-          var l = dataContainer.jsonData[attrName] ?? [];
-
-          if (l is List) {
-            //print(' listRow $pathData length=${l.length}');
-            arrayContainer =
-                dataContainer.stateChild[attrName] as StateContainerArray?;
-            listRow = l;
-          } else {
-            listRow = [];
-          }
+      var v = bindInfo.getValue(context, ctx, this, false, true);
+      if (v != null) {
+        if (v is List) {
+          //print(' listRow $pathData length=${l.length}');
+          arrayContainer =
+              bindInfo.dataContainer!.stateChild[bindInfo.attrName]
+                  as StateContainerArray?;
+          listRow = v;
+        } else {
+          listRow = [];
         }
       }
+
+      // if (stateRepository != null && bindAttribut != null) {
+      //   String? oldPathData = pathData;
+
+      //   pathData = stateRepository!.getDataPath(
+      //     context,
+      //     bindAttribut!.path,
+      //     widgetPath: ctx.aWidgetPath,
+      //     typeListContainer: true,
+      //     inArray: false,
+      //     state: this,
+      //   );
+      //   if (oldPathData != '?' && oldPathData != pathData) {
+      //     stateRepository!.disposeContainer(oldPathData, this);
+      //   }
+      //   stateRepository!.registerContainer(pathData, this);
+
+      //   String pathContainer;
+      //   String attrName;
+      //   (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+      //   StateContainer? dataContainer;
+      //   (dataContainer, _) = stateRepository!.getStateContainer(
+      //     pathContainer,
+      //     context: context,
+      //     pathWidgetRepos: ctx.aWidgetPath,
+      //   );
+
+      // if (dataContainer != null) {
+      //   var l = dataContainer.jsonData[attrName] ?? [];
+
+      //   if (l is List) {
+      //     //print(' listRow $pathData length=${l.length}');
+      //     arrayContainer =
+      //         dataContainer.stateChild[attrName] as StateContainerArray?;
+      //     listRow = l;
+      //   } else {
+      //     listRow = [];
+      //   }
+      // }
+      //
 
       int nbCol = getIntProp(ctx, 'nbchild') ?? 0;
 
@@ -215,7 +231,7 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
             key: ObjectKey(row == 0 ? propsRow : listRow[row - 1]),
             rowkey: rowWidget.key as GlobalKey,
             tableKey: tableKey,
-            path: pathData,
+            path: bindInfo.pathData,
             rowIdx: row - 1,
             child: rowWidget,
           );

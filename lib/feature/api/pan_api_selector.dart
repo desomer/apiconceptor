@@ -49,9 +49,7 @@ class PanAPISelector extends PanYamlTree {
       );
 
       row.add(SizedBox(width: 10));
-      row.add(
-        WidgetVersionState(margeVertical: 2, version: null),
-      );
+      row.add(WidgetVersionState(margeVertical: 2, version: null));
       row.add(
         TextButton.icon(
           onPressed: () async {
@@ -96,7 +94,7 @@ class PanAPISelector extends PanYamlTree {
     NodeAttribut attr, {
     required BuildContext context,
   }) async {
-    var sel = getSchema().nodeByMasterId[attr.info.masterID]!;
+    var sel = getSchema().getNodeByMasterIdPath(attr.info.masterID)!;
 
     if (sel.info.type == 'ope') {
       if (onSelModel != null) {

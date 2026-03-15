@@ -22,11 +22,11 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
     BuildContext context,
     PageInit? pageInit,
   ) {
-
-    query = routerState.uri.queryParameters['id'] ?? currentCompany.currentModel!.id;
-    var attr = currentCompany.listModel!.nodeByMasterId[query];
+    query =
+        routerState.uri.queryParameters['id'] ??
+        currentCompany.currentModel!.id;
+    var attr = currentCompany.listModel!.getNodeByMasterIdPath(query);
     var name = attr?.info.name;
-
 
     return NavigationInfo()
       ..navLeft = [
@@ -76,9 +76,7 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
           path: Pages.models.urlpath,
         ),
         BreadNode(
-          settings: RouteSettings(
-            name: name,
-          ),
+          settings: RouteSettings(name: name),
           type: BreadNodeType.widget,
         ),
       ];

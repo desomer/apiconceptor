@@ -37,6 +37,8 @@ String removeComments(String jsonWithComments) =>
 
 //************************************************************************* */
 class BrowseModel<T extends Map> extends JsonBrowser<T> {
+  BrowseModel({super.readOnly});
+
   @override
   void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
     if (aNodeAttribut.info.type == 'model') {
@@ -227,9 +229,35 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
       child: child,
     );
   }
+
+  @override
+  Function? getValidateKey() {
+    return null;
+  }
 }
 
-//************************************************************************* */
+//**************************************************************************/
+class InfoManagerChangeStyle {
+  Color? addColor;
+  Color? nameChange;
+
+  void initStyle(ModelSchema modelSchema, TreeNodeData<NodeAttribut> node) {
+    if (modelSchema.olderModelSchema != null && !node.isRoot) {
+      var masterIDPath = node.data.info.getMasterIDPath();
+      var exist = modelSchema.olderModelSchema!.getNodeByMasterIdPath(
+        masterIDPath,
+      );
+      if (exist == null) {
+        addColor = Colors.greenAccent;
+      } else {
+        if (exist.info.name != node.data.info.name) {
+          nameChange = Colors.orangeAccent;
+        }
+      }
+    }
+  }
+}
+
 class InfoManagerModel extends InfoManager with WidgetHelper {
   InfoManagerModel({required this.typeMD});
   final TypeMD typeMD;
@@ -392,12 +420,27 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       icon = Icon(Icons.type_specimen_outlined, color: iconColor);
     }
 
+    var changeStyle = InfoManagerChangeStyle();
+    changeStyle.initStyle(modelSchema!, node);
+
+    Color? colorText = (attr.isRefAttr() ? Colors.grey : null);
+    if (changeStyle.nameChange != null) {
+      colorText = changeStyle.nameChange!;
+    }
+
     return NoOverflowErrorFlex(
       direction: Axis.horizontal,
       children: [
         if (icon != null)
-          Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
-
+          GestureDetector(
+            onTap: () {
+              node.doToogleChild();
+            },
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
+              child: icon,
+            ),
+          ),
         Expanded(
           child: InkWell(
             onTap: () {
@@ -405,16 +448,21 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
             },
             child: Row(
               children: [
+                if (changeStyle.addColor != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 3, top: 6, bottom: 6),
+                    child: Container(width: 4, color: changeStyle.addColor),
+                  ), // for error display
                 Text(
                   name,
                   style:
                       (isObject || isArray)
                           ? TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: (attr.isRefAttr() ? Colors.grey : null),
+                            color: colorText,
                           )
-                          : (attr.isRefAttr()
-                              ? TextStyle(color: Colors.grey)
+                          : (colorText != null
+                              ? TextStyle(color: colorText)
                               : null),
                 ),
                 Spacer(),
@@ -433,7 +481,9 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     bool isRoot,
     BuildContext context,
   ) {
-    if (isRoot) return Text('${modelSchema?.useAttributInfo.length} properties');
+    if (isRoot) {
+      return Text('${modelSchema?.useAttributInfo.length} properties');
+    }
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
     hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
@@ -461,7 +511,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     );
 
     bool canEditType =
-        !isRoot && !attr.info.inRef && !attr.info.type.startsWith(r'$');
+        !isRoot && !attr.info.isRefAttr() && !attr.info.type.startsWith(r'$');
     if (canEditType) {
       return getEditorType(attr, context, w);
     }
@@ -524,6 +574,17 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       },
       child: child,
     );
+  }
+
+  @override
+  Function? getValidateKey() {
+    return (String key) {
+      if (key.contains(' ')) {
+        throw Exception(
+          'Key "$key" is not valid.\nSpaces are not allowed in keys.',
+        );
+      }
+    };
   }
 }
 

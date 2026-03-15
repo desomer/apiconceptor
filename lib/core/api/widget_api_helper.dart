@@ -24,8 +24,8 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
-class WidgetRequestHelper with WidgetHelper {
-  WidgetRequestHelper({required this.apiNode, required this.apiCallInfo});
+class WidgetAPIHelper with WidgetHelper {
+  WidgetAPIHelper({required this.apiNode, required this.apiCallInfo});
 
   NodeAttribut apiNode;
   final APICallManager apiCallInfo;
@@ -128,12 +128,14 @@ class WidgetRequestHelper with WidgetHelper {
 
     return Card(
       elevation: 10,
-      child: ListTile(
-        leading: Icon(Icons.api),
-        title: NoOverflowErrorFlex(direction: Axis.horizontal, children: wpath),
-        trailing: IntrinsicWidth(
-          child: WidgetChoiseEnv(widgetRequestHelper: this),
-        ),
+      child: NoOverflowErrorFlex(
+        direction: Axis.horizontal,
+        children: [
+          Icon(Icons.api),
+          ...wpath,
+          Spacer(),
+          IntrinsicWidth(child: WidgetChoiseEnv(widgetRequestHelper: this)),
+        ],
       ),
     );
   }
@@ -316,7 +318,10 @@ class WidgetRequestHelper with WidgetHelper {
   }
 
   Future<void> initResponseValidator(ModelSchema aSchema) async {
-    var export = Export2JsonSchema();
+    var export = Export2JsonSchema(
+      readOnly: apiCallInfo.httpOperation == 'get',
+    );
+
     await export.browseSync(aSchema, false, 0);
     try {
       if ((export.json['properties'] as Map).isNotEmpty) {
@@ -405,9 +410,9 @@ class WidgetRequestHelper with WidgetHelper {
   void startCancellableSearch(
     BuildContext context,
     Map<String, dynamic>? criteria,
-    Function onRequestComplete,
-    {Function? onRequestError}
-  ) async {
+    Function onRequestComplete, {
+    Function? onRequestError,
+  }) async {
     bool isCancelled = false;
     final cancelToken = CancelToken();
 

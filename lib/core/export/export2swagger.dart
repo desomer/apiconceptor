@@ -18,7 +18,7 @@ class ExportToSwagger<T extends List<Tag>> extends JsonBrowser {
   ) {
     if (node.info.type == 'ope') {
       String tag = node.info.properties?['tag'] ?? 'default';
-      var nodeTag = NodeTag(name: node.info.name, node: node);
+      var nodeTag = NodeTag(name: node.info.name.toLowerCase(), node: node);
       Tag tagObj = tags.firstWhere(
         (element) => element.name == tag,
         orElse: () {

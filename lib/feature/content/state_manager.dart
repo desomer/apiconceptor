@@ -1,5 +1,6 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:jsonschema/core/designer/core/cw_deps_binding_manager.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
@@ -112,17 +113,12 @@ class StateManager {
   dynamic data;
   dynamic dataEmpty;
 
-  // les container de data
+  /// les container de data par path
   final Map<String, StateContainer> statesTreeData = {};
-  // liste des input controleur actif
-  final Map<String, List<WidgetBindJsonState>> listInputByPath = {};
-  final Map<String, List<State>> listContainerByPath = {};
+  CwDepsBindingManager depsBindingManager = CwDepsBindingManager();
 
-  final Map<String, Map<String, CwWidgetStateBindJson>>
-  listDepsContainerByPath = {};
 
-  // pathData de type /objet/child1/child2 or /array[0]/child1/child2
-
+  /// pathData de type /objet/child1/child2 or /array[0]/child1/child2
   void loadDataInContainer(dynamic json, {String pathData = ''}) {
     if (json is Map) {
       _addStateTreeData(pathData, StateContainerObject()..jsonData = json);
@@ -160,7 +156,7 @@ class StateManager {
   }
 
   void _doReloadContainer(String pathData) {
-    var containerState = listContainerByPath[pathData];
+    var containerState = depsBindingManager.listContainerByPath[pathData];
     for (State state in containerState ?? const []) {
       if (state is CwWidgetState) {
         state.widget.ctx.repaint();
@@ -179,7 +175,7 @@ class StateManager {
 
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
       try {
-        var stateInput = listInputByPath[pathData];
+        var stateInput = depsBindingManager.listInputByPath[pathData];
         for (WidgetBindJsonState state in stateInput ?? const []) {
           if (state.mounted) {
             state.setBindJsonValue(json);
@@ -198,52 +194,11 @@ class StateManager {
     });
   }
 
-  void registerInput(String pathData, WidgetBindJsonState ctrl) {
-    var list = listInputByPath[pathData];
-    if (list == null) {
-      list = [];
-      listInputByPath[pathData] = list;
-    }
-    if (!list.contains(ctrl)) {
-      list.add(ctrl);
-    }
-    list.removeWhere((role) => role.mounted == false);
-  }
-
-  void disposeInput(String pathData, WidgetBindJsonState ctrl) {
-    var list = listInputByPath[pathData];
-    list?.removeWhere((role) => role == ctrl);
-    if (list != null && list.isEmpty) {
-      listInputByPath.remove(pathData);
-    }
-  }
-
-  void registerContainer(String pathData, State widgetState) {
-    var list = listContainerByPath[pathData];
-    if (list == null) {
-      list = [];
-      listContainerByPath[pathData] = list;
-    }
-    if (!list.contains(widgetState)) {
-      list.add(widgetState);
-    }
-    list.removeWhere((role) => role.mounted == false);
-    //print("addContainer $pathData");
-  }
-
-  void disposeContainer(String pathData, State widgetState) {
-    var list = listContainerByPath[pathData];
-    list?.removeWhere((role) => role == widgetState);
-    if (list != null && list.isEmpty) {
-      listContainerByPath.remove(pathData);
-    }
-  }
-
   void clearDisplayedData() {
     data = null;
     statesTreeData.clear();
 
-    for (var c in listContainerByPath.entries) {
+    for (var c in depsBindingManager.listContainerByPath.entries) {
       for (var element in c.value) {
         if (element.mounted) {
           // ignore: invalid_use_of_protected_member
@@ -251,7 +206,7 @@ class StateManager {
         }
       }
     }
-    for (var i in listInputByPath.entries) {
+    for (var i in depsBindingManager.listInputByPath.entries) {
       for (var element in i.value) {
         element.setBindJsonValue("");
       }
@@ -260,8 +215,9 @@ class StateManager {
 
   void dispose() {
     statesTreeData.clear();
-    listInputByPath.clear();
-    listContainerByPath.clear();
+    depsBindingManager.listInputByPath.clear();
+    depsBindingManager.listContainerByPath.clear();
+    depsBindingManager.listDepsContainerByPath.clear();
   }
 }
 
@@ -293,10 +249,10 @@ class StateContainerArray extends StateContainer {
     State? rowSelectedState,
   ) {
     print("  setIndexChanged $pathData to $idx old=$currentIndex");
-    repos.dataState.listContainerByPath[pathData]?.removeWhere((state) {
+    repos.dataState.depsBindingManager.listContainerByPath[pathData]?.removeWhere((state) {
       return state.mounted == false;
     });
-    repos.dataState.listContainerByPath[pathData]?.forEach((state) {
+    repos.dataState.depsBindingManager.listContainerByPath[pathData]?.forEach((state) {
       if (state is CwWidgetStateBindJson) {
         state.setSelectedRowIndex(idx);
       }

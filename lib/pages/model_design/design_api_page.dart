@@ -53,7 +53,7 @@ class DesignAPIPage extends GenericPageStateless {
                 headerName: 'All trash',
                 id: 'api',
                 infoManager: InfoManagerTrashAPI(),
-                ref: null,
+                refDomain: null,
               );
               trash.autoSaveProperties = false;
 
@@ -112,13 +112,13 @@ class DesignAPIPage extends GenericPageStateless {
       ]
       ..breadcrumbs = [
         BreadNode(
-          settings: const RouteSettings(name: 'List API'),
-          type: BreadNodeType.widget,
-        ),
-        BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
           path: Pages.api.urlpath,
+        ),
+        BreadNode(
+          settings: const RouteSettings(name: 'List API'),
+          type: BreadNodeType.widget,
         ),
       ];
   }

@@ -38,7 +38,7 @@ void startServer() async {
             httpOperation: httpOpe,
           );
           String url = apiCallInfo.getURLfromNode(
-            modelApi.nodeByMasterId[api.masterID!]!,
+            modelApi.getNodeByMasterIdPath(api.masterID!)!,
           );
           apiCallInfo.requestVariableValue['base_url'] =
               'http://localhost:1234/';

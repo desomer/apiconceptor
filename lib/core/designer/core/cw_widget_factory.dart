@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/designer/editor/view/bloc_properties.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_app.dart';
-import 'package:jsonschema/core/designer/core/widget_catalog/cw_indicator.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_page_indicator.dart';
 import 'package:jsonschema/core/designer/editor/view/helper/widget_hover.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
@@ -26,6 +25,7 @@ import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
+import 'package:shortid/shortid.dart';
 
 class BuildInfo {
   bool isWidthChanged = false;
@@ -48,6 +48,7 @@ typedef OnActionWidgetConfig =
 //const String cwRoutes = 'routes';
 const String cwApp = 'app';
 const String cwImplement = 'impl';
+const String cwXid = 'xid';
 const String cwSlotId = 'slotId';
 const String cwProps = 'props';
 const String cwPropsSlot = 'propsSlot';
@@ -163,14 +164,13 @@ class WidgetFactory {
     CwTable.initFactory(this);
     CwRow.initFactory(this);
     CwAdvancedPager.initFactory(this);
-    CwIndicator.initFactory(this);
 
     cwFactoryProps = WidgetFactoryProperty(cwFactory: this);
   }
 
   set isStarted(bool isStarted) {}
 
-  void register({
+  void registerComponent({
     required String id,
     BuilderWidget? build,
     required BuilderWidgetConfig config,
@@ -286,6 +286,9 @@ class WidgetFactory {
 
   CwWidget getWidget(CwWidgetCtx ctx) {
     var w = builderWidget[ctx.getData()![cwImplement]]!(ctx);
+    if (ctx.getData()![cwXid] == null) {
+      ctx.getData()![cwXid] = shortid.generate();
+    }
     return w;
   }
 
@@ -313,6 +316,10 @@ class WidgetFactory {
       config: CwSlotConfig(ctx: rootCtx!)..withDragAndDrop = false,
     );
     return rootSlot!;
+  }
+
+  CwWidgetCtx? findByPath(String path) {
+    return rootCtx?.findByPath(path);
   }
 }
 

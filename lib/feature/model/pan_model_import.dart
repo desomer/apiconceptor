@@ -10,6 +10,7 @@ import 'package:jsonschema/feature/model/pan_model_link.dart';
 import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
+@Deprecated('Use PanModelImportDialog instead')
 // ignore: must_be_immutable
 class PanModelImport extends StatelessWidget {
   PanModelImport({super.key});
@@ -75,7 +76,7 @@ class PanModelImport extends StatelessWidget {
       headerName: 'Select Models',
       id: 'model',
       infoManager: currentCompany.listModel!.infoManager,
-      ref: currentCompany.listModel,
+      refDomain: currentCompany.listModel,
     );
     model.autoSaveProperties = false;
     model.mapModelYaml = currentCompany.listModel!.mapModelYaml;

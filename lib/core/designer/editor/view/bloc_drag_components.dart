@@ -41,7 +41,6 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "name": "Divider, Spacer",
             "icon": Icons.horizontal_rule,
           },
-          {"id": "indicator", "name": "indicator", "icon": Icons.traffic},
         ],
       },
       {

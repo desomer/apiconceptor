@@ -15,6 +15,7 @@ import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 
+@Deprecated('Use PanModelImportDialog instead')
 // ignore: must_be_immutable
 class PanModelTrashcan extends StatelessWidget with WidgetHelper {
   PanModelTrashcan({super.key, required this.getModelFct});
@@ -168,8 +169,9 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
           await _goToModel(attr, 1);
         },
         child: HoverableCard(
+          onBuild: (state, ctx) {},
           isSelected: (State state) {
-            attr.widgetSelectState = state;
+            attr.widgetRowHoverState = state;
             bool isSelected = schema.selectedAttr == attr;
             if (isSelected) {
               rowSelected = state;
@@ -213,7 +215,7 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
         infoManager: InfoManagerModel(typeMD: TypeMD.model),
         headerName: attr.info.name,
         id: key,
-        ref: currentCompany.listModel,
+        refDomain: currentCompany.listModel,
       );
       currentCompany.currentModelSel = attr;
       //listModel.currentAttr = attr;

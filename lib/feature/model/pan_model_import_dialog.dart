@@ -10,7 +10,6 @@ import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
-import 'package:yaml/yaml.dart';
 
 // ignore: must_be_immutable
 class PanModelImportDialog extends StatelessWidget {
@@ -76,9 +75,9 @@ class PanModelImportDialog extends StatelessWidget {
               var yaml = import.doImportJSON().yaml.toString();
 
               var modelSchemaDetail = currentCompany.listModel!;
-              YamlDocument doc = loadYamlDocument(modelSchemaDetail.modelYaml);
               YamlDoc docYaml = YamlDoc();
-              docYaml.doAnalyse(doc, modelSchemaDetail.modelYaml);
+              docYaml.load(modelSchemaDetail.modelYaml);
+              docYaml.doAnalyse();
 
               YamlLine? domain;
               for (var element in docYaml.listRoot) {
@@ -111,7 +110,7 @@ class PanModelImportDialog extends StatelessWidget {
                   infoManager: InfoManagerModel(typeMD: TypeMD.model),
                   headerName: nameKey,
                   id: id,
-                  ref: currentCompany.listModel,
+                  refDomain: currentCompany.listModel,
                 );
                 aModel.modelYaml = yaml;
                 aModel.doChangeAndRepaintYaml(null, true, 'import');

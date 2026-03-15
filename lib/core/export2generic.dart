@@ -6,6 +6,8 @@ import 'package:jsonschema/start_core.dart';
 
 abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     extends JsonBrowser<T> {
+  JsonBrowser2generic({super.readOnly});
+
   @override
   dynamic getChild(
     ModelSchema model,
@@ -20,6 +22,13 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     if (type == 'param') {
       type = 'object';
       node.info.type = 'object';
+    }
+
+    if (readOnly == true) {
+      bool wr = node.info.properties?['writeOnly'] ?? false;
+      if (wr) {
+        return null;
+      }
     }
 
     NodeJson toAdd;
@@ -71,7 +80,7 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     } else if (type == 'object') {
       if (name.toLowerCase() == constNameAllof) {
         toAdd = doAllOf(parentNode, parent, name, node);
-      } else if (name.toLowerCase() == constInline) {
+      } else if (name.toLowerCase() == constInherit) {
         toAdd =
             doObjectWithAnyOf(name, node)
               ..parentOfChild = parent

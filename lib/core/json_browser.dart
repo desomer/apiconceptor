@@ -22,6 +22,10 @@ class JsonBrowser<T> {
   bool ready = false;
   var uuid = Uuid();
 
+  bool? readOnly;
+
+  JsonBrowser({this.readOnly});
+
   void onInit(ModelSchema model) {}
   void onReady(ModelSchema model) {}
   void onRowTypeChange(ModelSchema model, NodeAttribut node) {}
@@ -31,6 +35,7 @@ class JsonBrowser<T> {
     bool unknowedMode,
     int antiloop,
   ) async {
+    readOnly ??= model.readOnly;
     var ret = browse(model, unknowedMode);
     if (ret.wait != null && antiloop < cstAntiloop) {
       //await Future.delayed(Duration(milliseconds: 300));
@@ -41,6 +46,7 @@ class JsonBrowser<T> {
   }
 
   NodeBrowser browse(ModelSchema model, bool unknowedMode) {
+    readOnly ??= model.readOnly;
     int time = DateTime.now().millisecondsSinceEpoch;
     NodeBrowser browser = NodeBrowser()..time = time;
     browser.selectedPath = model.lastBrowser?.selectedPath;
@@ -61,9 +67,11 @@ class JsonBrowser<T> {
       browser: browser,
       nodeAttribut: rootNodeAttribut,
       level: 0,
+      parent: null,
     );
 
     model.nodeByMasterId.clear();
+    // antiLoopRef.clear();
 
     _recursiveBrowseNode(model, browseAttrInfo, model.mapModelYaml);
 
@@ -248,6 +256,8 @@ class JsonBrowser<T> {
 
   void doNode(NodeAttribut nodeAttribut) {}
 
+  //Map<String, dynamic> antiLoopRef = {};
+
   void _recursiveBrowseNode(
     ModelSchema model,
     BrowserAttrInfo attr,
@@ -296,6 +306,7 @@ class JsonBrowser<T> {
         nodeAttribut: childNodeAttribut,
         yamlPathAttr: yamlPathAttr,
         level: attr.level + 1,
+        parent: attr,
       );
       browserAttrInfo.ref = onRef;
       if (attr.aJsonPathRef != null) {
@@ -329,6 +340,8 @@ class JsonBrowser<T> {
           // evite les ref circulaire sur lui même
           _doRef(mapChild, browserAttrInfo, model, refName, false);
         }
+      } else {
+        childNodeAttribut.info.isRef = null;
       }
 
       if (attr.browser.selectedPath?.contains(aJsonPath) ?? false) {
@@ -383,6 +396,19 @@ class JsonBrowser<T> {
     String refName,
     bool selected,
   ) {
+    BrowserAttrInfo? p = browserAttrInfo;
+    while (p != null) {
+      if (p.ref?.headerName == refName) {
+        // evite les ref circulaire entre 2 niveau
+        return;
+      }
+      p = p.parent;
+    }
+
+    // if ((antiLoopRef[refName] ?? 0) > 1) {
+    //   return;
+    // }
+
     List<AttributInfo>? aModelByName = model.getModelByRefName(refName);
 
     if (aModelByName != null) {
@@ -393,7 +419,7 @@ class JsonBrowser<T> {
         headerName: refName,
         id: masterIdRef,
         infoManager: model.infoManager,
-        ref: model.ref,
+        refDomain: model.refDomain,
       );
       modelRef.namespace = model.namespace;
       modelRef.currentVersion =
@@ -489,7 +515,16 @@ class JsonBrowser<T> {
 
     var masterID = model.modelProperties[aJsonPath]?[constMasterID];
     masterID ??= info.properties?[constMasterID];
+    if (info.properties?[constMasterID] != null &&
+        masterID != info.properties?[constMasterID]) {
+      print(
+        "masterID change ${info.properties?[constMasterID]} => $masterID  on path ${info.getJsonPath()}",
+      );
+      masterID = info.properties?[constMasterID];
+    }
+
     info.masterID = masterID;
+
     if (info.path != '' && info.path != aJsonPath) {
       //print("path change ${nodeAttribut.info.path} => $aJsonPath");
       _doPathChangeHistory(nodeAttribut, aJsonPath, model);
@@ -507,7 +542,7 @@ class JsonBrowser<T> {
     // affecte les properties si 1° fois
     info.properties ??= model.modelProperties[aJsonPath] ?? {};
     if (info.properties![constMasterID] == null) {
-      bi.masterId = uuid.v7(); // nanoid();
+      bi.masterId = uuid.v7();
       //bi.browser.asyncMaster.add(bi);
       info.properties![constMasterID] = bi.masterId;
       info.masterID = bi.masterId;
@@ -516,7 +551,19 @@ class JsonBrowser<T> {
 
     if (info.masterID != null) {
       model.allAttributInfo[info.masterID!] = info;
-      model.nodeByMasterId[info.masterID!] = nodeAttribut;
+      model.nodeByMasterId[info.masterID!] ??= [];
+      model.nodeByMasterId[info.masterID!]!.add(nodeAttribut);
+      info.masterIDPath.clear();
+      info.masterIDPath.add(info.masterID!);
+      var p = bi.parent;
+      var ref = bi.ref;
+      while (p != null) {
+        if (p.ref != ref) {
+          ref = p.ref;
+          info.masterIDPath.insert(0, p.nodeAttribut.info.getMasterID());
+        }
+        p = p.parent;
+      }
     }
 
     var type = model.infoManager.getTypeTitle(
@@ -660,7 +707,7 @@ class NodeAttribut {
   String? addChildOn;
   String addInAttr = "";
 
-  State? widgetSelectState;
+  State? widgetRowHoverState;
 
   bool addChildAsync = false;
   Color? bgcolor;
@@ -680,14 +727,20 @@ class NodeAttribut {
 class AttributInfo {
   int lastBrowseDate = 0;
   String? masterID;
+
+  List<String> masterIDPath = [];
+
   String? treePosition;
   String? oldTreePosition;
   String name = '';
   String type = '';
   String path = '';
+
   String? isRef;
   String? isRefError;
   bool inRef = false;
+  bool isInitByRef = false;
+
   Map<String, dynamic>? properties;
   Map<EnumErrorType, AttributError>? error;
   String? tooltipError;
@@ -701,7 +754,6 @@ class AttributInfo {
   DateTime? timeLastUpdate; // update en base
   DateTime? timeLastChange; // mise a jour des properties
 
-  bool isInitByRef = false;
   bool firstLoad = false;
   String? action;
   int numUpdateForKey = 0;
@@ -748,27 +800,41 @@ class AttributInfo {
       ..isInitByRef = isInitByRef
       ..firstLoad = firstLoad
       ..action = action
-      ..numUpdateForKey = numUpdateForKey;
+      ..numUpdateForKey = numUpdateForKey
+      ..selected = selected
+      ..inRef = inRef
+      ..isRefError = isRefError
+      ..masterIDPath = List<String>.from(masterIDPath);
   }
 
-  String getJsonPath() {
-    StringBuffer curPath = StringBuffer("root");
+  String getMasterID() {
+    return masterID ?? properties?[constMasterID] ?? '';
+  }
+
+  String getMasterIDPath() {
+    return masterIDPath.join('>');
+  }
+
+  String getJsonPath({bool withRoot = true, bool withType = false}) {
+    StringBuffer curPath = StringBuffer(withRoot ? "root" : "");
     List<String> pathJson = path.split(">");
     bool nextIsTypeOf = false;
     for (var i = 1; i < pathJson.length; i++) {
       var p = pathJson[i];
       if (p == constRefOn) continue;
+      if (p == constInherit) continue;
 
       if (p == constTypeAnyof) {
         nextIsTypeOf = true;
         continue;
-      } else if (nextIsTypeOf) {
+      } else if (nextIsTypeOf && !withType) {
         nextIsTypeOf = false;
         // l'objet est uniquement le type
         continue;
       }
-      curPath.write('.$p');
+      curPath.isEmpty ? curPath.write(p) : curPath.write('.$p');
     }
+    print(curPath.toString());
     return curPath.toString();
   }
 }
@@ -780,6 +846,7 @@ class BrowserAttrInfo {
     required this.aJsonPath,
     required this.browser,
     required this.level,
+    required this.parent,
   });
   String yamlPathAttr;
   NodeAttribut nodeAttribut;
@@ -791,6 +858,7 @@ class BrowserAttrInfo {
   ModelSchema? ref;
   String? aJsonPathRef;
   String? masterId;
+  BrowserAttrInfo? parent;
 }
 
 enum EnumErrorType { errorRef, errorType }
@@ -804,6 +872,8 @@ class AttributError {
 abstract class InfoManager {
   PanYamlTree? editor;
   ModelSchema? modelSchema;
+
+  Function? getValidateKey();
 
   /// permet egalement d'affecter une couleur de fond node.bgcolor
   String getTypeTitle(NodeAttribut node, String name, dynamic type);

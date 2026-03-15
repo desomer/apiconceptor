@@ -13,7 +13,7 @@ class CwAdvancedPager extends CwWidget {
   });
 
   static void initFactory(WidgetFactory factory) {
-    factory.register(
+    factory.registerComponent(
       id: 'pager',
       build:
           (ctx) => CwAdvancedPager(
@@ -40,10 +40,9 @@ class _AdvancedPagerState extends CwWidgetState<CwAdvancedPager>
   void goTo(BuildContext context, int page) {
     if (widget.ctx.aFactory.isModeDesigner()) return;
 
-    setState(() {
-      currentPage = page;
-      CwRepositoryAction(ctx: widget.ctx, repo: repos!).goToPage(context, page);
-    });
+    currentPage = page;
+    CwRepositoryAction(ctx: widget.ctx, repo: repos!).goToPage(context, page);
+    widget.ctx.repaint();
   }
 
   @override
@@ -57,6 +56,10 @@ class _AdvancedPagerState extends CwWidgetState<CwAdvancedPager>
           ctx.aFactory.mapRepositories[ctx
               .dataWidget?[cwProps]?['bind']?['repository']]!;
 
+      repos!.pagerCtx = ctx;
+
+      pageCount =
+          CwRepositoryAction(ctx: widget.ctx, repo: repos!).getMaxPageNumber();
       // double height = 1;
       // var label = getStringProp(ctx, 'label');
       // var spacer = getStringProp(ctx, 'type') == 'spacer';

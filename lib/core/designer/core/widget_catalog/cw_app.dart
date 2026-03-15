@@ -10,7 +10,7 @@ class CwApp extends CwWidget {
   const CwApp({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
-    factory.register(
+    factory.registerComponent(
       id: 'app',
       build:
           (ctx) =>

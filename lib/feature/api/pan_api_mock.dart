@@ -7,7 +7,7 @@ import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -21,7 +21,7 @@ class WidgetApiMock extends StatefulWidget {
     required this.requestHelper,
     required this.idApi,
   });
-  final WidgetRequestHelper requestHelper;
+  final WidgetAPIHelper requestHelper;
   final String idApi;
 
   @override
@@ -45,6 +45,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
         modeSeparator: Separator.right,
         withBtnAddMock: true,
         modeMock: false,
+        autoSave: false,
       ),
       requestHelper: widget.requestHelper,
     );
@@ -135,7 +136,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
                 var export = Export2FakeJson(
                   modeArray: ModeArrayEnum.anyInstance,
                   mode: ModeEnum.fake,
-                  propMode: PropertyRequiredEnum.all
+                  propMode: PropertyRequiredEnum.all,
                 )..browse(aSchema, false);
                 widget.requestHelper.apiCallInfo.mock = export.json;
                 widget.requestHelper.apiCallInfo.mockStr = export
@@ -152,7 +153,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
   }
 
   Future<void> initMockValidator(ModelSchema aSchema) async {
-    var export = Export2JsonSchema();
+    var export = Export2JsonSchema(readOnly: widget.requestHelper.apiCallInfo.httpOperation == 'get');
     await export.browseSync(aSchema, false, 0);
     try {
       if ((export.json['properties'] as Map).isNotEmpty) {

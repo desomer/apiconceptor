@@ -6,10 +6,10 @@ class VerticalSep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 5,
+      width: 3,
       height: double.infinity,
       decoration: BoxDecoration(
-        border: Border.all(width: 1, color: Colors.white),
+        border: Border.all(width: 1, color: Colors.grey),
       ),
     );
   }

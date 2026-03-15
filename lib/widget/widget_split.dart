@@ -9,12 +9,14 @@ class SplitView extends StatefulWidget {
     this.flex1 = 1,
     this.flex2 = 1,
     this.secondaryWidth = -1,
+    this.axis = Axis.horizontal,
   });
   final List<Widget> children;
   final double secondaryWidth;
   final double primaryWidth;
   final double flex1;
   final double flex2;
+  final Axis axis;
 
   @override
   SplitViewState createState() => SplitViewState();
@@ -52,7 +54,7 @@ class SplitViewState extends State<SplitView> {
   @override
   Widget build(BuildContext context) {
     MultiSplitView multiSplitView = MultiSplitView(
-      axis: Axis.horizontal,
+      axis: widget.axis,
       controller: _controller,
       builder: (BuildContext context, Area area) {
         return widget.children[area.data as int];

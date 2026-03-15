@@ -1,0 +1,29 @@
+# R001_field_mapping.yaml
+id: R001
+name: field_mapping
+category: mapping
+description: Mappe un chemin source vers un chemin cible sans transformation complexe
+scope: record
+inputs:
+  - path: source_path
+    type: string
+outputs:
+  - path: target_path
+    type: string
+params:
+  - name: allow_null
+    type: boolean
+    default: true
+example:
+  input: { "firstName": "Jean" }
+  output: { "first_name": "Jean" }
+tests:
+  - id: T_R001_01
+    type: unit
+    description: renomme firstName en first_name
+    input: { "firstName": " Jean " }
+    expected: { "first_name": " Jean " }
+severity: low
+action_on_error: dlq
+complexity: low
+implementation_notes: "Générer SQL simple ou map dans moteur de transformation"

@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_double_and_int_checks
+// ignore: depend_on_referenced_packages
 import 'package:collection/collection.dart';
 import 'package:dart_eval/dart_eval.dart';
 import 'package:dart_eval/dart_eval_bridge.dart';
@@ -9,13 +9,12 @@ import 'package:jmespath/jmespath.dart' show search;
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
-import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
-import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/start_core.dart';
 
 class CoreDataEval {
   dynamic self;
   Map<String, dynamic>? variables;
+  Map<String, AttributBindInfo> listBindInfo = {};
 
   late String expr;
   late Runtime libRuntime;
@@ -30,13 +29,13 @@ class CoreDataEval {
   bool compilOk = false;
   List<String> logger = [];
 
-  dynamic compil(String expression, List<String> logs) {
+  dynamic compil(String expression, List<String> logs, bool isAsync) {
     logger = logs;
     expr = expression;
     final compiler = Compiler();
 
     lines = splitIgnoringStringsAndComments(expr);
-    compilProgram(lines, -1, compiler);
+    compilProgram(lines, -1, compiler, isAsync);
 
     Map<$String, $Closure> map = {};
     map[$String('getVar')] = $Closure((runtime, target, args) {
@@ -49,21 +48,13 @@ class CoreDataEval {
       String attr = args[0]!.$value.toString();
       CwWidgetCtx ctx = variables!['\$\$__ctx__\$\$'];
       BuildContext context = variables!['\$\$__buildctx__\$\$'];
-      Map bind = ctx.dataWidget?[cwProps]?['bind'];
-      String repoId = bind['repository'];
-      var repository = ctx.aFactory.mapRepositories[repoId];
-      var stateRepository = repository?.dataState;
-      String pathContainer;
-      String attrName;
-      var pathJson = '/${attr.replaceAll('.', '/')}';  
-      (pathContainer, attrName) = stateRepository!.getPathInfo(pathJson);
-      StateContainer? dataContainer;
-      (dataContainer, _) = stateRepository.getStateContainer(
-        pathContainer,
+      CwWidgetStateBindJson? state = variables!['\$\$__state__\$\$'];
+      var ret = ctx.getDataValueForEval(
+        jsonPath: attr,
         context: context,
-        pathWidgetRepos: ctx.parentCtx!.aWidgetPath,
+        listBindInfo: listBindInfo,
+        state: state,
       );
-      var ret = dataContainer?.jsonData[attrName];
       return getEvalObj(ret);
     });
 
@@ -112,7 +103,7 @@ class CoreDataEval {
   final regexVar = RegExp(r'\$\.var\[');
   final regexVarData = RegExp(r'\$\.data\[');
 
-  ResultCompil compilProgram(List<String> lines, int ligne, Compiler compiler) {
+  ResultCompil compilProgram(List<String> lines, int ligne, Compiler compiler, bool isAsync) {
     StringBuffer debug = StringBuffer();
     compilOk = false;
 
@@ -133,22 +124,52 @@ class CoreDataEval {
         });
 
         match = regexVarData.firstMatch(analyzeLine);
-        analyzeLine = _doMatchVar(match, analyzeLine, (str, next, equal) {
-          if (equal) {
-            return '${analyzeLine.substring(0, match!.start)}setData($str,$next)';
-          } else {
-            return '${analyzeLine.substring(0, match!.start)}getData($str)$next';
-          }
-        });
+        while (match != null) {
+          analyzeLine = _doMatchVar(match, analyzeLine, (str, next, equal) {
+            if (equal) {
+              return '${analyzeLine.substring(0, match!.start)}setData($str,$next)';
+            } else {
+              return '${analyzeLine.substring(0, match!.start)}getData($str)$next';
+            }
+          });
+          match = regexVarData.firstMatch(analyzeLine);
+        }
 
+        // analyzeLine = _doMatchVar(match, analyzeLine, (str, next, equal) {
+        //   if (equal) {
+        //     return '${analyzeLine.substring(0, match!.start)}setData($str,$next)';
+        //   } else {
+        //     return '${analyzeLine.substring(0, match!.start)}getData($str)$next';
+        //   }
+        // });
+
+        // match = regexVar.firstMatch(analyzeLine);
+        // analyzeLine = _doMatchVar(match, analyzeLine, (str, next, equal) {
+        //   if (equal) {
+        //     return '${analyzeLine.substring(0, match!.start)}setVar($str,$next)';
+        //   } else {
+        //     return '${analyzeLine.substring(0, match!.start)}getVar($str)$next';
+        //   }
+        // });
+        // match = regexVar.firstMatch(analyzeLine);
+        // analyzeLine = _doMatchVar(match, analyzeLine, (str, next, equal) {
+        //   if (equal) {
+        //     return '${analyzeLine.substring(0, match!.start)}setVar($str,$next)';
+        //   } else {
+        //     return '${analyzeLine.substring(0, match!.start)}getVar($str)$next';
+        //   }
+        // });
         match = regexVar.firstMatch(analyzeLine);
-        analyzeLine = _doMatchVar(match, analyzeLine, (str, next, equal) {
-          if (equal) {
-            return '${analyzeLine.substring(0, match!.start)}setVar($str,$next)';
-          } else {
-            return '${analyzeLine.substring(0, match!.start)}getVar($str)$next';
-          }
-        });
+        while (match != null) {
+          analyzeLine = _doMatchVar(match, analyzeLine, (str, next, equal) {
+            if (equal) {
+              return '${analyzeLine.substring(0, match!.start)}setVar($str,$next)';
+            } else {
+              return '${analyzeLine.substring(0, match!.start)}getVar($str)$next';
+            }
+          });
+          match = regexVar.firstMatch(analyzeLine);
+        }
 
         if (analyzeLine.startsWith('\$.api.')) {
           String e = analyzeLine.substring(6);
@@ -196,7 +217,7 @@ class CoreDataEval {
        return await send(r);
     }
 
-    dynamic main(dynamic v, Map<String, Function> callback) async {
+    dynamic main(dynamic v, Map<String, Function> callback) ${isAsync?'async':''} {
       _callback = callback;
       var getVar = callback['getVar'];
       var getData = callback['getData'];
@@ -206,7 +227,6 @@ class CoreDataEval {
       var _\$\$debug = callback['debug'];
       var self = v;
       $debug
-      return 'ok';
     }
     ''';
 
@@ -228,7 +248,7 @@ class CoreDataEval {
       int j = 0;
       ResultCompil cr;
       while (true) {
-        cr = compilProgram(lines, j, compiler);
+        cr = compilProgram(lines, j, compiler, isAsync);
         if (cr.error != null) {
           break;
         }
@@ -342,7 +362,9 @@ class CoreDataEval {
           attrApi: api,
           httpOperation: httpOpe,
         );
-        apiCallInfo.getURLfromNode(allApi.nodeByMasterId[api.masterID!]!);
+        apiCallInfo.getURLfromNode(
+          allApi.getNodeByMasterIdPath(api.masterID!)!,
+        );
 
         var def = await loadAPI(id: api.masterID!, namespace: r.masterID);
         print("api $def");

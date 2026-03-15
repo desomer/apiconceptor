@@ -3,7 +3,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
 import 'package:jsonschema/feature/api/pan_api_selector_tag.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
@@ -86,7 +86,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIUIPage> {
 
   GlobalKey paramKey = GlobalKey(debugLabel: 'paramKey');
 
-  WidgetRequestHelper? requestHelper;
+  WidgetAPIHelper? requestHelper;
 
   var flexWeights = [1, 10, 1];
 
@@ -214,7 +214,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIUIPage> {
       duration: Duration(milliseconds: 200),
     );
 
-    var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
+    var attr = currentCompany.listAPI!.getNodeByMasterIdPath(idApi)!;
     currentCompany.listAPI!.selectedAttr = attr;
 
     requestHelper = null;
@@ -222,7 +222,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIUIPage> {
 
     Future.delayed(Duration(milliseconds: 10)).then((value) {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-        requestHelper = WidgetRequestHelper(
+        requestHelper = WidgetAPIHelper(
           apiNode: attr,
           apiCallInfo: getAPICall(
             currentCompany.currentNameSpace,

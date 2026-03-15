@@ -1,33 +1,136 @@
 import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:yaml/yaml.dart';
 
+void main(List<String> args) {
+  Swagger2Schema().import();
+}
+
 class Swagger2Schema {
   Future<void> import() async {
-    String swagger = """
-openapi: 3.0.4
+    String swagger = r"""
+openapi: 3.1.0
 info:
-  title: Sample API
-  description: Optional multiline or single-line description in [CommonMark](http://commonmark.org/help/) or HTML.
-  version: 0.1.9
-
-servers:
-  - url: http://api.example.com/v1
-    description: Optional server description, e.g. Main (production) server
+  title: API Catalogue
+  version: 1.0.0
 
 paths:
-  /users:
+  /products:
     get:
-      summary: Returns a list of users.
-      description: Optional extended description in CommonMark or HTML.
+      summary: Liste paginée des produits
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
-        "200": # status code
-          description: A JSON array of user names
+        '200':
+          description: Page de produits
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
+                $ref: '#/$defs/PaginatedProducts'
+
+    post:
+      summary: Créer un produit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/$defs/ProductInput'
+      responses:
+        '201':
+          description: Produit créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/$defs/Product'
+
+  /products/{id}:
+    get:
+      summary: Récupérer un produit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Produit trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/$defs/Product'
+
+$defs:
+  PaginatedProducts:
+    type: object
+    required: [items, page, pageSize, total]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: '#/$defs/Product'
+      page:
+        type: integer
+      pageSize:
+        type: integer
+      total:
+        type: integer
+
+  ProductInput:
+    type: object
+    required: [name, price, category]
+    properties:
+      name:
+        type: string
+        minLength: 2
+      price:
+        type: number
+        minimum: 0
+      category:
+        $ref: '#/$defs/Category'
+      attributes:
+        type: object
+        additionalProperties:
+          $ref: '#/$defs/AttributeValue'
+
+  Product:
+    allOf:
+      - $ref: '#/$defs/ProductInput'
+      - type: object
+        required: [id]
+        properties:
+          id:
+            type: string
+          createdAt:
+            type: string
+            format: date-time
+
+  Category:
+    type: string
+    enum:
+      - electronics
+      - clothing
+      - food
+      - books
+
+  AttributeValue:
+    oneOf:
+      - type: string
+      - type: number
+      - type: boolean
+      - type: array
+        items:
+          type: string
   """;
 
     var root = loadYaml(swagger);
@@ -43,6 +146,7 @@ paths:
       data.level++;
       if (value.isNotEmpty) {
         for (var i = 0; i < value.length; i++) {
+          print('item "$name[$i]" level=${data.level} path=${data.path}');
           data.path.add('$name[$i]');
           doAttr(null, value[i], data);
           data.path.removeLast();
@@ -53,6 +157,7 @@ paths:
       if (name != null) {
         data.level++;
         data.path.add(name);
+        print('object "$name" level=${data.level} path=${data.path}');
       }
       for (var element in value.entries) {
         doAttr(element.key, element.value, data);
@@ -62,7 +167,11 @@ paths:
         data.path.removeLast();
       }
     } else {
-      print('$name = $value level=${data.level} path=${data.path}');
+      if (name != null) {
+        print('"$name" = <$value> level=${data.level} path=${data.path}');
+      } else {
+        print('- <$value> level=${data.level} path=${data.path}');
+      }
       // data.yaml.write(name);
       // data.yaml.write(' : ');
       // data.yaml.writeln(getType(value));

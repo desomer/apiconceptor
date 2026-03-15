@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 
-enum TypeMD { listmodel, model, listapi, apiparam, apiresponse, env, domain }
+enum TypeMD { listmodel, model, listapi, apiparam, apiExample, apiresponse, env, domain }
 
 class WidgetMdDoc extends StatefulWidget {
   const WidgetMdDoc({super.key, required this.type});
@@ -68,13 +68,72 @@ items :  # or items[] :
          num : number
 ```
 
+Example 5 : Inherit
+```
+\$inherit : \$otherModel
+```
 ''';
+
+  var mdApi = '''
+# Structure Syntax 
+Example : 
+```
+your_domain : 
+   \$server : {base_url}  
+   example : 
+      v1 : 
+         {param} : 
+            get : ope
+         post : ope
+      v2 : 
+         {param} : 
+            get : ope
+```
+''';
+
+  var mdApiParam = '''
+# Structure Syntax 
+Example : 
+```
+# GET /your_domain/example/v1/{param}?field={field}&other={field2}
+path:
+  param : string
+
+query:
+   field : string  
+   field2 : string
+
+header:
+   header1 : string    
+
+cookies:        
+   cookie1 : string 
+
+# body with model
+body : \$your_model
+```
+''';
+
+ var mdApiExample = '''
+# Structure Syntax 
+Example : 
+```
+by page : example
+most recent : example
+```
+''';
+
+
+
 
   @override
   Widget build(BuildContext context) {
     Map<TypeMD, String> map = {
       TypeMD.listmodel: mdLisModel,
       TypeMD.model: mdModel,
+      TypeMD.listapi: mdApi,
+      TypeMD.apiparam: mdApiParam,
+      TypeMD.apiExample: mdApiExample,
     };
 
     Size size = MediaQuery.of(context).size;

@@ -1,0 +1,35 @@
+# R004_validate_regex.yaml
+id: R004
+name: validate_regex
+category: validation
+description: Valide une valeur par expression régulière
+scope: field
+inputs:
+  - path: field
+    type: string
+params:
+  - name: pattern
+    type: string
+  - name: mode
+    type: string
+    enum: [match, contains]
+    default: match
+  - name: on_error
+    type: string
+    enum: [dlq, coerce_null, default]
+    default: dlq
+  - name: default_value
+    type: string
+    nullable: true
+example:
+  input: { "email": "a@b.com" }
+  output: { "email": "a@b.com" }
+tests:
+  - id: T_R004_01
+    type: unit
+    input: { "email": "bad-email" }
+    expected_action: dlq
+severity: high
+action_on_error: dlq
+complexity: low
+implementation_notes: "Supporte flags regex; log reason d'échec"

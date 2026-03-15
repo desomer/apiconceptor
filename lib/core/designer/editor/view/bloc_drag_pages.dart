@@ -90,12 +90,15 @@ class _WidgetPagesState extends State<WidgetPages> {
             int idcache = node.data['intCache'] ?? 0;
             node.data['intCache'] = idcache + 1;
 
-            widget.factory.keyPagesViewer.currentState?.doTapHeader(node);
+            widget.factory.keyPagesViewer.currentState?.doTapHeader(
+              node,
+              'data',
+            );
           },
           child: Text(node.data['status'] ?? '?'),
         );
       },
-      onTapHeader: (node, ctx) async {
+      onTapHeader: (node, ctx, String type) async {
         print('tap on ${node.data['name']}');
       },
       isRowCached: (node) {

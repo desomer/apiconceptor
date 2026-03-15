@@ -18,13 +18,11 @@ class CwInput extends CwWidget {
       }, // border standard d'un formulaire
       {'icon': Icons.rectangle_rounded, 'value': 'fill'},
       {'icon': Icons.horizontal_rule, 'value': 'under'},
-      {
-        'icon': Icons.deselect,
-        'value': 'custom',
-      }, // dans un list avec un separateur
+      {'icon': Icons.deselect, 'value': 'custom'},
+      // dans un list avec un separateur
     ];
 
-    factory.register(
+    factory.registerComponent(
       id: 'input',
       build:
           (ctx) =>
@@ -36,10 +34,14 @@ class CwInput extends CwWidget {
                 {'icon': Icons.label, 'value': 'label'},
                 {'icon': Icons.text_fields, 'value': 'textfield'},
                 {'icon': Icons.check_box, 'value': 'checkbox'},
+                {'icon': Icons.add_reaction, 'value': 'icon'},
               ], defaultValue: 'label'),
             )
             .addProp(
               CwWidgetProperties(id: 'label', name: 'label')..isText(ctx),
+            )
+            .addProp(
+              CwWidgetProperties(id: 'dense', name: 'dense')..isBool(ctx),
             )
             .addProp(CwWidgetProperties(id: 'size', name: 'size')..isSize(ctx))
             .addStyle(
@@ -69,7 +71,7 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
       ctrlInput?.text = value?.toString() ?? '';
       widget.ctx.repaint(); // pour les text widget
     } else {
-      ctrlInput?.text = pathData;
+      ctrlInput?.text = bindInfo.pathData;
     }
   }
 
@@ -78,7 +80,10 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
 
   @override
   void dispose() {
-    stateRepository?.disposeInput(pathData, this);
+    bindInfo.stateRepository?.depsBindingManager.disposeInput(
+      bindInfo.pathData,
+      this,
+    );
     ctrlInput?.dispose();
     focusNode?.dispose();
     super.dispose();
@@ -89,19 +94,20 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
     super.initState();
     initBind();
     var modeViewer = widget.ctx.aFactory.isModeViewer();
-    if (stateRepository != null) {
+    if (bindInfo.stateRepository != null) {
       ctrlInput = TextEditingController(text: '');
       focusNode = FocusNode();
       if (modeViewer) {
         ctrlInput?.addListener(() {
-          if (stateRepository != null &&
-              attribut != null &&
-              isPrimitiveArrayValue == false) {
+          if (bindInfo.stateRepository != null &&
+              bindInfo.bindAttribut != null &&
+              bindInfo.isPrimitiveArrayValue == false) {
             String pathContainer;
             String attrName;
-            (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+            (pathContainer, attrName) = bindInfo.stateRepository!
+                .getSplitPathInfo(bindInfo.pathData);
             StateContainer? dataContainer;
-            (dataContainer, _) = stateRepository!.getStateContainer(
+            (dataContainer, _) = bindInfo.stateRepository!.getStateContainer(
               pathContainer,
               context: context,
               pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
@@ -116,7 +122,9 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
 
         focusNode?.addListener(() {
           if (focusNode!.hasFocus) {
-            doChangeRow(pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath);
+            bindInfo.doChangeRow(
+              pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
+            );
           }
         });
       }
@@ -131,17 +139,23 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
       widgetType != 'textfield',
       ModeBuilderWidget.noConstraint,
       (ctx, constraints, _) {
-        bool inTable = ctx.isParentOfType('table');
-        bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
+        bool isDense =
+            getBoolProp(ctx, 'dense') ?? ctx.hasParentOfType(['table']);
+        bool inListOrArray = widget.ctx.hasParentOfType(['list', 'table']);
 
         var modeDesigner = ctx.aFactory.isModeDesigner();
-        if (stateRepository != null && attribut != null) {
-          initCtrlValue(context, ctx, inArray, modeDesigner);
-        } else if (stateRepository != null && eval != null) {
-          var r = eval!.eval(
+        if (bindInfo.stateRepository != null && bindInfo.bindAttribut != null) {
+          ctrlInput?.text =
+              bindInfo
+                  .getValue(context, ctx, this, inListOrArray, false)
+                  ?.toString() ??
+              '';
+        } else if (bindInfo.stateRepository != null && bindInfo.eval != null) {
+          var r = bindInfo.eval!.eval(
             variables: {
               '\$\$__ctx__\$\$': ctx,
               '\$\$__buildctx__\$\$': context,
+              '\$\$__state__\$\$': this,
             },
             logs: [],
           );
@@ -149,7 +163,7 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
             r.then((value) {
               if (value != null) {
                 ctrlInput?.text = value.toString();
-                //widget.ctx.repaint();
+                //throw 'not implemented for async value'; // à revoir pour les valeur async
               }
             });
           } else {
@@ -187,12 +201,12 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
 
         var appearance = styleFactory.getStyleString("appearance", "border");
         InputDecoration decoration = InputDecoration(
-          isDense: inTable,
+          isDense: isDense,
           filled:
               styleFactory.config.decoration?.color != null ||
               appearance == 'fill',
           fillColor: styleFactory.config.decoration?.color,
-          labelText: inTable ? null : getStringProp(ctx, 'label') ?? '',
+          labelText: isDense ? null : getStringProp(ctx, 'label') ?? '',
           enabledBorder: appearanceBorder[appearance],
           focusedBorder: appearanceBorder[appearance],
           contentPadding: styleFactory.config.edgePadding,
@@ -231,23 +245,19 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
               child: widgetInput,
             );
           }
-        } else if (widgetType == 'checkbox') {
-          widgetInput = Row(
-            spacing: 8,
-            children: [
-              Text(
-                style: styleFactory.getTextStyle(null),
-                getStringProp(widget.ctx, 'label') ?? '',
-              ),
-              Checkbox(value: false, onChanged: (value) {}),
-            ],
-          );
         } else {
-          var data =
-              ctrlInput?.text ?? getStringProp(widget.ctx, 'label') ?? '';
-          return addIcon(
-            Text(maxLines: 1, style: styleFactory.getTextStyle(null), data),
-          );
+          if (ctrlInput != null &&
+              (bindInfo.eval != null || widgetType == 'checkbox')) {
+            // gestion asynchrone des valeur computed en asynchrone
+            widgetInput = ValueListenableBuilder(
+              valueListenable: ctrlInput!,
+              builder: (context, value, child) {
+                return getWidgetText(widgetType, modeDesigner);
+              },
+            );
+          } else {
+            widgetInput = getWidgetText(widgetType, modeDesigner);
+          }
         }
 
         return widgetInput;
@@ -255,63 +265,36 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
     );
   }
 
-  void initCtrlValue(
-    BuildContext context,
-    CwWidgetCtx ctx,
-    bool inArray,
-    bool modeDesigner,
-  ) {
-    String? oldPathData = pathData;
-
-    pathData = stateRepository!.getDataPath(
-      context,
-      isPrimitiveArrayValue ? '${attribut!.info.path}>*' : attribut!.info.path,
-      typeListContainer: false,
-      widgetPath: ctx.aWidgetPath,
-      inArray: inArray,
-      state: this,
-    );
-
-    if (isPrimitiveArrayValue) {
-      // bind sur un tableau de string ou nombre
-      int i = pathData.lastIndexOf('[');
-      int i2 = pathData.lastIndexOf(']');
-      var substring = pathData.substring(i + 1, i2);
-      pathData = pathData.substring(0, i);
-      int idx = int.tryParse(substring) ?? 0;
-      StateContainer? dataContainer;
-      (dataContainer, _) = stateRepository!.getStateContainer(
-        pathData,
-        context: context,
-        pathWidgetRepos: ctx.aWidgetPath,
+  Widget getWidgetText(String widgetType, bool modeDesigner) {
+    var data = ctrlInput?.text ?? getStringProp(widget.ctx, 'label') ?? '';
+    if (widgetType == 'checkbox') {
+      return Row(
+        spacing: 8,
+        children: [
+          Text(
+            style: styleFactory.getTextStyle(null),
+            getStringProp(widget.ctx, 'label') ?? '',
+          ),
+          Checkbox(
+            value: data == 'true',
+            onChanged: (value) {
+              ctrlInput?.text = value.toString();
+            },
+          ),
+        ],
       );
-      //print('object $pathData => ${dataContainer?.jsonData} + $idx');
-      dynamic val = dataContainer!.jsonData[idx];
-      ctrlInput?.text = val?.toString() ?? '';
+    } else if (widgetType == 'icon') {
+      Icon iconData =
+          getIconProp(widget.ctx, 'icon') ?? Icon(Icons.check);
+      if (data == 'true' || modeDesigner) {
+        return iconData;
+      } else {
+        return const SizedBox();
+      }
     } else {
-      if (oldPathData != '?' && oldPathData != pathData) {
-        stateRepository!.disposeInput(oldPathData, this);
-      }
-      stateRepository!.registerInput(pathData, this);
-
-      String pathContainer;
-      String attrName;
-      (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
-
-      StateContainer? dataContainer;
-      (dataContainer, _) = stateRepository!.getStateContainer(
-        pathContainer,
-        context: context,
-        pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
+      return addIcon(
+        Text(maxLines: 1, style: styleFactory.getTextStyle(16), data),
       );
-      if (dataContainer != null) {
-        dynamic val = dataContainer.jsonData[attrName];
-        if (modeDesigner) {
-          ctrlInput?.text = pathData;
-        } else {
-          ctrlInput?.text = val?.toString() ?? '';
-        }
-      }
     }
   }
 

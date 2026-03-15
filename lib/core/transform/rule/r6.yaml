@@ -1,0 +1,29 @@
+# R006_conditional_mapping.yaml
+id: R006
+name: conditional_mapping
+category: conditional
+description: Applique un mapping ou une transformation selon une condition métier
+scope: record
+inputs:
+  - path: record
+    type: object
+params:
+  - name: condition
+    type: string
+    example: "country == 'FR' && status == 'active'"
+  - name: then
+    type: object
+  - name: else
+    type: object
+example:
+  input: { "country": "FR", "status": "active", "vat": "FR123" }
+  output: { "is_eu": true }
+tests:
+  - id: T_R006_01
+    type: unit
+    input: { "country": "US", "status": "active" }
+    expected: { "is_eu": false }
+severity: medium
+action_on_error: dlq
+complexity: medium
+implementation_notes: "Evaluer conditions via sandboxed expression engine"

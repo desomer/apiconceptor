@@ -20,7 +20,7 @@ bool autoLoging = true;
 
 PanYamlTree? currentYamlTree;
 
-ValueNotifier<String> dataProviderMode = ValueNotifier<String>('api');
+ValueNotifier<String> dataProviderMode = ValueNotifier<String>('mock');
 
 // ignore: must_be_immutable
 class Layout extends StatefulWidget {
@@ -42,6 +42,7 @@ class _LayoutState extends State<Layout> {
 
     var navigationInfo =
         page.initNavigation(widget.routerState, context, null)!;
+    BreadCrumbNavigator.currentNavigationInfo = navigationInfo;
 
     if (!connectBdd) {
       showLoginDialog = false;
@@ -91,7 +92,8 @@ class _LayoutState extends State<Layout> {
                 children: [BackButton(), getBreadcrumb(navigationInfo)],
               ),
               actions: [
-                Text('Open factor '),
+                WidgetSearchText(),
+                Text('   Open factor '),
                 WidgetZoomSelector(zoom: openFactor),
                 IconButton(
                   icon: const Icon(Icons.search),
@@ -195,7 +197,7 @@ class _LayoutState extends State<Layout> {
                   },
                 ),
                 Spacer(),
-                Text('API Architect by Desomer G. V1.0.3.38'),
+                Text('API Architect by Desomer G. V1.0.3.47'),
               ],
             ),
           ),
@@ -340,6 +342,89 @@ class _LayoutState extends State<Layout> {
         ),
       ),
     );
+  }
+}
+
+class WidgetSearchText extends StatefulWidget {
+  const WidgetSearchText({super.key});
+
+  @override
+  State<WidgetSearchText> createState() => _WidgetSearchTextState();
+}
+
+class _WidgetSearchTextState extends State<WidgetSearchText> {
+  int searchIndex = 0;
+  int maxSearchIndex = 0;
+  String value = '';
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (maxSearchIndex > 0) Text('${searchIndex + 1}/$maxSearchIndex '),
+        SizedBox(
+          width: 150,
+          height: 30,
+          child: TextField(
+            onChanged: (value) {
+              this.value = value;
+              setState(() {
+                if (currentYamlTree != null) {
+                  searchIndex = 0;
+                  maxSearchIndex = currentYamlTree!.setSearch(
+                    value,
+                    searchIndex,
+                  );
+                }
+              });
+            },
+            decoration: const InputDecoration(
+              hintText: 'Search',
+              //contentPadding: EdgeInsets.symmetric(horizontal: 8),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 20,
+          child: GestureDetector(
+            onTap: () {
+              doNext();
+            },
+            child: Icon(Icons.arrow_left, size: 30),
+          ),
+        ),
+        SizedBox(
+          width: 20,
+          child: GestureDetector(
+            onTap: () {
+              doPrev();
+            },
+            child: Icon(Icons.arrow_right, size: 30),
+          ),
+        ),
+        SizedBox(width: 10),
+      ],
+    );
+  }
+
+  void doPrev() {
+    setState(() {
+      if (searchIndex < maxSearchIndex - 1) {
+        searchIndex++;
+      } else {
+        searchIndex = 0;
+      }
+      maxSearchIndex = currentYamlTree?.setSearch(value, searchIndex) ?? 0;
+    });
+  }
+
+  void doNext() {
+    setState(() {
+      searchIndex = searchIndex > 0 ? searchIndex - 1 : maxSearchIndex - 1;
+      maxSearchIndex = currentYamlTree?.setSearch(value, searchIndex) ?? 0;
+    });
   }
 }
 

@@ -1,0 +1,31 @@
+# R009_aggregation_window.yaml
+id: R009
+name: aggregation_window
+category: aggregation
+description: Agrège des événements sur une fenêtre temporelle
+scope: stream
+inputs:
+  - path: group_by
+    type: array
+  - path: metric_field
+    type: string
+params:
+  - name: window_type
+    type: string
+    enum: [tumbling, sliding, session]
+    default: tumbling
+  - name: window_size_seconds
+    type: integer
+  - name: allowed_lateness_seconds
+    type: integer
+    default: 60
+example:
+  input: events user_id -> output: count per user per window
+tests:
+  - id: T_R009_01
+    type: integration
+    description: counts corrects avec lateness
+severity: medium
+action_on_error: alert
+complexity: high
+implementation_notes: "Gérer watermarking et late events"

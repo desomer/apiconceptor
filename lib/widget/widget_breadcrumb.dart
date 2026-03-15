@@ -4,13 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/list_editor/widget_choise.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
-class BreadCrumbNavigator extends StatefulWidget {
-  static GlobalKey keyBreadcrumb = GlobalKey(debugLabel: 'keyBreadcrumb');
 
+
+class BreadCrumbNavigator extends StatefulWidget {
+  static NavigationInfo? currentNavigationInfo;
+  static GlobalKey keyBreadcrumb = GlobalKey(debugLabel: 'keyBreadcrumb');
+  
   const BreadCrumbNavigator({super.key, required this.getList});
   final Function getList;
 

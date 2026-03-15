@@ -19,7 +19,7 @@ class CwAction extends CwWidget {
       {'icon': Icons.list, 'value': 'listTile'},
     ];
 
-    factory.register(
+    factory.registerComponent(
       id: 'action',
       build:
           (ctx) => CwAction(

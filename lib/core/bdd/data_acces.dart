@@ -166,7 +166,7 @@ class DataAcces {
           info.properties = element['prop'];
           info.action = element['state'];
           if (info.masterID?.startsWith('#') ?? false) {
-            model.nodeExtended[info.masterID!] = NodeAttribut(
+            model.modelPropExtended[info.masterID!] = NodeAttribut(
               parent: null,
               yamlNode: MapEntry('extended', 'extended'),
               info: info,
@@ -255,7 +255,7 @@ class DataAcces {
     return '${model.namespace}/$id/${version?.version ?? '1'}';
   }
 
-  void saveYAML({
+  Future<void> saveYAML({
     required String type,
     required ModelSchema model,
     dynamic value,
@@ -268,7 +268,7 @@ class DataAcces {
         computeSendYamlChangeEvent({
           'old': l,
           'value': value,
-          'id': model.id,
+          'id': '${model.namespace}/${model.id}',
           'version': version?.version ?? '1',
         })
         //compute(computeSendEvent, {'old': l, 'value': value, 'id': model.id});
@@ -321,11 +321,11 @@ class DataAcces {
     }
   }
 
-  void prepareSaveModel(ModelSchema model) async {
+  Future<void> prepareSaveModel(ModelSchema model) async {
     var saveAttrDelete = [...model.notUseAttributInfo];
     var saveAttr = [...model.useAttributInfo];
 
-    var extendedNode = model.nodeExtended.values.toList();
+    var extendedNode = model.modelPropExtended.values.toList();
     for (var element in extendedNode) {
       saveAttr.add(element.info);
     }
@@ -358,7 +358,7 @@ class DataAcces {
 
           _sendMessage({
             'typeEvent': 'PROP',
-            'id': model.id,
+            'id': '${model.namespace}/${model.id}',
             'payload': payload,
           });
 
@@ -372,7 +372,7 @@ class DataAcces {
       headerName: '',
       id: '',
       infoManager: model.infoManager,
-      ref: model.ref,
+      refDomain: model.refDomain,
     );
     modelVerif.namespace = model.namespace;
 
@@ -382,10 +382,11 @@ class DataAcces {
       model.currentVersion,
     );
 
+    int nbUpdate = 0;
     for (var attr in saveAttr) {
       if (attr.masterID != null && !attr.isInitByRef && attr.action != 'R') {
         attr.action = 'R';
-
+        nbUpdate++;
         var payload = {
           'company_id': currentCompany.companyId,
           'namespace': model.namespace ?? currentCompany.currentNameSpace,
@@ -415,7 +416,7 @@ class DataAcces {
         } else {
           _sendMessage({
             'typeEvent': 'PROP',
-            'id': model.id,
+            'id': '${model.namespace}/${model.id}',
             'payload': payload,
           });
 
@@ -423,6 +424,7 @@ class DataAcces {
         }
       }
     }
+    print('nbUpdate = $nbUpdate');
   }
 
   FutureOr<Null> _sendMessage(dynamic payload) async {
@@ -442,6 +444,15 @@ class DataAcces {
     print('doStore ${store.length}');
     for (var element in store.entries) {
       _setSupabase(element.value);
+    }
+  }
+
+  Future<void> doStoreSync() async {
+    var store = {...storeManager.toStore};
+    storeManager.toStore.clear();
+    print('doStore ${store.length}');
+    for (var element in store.entries) {
+      await _setSupabase(element.value);
     }
   }
 
@@ -592,13 +603,22 @@ class DataAcces {
     ModelVersion version,
     String modelYaml,
     List<AttributInfo> properties,
+    Map<String, NodeAttribut> extend,
   ) async {
-    saveYAML(model: model, type: 'YAML', value: modelYaml);
+    await saveYAML(model: model, type: 'YAML', value: modelYaml);
     for (AttributInfo element in properties) {
       model.useAttributInfo.add(element.clone()..action = 'U');
     }
-    prepareSaveModel(model);
-    doStore();
+    for (var entry in extend.entries) {
+      var ne = NodeAttribut(
+        parent: null,
+        yamlNode: MapEntry('extended', 'extended'),
+        info: entry.value.info.clone()..action = 'U',
+      );
+      model.modelPropExtended[entry.key] = ne;
+    }
+    await prepareSaveModel(model);
+    await doStoreSync();
   }
 }
 

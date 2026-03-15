@@ -1,0 +1,32 @@
+# R005_lookup_enrichment.yaml
+id: R005
+name: lookup_enrichment
+category: enrichment
+description: Enrichit un enregistrement via lookup externe (cacheable)
+scope: record
+inputs:
+  - path: key_field
+    type: string
+params:
+  - name: lookup_table
+    type: string
+  - name: key_column
+    type: string
+  - name: ttl_seconds
+    type: integer
+    default: 3600
+  - name: fallback
+    type: string
+    enum: [null, default, dlq]
+    default: null
+example:
+  input: { "city_code": "75056" }
+  output: { "city": "Paris", "region": "Île-de-France" }
+tests:
+  - id: T_R005_01
+    type: integration
+    description: lookup retourne Paris pour 75056
+severity: medium
+action_on_error: fallback
+complexity: medium
+implementation_notes: "Préférer cache local (Redis); circuit breaker si latence élevée"

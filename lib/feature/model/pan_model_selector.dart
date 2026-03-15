@@ -11,9 +11,24 @@ import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_version_state.dart';
 
+enum TypeModelSelector { model, dataMap }
+
 // ignore: must_be_immutable
 class PanModelSelector extends PanYamlTree {
-  PanModelSelector({super.key, required super.getSchemaFct});
+  PanModelSelector({
+    super.key,
+    required super.getSchemaFct,
+    required this.type,
+    this.onSelectModel,
+  });
+
+  final TypeModelSelector type;
+  final Function? onSelectModel;
+
+  @override
+  bool withEditor() {
+    return type == TypeModelSelector.model;
+  }
 
   @override
   void addRowWidget(
@@ -33,14 +48,16 @@ class PanModelSelector extends PanYamlTree {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey('${schema.getVersionId()}%${attr.info.name}%${attr.info.numUpdateForKey}'),
+        key: ValueKey(
+          '${schema.getVersionId()}%${attr.info.name}%${attr.info.numUpdateForKey}',
+        ),
         acces: ModelAccessorAttr(node: attr, schema: schema, propName: 'title'),
       ),
     );
 
     //addWidgetMasterId(attr, row);
 
-    if (attr.info.type == 'model') {
+    if (attr.info.type == 'model' && type == TypeModelSelector.model) {
       row.add(SizedBox(width: 10));
       row.add(
         WidgetVersionState(
@@ -89,6 +106,14 @@ class PanModelSelector extends PanYamlTree {
     TreeNodeData<NodeAttribut> node,
     BuildContext context,
   ) async {
+    if (type == TypeModelSelector.dataMap) {
+      var attr = node.data;
+      if (onSelectModel != null) {
+        onSelectModel!(getSchema(), attr);
+      }
+      return;
+    }
+
     var attr = node.data;
     if (attr.info.type == 'model') {
       var key = attr.info.properties![constMasterID];

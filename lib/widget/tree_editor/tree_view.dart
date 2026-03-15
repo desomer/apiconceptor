@@ -28,6 +28,7 @@ class TreeNodeData<T> {
 
   TreeViewState? stateCache;
   late TreeViewState tree;
+  //HoverableCardState? hoverState;
 
   TreeNodeData({required this.data, this.children, this.isExpanded = true});
 
@@ -53,7 +54,7 @@ class TreeNodeData<T> {
   }
 
   void doTapHeader() {
-    tree.doTapHeader(this);
+    tree.doTapHeader(this, 'header');
   }
 
   void doToogleChild() {
@@ -84,7 +85,8 @@ class TreeNodeData<T> {
 
 typedef GetNode<T> = TreeViewData<T> Function();
 typedef GetWidget<Y> = Widget Function(TreeNodeData<Y> node);
-typedef OnTap<T> = void Function(TreeNodeData<T> node, BuildContext ctx);
+typedef OnTap<T> =
+    void Function(TreeNodeData<T> node, BuildContext ctx, String type);
 typedef OnBuild<T> = void Function(TreeViewState<T> state, BuildContext ctx);
 typedef IsSelected<T> =
     bool Function(
@@ -196,7 +198,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
   int dragInProgess = 0;
   bool isDisposed = false;
 
-  State? rowSelectedState;
+  State? currentRowSelectedState;
   bool openStructure = false;
 
   @override
@@ -210,6 +212,29 @@ class TreeViewState<T> extends State<TreeView<T>> {
     super.dispose();
   }
 
+  List<TreeNodeData<T>> list = [];
+
+  int doSearch(String value, int idx) {
+    var lowerCase = value.toLowerCase();
+    Iterable<TreeNodeData<T>> nodes = list.where((element) {
+      NodeAttribut attrData = element.data as NodeAttribut;
+      String? title = attrData.info.properties?['title'];
+      if (attrData.info.name.toLowerCase().contains(lowerCase)) {
+        return true;
+      } else if (title?.toLowerCase().contains(lowerCase) ?? false) {
+        return true;
+      }
+      return false;
+    });
+
+    if (nodes.isNotEmpty) {
+      var node = nodes.elementAt(idx % nodes.length);
+      doTapHeader(node, "search");
+      scrollToData(node.data);
+    }
+    return nodes.length;
+  }
+
   @override
   Widget build(BuildContext context) {
     ctx = context;
@@ -221,7 +246,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
     List<TreeNodeData<T>> nodes = data.nodes;
 
     NodeStack stack = NodeStack();
-    List<TreeNodeData<T>> list = _flattenNodeTree(stack, 0, nodes);
+    list = _flattenNodeTree(stack, 0, nodes);
     openStructure = false;
 
     var ret = ValueListenableBuilder(
@@ -286,7 +311,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
           node.isExpanded = false;
           if (hasStructure(node)) {
             node.isExpanded = true;
-          } 
+          }
         } else {
           node.isExpanded = deep < openFactor;
         }
@@ -305,23 +330,37 @@ class TreeViewState<T> extends State<TreeView<T>> {
 
   Widget getHover(TreeNodeData<T> attr, Widget child) {
     return HoverableCard(
+      onBuild: (state, ctx) {
+        if (attr.data is NodeAttribut) {
+          (attr.data as NodeAttribut).widgetRowHoverState = state;
+        }
+      },
       isSelected: (State state) {
+        if (attr.data is NodeAttribut) {
+          (attr.data as NodeAttribut).widgetRowHoverState = state;
+        }
         if (widget.onBuild != null) {
           widget.onBuild!(this, ctx);
         }
 
-        bool isSelected = widget.isSelected(attr, state, rowSelectedState);
+        bool isSelected = widget.isSelected(
+          attr,
+          state,
+          currentRowSelectedState,
+        );
         if (isSelected) {
-          if (state != rowSelectedState) {
-            var old = rowSelectedState;
+          if (state != currentRowSelectedState) {
+            var old = currentRowSelectedState;
+            // deselectionner l'ancien
             SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+              state.setState(() {});
               if (old?.mounted == true) {
                 // ignore: invalid_use_of_protected_member
                 old?.setState(() {});
               }
             });
           }
-          rowSelectedState = state;
+          currentRowSelectedState = state;
         }
         return isSelected;
       },
@@ -329,9 +368,9 @@ class TreeViewState<T> extends State<TreeView<T>> {
     );
   }
 
-  void doTapHeader(TreeNodeData<T> node) {
+  void doTapHeader(TreeNodeData<T> node, String type) {
     if (widget.onTapHeader case final OnTap<T> on) {
-      on(node, ctx);
+      on(node, ctx, type);
     }
   }
 
@@ -535,12 +574,42 @@ class TreeViewState<T> extends State<TreeView<T>> {
       if (child.data is NodeAttribut) {
         var info = child.data as NodeAttribut;
         var type2 = info.info.type.toLowerCase();
-        if ( type2 == 'object' || type2 == 'array' || type2 == '\$ref' || type2 == '\$anyof') {
+        if (type2 == 'object' ||
+            type2 == 'array' ||
+            type2 == '\$ref' ||
+            type2 == '\$anyof') {
           return true;
         }
       }
     }
     return false;
+  }
+
+  void scrollToData(T attr) {
+    int? idx = _findNodeIdxByData(attr, list);
+    if (idx != null) {
+      idx = idx - 3;
+    }
+    if (idx != null && idx < 0) {
+      idx = 0;
+    }
+
+    if (idx != null) {
+      _scrollController.animateTo(
+        rowHeight * idx,
+        duration: Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  int? _findNodeIdxByData(T attr, List<TreeNodeData<T>> list) {
+    for (int i = 0; i < list.length; i++) {
+      if (list[i].data == attr) {
+        return i;
+      }
+    }
+    return null;
   }
 }
 

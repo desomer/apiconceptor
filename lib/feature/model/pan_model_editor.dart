@@ -10,6 +10,7 @@ import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/widget/editor/doc_editor.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
+import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_glossary_indicator.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
@@ -37,8 +38,15 @@ mixin PanModelEditorHelper {
     row.add(
       CellEditor(
         inArray: true,
-        key: ValueKey('${schema.getVersionId()}%${attr.info.name}%${attr.info.numUpdateForKey}'),
-        acces: ModelAccessorAttr(node: attr, schema: schema, propName: 'title'),
+        key: ValueKey(
+          '${schema.getVersionId()}%${attr.info.name}%${attr.info.numUpdateForKey}',
+        ),
+        acces: ModelAccessorAttr(
+          node: attr,
+          schema: schema,
+          propName: 'title',
+          editable: !attr.info.type.startsWith('\$'),
+        ),
       ),
     );
 
@@ -55,7 +63,7 @@ mixin PanModelEditorHelper {
       SizedBox(width: 10),
       if (attr.info.properties?['required'] == true)
         Icon(Icons.check_circle_outline),
-      if (attr.info.properties?['#nullable'] ==true)
+      if (attr.info.properties?['#nullable'] == true)
         getChip(Text('nullable'), color: null),
       if (attr.info.properties?['const'] != null)
         getChip(Text('const'), color: null),
@@ -63,7 +71,7 @@ mixin PanModelEditorHelper {
       if (attr.info.properties?['pattern'] != null)
         getChip(Text('regex'), color: null),
       if (attr.info.properties?['format'] != null)
-        getChip(Text(attr.info.properties?['format']), color: null),        
+        getChip(Text(attr.info.properties?['format']), color: null),
       if (minmax) Icon(Icons.tune),
       if (attr.info.properties?['#link'] != null)
         getChip(Text('link'), color: Colors.blue),
@@ -161,12 +169,21 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
     addAttributWidget(row, attr, schema);
   }
 
+  bool toogleOnTap() {
+    return false;
+  }
+
+  @override
+  void doDoubleTapRow(NodeAttribut data) {
+    scrollCodeEditorTo(data);
+  }
+
   @override
   Future<void> onActionRow(
     TreeNodeData<NodeAttribut> node,
     BuildContext context,
   ) async {
-    if (node.children?.isNotEmpty ?? false) {
+    if (toogleOnTap() && (node.children?.isNotEmpty ?? false)) {
       node.doToogleChild();
     } else {
       doShowAttrEditor(node.data);
@@ -221,7 +238,6 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
     );
   }
 
-
   ModelAccessorAttr getDocAccessor() {
     ModelSchema model = currentCompany.currentModel!;
     var examplesNode = model.getExtendedNode("#doc");
@@ -255,7 +271,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
   //-----------------------------------------------------------------------------
 
   @override
-  Widget getLeftPan(BuildContext context) {
+  Widget getLeftPan(bool withSep, BuildContext context) {
     return WidgetTab(
       listTab: [
         Tab(text: 'Structure'),
@@ -264,50 +280,22 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         Tab(text: 'Restore point'),
       ],
       listTabCont: [
-        super.getLeftPan(context),
+        super.getLeftPan(withSep, context),
         getInfoForm(),
-        getVersionTab(),
+        getVersionTab(context),
         Container(),
       ],
       heightTab: 30,
     );
   }
 
-  Widget getVersionTab() {
+  Widget getVersionTab(BuildContext context) {
     var model = currentCompany.currentModel!;
     return Column(
       children: [
         ElevatedButton.icon(
           onPressed: () async {
-            var versionNum = int.parse(model.versions!.first.version) + 1;
-            ModelVersion version = ModelVersion(
-              id: model.id,
-              version: '$versionNum',
-              data: {
-                'state': 'D',
-                'by': currentCompany.userId,
-                'versionTxt': '0.0.$versionNum',
-              },
-            );
-            model.versions!.insert(0, version);
-            model.currentVersion = version;
-            await bddStorage.storeVersion(model, version);
-            // ignore: invalid_use_of_protected_member
-            keyVersion.currentState?.setState(() {});
-            String modelYaml = model.modelYaml;
-            var modelProperties = model.useAttributInfo;
-            model.clear();
-            await bddStorage.duplicateVersion(
-              model,
-              version,
-              modelYaml,
-              modelProperties,
-            );
-            await model.loadYamlAndProperties(
-              cache: false,
-              withProperties: true,
-            );
-            model.doChangeAndRepaintYaml(getYamlConfig(), false, 'event');
+            await addVersion(context, model);
           },
           label: Text('add version'),
           icon: Icon(Icons.add_box_outlined),
@@ -317,19 +305,70 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
             key: keyVersion,
             schema: model,
             onTap: (ModelVersion version) async {
+              showGlassPane(context);
+              tabEditor.animateTo(0);
+              await bddStorage.prepareSaveModel(model);
+              await bddStorage.doStoreSync();
               model.currentVersion = version;
               model.clear();
-              await model.loadYamlAndProperties(
-                cache: false,
-                withProperties: true,
-              );
-              model.doChangeAndRepaintYaml(getYamlConfig(), false, 'event');
-              // model.initBreadcrumb();
+              await changeVersion(model);
+              hideGlassPane();
             },
           ),
         ),
       ],
     );
+  }
+
+  Future<void> addVersion(BuildContext context, ModelSchema model) async {
+    showGlassPane(context);
+    tabEditor.animateTo(0);
+    await bddStorage.prepareSaveModel(model);
+    await bddStorage.doStoreSync();
+    var versionNum = int.parse(model.versions!.first.version) + 1;
+    ModelVersion version = ModelVersion(
+      id: model.id,
+      version: '$versionNum',
+      data: {
+        'state': 'D',
+        'by': currentCompany.userId,
+        'versionTxt': '0.0.$versionNum',
+      },
+    );
+    model.versions!.insert(0, version);
+    model.currentVersion = version;
+    await bddStorage.storeVersion(model, version);
+    String modelYaml = model.modelYaml;
+    var modelProperties = [...model.useAttributInfo];
+    var extend = {...model.modelPropExtended};
+    model.clear();
+    await bddStorage.duplicateVersion(
+      model,
+      version,
+      modelYaml,
+      modelProperties,
+      extend,
+    );
+    await Future.delayed(Duration(seconds: 2));
+    await changeVersion(model);
+    // ignore: invalid_use_of_protected_member
+    keyVersion.currentState?.setState(() {});
+    hideGlassPane();
+  }
+
+  Future<void> changeVersion(ModelSchema model) async {
+    await model.loadYamlAndProperties(cache: false, withProperties: true);
+    model.doChangeAndRepaintYaml(getYamlConfig(), false, 'event');
+    BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.removeLast();
+    BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
+      BreadNode(
+        settings: RouteSettings(name: model.getVersionText()),
+        type: BreadNodeType.widget,
+      ),
+    );
+
+    // ignore: invalid_use_of_protected_member
+    BreadCrumbNavigator.keyBreadcrumb.currentState?.setState(() {});
   }
 
   Widget getInfoForm() {
@@ -374,6 +413,9 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
       key: keyAttrEditor,
       getModel: () {
         return getSchema();
+      },
+      onClose: () {
+        doShowAttrEditor(null);
       },
     );
   }

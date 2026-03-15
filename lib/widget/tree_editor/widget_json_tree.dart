@@ -156,6 +156,7 @@ class JsonBrowserWidget extends JsonBrowser {
 }
 
 //******************************************************************************/
+@Deprecated('Use PanModelImportDialog instead')
 class JsonListEditor extends StatefulWidget {
   const JsonListEditor({super.key, required this.config});
   final JsonTreeConfig config;

@@ -11,7 +11,7 @@ class CwBar extends CwWidget {
   const CwBar({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
-    factory.register(
+    factory.registerComponent(
       id: 'bar',
       build:
           (ctx) =>

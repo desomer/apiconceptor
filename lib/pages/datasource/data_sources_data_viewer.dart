@@ -6,8 +6,8 @@ import 'package:jsonschema/core/designer/editor/view/pages_viewer.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 
 // ignore: must_be_immutable
-class AppsPage extends GenericPageStateless {
-  AppsPage({super.key});
+class DataViewerPage extends GenericPageStateless {
+  DataViewerPage({super.key});
   String queryId = '';
   String? paramId = '';
 
@@ -33,7 +33,7 @@ class AppsPage extends GenericPageStateless {
     }
 
     return FutureBuilder<Widget>(
-      future: loadAppConfig('all', queryId),
+      future: loadDataSource('all', queryId),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           isLoading = false;
@@ -48,7 +48,7 @@ class AppsPage extends GenericPageStateless {
     );
   }
 
-  Future<Widget> loadAppConfig(String domain, String id) async {
+  Future<Widget> loadDataSource(String domain, String id) async {
     isLoading = true;
     return _loadDataSrc(domain, id);
   }

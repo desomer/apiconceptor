@@ -107,7 +107,7 @@ class WidgetFactoryProperty {
   void _addIterrableBox(CwWidgetCtx aCtx, CwWidgetCtx ctx) {
     var aIterable = listPropsEditor.removeLast();
 
-    addOtherSlots(aCtx, ctx, (CwWidgetCtx rowCtx) {
+    _addOtherSlots(aCtx, ctx, (CwWidgetCtx rowCtx) {
       _addAllWidgetProps(rowCtx, rowCtx.getConfig());
     });
 
@@ -139,7 +139,7 @@ class WidgetFactoryProperty {
     listPropsEditor.add(aIterable);
   }
 
-  void addOtherSlots(CwWidgetCtx aCtx, CwWidgetCtx ctx, Function onAddSlot) {
+  void _addOtherSlots(CwWidgetCtx aCtx, CwWidgetCtx ctx, Function onAddSlot) {
     if (aCtx.isType(['table']) && !ctx.isType(['row'])) {
       if (ctx.slotProps?.type == 'header') {
         aCtx.dataWidget![cwSlots]?['h-row'] ??= {
@@ -260,7 +260,7 @@ class WidgetFactoryProperty {
     CwWidgetCtx? aCtx = ctx;
     listStyleSelectorEditor.clear();
     while (aCtx != null) {
-      addOtherSlots(aCtx, ctx, (CwWidgetCtx rowCtx) {
+      _addOtherSlots(aCtx, ctx, (CwWidgetCtx rowCtx) {
         listStyleSelectorEditor.insert(
           0,
           _getSelectorStyle(ctx, rowCtx, level),
@@ -376,18 +376,31 @@ class WidgetFactoryProperty {
           ),
           width: double.infinity,
           padding: const EdgeInsets.all(3),
-          child: desc,
+          child: Row(
+            spacing: 8,
+            children: [
+              IconButton(
+                onPressed: () {
+                  BehaviorManager.removeBehavior(ctx.dataWidget!, behavior);
+                  _initBehavior(ctx);
+                },
+                icon: Icon(Icons.clear),
+              ),
+              Expanded(child: desc),
+            ],
+          ),
         ),
       );
     });
-    listBehaviorEditor.add(ElevatedButton.icon(
-      onPressed: () {
-        //cwFactory.keyBehaviorEditor.currentState?.openAddBehaviorDialog(ctx);
-      },
-      icon: const Icon(Icons.add),
-      label: const Text('Add Behavior'),
-    ));
-
+    listBehaviorEditor.add(
+      ElevatedButton.icon(
+        onPressed: () {
+          //cwFactory.keyBehaviorEditor.currentState?.openAddBehaviorDialog(ctx);
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Add Behavior'),
+      ),
+    );
 
     if (cwFactory.keyBehaviorViewer.currentState?.mounted == true) {
       // ignore: invalid_use_of_protected_member

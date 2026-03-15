@@ -1,0 +1,27 @@
+# R008_scd_type2.yaml
+id: R008
+name: scd_type2
+category: historization
+description: Implémente SCD Type 2 pour historiser les changements d'entité
+scope: table
+inputs:
+  - path: business_key
+    type: string
+params:
+  - name: effective_from
+    type: string
+  - name: effective_to
+    type: string
+  - name: current_flag
+    type: string
+example:
+  input: { id:1, name: "A" } then { id:1, name: "B" }
+  output: historique avec deux lignes, current_flag sur la dernière
+tests:
+  - id: T_R008_01
+    type: integration
+    description: ancienne ligne fermée et nouvelle insérée
+severity: high
+action_on_error: alert
+complexity: very_high
+implementation_notes: "Prévoir transactions ou mécanisme idempotent; gérer backfills"

@@ -16,6 +16,19 @@ class BehaviorManager {
     behaviors.add({'type': type, 'metadata': data});
   }
 
+  static void removeBehavior(
+    Map<String, dynamic> dataWidget,
+    BehaviorDescription behavior,
+  ) {
+    if (dataWidget[cwBehaviors] != null) {
+      List? behaviors = dataWidget[cwBehaviors];
+      behaviors?.removeWhere((b) => b == behavior.data);
+      if (behaviors?.isEmpty ?? true) {
+        dataWidget.remove(cwBehaviors);
+      }
+    }
+  }
+
   static List<BehaviorDescription> getBehaviors(
     Map<String, dynamic> dataWidget,
   ) {
@@ -27,6 +40,7 @@ class BehaviorManager {
       for (var behavior in behaviors) {
         descriptions.add(
           BehaviorDescription(
+            data: behavior,
             type: behavior['type'],
             metadata: Map<String, dynamic>.from(behavior['metadata']),
           ),
@@ -69,8 +83,13 @@ class BehaviorManager {
 class BehaviorDescription {
   final String type;
   final Map<String, dynamic> metadata;
+  final Map<String, dynamic> data;
 
-  BehaviorDescription({required this.type, required this.metadata});
+  BehaviorDescription({
+    required this.type,
+    required this.metadata,
+    required this.data,
+  });
 
   Widget getWidgetDescription(CwWidgetCtx ctx) {
     if (type == 'navigate') {
@@ -80,7 +99,8 @@ class BehaviorDescription {
       if (metadata['operation'] == 'action') {
         return Text('${metadata['idAction']} on ${repo!.ds.dsName}');
       } else if (metadata['operation'] == 'link2Datasrc') {
-        CwRepository? repo2 = ctx.aFactory.mapRepositories[metadata['link']['repository']];
+        CwRepository? repo2 =
+            ctx.aFactory.mapRepositories[metadata['link']['repository']];
         return Text('Link ${repo?.ds.dsName} to ${repo2?.ds.dsName}');
       } else if (metadata['operation'] == 'loadCriteria') {
         return Text('set criteria on ${repo!.ds.dsName}');

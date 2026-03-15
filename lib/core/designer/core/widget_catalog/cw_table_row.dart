@@ -7,7 +7,7 @@ import 'package:jsonschema/feature/content/state_manager.dart';
 
 class CwRow {
   static void initFactory(WidgetFactory factory) {
-    factory.register(
+    factory.registerComponent(
       id: 'row',
       config: (ctx) {
         return CwWidgetConfig()

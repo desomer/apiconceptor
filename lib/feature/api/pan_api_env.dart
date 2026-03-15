@@ -19,6 +19,12 @@ class PanApiEnv extends StatelessWidget {
 
 //-------------------------------------------------------------
 class InfoManagerEnv extends InfoManager with WidgetHelper {
+
+  @override
+  Function? getValidateKey() {
+    return null;
+  }
+
   @override
   void addRowWidget(
     NodeAttribut attr,

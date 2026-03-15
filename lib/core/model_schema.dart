@@ -50,16 +50,16 @@ class ModelSchema {
     required this.headerName,
     required this.id,
     required this.infoManager,
-    required this.ref,
+    required this.refDomain,
   });
 
   final String id;
-  final ModelSchema? ref;
+  final ModelSchema? refDomain;
 
   int loadingTime = 0;
 
   final Category category; // pour la sauvegarde et certain traitement
-  final String headerName; // pour les export
+  String headerName; // pour les export
   bool isLoadProp = false;
 
   NodeBrowser? lastBrowser;
@@ -69,6 +69,7 @@ class ModelSchema {
   String modelYaml = '';
   Map mapModelYaml = {};
   Map<String, dynamic> modelProperties = {};
+  ModelSchema? olderModelSchema;
 
   final List<ModelSchema> dependency = [];
 
@@ -82,9 +83,9 @@ class ModelSchema {
 
   final List<AttributInfo> notUseAttributInfo = [];
   final List<AttributInfo> useAttributInfo = [];
-  final Map<String, NodeAttribut> nodeByMasterId = {};
+  final Map<String, List<NodeAttribut>> nodeByMasterId = {};
 
-  final Map<String, NodeAttribut> nodeExtended = {};
+  final Map<String, NodeAttribut> modelPropExtended = {};
 
   int lastNbNode = 0;
   bool first = true;
@@ -96,20 +97,21 @@ class ModelSchema {
   AttributInfo? lastDeleteAttr;
   int lastDeleteEditorStartAt = 0;
 
+  /// #doc  ou #example
   NodeAttribut getExtendedNode(String id) {
-    NodeAttribut? exampleExtended = nodeExtended[id];
+    NodeAttribut? exampleExtended = modelPropExtended[id];
     if (exampleExtended == null) {
       AttributInfo info = AttributInfo();
       info.masterID = id;
       info.path = id;
       info.action = 'R';
       info.properties = {};
-      nodeExtended[id] = NodeAttribut(
+      modelPropExtended[id] = NodeAttribut(
         parent: null,
         yamlNode: MapEntry('extended', 'extended'),
         info: info,
       );
-      exampleExtended = nodeExtended[id];
+      exampleExtended = modelPropExtended[id];
     }
     return exampleExtended!;
   }
@@ -134,18 +136,21 @@ class ModelSchema {
 
   List<ModelVersion>? versions;
   ModelVersion? currentVersion;
+  ModelVersion? olderVersion;
 
   String? namespace;
+
+  bool? readOnly;
 
   List<AttributInfo>? getModelByRefName(String refName) {
     List<AttributInfo>? aModelByName;
     if (category == Category.api) {
       // aModelByName = currentCompany.listRequest.mapInfoByName[refName];
       // aModelByName ??= currentCompany.listComponent.mapInfoByName[refName];
-      aModelByName ??= ref?.mapInfoByName[refName];
+      aModelByName ??= refDomain?.mapInfoByName[refName];
     } else {
       //aModelByName = currentCompany.listComponent.mapInfoByName[refName];
-      aModelByName ??= ref?.mapInfoByName[refName];
+      aModelByName ??= refDomain?.mapInfoByName[refName];
       //aModelByName ??= currentCompany.listRequest.mapInfoByName[refName];
     }
     return aModelByName;
@@ -157,6 +162,7 @@ class ModelSchema {
     modelYaml = '';
     mapModelYaml = {};
     modelProperties = {};
+    modelPropExtended.clear();
 
     histories.clear();
 
@@ -168,6 +174,8 @@ class ModelSchema {
 
     notUseAttributInfo.clear();
     useAttributInfo.clear();
+    nodeByMasterId.clear();
+
     lastNbNode = 0;
     first = true;
     isEmpty = false;
@@ -189,8 +197,9 @@ class ModelSchema {
   // }
 
   void initEventListener(CodeEditorConfig textConfig) {
-    bddStorage.doEventListner[id] = OnEvent(
-      id: id,
+    var idEvent = '$namespace/$id';
+    bddStorage.doEventListner[idEvent] = OnEvent(
+      id: idEvent,
       onPatch: (patch) {
         print('receive on $id event $patch');
         if (patch['typeEvent'] == 'PROP') {
@@ -203,7 +212,7 @@ class ModelSchema {
         } else if (patch['typeEvent'] == 'YAML') {
           if (getVersionId() == patch['version']) {
             var ret = bddStorage.dispatchChangeYaml(
-              id: id,
+              id: idEvent,
               patch: patch,
               value: modelYaml,
               version: patch['version'],
@@ -448,18 +457,13 @@ class ModelSchema {
   Future<ModelSchema> loadYamlAndProperties({
     required bool cache,
     required bool withProperties,
+    String? ifEmpty,
+    bool withOlderVersion = false,
   }) async {
     try {
       loadingTime = DateTime.now().millisecondsSinceEpoch;
 
-      await _initVersion();
-
-      //nbtesterror--;
-      // if (nbtesterror == 0) {
-      //   nbtesterror = 19;
-      //   dynamic a;
-      //   a.padLeft(4);
-      // }
+      await _initVersion(withOlderVersion);
 
       dynamic savedYamlModel = bddStorage.getItem(
         model: this,
@@ -474,6 +478,10 @@ class ModelSchema {
       } else if (mapModelYaml.isNotEmpty) {
         loadingTime = 0;
         return this;
+      }
+
+      if (ifEmpty != null && (savedYamlModel == null || savedYamlModel == "")) {
+        savedYamlModel = ifEmpty;
       }
 
       if (savedYamlModel != null && savedYamlModel != "") {
@@ -504,7 +512,7 @@ class ModelSchema {
     return this;
   }
 
-  Future<void> _initVersion() async {
+  Future<void> _initVersion(bool withOlderVersion) async {
     if (currentVersion == null && category == Category.model) {
       var versions = await bddStorage.getAllVersion(this);
       if (versions.isEmpty) {
@@ -522,6 +530,7 @@ class ModelSchema {
         bddStorage.storeVersion(this, version);
       } else {
         currentVersion ??= versions.first;
+        olderVersion = versions.length > 1 ? versions[1] : null;
       }
       print(
         'model $headerName $id current version = ${currentVersion!.version} version txt = ${currentVersion!.data['versionTxt']}',
@@ -539,7 +548,11 @@ class ModelSchema {
       setcache: true,
     );
     if (saveModel is Future) {
-      return loadYamlAndProperties(cache: cache, withProperties: true);
+      return loadYamlAndProperties(
+        cache: cache,
+        withProperties: true,
+        withOlderVersion: false,
+      );
     } else {}
 
     if (saveModel != null) {
@@ -615,7 +628,7 @@ class ModelSchema {
     bool save,
     String action,
   ) {
-    var parser = ParseYamlManager();
+    var parser = ParseYamlManager()..validateKey = config?.validateKey;
     bool parseOk = parser.doParseYaml(modelYaml, config);
 
     if (parseOk) {
@@ -717,7 +730,7 @@ class ModelSchema {
               headerName: refName,
               id: masterIdRef,
               infoManager: InfoManagerModel(typeMD: TypeMD.model),
-              ref: ref,
+              refDomain: refDomain,
             );
             aSchema.autoSaveProperties = false;
             aSchema
@@ -728,13 +741,16 @@ class ModelSchema {
           }
         }
       } else {
-        aSchema = ModelSchema(
-          id: '?',
-          category: Category.model,
-          headerName: '',
-          infoManager: InfoManagerModel(typeMD: TypeMD.model),
-          ref: ref,
-        )..autoSaveProperties = false;
+        aSchema =
+            ModelSchema(
+                id: '?',
+                category: Category.model,
+                headerName: '',
+                infoManager: InfoManagerModel(typeMD: TypeMD.model),
+                refDomain: refDomain,
+              )
+              ..autoSaveProperties = false
+              ..namespace = namespace;
 
         aSchema.loadSubSchema(subNode, this);
         validateFct(aSchema);
@@ -759,7 +775,7 @@ class ModelSchema {
               headerName: refName,
               id: masterIdRef,
               infoManager: InfoManagerModel(typeMD: TypeMD.model),
-              ref: ref,
+              refDomain: refDomain,
             )..namespace = namespace;
             aSchema.autoSaveProperties = false;
             await aSchema.loadYamlAndProperties(
@@ -775,7 +791,7 @@ class ModelSchema {
                 category: Category.model,
                 headerName: '',
                 infoManager: InfoManagerModel(typeMD: TypeMD.model),
-                ref: ref,
+                refDomain: refDomain,
               )
               ..namespace = namespace
               ..autoSaveProperties = false;
@@ -784,5 +800,33 @@ class ModelSchema {
       }
     }
     return aSchema;
+  }
+
+  NodeAttribut? getNodeByMasterJsonPath(String? jsonPath) {
+    if (jsonPath == null) return null;
+    for (var element in useAttributInfo) {
+      if (element.getJsonPath(withType: true) == jsonPath) {
+        return getNodeByMasterIdPath(element.masterID);
+      }
+    }
+    return null;
+  }
+
+  NodeAttribut? getNodeByMasterIdPath(String? masterID) {
+    if (masterID == null) return null;
+    if (masterID.startsWith('#')) {
+      return getExtendedNode(masterID);
+    }
+
+    String key = masterID;
+    if (masterID.contains('>')) {
+      key = masterID.split('>').last;
+      for (NodeAttribut element in nodeByMasterId[key] ?? <NodeAttribut>[]) {
+        if (element.info.getMasterIDPath() == masterID) {
+          return element;
+        }
+      }
+    }
+    return nodeByMasterId[key]?.firstOrNull;
   }
 }

@@ -1,6 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:jsonschema/authorization_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
@@ -15,7 +15,7 @@ import 'package:jsonschema/start_core.dart';
 import 'package:yaml/yaml.dart';
 
 class CallerDatasource {
-  WidgetRequestHelper? helper;
+  WidgetAPIHelper? helper;
   ConfigDataSource config = ConfigDataSource();
   String domainDs = '';
   String dsId = '';
@@ -54,14 +54,12 @@ class CallerDatasource {
     exampleData = await apiCallInfo.getExamples();
   }
 
-  Future<WidgetRequestHelper?> loadConfig(
+  Future<WidgetAPIHelper?> loadConfig(
     String domainName,
     String datasourceId,
     String? parentParamId,
   ) async {
-    var apps = await loadDataSource(domainName, false);
-    var b = BrowseSingle();
-    b.browse(apps, false);
+    ModelSchema apps = await getDataSourceModel(domainName);
     late AttributInfo app;
 
     if (datasourceId.startsWith('#name=')) {
@@ -69,7 +67,7 @@ class CallerDatasource {
       app = apps.mapInfoByName[name]!.first;
       datasourceId = app.masterID!;
     } else {
-      app = apps.nodeByMasterId[datasourceId]!.info;
+      app = apps.getNodeByMasterIdPath(datasourceId)!.info;
     }
     dsId = datasourceId;
     dsName = app.name;
@@ -95,6 +93,7 @@ class CallerDatasource {
     if (pagination != null) {
       this.config.criteria.paginationVariable = pagination['variable'];
       this.config.criteria.min = pagination['min'] ?? 0;
+      this.config.data.paginationVariable = pagination['maxVariable'];
     }
 
     for (var link in links ?? const []) {
@@ -129,7 +128,7 @@ class CallerDatasource {
           // affecte la session du parent
           apiCallInfo.parentData = sessionStorage.get(parentParamId);
         }
-        var apiNode = allApi.nodeByMasterId[api.masterID!]!;
+        var apiNode = allApi.getNodeByMasterIdPath(api.masterID!)!;
         String url = apiCallInfo.getURLfromNode(apiNode);
         var def = await loadAPI(id: api.masterID!, namespace: r.masterID);
         print("load api $url ${def.id} ");
@@ -141,7 +140,7 @@ class CallerDatasource {
             headerName: 'example',
             id: 'example/temp/${apiNode.info.masterID!}',
             infoManager: InfoManagerApiExample(),
-            ref: null,
+            refDomain: null,
           )..namespace = r.masterID;
           await paramModel.loadYamlAndProperties(
             cache: false,
@@ -164,13 +163,17 @@ class CallerDatasource {
           this.config.criteria.dataDisplayPath = v.toString().split(';');
         }
 
-        helper = WidgetRequestHelper(
-          apiNode: apiNode,
-          apiCallInfo: apiCallInfo,
-        );
+        helper = WidgetAPIHelper(apiNode: apiNode, apiCallInfo: apiCallInfo);
       }
     }
     return helper;
+  }
+
+  Future<ModelSchema> getDataSourceModel(String domainName) async {
+    var apps = await loadDataSource(domainName, false);
+    var b = BrowseSingle();
+    b.browse(apps, false);
+    return apps;
   }
 
   void initComputedProps() {

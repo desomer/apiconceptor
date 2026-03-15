@@ -1,7 +1,6 @@
 import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
-import 'package:yaml/yaml.dart';
 
 class Url2Api {
   String raw = '';
@@ -10,14 +9,16 @@ class Url2Api {
   ImportData doImportJSON(ModelSchema api) {
     ImportData data = ImportData();
 
-    YamlDocument doc = loadYamlDocument(api.modelYaml);
-
+    String yaml = api.modelYaml;
     YamlDoc docYaml = YamlDoc();
+    docYaml.load(yaml);
     docYaml.indexBy = ['\$server'];
-    docYaml.doAnalyse(doc, api.modelYaml);
+    docYaml.doAnalyse();
 
     var lines = raw.split('\n');
     for (var urll in lines) {
+      urll = urll.trim();
+      if (urll.isEmpty || urll.startsWith('#')) continue;
       var apiDesc = ApiImportDesc();
 
       var ope = 'get';
@@ -47,14 +48,14 @@ class Url2Api {
         }
       }
 
-      StringBuffer path = StringBuffer('root>');
+      StringBuffer path = StringBuffer('root');
 
       var s = svr.split('/');
       YamlLine row;
-      int nb = 0;
+      int nbSlash = 0;
       if (s.length > 1) {
         if (s[0].startsWith("http")) {
-          nb = 3;
+          nbSlash = 3;
           var serveur = '${s[0]}//${s[2]}';
           var existServeur = docYaml.index['\$server']?.value[serveur];
           path.write(s[2]);
@@ -66,18 +67,28 @@ class Url2Api {
             row = existServeur.first.parent!;
           }
         } else {
-          nb = 1;
+          nbSlash = 1;
+          var root = s[0];
+          if (root.trim().isEmpty) {
+            // si la première partie est vide, on prend la deuxième comme root
+            root = s[1];
+            nbSlash = 2;
+          }
           row = docYaml.listRoot.firstWhere(
             (element) {
-              return element.name == s[0];
+              return element.name == root;
             },
             orElse: () {
-              return docYaml.addAtEnd(s[0], '');
+              YamlLine ret =  docYaml.addAtEnd(root, '');
+              docYaml.addChild(ret, '\$server', "{base_url}");
+              return ret;
             },
           );
         }
 
-        for (var i = nb; i < s.length; i++) {
+        for (var i = nbSlash; i < s.length; i++) {
+          if (s[i].trim().isEmpty) continue;
+          print("add $i ${s[i]}");
           path.write('>');
           path.write(s[i]);
           row = docYaml.addChild(row, s[i], '');
@@ -87,6 +98,7 @@ class Url2Api {
       }
 
       apiDesc.path = path.toString();
+      print("add api ${apiDesc.path} with params ${apiDesc.params}");
       apiInfo.add(apiDesc);
     }
 

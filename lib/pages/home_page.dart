@@ -127,8 +127,8 @@ class HomePage extends GenericPageStateless {
           WidgetMenuBtn(
             label: 'Data source',
             icon: Icons.dataset_linked,
-            route: Pages.contentPages,
-          ),          
+            route: Pages.dataSource,
+          ),
           WidgetMenuBtn(label: 'Design Message', icon: Icons.message_outlined),
           WidgetMenuBtn(
             label: 'Validation Workflow',
@@ -193,6 +193,11 @@ class HomePage extends GenericPageStateless {
           WidgetMenuBtn(
             label: 'Browse content',
             icon: Icons.content_paste_search,
+          ),
+          WidgetMenuBtn(
+            label: 'Map content',
+            icon: Icons.map,
+            route: Pages.mapData,
           ),
         ],
       ),

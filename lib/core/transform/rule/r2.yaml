@@ -1,0 +1,28 @@
+# R002_normalization_trim_lowercase.yaml
+id: R002
+name: normalization_trim_lowercase
+category: normalization
+description: Trim et lowercase d'une chaîne
+scope: field
+inputs:
+  - path: field
+    type: string
+params:
+  - name: trim
+    type: boolean
+    default: true
+  - name: lowercase
+    type: boolean
+    default: true
+example:
+  input: { "email": " JEAN.DUPONT@EXAMPLE.COM " }
+  output: { "email": "jean.dupont@example.com" }
+tests:
+  - id: T_R002_01
+    type: unit
+    input: { "email": " A@B.COM " }
+    expected: { "email": "a@b.com" }
+severity: low
+action_on_error: coerce_null
+complexity: low
+implementation_notes: "Appliquer avant validations; idempotent"

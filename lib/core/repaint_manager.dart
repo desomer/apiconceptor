@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 RepaintManager repaintManager = RepaintManager();
 
-enum ChangeTag { showListModel, showListApi, apichange, apiparam }
+enum ChangeTag { showListModel, showListApi, apichange, apiparam, paramConfigChange }
 
 class RepaintManager {
   Map<ChangeTag, DicoTagRepaint> tags = {};

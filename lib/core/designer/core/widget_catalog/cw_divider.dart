@@ -7,7 +7,7 @@ class CwDivider extends CwWidget {
   const CwDivider({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
-    factory.register(
+    factory.registerComponent(
       id: 'divider',
       build:
           (ctx) => CwDivider(

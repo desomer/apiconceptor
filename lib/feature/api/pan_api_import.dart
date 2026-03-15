@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:highlight/languages/markdown.dart';
+import 'package:highlight/languages/cmake.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/import/url2api.dart';
@@ -26,11 +26,23 @@ class PanAPIImport extends StatelessWidget {
   }
 
   Widget _getURLImport(Url2Api import) {
+    var dom = currentCompany.listDomain.selectedAttr;
+    import.raw =
+        '''
+        # GET /<YOUR_DOMAIN>/example/v1
+        # GET /${dom?.info.name.toLowerCase()}/example/v1
+        # POST /${dom?.info.name.toLowerCase()}/example/v1
+        # GET /${dom?.info.name.toLowerCase()}/example/v1/{param}?field={field}
+        # GET /${dom?.info.name.toLowerCase()}/example/v1/{param}?field={field}     request/body=\$model    responses/200=\$model
+
+        GET /${dom?.info.name.toLowerCase()}/example/v1/{param}?field={field}
+        ''';
+
     return TextEditor(
       config: CodeEditorConfig(
-        mode: markdown,
+        mode: cmake,
         getText: () {
-          return '';
+          return import.raw;
         },
         onChange: (String json, CodeEditorConfig config) {
           import.raw = json;

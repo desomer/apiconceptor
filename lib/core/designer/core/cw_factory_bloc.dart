@@ -275,7 +275,7 @@ class CwFactoryBloc with NameMixin {
       // computed prop
       bind = {'computedId': attrSelected['id'], 'repository': repositoryId};
     } else {
-      info = model!.nodeByMasterId[attrSelected['id']]!.info;
+      info = model!.getNodeByMasterIdPath(attrSelected['id'])!.info;
       String? attr = info.masterID;
       String v = info.path;
       int inArrayIdx = v.lastIndexOf("[]");

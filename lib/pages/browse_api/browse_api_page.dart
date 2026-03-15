@@ -9,12 +9,13 @@ import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_doc_response.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
 import 'package:jsonschema/feature/api/pan_api_selector_tag.dart';
+import 'package:jsonschema/feature/documentation/pan_scrum.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -104,7 +105,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
 
   GlobalKey paramKey = GlobalKey(debugLabel: 'paramKey');
 
-  WidgetRequestHelper? requestHelper;
+  WidgetAPIHelper? requestHelper;
 
   var flexWeights = [1, 10, 1];
 
@@ -145,7 +146,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
         onSelectMock: () {},
       ),
       key: exampleKey,
-      requesthelper: requestHelper!,
+      requestHelper: requestHelper!,
       getSchemaFct: () async {
         // callInfo.currentAPIRequest = null;
         // refreshParam.value++;
@@ -155,7 +156,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
           headerName: 'Parameters book',
           id: 'example/temp/$idApi',
           infoManager: InfoManagerApiExample(),
-          ref: null,
+          refDomain: null,
         );
         await model.loadYamlAndProperties(cache: false, withProperties: true);
 
@@ -358,7 +359,16 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
         Tab(text: 'jmse search'),
       ],
       listTabCont: [
-        PanResponseViewer(modeLegacy: true, requestHelper: requestHelper!),
+        PanResponseViewer(
+          modeLegacy:
+              requestHelper
+                  ?.apiCallInfo
+                  .currentAPIResponse
+                  ?.modelProperties
+                  .isEmpty ??
+              true,
+          requestHelper: requestHelper!,
+        ),
         PanResponseMapper(
           //key: ObjectKey(currentCompany.listAPI.selectedAttr),
           apiCallInfo: requestHelper!.apiCallInfo,
@@ -396,7 +406,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
       duration: Duration(milliseconds: 200),
     );
 
-    var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
+    var attr = currentCompany.listAPI!.getNodeByMasterIdPath(idApi)!;
     currentCompany.listAPI!.selectedAttr = attr;
 
     requestHelper = null;
@@ -404,7 +414,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
 
     Future.delayed(Duration(milliseconds: 10)).then((value) {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-        requestHelper = WidgetRequestHelper(
+        requestHelper = WidgetAPIHelper(
           apiNode: attr,
           apiCallInfo: getAPICall(
             currentCompany.currentNameSpace,
@@ -421,10 +431,28 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
     return WidgetTab(
       listTab: [
         Tab(text: 'Parameters examples'),
-        Tab(text: 'Request documentation'),
-        Tab(text: 'Responses documentation'),
+        Tab(text: 'API documentation'),
+        Tab(text: 'Request object details'),
+        Tab(text: 'Responses objectdetails'),
       ],
-      listTabCont: [getExample(), getDocRequest(), getDocResponse()],
+      listTabCont: [
+        getExample(),
+        ValueListenableBuilder(
+          valueListenable: refreshExample,
+          builder: (context, value, child) {
+            if (requestHelper == null) {
+              return Text('select api example first');
+            }
+            return PanScrumModel(
+              mode: ScrumModeEnum.api,
+              requestHelper: requestHelper,
+            );
+          },
+        ),
+
+        getDocRequest(),
+        getDocResponse(),
+      ],
       heightTab: 40,
     );
   }
@@ -532,6 +560,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
               modeSeparator: Separator.left,
               withBtnAddMock: false,
               modeMock: false,
+              autoSave: false,
             ),
           );
         }

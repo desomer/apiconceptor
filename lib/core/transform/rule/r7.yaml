@@ -1,0 +1,29 @@
+# R007_deduplicate_latest_by.yaml
+id: R007
+name: deduplicate_latest_by
+category: deduplication
+description: Garde la version la plus récente par clé en utilisant un champ timestamp
+scope: stream
+inputs:
+  - path: key_fields
+    type: array
+  - path: timestamp_field
+    type: string
+params:
+  - name: window_seconds
+    type: integer
+    default: 86400
+  - name: retention_seconds
+    type: integer
+    default: 604800
+example:
+  input: [ {email:A, lastUpdated: t1}, {email:A, lastUpdated: t2} ]
+  output: [ {email:A, lastUpdated: t2} ]
+tests:
+  - id: T_R007_01
+    type: integration
+    description: réinjecter ancien message n'écrase pas le plus récent
+severity: high
+action_on_error: alert
+complexity: high
+implementation_notes: "Implémenter stateful operator; checkpointing requis"

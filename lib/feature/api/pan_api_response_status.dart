@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 
 class PanApiResponseStatus extends StatefulWidget {
   const PanApiResponseStatus({super.key, required this.requestHelper});
 
-  final WidgetRequestHelper requestHelper;
+  final WidgetAPIHelper requestHelper;
 
   @override
   State<PanApiResponseStatus> createState() => _PanApiResponseStatusState();
@@ -58,5 +58,4 @@ class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
       ],
     );
   }
-
 }

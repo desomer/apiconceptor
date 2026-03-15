@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/search_editor.dart';
@@ -15,7 +15,7 @@ class WidgetArrayParam extends StatefulWidget {
     required this.constraints,
     required this.config,
   });
-  final WidgetRequestHelper requestHelper;
+  final WidgetAPIHelper requestHelper;
   final BoxConstraints constraints;
   final ApiParamConfig config;
 
@@ -179,7 +179,7 @@ class ParamAccess extends ValueAccessor {
   final APIParamInfo paramInfo;
   final int col;
   final GlobalKey<CellCheckEditorState>? check;
-  final WidgetRequestHelper requestHelper;
+  final WidgetAPIHelper requestHelper;
 
   @override
   dynamic get() {
@@ -212,6 +212,7 @@ class ParamAccess extends ValueAccessor {
         paramInfo.value = null;
         break;
     }
+    paramInfo.onChange?.call();
   }
 
   @override
@@ -228,5 +229,6 @@ class ParamAccess extends ValueAccessor {
         }
         break;
     }
+    paramInfo.onChange?.call();
   }
 }

@@ -38,9 +38,12 @@ class _WidgetContentObjectAnyOfState extends State<WidgetContentObjectAnyOf>
   void initState() {
     if (widget.info.inArrayValue == null) {
       //deja ajouter par l'array
-      widget.info.json2ui.stateMgr.registerContainer(getPathValue(), this);
+      widget.info.json2ui.stateMgr.depsBindingManager.registerContainer(
+        getPathValue(),
+        this,
+      );
     } else {
-      widget.info.json2ui.stateMgr.registerContainer(
+      widget.info.json2ui.stateMgr.depsBindingManager.registerContainer(
         widget.info.pathData!,
         this,
       );
@@ -52,9 +55,12 @@ class _WidgetContentObjectAnyOfState extends State<WidgetContentObjectAnyOf>
   void dispose() {
     if (widget.info.inArrayValue == null) {
       //deja ajouter par l'array
-      widget.info.json2ui.stateMgr.disposeContainer(getPathValue(), this);
+      widget.info.json2ui.stateMgr.depsBindingManager.disposeContainer(
+        getPathValue(),
+        this,
+      );
     } else {
-      widget.info.json2ui.stateMgr.disposeContainer(
+      widget.info.json2ui.stateMgr.depsBindingManager.disposeContainer(
         widget.info.pathData!,
         this,
       );

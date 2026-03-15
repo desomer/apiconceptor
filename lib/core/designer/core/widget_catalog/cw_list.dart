@@ -4,13 +4,12 @@ import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.d
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
-import 'package:jsonschema/feature/content/state_manager.dart';
 
 class CwList extends CwWidget {
   const CwList({super.key, required super.ctx, required super.cacheWidget});
 
   static void initFactory(WidgetFactory factory) {
-    factory.register(
+    factory.registerComponent(
       id: 'list',
       build:
           (ctx) =>
@@ -43,7 +42,7 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
   @override
   void dispose() {
     controller.dispose();
-    stateRepository!.disposeContainer(pathData, this);
+    bindInfo.stateRepository?.depsBindingManager.disposeContainer(bindInfo.pathData, this);
     super.dispose();
   }
 
@@ -73,35 +72,43 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
     ) {
       List listRow = [];
 
-      if (stateRepository != null) {
-        String? oldPathData = pathData;
+      bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
 
-        bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
+      // if (stateRepository != null) {
+      //   String? oldPathData = pathData;
 
-        pathData = stateRepository!.getDataPath(
-          context,
-          attribut!.info.path,
-          widgetPath: ctx.aWidgetPath,
-          typeListContainer: true,
-          inArray: inArray,
-          state: this,
-        );
-        if (oldPathData != '?' && oldPathData != pathData) {
-          stateRepository!.disposeContainer(oldPathData, this);
-        }
-        stateRepository!.registerContainer(pathData, this);
+      //
 
-        String pathContainer;
-        String attrName;
-        (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
-        StateContainer? dataContainer;
-        (dataContainer, _) = stateRepository!.getStateContainer(
-          pathContainer,
-          context: context,
-          pathWidgetRepos: ctx.aWidgetPath,
-        );
-        if (dataContainer != null) {
-          listRow = dataContainer.jsonData[attrName] ?? [];
+      //   pathData = stateRepository!.getDataPath(
+      //     context,
+      //     bindAttribut!.path,
+      //     widgetPath: ctx.aWidgetPath,
+      //     typeListContainer: true,
+      //     inArray: inArray,
+      //     state: this,
+      //   );
+      //   if (oldPathData != '?' && oldPathData != pathData) {
+      //     stateRepository!.disposeContainer(oldPathData, this);
+      //   }
+      //   stateRepository!.registerContainer(pathData, this);
+
+      //   String pathContainer;
+      //   String attrName;
+      //   (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
+      //   StateContainer? dataContainer;
+      //   (dataContainer, _) = stateRepository!.getStateContainer(
+      //     pathContainer,
+      //     context: context,
+      //     pathWidgetRepos: ctx.aWidgetPath,
+      //   );
+      //   if (dataContainer != null) {
+      //     listRow = dataContainer.jsonData[attrName] ?? [];
+      //   }
+      // }
+      var v = bindInfo.getValue(context, ctx, this, inArray, true);
+      if (v != null) {
+        if (v is List) {
+          listRow = v;
         }
       }
 
@@ -119,7 +126,7 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
             return CWInheritedRow(
               rowkey: GlobalKey(debugLabel: 'CWInheritedRow $index'),
               tableKey: parentKey,
-              path: pathData,
+              path: bindInfo.pathData,
               rowIdx: index,
               child: getSlot(
                 CwSlotProp(id: 'item0', name: 'Item ${index + 1}'),
@@ -141,7 +148,7 @@ class _CwListState extends CwWidgetStateBindJson<CwList> with HelperEditor {
             return CWInheritedRow(
               rowkey: GlobalKey(debugLabel: 'CWInheritedRow $index'),
               tableKey: parentKey,
-              path: pathData,
+              path: bindInfo.pathData,
               rowIdx: index,
               child: getSlot(
                 CwSlotProp(id: 'item0', name: 'Item ${index + 1}'),

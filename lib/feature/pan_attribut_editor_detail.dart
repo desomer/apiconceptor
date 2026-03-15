@@ -11,9 +11,11 @@ class AttributProperties extends StatefulWidget {
     super.key,
     required this.getModel,
     required this.typeAttr,
+    this.onClose,
   });
   final Function getModel;
   final TypeAttr typeAttr;
+  final Function? onClose;
 
   @override
   State<AttributProperties> createState() => _AttributPropertiesState();
@@ -29,7 +31,26 @@ class _AttributPropertiesState extends State<AttributProperties> {
         Container(
           padding: EdgeInsets.all(3),
           color: Colors.blue,
-          child: Center(child: Text(model?.selectedAttr?.info.name ?? '')),
+          child: Row(
+            children: [
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    if (widget.onClose != null) {
+                      widget.onClose!();
+                    }
+                  },
+                  child: Icon(Icons.close),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(model?.selectedAttr?.info.name ?? ''),
+                ),
+              ),
+            ],
+          ),
         ),
         Expanded(
           child: WidgetTab(
@@ -37,7 +58,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
               Tab(text: 'Info'),
               Tab(text: 'Validator'),
               if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Fake'),
-              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Bdd'),
+              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Source'),
               if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Tag'),
             ],
             listTabCont: [
@@ -45,7 +66,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
               SingleChildScrollView(child: getTypeValidator(model)),
               if (widget.typeAttr == TypeAttr.detailmodel)
                 SingleChildScrollView(child: getTypeFake(model)),
-              if (widget.typeAttr == TypeAttr.detailmodel) Container(),
+              if (widget.typeAttr == TypeAttr.detailmodel) getSourceForm(model),
               if (widget.typeAttr == TypeAttr.detailmodel) Container(),
             ],
             heightTab: 30,
@@ -91,7 +112,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
           inArray: false,
         ),
-      );      
+      );
     }
 
     return Column(spacing: 5, children: ret);
@@ -363,7 +384,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
               schema: model,
               propName: 'format',
             ),
-           // inArray: false,
+            // inArray: false,
           ),
 
           CellEditor(
@@ -482,6 +503,13 @@ class _AttributPropertiesState extends State<AttributProperties> {
     }
 
     var info = model!.selectedAttr!;
+
+    var typeModelAccessor = ModelAccessorAttr(
+      node: info,
+      schema: model,
+      propName: '#target',
+    );
+
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -491,6 +519,8 @@ class _AttributPropertiesState extends State<AttributProperties> {
         children: [
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
+
+          getTargetWidget(typeModelAccessor),
 
           TagSelector(
             key: ValueKey('tag#${info.hashCode}'),
@@ -529,6 +559,15 @@ class _AttributPropertiesState extends State<AttributProperties> {
               node: info,
               schema: model,
               propName: 'const',
+            ),
+            inArray: false,
+          ),
+          CellEditor(
+            key: ValueKey('default#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: 'default',
             ),
             inArray: false,
           ),
@@ -583,6 +622,38 @@ class _AttributPropertiesState extends State<AttributProperties> {
     );
   }
 
+  Widget getSourceForm(ModelSchema? model) {
+    if (model?.selectedAttr == null) {
+      return Container();
+    }
+
+    var info = model!.selectedAttr!;
+
+
+    return Padding(
+      padding: EdgeInsets.all(10),
+      child: Column(
+        spacing: 10,
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          CellEditor(
+            key: ValueKey('source#${info.hashCode}'),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: '#source',
+            ),
+            line: 5,
+            inArray: false,
+          ),
+
+        ],
+      ),
+    );
+  }
+
   Widget getValidatorObjectForm(ModelSchema model) {
     var info = model.selectedAttr!;
     return Padding(
@@ -615,6 +686,32 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget getTargetWidget(ModelAccessorAttr typeModelAccessor) {
+    ValueNotifier<String> sourceName = ValueNotifier(
+      typeModelAccessor.get() ?? 'api;bdd',
+    );
+
+    return ValueListenableBuilder(
+      valueListenable: sourceName,
+      builder: (context, value, child) {
+        var sel = Set<String>.from(value.split(';'));
+        return SegmentedButton<String>(
+          multiSelectionEnabled: true,
+          segments: [
+            ButtonSegment(value: 'api', label: Text('for API')),
+            ButtonSegment(value: 'bdd', label: Text('for BDD')),
+          ],
+          onSelectionChanged: (value) {
+            String str = value.join(';');
+            typeModelAccessor.set(str);
+            sourceName.value = str;
+          },
+          selected: sel,
+        );
+      },
     );
   }
 }

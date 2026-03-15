@@ -23,6 +23,7 @@ class WidgetModelMain extends StatelessWidget with WidgetHelper {
 
   Widget getBrowser(BuildContext context) {
     PanModelSelector panModelSelector = PanModelSelector(
+      type: TypeModelSelector.model,
       getSchemaFct: () async {
         await Future.delayed(Duration(milliseconds: gotoDelay));
         currentCompany.listModel = await loadSchema(
@@ -42,26 +43,28 @@ class WidgetModelMain extends StatelessWidget with WidgetHelper {
     return Column(
       children: [
         PanModelActionHub(panModelSelector: panModelSelector),
-        Expanded(child: WidgetTab(
-          onInitController: (TabController tab) {
-            // stateModel.tabSubModel = tab;
-            tab.addListener(() {
-              // stateModel.setTab();
-            });
-          },
-          listTab: [
-            Tab(text: 'Business models'),
-            //  Tab(text: 'ORM Entities'),
-            Tab(text: 'Trashcan'),
-          ],
-          listTabCont: [
-            panModelSelector,
-            // KeepAliveWidget(child: stateModel.panDtoSelector),
-            // KeepAliveWidget(child: stateModel.panComponentSelector),
-            getTrashcan(context),
-          ],
-          heightTab: 40,
-        )),
+        Expanded(
+          child: WidgetTab(
+            onInitController: (TabController tab) {
+              // stateModel.tabSubModel = tab;
+              tab.addListener(() {
+                // stateModel.setTab();
+              });
+            },
+            listTab: [
+              Tab(text: 'Business models'),
+              //  Tab(text: 'ORM Entities'),
+              Tab(text: 'Trashcan'),
+            ],
+            listTabCont: [
+              panModelSelector,
+              // KeepAliveWidget(child: stateModel.panDtoSelector),
+              // KeepAliveWidget(child: stateModel.panComponentSelector),
+              getTrashcan(context),
+            ],
+            heightTab: 40,
+          ),
+        ),
       ],
     );
   }
@@ -74,7 +77,7 @@ class WidgetModelMain extends StatelessWidget with WidgetHelper {
           headerName: 'All models',
           id: 'model',
           infoManager: InfoManagerTrashAPI(),
-          ref: currentCompany.listModel,
+          refDomain: currentCompany.listModel,
         );
         trash.autoSaveProperties = false;
 

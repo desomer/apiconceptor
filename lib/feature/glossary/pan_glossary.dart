@@ -11,7 +11,7 @@ import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
 import '../../widget/widget_split.dart';
-
+@Deprecated('Use PanModelImportDialog instead')
 // ignore: must_be_immutable
 class WidgetGlossary extends StatelessWidget with WidgetHelper {
   WidgetGlossary({

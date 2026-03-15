@@ -1,0 +1,419 @@
+Types de transformations possibles
+1. Vue d’ensemble
+Les transformations se répartissent en primitives (opérations sur une valeur), structurelles (sur la forme du document), enrichissements externes, opérations d’état/streaming, et sécurité / résilience. Ci‑dessous un catalogue pratique avec but, paramètres courants, complexité et exemples.
+
+2. Transformations primitives (valeur / champ)
+- Trim / Strip
+But : supprimer espaces; Params : side = left|right|both; Complexité : faible.
+Ex. trim(firstName) -> "Jean".
+- Case / Casing
+But : lowercase, uppercase, titlecase; Complexité : faible.
+Ex. lowercase(email).
+- Replace / Regex replace
+But : substitution; Params : pattern, replacement, flags; Complexité : faible→moyenne.
+Ex. regex_replace(phone, "[^0-9]", "").
+- Casting / Typage
+But : string↔int↔float↔date↔boolean; Params : format pour dates; Complexité : faible.
+Ex. cast("123","int"), parse_date("31/12/2020","dd/MM/yyyy").
+- Validation
+But : check constraints; Params : regex, min/max, enum; Action : warn|coerce|dlq.
+Ex. validate_regex(email, pattern, on_error=dlq).
+- Normalization
+But : canonicaliser formats (tel, code postal, UUID); Complexité : faible→moyenne.
+Ex. normalize_phone("+33 6 12 34 56 78") -> "33612345678".
+- Derivation / Calcul
+But : expressions arithmétiques ou concaténations; Params : expression language; Complexité : faible→moyenne.
+Ex. full_name = concat(first_name, ' ', last_name).
+- Hashing
+But : hachage non réversible; Params : algo (sha256); Complexité : faible.
+Ex. hash(email, sha256).
+
+3. Transformations structurelles (document / table)
+- Field mapping / Rename
+But : renommer ou déplacer un champ; Complexité : faible.
+Ex. source.user.id -> target.user_id.
+- Flatten / Unnest / Explode
+But : transformer tableaux en lignes; Complexité : moyenne.
+Ex. explode(items) -> one row per item.
+- Pivot / Unpivot
+But : transformer colonnes ↔ lignes; Complexité : moyenne→élevée.
+- Split / Join
+But : découper ou concaténer champs; Ex. split(full_address, ",").
+- Schema evolution / Add default fields
+But : ajouter champs manquants avec valeurs par défaut; Complexité : faible.
+
+4. Enrichissement et lookups
+- Lookup simple
+But : joindre données depuis table/cache; Params : source, key, ttl; Complexité : moyenne.
+Ex. city = lookup(city_code, geo_table).
+- External API enrichment
+But : appeler service externe; Risques : latence, erreurs; Mitigation : cache, circuit breaker.
+- Geocoding / Reverse geocoding
+But : coordonnées ↔ adresse; Complexité : moyenne.
+
+5. Opérations d’état et streaming
+- Déduplication
+But : supprimer doublons; Params : key, strategy (first/last/merge), window; Complexité : moyenne→élevée.
+Ex. latest_by(email, lastUpdated).
+- Windowed aggregation
+But : sum/count/avg sur fenêtres tumbling/sliding/session; Params : window_size, allowed_lateness; Complexité : élevée.
+- Sessionization
+But : regrouper événements par session (gap-based); Complexité : élevée.
+- SCD (Type 1/2/3)
+But : historiser entités; Complexité : élevée; Ex. SCD Type 2 insert/close rows.
+- Stateful enrichment
+But : maintenir état par clé (ex. compteur, lastSeen); Complexité : élevée.
+
+6. Sécurité, confidentialité et résilience
+- Masking / Redaction
+But : masquer PII; Modes : partial, full, token; Complexité : faible→moyenne.
+- Tokenization
+But : remplacer valeur par token réversible via vault; Complexité : moyenne.
+- Encryption
+But : chiffrement champ par champ; Params : key_id, algo; Complexité : moyenne.
+- Idempotence / Dedup key
+But : garantir non‑duplication en cas de réémission; Complexité : moyenne.
+- Retry / Backoff / DLQ
+But : stratégie d’erreur; Params : max_retries, backoff, jitter; Complexité : faible.
+
+7. Transformations custom et extensibles
+- UDF / UDAF
+But : logique métier complexe en Java/Python/SQL; Risques : latence, non‑déclaratif; Bonnes pratiques : sandbox, tests, limites ressources.
+- Expression engines
+But : évaluer expressions déclaratives (ex. JEXL, Jsonata, CEL); Avantage : sécurité et auditabilité.
+
+
+
+
+validations:
+  - id: V001
+    scope: field
+    field: email
+    rule: regex
+    pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    level: fail
+    action: dlq
+
+enrichments:
+  - id: E001
+    type: lookup
+    source: geo_table
+    key: city_code
+    outputs: [city, region]
+    cache:
+      type: redis
+      ttl_seconds: 3600
+    fallback: null
+
+stateful_rules:
+  deduplication:
+    id: D001
+    key: ["email"]
+    strategy: latest_by
+    timestamp_field: lastUpdated
+    window_seconds: 86400
+  scd:
+    id: S001
+    type: type2
+    business_key: customer_id
+    effective_from: valid_from
+    effective_to: valid_to
+    current_flag: is_current
+
+routing_and_sinks:
+  - id: R001
+    condition: "country == 'FR'"
+    sink:
+      type: s3
+      path: "s3://dw/fr/customers/"
+      format: parquet
+  - id: R002
+    default_sink:
+      type: kafka
+      topic: "dw.customers"
+
+error_handling:
+  dlq:
+    connector: kafka
+    topic: "dlq.crm.customers"
+    max_retries: 3
+    retry_backoff_ms: 5000
+  poison_policy:
+    max_attempts: 5
+    action: alert_and_store_sample
+
+security:
+  masking:
+    - field: ssn
+      mode: partial
+      visible_prefix: 1
+      visible_suffix: 1
+  encryption:
+    - field: card_number
+      key_id: projects/keys/card_key
+      algorithm: AES-GCM-256
+
+observability:
+  metrics:
+    - name: transform.latency_ms
+      type: histogram
+    - name: transform.dlq_count
+      type: counter
+  tracing:
+    enabled: true
+    trace_id_field: trace_id
+
+metadata:
+  owner:
+    team: data-platform
+    contact: data-platform@example.com
+  sla_ms: 5000
+  retention_days: 365
+  lineage_id: lineage_customer_v1
+
+udf_registry:
+  - id: U001
+    name: normalize_vat
+    runtime: dart
+    entrypoint: "package:udfs.normalizeVat"
+    sandboxed: true
+
+schema_management:
+  source_schema: schemas/crm_customer_v1.json
+  target_schema: schemas/dim_customer_v2.json
+  compatibility: backward
+  evolve_policy: add-only
+
+orchestration:
+  trigger:
+    type: kafka_event
+    topic: crm.customers.v1
+  schedule:
+    cron: "0 */5 * * * *"
+  dependencies:
+    - job: enrich_geo
+      on_success: continue
+
+tests_and_fixtures:
+  unit_tests:
+    - id: T001
+      input: samples/customer_input.json
+      expected: samples/customer_expected.json
+  integration_tests:
+    - id: IT001
+      scenario: embedded_kafka_flink
+
+performance_hints:
+  parallelism: 4
+  batch_size: 1000
+  state_ttl_seconds: 604800
+
+versioning_and_migrations:
+  version: 1.2.0
+  migration_plan:
+    - step: dual_write
+      duration_days: 7
+    - step: cutover
+
+
+
+
+var def = r'''
+# transforms_catalog.yaml
+catalog_id: transforms_json_v1
+version: 1.0.0
+description: Bibliothèque déclarative de transforms pour JSON; exécutable en Dart
+transforms:
+  - id: trim
+    type: primitive
+    description: Supprime espaces en début/fin
+    params:
+      - name: side
+        type: string
+        enum: [both, left, right]
+        default: both
+
+  - id: lowercase
+    type: primitive
+    description: Met en minuscules
+
+  - id: uppercase
+    type: primitive
+    description: Met en majuscules
+
+  - id: regex_replace
+    type: primitive
+    description: Remplace via expression régulière
+    params:
+      - name: pattern
+        type: string
+      - name: replacement
+        type: string
+      - name: flags
+        type: string
+        nullable: true
+
+  - id: parse_date
+    type: primitive
+    description: Parse une date depuis un format donné et renvoie ISO date
+    params:
+      - name: format
+        type: string
+      - name: on_error
+        type: string
+        enum: [null, default, dlq]
+        default: null
+      - name: default_value
+        type: string
+        nullable: true
+
+  - id: validate_regex
+    type: primitive
+    description: Valide une valeur par regex
+    params:
+      - name: pattern
+        type: string
+      - name: on_error
+        type: string
+        enum: [dlq, coerce_null, default]
+        default: dlq
+
+  - id: cast
+    type: primitive
+    description: Cast vers type cible
+    params:
+      - name: to
+        type: string
+        enum: [string, int, double, bool, date]
+
+  - id: concat
+    type: composite
+    description: Concatène plusieurs champs ou littéraux
+    params:
+      - name: parts
+        type: array
+
+  - id: lookup
+    type: enrichment
+    description: Lookup externe via cache; implémentation côté Dart
+    params:
+      - name: table
+        type: string
+      - name: key
+        type: string
+      - name: ttl_seconds
+        type: integer
+''';
+
+
+# mapping_spec.yaml
+mapping_id: customer_v1_to_dw_v2
+title: Mapping clients CRM -> Data Warehouse dim_customer
+description: |
+  Normalisation des noms, parsing de dates, enrichissement geo, et règles de dé-duplication.
+version: 1.0.0
+owner:
+  team: data-platform
+  contact: data-platform@example.com
+source:
+  system: crm
+  connector: kafka
+  topic: crm.customers.v1
+  format: json
+  sample: samples/customer_input.json
+target:
+  system: data_warehouse
+  connector: s3
+  path: s3://dw/warehouse/dim_customer/
+  table: dim_customer
+  format: parquet
+  partition_by: ["ingest_date"]
+fields:
+  - id: f01
+    source: id
+    target: customer_id
+    type: string
+    nullable: false
+    transform:
+      - name: cast
+        args: {to: "string"}
+  - id: f02
+    source: firstName
+    target: first_name
+    type: string
+    nullable: false
+    transform:
+      - name: trim
+      - name: lowercase
+  - id: f03
+    source: lastName
+    target: last_name
+    type: string
+    nullable: false
+    transform:
+      - name: trim
+      - name: uppercase
+  - id: f04
+    source: birthDate
+    target: dob
+    type: date
+    nullable: true
+    transform:
+      - name: parse_date
+        args: {format: "dd/MM/yyyy", on_error: "null"}
+  - id: f05
+    source: address.city
+    target: city
+    type: string
+    nullable: true
+    transform:
+      - name: trim
+  - id: f06
+    source: email
+    target: email
+    type: string
+    nullable: false
+    transform:
+      - name: lowercase
+      - name: validate_regex
+        args: {pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", on_error: "dlq"}
+derived_fields:
+  - id: d01
+    target: full_name
+    type: string
+    expression: "concat(first_name, ' ', last_name)"
+rules:
+  - id: r01
+    name: dedupe_by_email
+    description: Keep latest record per email using lastUpdated timestamp
+    type: deduplication
+    keys: ["email"]
+    strategy:
+      type: latest_by
+      timestamp_field: lastUpdated
+error_handling:
+  invalid_field_policy: send_to_dlq
+  dlq:
+    connector: kafka
+    topic: dlq.crm.customers
+    max_retries: 3
+    retry_backoff_ms: 5000
+audit:
+  lineage_id: lineage_customer_v1
+  created_by: alice
+  created_at: 2026-02-17T19:00:00Z
+  sla_ms: 5000
+tests:
+  - id: t01
+    name: not_null_emails
+    type: query
+    query: "SELECT COUNT(*) as cnt FROM dim_customer WHERE email IS NULL"
+    expected: {cnt: 0}
+  - id: t02
+    name: parse_date_examples
+    type: unit
+    input: samples/customer_date_cases.json
+    expected_output: samples/customer_date_cases_expected.json
+notes:
+  - "Versionner ce fichier dans git; tagger releases."
+  - "Inclure exemples d'entrée/sortie et fixtures pour CI."

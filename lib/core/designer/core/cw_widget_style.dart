@@ -1,7 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:jsonschema/core/core_expression.dart';
+import 'package:jsonschema/core/compute/core_expression.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
@@ -576,6 +577,8 @@ class CWStyleFactory {
   }
 }
 
+//----------------------------------------------------
+
 class CWAnimatedVisibility extends StatefulWidget {
   const CWAnimatedVisibility({
     required this.child,
@@ -687,61 +690,114 @@ class CWWidgetStateMgr {
   bool isSelectable = true;
   bool doClear = false;
 
-  // List<BehaviourConfig>? stateBehaviour;
+  List<BehaviourConfig>? stateBehaviour;
 
-  // void calculateState(
-  //   CWWidget widget,
-  //   StateCW curState,
-  //   CWInheritedRow? row,
-  //   Map<String, dynamic>? bind,
-  //   DateTime d,
-  // ) {
-  //   //    print('do state of ${curState.hashCode} $bind $stateBehaviour');
-  //   if (stateBehaviour != null) {
-  //     for (var bev in stateBehaviour!) {
-  //       var xid = bev.param!['xid'];
-  //       var attr = bev.param!['attr'];
-  //       CWWidget? w;
-  //       if (attr != null) {
-  //         xid =
-  //             widget
-  //                 .ctx
-  //                 .loader
-  //                 .linkInfo
-  //                 .reposXattr
-  //                 .entries
-  //                 .first
-  //                 .value
-  //                 .attrXxid[attr]
-  //                 ?.first;
-  //       }
-  //       if (xid != null) w = widget.ctx.findWidgetByXid(xid);
-  //       if (w != null) {
-  //         var state = w.getState(row?.index ?? 0, force: true);
-  //         if (state is StateCWInRowCapable) {
-  //           state.initWidgetState(null, d, w as CWWidgetMapValue);
-  //         }
-  //         var stateMgr = state?.styledBox.stateMgr;
-  //         var condEmpty =
-  //             bev.param!['ifEmpty'] == true && (stateMgr?.isEmpty ?? false);
-  //         var condFill =
-  //             state != null &&
-  //             !condEmpty &&
-  //             bev.param!['ifFill'] == true &&
-  //             (!stateMgr!.isEmpty);
+  dynamic setWidgetState(
+    CwWidgetState wstate,
+    dynamic val,
+    dynamic emptyValue,
+    CWInheritedRow? row,
+    DateTime d,
+  ) {
+    var stateMgr = wstate.styleFactory.stateMgr;
+    stateMgr.doClear = false;
+    stateMgr.isEnable = true;
+    stateMgr.isVisible = true;
+    stateMgr.isEmpty = val == emptyValue;
 
-  //         print(
-  //           'get state row ${row?.index ?? 0} of ${state.hashCode} condEmpty=$condEmpty condFill=$condFill',
-  //         );
+    stateMgr.calculateState(wstate.widget.ctx, row, d);
 
-  //         if (condEmpty || condFill) {
-  //           if (bev.param!['isEnable'] == false) isEnable = false;
-  //           if (bev.param!['isEditable'] == false) isEditable = false;
-  //           if (bev.param!['isVisible'] == false) isVisible = false;
-  //           if (bev.param!['doEmpty'] == true) doClear = true;
-  //         }
-  //       }
-  //     }
-  //   }
-  //}
+    if (stateMgr.doClear && !stateMgr.isEmpty) {
+      stateMgr.doClear = false;
+      int? idx = row?.rowIdx; // ?? repos?.getIdx();
+      print('clear $val row $idx');
+      val = emptyValue;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        // widget.setValue(null, provInfo: bind, row: row, idx: idx);
+      });
+    }
+
+    return val;
+  }
+
+  void calculateState(CwWidgetCtx widgetCtx, CWInheritedRow? row, DateTime d) {
+    //    print('do state of ${curState.hashCode} $bind $stateBehaviour');
+    if (stateBehaviour != null) {
+      for (var bev in stateBehaviour!) {
+        var xid = bev.param!['xid'];
+        //var attr = bev.param!['attr'];
+        CwWidget? w;
+        // if (attr != null) {
+        //   xid = '';
+        //   // widget
+        //   //     .ctx
+        //   //     .loader
+        //   //     .linkInfo
+        //   //     .reposXattr
+        //   //     .entries
+        //   //     .first
+        //   //     .value
+        //   //     .attrXxid[attr] 
+        //   //     ?.first;
+        // }
+        if (xid != null) w = widgetCtx.aFactory.getWidget(widgetCtx);
+        if (w != null) {
+          // var state = w.getState(row?.index ?? 0, force: true);
+          // if (state is StateCWInRowCapable) {
+          //   state.initWidgetState(null, d, w as CWWidgetMapValue);
+          // }
+          var stateMgr = w.ctx.widgetState?.styleFactory.stateMgr;
+          var condEmpty =
+              bev.param!['ifEmpty'] == true && (stateMgr?.isEmpty ?? false);
+          var condFill =
+              stateMgr != null &&
+              !condEmpty &&
+              bev.param!['ifFill'] == true &&
+              (!stateMgr.isEmpty);
+
+          print(
+            'get state row ${row?.rowIdx ?? 0} of ${w.ctx.aWidgetPath} condEmpty=$condEmpty condFill=$condFill',
+          );
+
+          if (condEmpty || condFill) {
+            if (bev.param!['isEnable'] == false) isEnable = false;
+            if (bev.param!['isEditable'] == false) isEditable = false;
+            if (bev.param!['isVisible'] == false) isVisible = false;
+            if (bev.param!['doEmpty'] == true) doClear = true;
+          }
+        }
+      }
+    }
+  }
+}
+
+class BehaviourConfig {
+  CwWidgetCtx? aCtx;
+  String? onEvent;
+  String? category;
+  String? condition;
+  String? editor;
+  Map<String, dynamic>? param; // les valeurs du parametres
+
+  void init() {
+    // var loader = CWApplication.of().loaderModel;
+    // aCtx ??= CWWidgetCtx('', loader, '')..initDesignEntity('CWDesign', {});
+  }
+
+  void initTapBehaviour(String idAction) {
+    //var actionEntity =
+    //     CWApplication.of().collection.createEntityByJson('ActionModel', {});
+
+    // aCtx!.designEntity!.value['_param_'] = actionEntity.value;
+    // actionEntity.value['id'] = idAction;
+    // onEvent = 'tap';
+    // category = 'tap';
+  }
+
+  void addBehaviourOn(CwWidgetCtx ctx) {
+    // // affecte le behaviour
+    // var forDesign = DesignCtx().forDesign(ctx);
+    // forDesign.getDesignProperties();
+    // forDesign.addBehaviour(this);
+  }
 }

@@ -6,6 +6,7 @@ import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
@@ -54,7 +55,7 @@ class APICallManager {
       headerName: 'example',
       id: 'example/temp/${attrApi.masterID!}',
       infoManager: InfoManagerApiExample(),
-      ref: null,
+      refDomain: null,
     )..namespace = namespace;
     await exampleModel.loadYamlAndProperties(
       cache: false,
@@ -99,6 +100,12 @@ body :
     }
   }
 
+  void initParamsForDoc() {
+    Map<String, APIParamInfo> mapParam = {};
+    _addParams('path', params, mapParam, {});
+    _addParams('query', params, mapParam, {});
+  }
+
   bool initListParams({Map<String, dynamic>? paramJson}) {
     Map<String, APIParamInfo> mapParam = {};
     for (var element in params) {
@@ -119,8 +126,8 @@ body :
 
   Future<void> fillVar() async {
     //var idDomain = currentCompany.listDomain.selectedAttr!.info.masterID!;
-    var idEnv = currentCompany.listEnv.selectedAttr!.info.masterID!;
-
+    var idEnv = currentCompany.listEnv.selectedAttr?.info.masterID!;
+    if (idEnv == null) return;
     var envVar = await loadVarEnv(namespace, idEnv, "variables", true);
     var browseSingle = BrowseSingle();
     browseSingle.browse(envVar, true);
@@ -169,6 +176,9 @@ body :
             type: type,
             name: param.name,
             info: param,
+            onChange: () {
+              onParamConfigChange();
+            },
           );
           apiParamInfo.toSend = false;
           params.add(apiParamInfo);
@@ -366,6 +376,9 @@ body :
             name: aParam.key,
             type: type,
             info: null,
+            onChange: () {
+              onParamConfigChange();
+            },
           );
           apiParamInfo.pos = aParam.value['pos'];
           apiParamInfo.toSend = aParam.value['send'];
@@ -404,6 +417,10 @@ body :
     if (param.toString().startsWith("{{")) return param;
     return Uri.encodeComponent(param.toString());
   }
+
+  void onParamConfigChange() {
+    repaintManager.doRepaint(ChangeTag.paramConfigChange);
+  }
 }
 
 String getFileSizeString({required int bytes, int decimals = 0}) {
@@ -423,7 +440,14 @@ class APIParamInfo implements Comparable<APIParamInfo> {
   dynamic value;
   bool exist = false;
 
-  APIParamInfo({required this.type, required this.name, required this.info});
+  final Function? onChange;
+
+  APIParamInfo({
+    required this.type,
+    required this.name,
+    required this.info,
+    this.onChange,
+  });
 
   @override
   int compareTo(APIParamInfo other) {

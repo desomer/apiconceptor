@@ -447,9 +447,9 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
           ctx.dataWidget?[cwProps]['height'] = h.toInt().toDouble();
           ctx.dataWidget?[cwProps]['width'] = w.toInt().toDouble();
           ctx.initChanged();
-          if (ctx.isParentOfType('table')) {
+          if (ctx.isParentOfType(['table'])) {
             ctx.parentCtx?.repaint();
-          } else if (ctx.isParentOfType('container')) {
+          } else if (ctx.isParentOfType(['container'])) {
             var fit = ctx.dataWidget?[cwPropsSlot]?['fit'];
             if (fit != 'inner') {
               ctx.dataWidget?[cwPropsSlot]?['fit'] = 'inner';

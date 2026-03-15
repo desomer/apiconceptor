@@ -32,6 +32,12 @@ class BrowseAPI<T extends Map> extends JsonBrowser<T> {
 
 //************************************************************************* */
 class InfoManagerAPI extends InfoManager with WidgetHelper {
+
+  @override
+  Function? getValidateKey() {
+    return null;
+  }
+
   @override
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
@@ -309,6 +315,11 @@ class InfoManagerTrashAPI extends InfoManager with WidgetHelper {
   @override
   Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
     return getChip(Text(node.data!.info.name), color: null);
+  }
+
+  @override
+  Function? getValidateKey() {
+    return null;
   }
 
   @override

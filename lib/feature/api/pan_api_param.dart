@@ -9,7 +9,7 @@ import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param_array.dart';
 import 'package:jsonschema/feature/api/pan_api_save_param.dart';
 import 'package:jsonschema/feature/api/pan_api_script.dart';
@@ -20,19 +20,21 @@ import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_vertical_sep.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
-enum Separator { none, left, right }
+enum Separator { none, left, right, top }
 
 class ApiParamConfig {
   final Separator modeSeparator;
   final bool withBtnAddMock;
   final bool modeMock;
   final Widget? action;
+  final bool autoSave;
 
   ApiParamConfig({
     required this.action,
     required this.modeSeparator,
     required this.withBtnAddMock,
     required this.modeMock,
+    required this.autoSave,
   });
 }
 
@@ -43,7 +45,7 @@ class PanApiParam extends StatefulWidget {
     required this.config,
   });
 
-  final WidgetRequestHelper requestHelper;
+  final WidgetAPIHelper requestHelper;
   final ApiParamConfig config;
 
   @override
@@ -60,15 +62,24 @@ class _PanApiParamState extends State<PanApiParam> {
   @override
   Widget build(BuildContext context) {
     repaintManager.addTag(ChangeTag.apiparam, "_PanApiParamState", this, () {
-      // Future.delayed(Duration(milliseconds: 100)).then((_) {
       textConfigBody!.repaintCode();
       if (keyBtnSave.currentState?.mounted ?? false) {
         keyBtnSave.currentState?.setState(() {});
       }
-      //});
-
       return false;
     });
+
+    repaintManager.addTag(
+      ChangeTag.paramConfigChange,
+      "_PanApiParamState",
+      this,
+      () {
+        if (widget.config.autoSave) {
+          print("auto save param");
+        }
+        return false;
+      },
+    );
 
     return getContent(context);
   }
@@ -94,6 +105,10 @@ class _PanApiParamState extends State<PanApiParam> {
           bool hasScript =
               widget.requestHelper.apiCallInfo.postResponseStr.isNotEmpty ||
               widget.requestHelper.apiCallInfo.preRequestStr.isNotEmpty;
+          if (value != 0) {
+            widget.requestHelper.apiCallInfo.onParamConfigChange();
+          }
+
           return hasScript
               ? Badge(
                 backgroundColor: Colors.blue,
@@ -174,7 +189,9 @@ class _PanApiParamState extends State<PanApiParam> {
   ValueNotifier<String> errorParseBody = ValueNotifier('');
 
   Future<void> initBodyValidator(ModelSchema aSchema) async {
-    var export = Export2JsonSchema();
+    var export = Export2JsonSchema(
+      readOnly: widget.requestHelper.apiCallInfo.httpOperation == 'get',
+    );
     await export.browseSync(aSchema, false, 0);
     try {
       if ((export.json['properties'] as Map).isNotEmpty) {
@@ -210,6 +227,7 @@ class _PanApiParamState extends State<PanApiParam> {
           } else {
             config.notifError.value = '';
           }
+          widget.requestHelper.apiCallInfo.onParamConfigChange();
         } catch (e) {
           config.notifError.value = '$e';
         }
@@ -239,7 +257,7 @@ class _PanApiParamState extends State<PanApiParam> {
               var export = Export2FakeJson(
                 modeArray: ModeArrayEnum.anyInstance,
                 mode: ModeEnum.fake,
-                propMode: PropertyRequiredEnum.all
+                propMode: PropertyRequiredEnum.all,
               )..browse(aSchema, false);
               widget.requestHelper.apiCallInfo.body = export.json;
               widget.requestHelper.apiCallInfo.bodyStr = export.prettyPrintJson(
@@ -256,7 +274,7 @@ class _PanApiParamState extends State<PanApiParam> {
   }
 
   Widget getContent(BuildContext ctx) {
-    return Row(
+    var w = Row(
       children: [
         if (widget.config.modeSeparator == Separator.left) VerticalSep(),
         Flexible(
@@ -295,6 +313,17 @@ class _PanApiParamState extends State<PanApiParam> {
         if (widget.config.modeSeparator == Separator.right) VerticalSep(),
       ],
     );
+
+    if (widget.config.modeSeparator == Separator.top) {
+      return Column(
+        children: [
+          Divider(color: Colors.grey, thickness: 1),
+          Expanded(child: w),
+        ],
+      );
+    }
+
+    return w;
   }
 
   //TODO a faire marché
@@ -331,19 +360,23 @@ class _BtnApiSaveState extends State<BtnApiSave> {
       onPressed:
           isEditable()
               ? () async {
-                var jsonParam = widget.apiCallInfo.toParamJson();
-                bddStorage.addApiParam(
-                  widget.apiCallInfo.currentAPIRequest!,
-                  widget.apiCallInfo.selectedExample!.masterID!,
-                  'test',
-                  jsonParam,
-                );
+                doSaveParam();
 
                 //showSaveParamDialog(jsonParam, ctx);
                 //widget.apiCallInfo.initWithJson(jsonParam);
               }
               : null,
       label: Text('Save example $name'),
+    );
+  }
+
+  void doSaveParam() {
+    var jsonParam = widget.apiCallInfo.toParamJson();
+    bddStorage.addApiParam(
+      widget.apiCallInfo.currentAPIRequest!,
+      widget.apiCallInfo.selectedExample!.masterID!,
+      'test',
+      jsonParam,
     );
   }
 }

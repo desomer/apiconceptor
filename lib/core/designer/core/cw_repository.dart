@@ -15,6 +15,8 @@ class CwRepository {
   CwRepositorysitoryState designState = CwRepositorysitoryState();
   CwRepositorysitoryState viewerState = CwRepositorysitoryState();
 
+  CwWidgetCtx? pagerCtx;
+
   StateRepository get criteriaState =>
       aFactory.isModeDesigner()
           ? designState.criteriaState
@@ -40,6 +42,7 @@ class StateRepository extends StateManager {
   final CwRepository repository;
   bool isLoading = false;
   ModelSchema? schema;
+  int maxPageNumer = 0;
 
   StateRepository({required this.repository});
 
@@ -48,7 +51,7 @@ class StateRepository extends StateManager {
     var browserEmpty = Export2FakeJson(
       modeArray: ModeArrayEnum.anyInstance,
       mode: ModeEnum.empty,
-      propMode: PropertyRequiredEnum.all
+      propMode: PropertyRequiredEnum.all,
     );
     await browserEmpty.browseSync(schema, false, 0);
     dataEmpty = browserEmpty.json;
@@ -57,14 +60,14 @@ class StateRepository extends StateManager {
       var browserData = Export2FakeJson(
         modeArray: ModeArrayEnum.anyInstance,
         mode: ModeEnum.empty,
-        propMode: PropertyRequiredEnum.all
+        propMode: PropertyRequiredEnum.all,
       );
       await browserData.browseSync(schema, false, 0);
       data = browserData.json;
     }
   }
 
-  (String, String) getPathInfo(String pathData) {
+  (String, String) getSplitPathInfo(String pathData) {
     var p = pathData.lastIndexOf('/');
     String pathContainer = pathData.substring(0, p);
     String attrName = pathData.substring(p + 1);
@@ -152,7 +155,7 @@ class StateRepository extends StateManager {
     String path2Json, {
     required String widgetPath,
     required bool typeListContainer,
-    required bool inArray,
+    required bool inListOrArray,
     required CwWidgetStateBindJson state,
   }) {
     StringBuffer pathData = StringBuffer("");
@@ -193,9 +196,13 @@ class StateRepository extends StateManager {
             var rowState = listRowState[path];
             if (rowState != null) {
               rowidx = rowState.rowIdx;
-            } else if (repository.aFactory.isModeViewer() && !inArray) {
+            } else if (repository.aFactory.isModeViewer() && !inListOrArray) {
               // print("No row state for ${info.path} at $path");
-              registerRepaintOnSelect(widgetPath, path, state);
+              depsBindingManager.registerRepaintOnSelect(
+                widgetPath,
+                path,
+                state,
+              );
             }
             //lastContainer = lastContainer?.stateChild['$arrayName[$rowidx]'];
             p = '$arrayName[$rowidx]';
@@ -208,9 +215,13 @@ class StateRepository extends StateManager {
             } else {
               var path = "$pathData/$arrayName";
               var rowState = listRowState[path];
-              if (rowState == null && !inArray) {
+              if (rowState == null && !inListOrArray) {
                 // print("No row state for ${info.path} at $path");
-                registerRepaintOnSelect(widgetPath, path, state);
+                depsBindingManager.registerRepaintOnSelect(
+                  widgetPath,
+                  path,
+                  state,
+                );
               }
               // mode viewer on met -1 pour indiquer pas d'element
               p = '$arrayName[0]';
@@ -222,48 +233,5 @@ class StateRepository extends StateManager {
       lastContainer = lastContainer?.stateChild[p];
     }
     return pathData.toString();
-  }
-
-  void registerRepaintOnSelect(
-    String pathWidget,
-    String pathData,
-    CwWidgetStateBindJson state,
-  ) {
-    //remove all idx
-    pathData = pathData.replaceAll(RegExp(r'\[\d+\]'), '[]');
-    var pathDeps = listDepsContainerByPath.putIfAbsent(pathData, () => {});
-    //print(' register repaint on select for $pathData on $state $pathWidget id= ${repository.hashCode}');
-    pathDeps[pathWidget] = state;
-  }
-
-  void reloadDependentContainers(String pathData) {
-    var p = pathData.split('/');
-    var pathContainer = '';
-    for (var i = 1; i < p.length; i++) {
-      var path = p[i];
-      if (path.endsWith(']')) {
-        var startIdx = path.indexOf('[');
-        String arrayName = path.substring(0, startIdx);
-        var pc = '$pathContainer/$arrayName'.replaceAll(
-          RegExp(r'\[\d+\]'),
-          '[]',
-        );
-
-        //print(" reload dependent containers for $pc id= ${repository.hashCode}");
-        List<String> listDepsToRemove = [];
-        listDepsContainerByPath[pc]?.forEach((key, element) {
-          //print("repaint container $key for element $element ${element.pathData} ");
-          if (element.mounted) {
-            element.widget.ctx.repaint();
-          } else {
-            listDepsToRemove.add(key);
-          }
-        });
-        for (var key in listDepsToRemove) {
-          listDepsContainerByPath[pc]?.remove(key);
-        }
-      }
-      pathContainer += '/$path';
-    }
   }
 }

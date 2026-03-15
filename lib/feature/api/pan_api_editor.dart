@@ -9,7 +9,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/widget_request_helper.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_mock.dart';
@@ -17,6 +17,7 @@ import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_glowing_halo.dart';
@@ -42,13 +43,14 @@ class PanApiEditor extends StatefulWidget {
 
 class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
   String? url;
-  late WidgetRequestHelper requestHelper;
+  late WidgetAPIHelper requestHelper;
+  ValueNotifier<int> modelLoad = ValueNotifier<int>(0);
 
   @override
   Widget build(BuildContext context) {
-    var attr = currentCompany.listAPI!.nodeByMasterId[widget.idApi]!;
+    var attr = currentCompany.listAPI!.getNodeByMasterIdPath(widget.idApi)!;
     currentCompany.listAPI!.selectedAttr = attr;
-    requestHelper = WidgetRequestHelper(
+    requestHelper = WidgetAPIHelper(
       apiNode: currentCompany.listAPI!.selectedAttr!,
       apiCallInfo: getAPICall(
         currentCompany.currentNameSpace,
@@ -70,7 +72,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
       listTab: [
         Tab(text: 'Definition'),
         Tab(text: 'Documentation'),
-        Tab(text: 'Parameters examples'),
+        Tab(text: 'Parameters book'),
         Tab(text: 'Mock responses'),
         Tab(
           child: Row(
@@ -93,7 +95,16 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
             Expanded(child: getDefinitionApiTab()),
           ],
         ),
-        WidgetDoc(),
+        ValueListenableBuilder(
+          valueListenable: modelLoad,
+          builder: (context, value, child) {
+            if (requestHelper.apiCallInfo.currentAPIRequest == null) {
+              return Center(child: CircularProgressIndicator());
+            }
+            return WidgetDoc(accessorAttr: getDocAccessor());
+          },
+        ),
+
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -134,6 +145,18 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
       ],
       heightTab: 40,
     );
+  }
+
+  ModelAccessorAttr getDocAccessor() {
+    ModelSchema model = requestHelper.apiCallInfo.currentAPIRequest!;
+    var examplesNode = model.getExtendedNode("#doc");
+
+    var access = ModelAccessorAttr(
+      node: examplesNode,
+      schema: model,
+      propName: '#doc',
+    );
+    return access;
   }
 
   Widget getBrowseModel() {
@@ -214,16 +237,26 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
           tabSubApi?.animateTo(3);
         },
       ),
-      requesthelper: requestHelper,
+      requestHelper: requestHelper,
       getSchemaFct: () async {
         var model = ModelSchema(
           category: Category.exampleApi,
           headerName: 'example',
           id: 'example/temp/${widget.idApi}',
           infoManager: InfoManagerApiExample(),
-          ref: null,
+          refDomain: null,
         );
-        await model.loadYamlAndProperties(cache: false, withProperties: true);
+
+        const empty = '''
+# Example of API request
+YourExample : example
+''';
+
+        await model.loadYamlAndProperties(
+          cache: false,
+          withProperties: true,
+          ifEmpty: empty,
+        );
         return model;
       },
     );
@@ -249,12 +282,14 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
       listTabCont: [
         PanRequestApi(
           getSchemaFct: () async {
-            return await GoTo().getApiRequestModel(
+            var r = await GoTo().getApiRequestModel(
               requestHelper.apiCallInfo,
               currentCompany.listAPI!.namespace!,
               widget.idApi,
               withDelay: false,
             );
+            modelLoad.value++;
+            return r;
           },
         ),
 

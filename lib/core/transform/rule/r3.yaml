@@ -1,0 +1,36 @@
+# R003_parse_date.yaml
+id: R003
+name: parse_date
+category: casting
+description: Parse une date depuis un format donné et renvoie ISO date
+scope: field
+inputs:
+  - path: field
+    type: string
+params:
+  - name: format
+    type: string
+    example: "dd/MM/yyyy"
+  - name: on_error
+    type: string
+    enum: [null, default, dlq]
+    default: null
+  - name: default_value
+    type: string
+    nullable: true
+example:
+  input: { "birthDate": "17/02/1985" }
+  output: { "dob": "1985-02-17" }
+tests:
+  - id: T_R003_01
+    type: unit
+    input: { "birthDate": "31/12/2020" }
+    expected: { "dob": "2020-12-31" }
+  - id: T_R003_02
+    type: unit
+    input: { "birthDate": "invalid" }
+    expected: { "dob": null }
+severity: medium
+action_on_error: on_error
+complexity: low
+implementation_notes: "Utiliser parse lib robuste; documenter formats acceptés"

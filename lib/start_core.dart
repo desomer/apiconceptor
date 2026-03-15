@@ -12,7 +12,8 @@ import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
-import 'package:jsonschema/pages/apps/data_sources_page.dart';
+import 'package:jsonschema/pages/content/content_map_page.dart';
+import 'package:jsonschema/pages/datasource/data_sources_page.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
@@ -108,9 +109,9 @@ Future<ModelSchema> loadAPI({required String id, String? namespace}) async {
   var currentAPIResquest = ModelSchema(
     category: Category.api,
     infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
-    headerName: "Parameters query, header, cookies, body",
+    headerName: "API paramameters",
     id: id,
-    ref: null, // currentCompany.listModel,
+    refDomain: null, // currentCompany.listModel,
   );
 
   currentAPIResquest.namespace = namespace;
@@ -129,7 +130,7 @@ Future<ModelSchema> loadAllAPI({String? namespace}) async {
     headerName: 'API Route Path',
     id: 'api',
     infoManager: InfoManagerAPI(),
-    ref: null,
+    refDomain: null,
   );
   allApi.namespace = namespace ?? currentCompany.currentNameSpace;
 
@@ -155,7 +156,7 @@ Future<ModelSchema> loadGlossary(String id, String name) async {
     headerName: name,
     id: id,
     infoManager: InfoManagerGlossary(),
-    ref: null,
+    refDomain: null,
   );
   schema.namespace = "default";
   if (withBdd) {
@@ -181,7 +182,7 @@ Future<ModelSchema> loadContent(
     headerName: name,
     id: 'listContent/$idDomain/$idEnv',
     infoManager: InfoManagerContent(),
-    ref: null,
+    refDomain: null,
   );
 
   if (withBdd) {
@@ -201,7 +202,7 @@ Future<ModelSchema> loadDataSource(String idDomain, bool cache) async {
     headerName: "pages",
     id: 'listPages/$idDomain',
     infoManager: InfoManagerPages(),
-    ref: null,
+    refDomain: null,
   );
   schema.namespace = "default";
 
@@ -214,7 +215,30 @@ Future<ModelSchema> loadDataSource(String idDomain, bool cache) async {
     }
   }
   schema.namespace = "default";
-  currentCompany.listPage = schema;
+  currentCompany.listDataSrc = schema;
+  return schema;
+}
+
+Future<ModelSchema> loadDataMap(String idDomain, bool cache) async {
+  var schema = ModelSchema(
+    category: Category.dataMap,
+    headerName: "dataMap",
+    id: 'dataMap/$idDomain',
+    infoManager: InfoManagerDataMap(),
+    refDomain: null,
+  );
+  schema.namespace = idDomain;
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  schema.namespace = idDomain;
+  currentCompany.currentDataMap = schema;
   return schema;
 }
 
@@ -229,7 +253,7 @@ Future<ModelSchema> loadVarEnv(
     headerName: name,
     id: 'var/$idDomain/$idEnv',
     infoManager: InfoManagerDomainVariables(),
-    ref: null,
+    refDomain: null,
   )..namespace = idDomain;
 
   if (withBdd) {
@@ -252,6 +276,9 @@ Future<ModelSchema> loadSchema(
   InfoManager? infoManager,
   JsonBrowser? browser,
   String? namespace,
+  ModelVersion? version,
+  bool sync = false,
+  ModelSchema? ref,
 }) async {
   if (category == null && type == TypeMD.listmodel) {
     infoManager = InfoManagerListModel(typeMD: type);
@@ -262,14 +289,19 @@ Future<ModelSchema> loadSchema(
     headerName: name,
     id: id,
     infoManager: infoManager ?? InfoManagerModel(typeMD: type),
-    ref: null,
+    refDomain: ref,
   );
   m.namespace ??= namespace;
+  m.currentVersion = version;
   m.typeBreabcrumb = typeBread;
   if (withBdd) {
     try {
       await m.loadYamlAndProperties(cache: false, withProperties: true);
-      (browser ?? BrowseModel()).browse(m, false);
+      if (sync) {
+        await (browser ?? BrowseModel()).browseSync(m, true, 0);
+      } else {
+        (browser ?? BrowseModel()).browse(m, true);
+      }
     } on Exception catch (e) {
       print('$e');
       startError.add("$e");
@@ -281,7 +313,7 @@ Future<ModelSchema> loadSchema(
 const constMasterID = '\$\$__id__';
 const constTypeAnyof = '\$\$__anyof__';
 const constNameAllof = '\$allof';
-const constInline = '\$inline';
+const constInherit = '\$inherit';
 //const constTypeOneof = '\$\$__oneOf__';
 const constRefOn = '\$\$__ref__';
 const constType = '\$\$__type__';

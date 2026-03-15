@@ -522,12 +522,13 @@ class PanToUi
       List<Widget> contents = [];
 
       for (var element in rowTab) {
-        tabs.add(
-          Tooltip(
-            message: element.messageTooltip ?? '',
-            child: Tab(text: camelCaseToWordsCapitalized(element.name)),
-          ),
-        );
+        // tabs.add(
+        //   Tooltip(
+        //     message: element.messageTooltip ?? '',
+        //     child: Tab(text: camelCaseToWordsCapitalized(element.name)),
+        //   ),
+        // );
+        tabs.add(Tab(child: Text(camelCaseToWordsCapitalized(element.name))));
         contents.add(element.widget);
       }
       dest.add(
