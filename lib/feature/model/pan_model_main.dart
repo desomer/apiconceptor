@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_action_hub.dart';
 import 'package:jsonschema/feature/model/pan_model_selector.dart';
@@ -32,6 +33,7 @@ class WidgetModelMain extends StatelessWidget with WidgetHelper {
           'Business models',
           TypeModelBreadcrumb.businessmodel,
           namespace: currentCompany.currentNameSpace,
+          config: BrowserConfig(),
         );
         return currentCompany.listModel!;
       },

@@ -81,6 +81,7 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
         modeArray: ModeArrayEnum.randomInstance,
         mode: ModeEnum.fake,
         propMode: PropertyRequiredEnum.all,
+        config: BrowserConfig(),
       );
       await dataFake.browseSync(modelLoaded!, false, 0);
       json2ui.stateMgr.data = dataFake.json;
@@ -165,6 +166,7 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
           modeArray: ModeArrayEnum.randomInstance,
           mode: ModeEnum.fake,
           propMode: PropertyRequiredEnum.all,
+          config: BrowserConfig(),
         );
         await dataFake.browseSync(modelLoaded!, false, 0);
         json2ui.loadData(dataFake.json);

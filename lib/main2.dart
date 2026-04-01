@@ -35,7 +35,7 @@ class _NewWidgetState extends State<NewWidget> {
             buildBottomCell: (row, col) => FooterCell("R$row Sum $col"),
             buildLeftCell: (row, col) => LeftCell("R $row Col $col"),
             buildBodyCell: (row, col) => BodyCell("R$row C$col"),
-            getColWidth: (int col) {
+            getColWidth: (int col, double usedWidth, bool isCalc, int nbFillCol) {
               if (col == 2 || col % 3 == 0) {
                 return 200;
               }

@@ -41,7 +41,7 @@ class PanDestSelector extends PanYamlTree with WidgetModelViewerHelper {
       modeArray: ModeArrayEnum.anyInstance,
       mode: ModeEnum.fake,
       propMode: PropertyRequiredEnum.all,
-      readOnly: null,
+      config: BrowserConfig(isApi: m.readOnly != null),
     )..browse(m, false);
     jsonToDisplay = exportFake.json;
     onMapping?.call(jsonToDisplay);

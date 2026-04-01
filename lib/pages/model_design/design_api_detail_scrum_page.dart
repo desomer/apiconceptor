@@ -4,6 +4,7 @@ import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/documentation/pan_scrum.dart';
+import 'package:jsonschema/pages/model_design/design_api_detail_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -50,27 +51,7 @@ class DesignApiDetailScrumPage extends GenericPageStateless {
     var goTo = GoTo();
 
     return NavigationInfo()
-      ..navLeft = [
-        BreadNode(
-          icon: const Icon(Icons.api_outlined),
-          settings: const RouteSettings(name: 'API Spec.'),
-          type: BreadNodeType.widget,
-          path: Pages.apiDetail.id(query),
-        ),
-
-        BreadNode(
-          icon: const Icon(Icons.api_outlined),
-          settings: const RouteSettings(name: 'API UI'),
-          type: BreadNodeType.widget,
-          path: Pages.apiUI.id(query),
-        ),
-        BreadNode(
-          icon: const Icon(Icons.airplane_ticket),
-          settings: const RouteSettings(name: 'Scrum'),
-          type: BreadNodeType.widget,
-          path: Pages.apiScrum.id(query),
-        ),
-      ]
+      ..navLeft = getLeftNavApi(query)
       ..breadcrumbs = [
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),

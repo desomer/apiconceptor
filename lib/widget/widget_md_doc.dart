@@ -106,7 +106,7 @@ query:
 header:
    header1 : string    
 
-cookies:        
+cookie:        
    cookie1 : string 
 
 # body with model

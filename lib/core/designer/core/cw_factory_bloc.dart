@@ -1,3 +1,4 @@
+// ignore: depend_on_referenced_packages
 import 'package:collection/collection.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/designer/editor/engine/behavior_manager.dart';
@@ -79,7 +80,7 @@ class CwFactoryBloc with NameMixin {
       ds,
     );
 
-    var listAttrSelected = ds.selectionConfig;
+    var listAttrSelected = ds.panBuilderConfig;
     var propContainer = <String, dynamic>{};
     Map<String, dynamic>? containerData = _initContainer(
       ds,
@@ -239,6 +240,18 @@ class CwFactoryBloc with NameMixin {
           },
         },
       });
+      ctx.aFactory.addInSlot(containerData, 'h-row', {
+        cwImplement: 'row',
+        cwProps: <String, dynamic>{
+          "style": {
+            "pleft": 5,
+            "pright": 5,
+            "mleft": 10,
+            "mright": 10,
+            "bSize": 1,
+          },
+        },
+      });
     } else {
       // add form container
       propContainer.addAll(<String, dynamic>{
@@ -276,7 +289,7 @@ class CwFactoryBloc with NameMixin {
       bind = {'computedId': attrSelected['id'], 'repository': repositoryId};
     } else {
       info = model!.getNodeByMasterIdPath(attrSelected['id'])!.info;
-      String? attr = info.masterID;
+      String? attr = attrSelected['id'];
       String v = info.path;
       int inArrayIdx = v.lastIndexOf("[]");
       if (inArrayIdx > 0) {
@@ -288,7 +301,7 @@ class CwFactoryBloc with NameMixin {
       }
       if (v.endsWith('[]')) {
         // tableau de string ou nombre
-        attr = 'self@${info.masterID}';
+        attr = 'self@$attr';
       }
       bind = {
         'attr': attr,
@@ -297,18 +310,65 @@ class CwFactoryBloc with NameMixin {
       };
     }
 
+    var tableStyle = ds.typeLayout == 'Table';
+    if (ctx.hasParentOfType(['table'])) {
+      tableStyle = true;
+    }
+
     var container = containerData;
     String slot = 'cell_$i';
+    String type = 'textfield';
+    Map<String, dynamic> slotStyle = {};
 
-    ctx.aFactory.addInSlot(container, slot, {
-      cwImplement: 'input',
-      cwProps: <String, dynamic>{
-        'label': camelCaseToWords(info?.name ?? attrSelected['label']),
-        'type': 'textfield',
+    switch (attrSelected['widget']) {
+      case 'input':
+        type = 'textfield';
+        if (tableStyle) {
+          slotStyle = {"dense": true};
+        }
+        break;
+      case 'label':
+        type = 'label';
+        break;
+      case 'icon':
+        type = 'icon';
+        break;
+      case 'indicator':
+        type = 'icon';
+        break;
+      case 'action':
+        type = 'action';
+        break;
+      default:
+        break;
+    }
+
+    if (type == 'action') {
+      var data = ctx.aFactory.addInSlot(container, slot, {
+        cwImplement: 'action',
+        cwProps: <String, dynamic>{
+          'label': camelCaseToWords(info?.name ?? attrSelected['label']),
+          'bind': bind,
+        },
+      });
+      Map<String, dynamic> onPress = {
+        "operation": "action",
+        "repository": repositoryId,
+        "idAction": "computed",
         'bind': bind,
-        if (ds.typeLayout == 'Table') "style": {"appearance": "custom"},
-      },
-    });
+      };
+      BehaviorManager.addBehavior(data, type: 'repository', data: onPress);
+    } else {
+      ctx.aFactory.addInSlot(container, slot, {
+        cwImplement: 'input',
+        cwProps: <String, dynamic>{
+          'label': camelCaseToWords(info?.name ?? attrSelected['label']),
+          'type': type,
+          'bind': bind,
+          if (tableStyle) "style": {"appearance": "custom", ...slotStyle},
+        },
+      });
+    }
 
     if (ds.typeLayout == 'Table') {
       // ajout des header

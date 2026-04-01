@@ -53,7 +53,9 @@ class _PanApiSelectorTagState extends State<PanApiSelectorTag>
   }
 
   Widget _getContent(BuildContext context) {
-    ExportToSwagger export = ExportToSwagger();
+    ExportToSwagger export = ExportToSwagger(
+      config: BrowserConfig(isApi: true),
+    );
     export.browse(_schema, false);
 
     return ListView.builder(

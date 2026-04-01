@@ -7,7 +7,8 @@ import 'package:jsonschema/core/designer/editor/view/bloc_drag_components.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_factory_bloc.dart';
 import 'package:jsonschema/core/designer/editor/view/bloc_drag_pages.dart';
-import 'package:jsonschema/main.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
@@ -29,7 +30,14 @@ class _PageDesignerState extends State<PageDesigner> {
   void initState() {
     Map app = widget.factory.appData[cwApp] ?? {};
     if (app.isEmpty) {
-      var d = prefs.getString("page_designer_data");
+      var attr = currentCompany.currentApps!.selectedAttr!;
+      var accessor = ModelAccessorAttr(
+        node: attr,
+        schema: currentCompany.currentApps!,
+        propName: 'appData',
+      );
+
+      var d = accessor.get();
       if (d != null) {
         var saveData = jsonDecode(d);
         CwFactoryBloc()
@@ -59,13 +67,22 @@ class _PageDesignerState extends State<PageDesigner> {
 
     if (isInitialized) {
       isInitialized = false;
-      widget.factory.onStarted?.call();
+      widget.factory.onStarted?.call(context);
     }
     Widget rootSlot = widget.factory.getRootSlot('/');
 
     if (widget.mode == DesignMode.viewer) {
       var j = jsonEncode(widget.factory.appData);
-      prefs.setString("page_designer_data", j);
+
+      var attr = currentCompany.currentApps!.selectedAttr!;
+      var accessor = ModelAccessorAttr(
+        node: attr,
+        schema: currentCompany.currentApps!,
+        propName: 'appData',
+      );
+
+      accessor.set(j);
+      //prefs.setString("page_designer_data_${widget.factory.id}", j);
 
       return PagesDesignerViewer(
         cWDesignerMode: false,

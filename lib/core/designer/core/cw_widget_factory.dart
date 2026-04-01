@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_inputSearch.dart';
 import 'package:jsonschema/core/designer/editor/view/bloc_properties.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_app.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_page_indicator.dart';
@@ -90,8 +91,8 @@ class WidgetFactory {
   GlobalKey scaleKey100 = GlobalKey(debugLabel: 'scaleKey100');
   GlobalKey scaleKeyMax = GlobalKey(debugLabel: 'scaleKeyMax');
 
-  ValueNotifier<String>? routeControllerDesigner;
-  ValueNotifier<String>? routeControllerViewer;
+  // ValueNotifier<String>? routeControllerDesigner;
+  // ValueNotifier<String>? routeControllerViewer;
 
   List<Map> listSlotsPageInRouter = [];
   Map<String, String> mapPath2PathSlot = {};
@@ -148,8 +149,13 @@ class WidgetFactory {
   Function? onStarted;
 
   TabController? controllerTabProps;
-  GoRouter? router;
+  GoRouter? routerDesigner;
+  GoRouter? routerViewer;
+  String? currentRoute;
   late WidgetFactoryProperty cwFactoryProps;
+
+  CwSlot? rootSlot;
+  String? id;
 
   WidgetFactory() {
     CwApp.initFactory(this);
@@ -164,6 +170,7 @@ class WidgetFactory {
     CwTable.initFactory(this);
     CwRow.initFactory(this);
     CwAdvancedPager.initFactory(this);
+    CwInputSearch.initFactory(this);
 
     cwFactoryProps = WidgetFactoryProperty(cwFactory: this);
   }
@@ -292,8 +299,6 @@ class WidgetFactory {
     return w;
   }
 
-  CwSlot? rootSlot;
-
   Widget getRootSlot(String routePath) {
     var d = appData[cwApp];
 
@@ -303,9 +308,10 @@ class WidgetFactory {
     if (withWidgetCache &&
         rootSlot != null &&
         rootCtx != null &&
-        rootCtx!.getData()![cwRoutePath] == routePath) {
+        (rootCtx!.getData()![cwRoutePath]) == routePath) {
       return rootSlot!;
     }
+    print("create root slot for route $routePath");
 
     rootCtx =
         CwWidgetCtx(slotId: d[cwSlotId], aFactory: this, parentCtx: null)
@@ -320,6 +326,15 @@ class WidgetFactory {
 
   CwWidgetCtx? findByPath(String path) {
     return rootCtx?.findByPath(path);
+  }
+
+  void gotoUrl(String url) {
+    currentRoute = url;
+    if (isModeDesigner()) {
+      routerDesigner?.push(url);
+    } else {
+      routerViewer?.push(url);
+    }
   }
 }
 

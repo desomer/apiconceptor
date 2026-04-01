@@ -101,7 +101,9 @@ mixin UIMixin {
     ConfigBlock? config,
   ) async {
     if (aJson2ui.aExport == null) {
-      aJson2ui.aExport = Export2UI();
+      aJson2ui.aExport = Export2UI(
+        config: BrowserConfig(),
+      );
       await aJson2ui.aExport!.browseSync(modelLoaded!, false, 0);
     }
     Export2UI export = aJson2ui.aExport!;
@@ -153,6 +155,7 @@ mixin UIMixin {
 
     if (stateManager.dataEmpty == null) {
       var dataEmpty = Export2FakeJson(
+        config: BrowserConfig(),
         modeArray: ModeArrayEnum.anyInstance,
         mode: ModeEnum.empty,
         propMode: PropertyRequiredEnum.all,
@@ -162,6 +165,7 @@ mixin UIMixin {
 
       if (stateManager.data == null) {
         var data = Export2FakeJson(
+          config: BrowserConfig(),
           modeArray: ModeArrayEnum.anyInstance,
           mode: ModeEnum.empty,
           propMode: PropertyRequiredEnum.all,

@@ -109,6 +109,10 @@ class CwRepositoryAction {
         modeArray: ModeArrayEnum.randomInstance,
         mode: ModeEnum.fake,
         propMode: PropertyRequiredEnum.all,
+        config: BrowserConfig(
+          isApi: repo.dataState.schema?.readOnly != null,
+          refTarget: '\$def',
+        ),
       );
       await browserEmpty.browseSync(repo.dataState.schema!, false, 0);
       var data = browserEmpty.json;
@@ -135,6 +139,10 @@ class CwRepositoryAction {
           modeArray: ModeArrayEnum.randomInstance,
           mode: ModeEnum.fake,
           propMode: PropertyRequiredEnum.all,
+          config: BrowserConfig(
+            isApi: repo.dataState.schema?.readOnly != null,
+            refTarget: '\$def',
+          ),
         );
         await browserEmpty.browseSync(repo.dataState.schema!, false, 0);
         var data = browserEmpty.json;
@@ -148,7 +156,7 @@ class CwRepositoryAction {
 
   Future<String?> getLinkDataInSession(Map<String, dynamic> link) async {
     var pages = await loadDataSource("all", false);
-    BrowseSingle().browse(pages, false);
+    BrowseSingle(config: BrowserConfig()).browse(pages, false);
     String toDatasrc = link['linkTo'];
     String pathValue = link['onPath'];
     var attr = pages.mapInfoByName[toDatasrc];
@@ -192,7 +200,8 @@ class CwRepositoryAction {
 
   int _getMaxPage() {
     var data = repo.dataState.data;
-    var paginationVariable = repo.ds.config.data.paginationVariable!;
+    var paginationVariable = repo.ds.config.data.paginationVariable;
+    if (paginationVariable == null) return 0;
     var page = findValueByKey(data, paginationVariable);
     if (page is String) {
       return int.tryParse(page) ?? 0;

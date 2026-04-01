@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
 import 'package:highlight/languages/yaml.dart';
 import 'package:json2yaml/json2yaml.dart';
-import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/pages/content/content_map_page_detail.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
@@ -17,7 +16,7 @@ class MappingEnginePage extends GenericPageStateless {
   const MappingEnginePage({super.key});
 
   @override
-  bool isCacheValid(GoRouterState state, String uri) {
+  bool isCacheValid(GoRouterState state, String uri, BuildContext context) {
     return false;
   }
 
@@ -58,14 +57,14 @@ class MappingEnginePage extends GenericPageStateless {
     );
   }
 
-  WidgetFactory getFactory(String keyFactory) {
-    WidgetFactory? f = cacheLinkPage.get(keyFactory);
-    if (f == null) {
-      f = WidgetFactory();
-      cacheLinkPage.put(keyFactory, f);
-    }
-    return f;
-  }
+  // WidgetFactory getFactory(String keyFactory, BuildContext context) {
+  //   WidgetFactory? f = cacheLinkPage.get(keyFactory);
+  //   if (f == null) {
+  //     f = WidgetFactory();
+  //     cacheLinkPage.put(keyFactory, f);
+  //   }
+  //   return f;
+  // }
 
   @override
   NavigationInfo? initNavigation(

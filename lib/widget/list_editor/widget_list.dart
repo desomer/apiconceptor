@@ -4,6 +4,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
 
 typedef IsSelected<T> =
     bool Function(T node, State? current, State? oldSelectedState);
@@ -17,10 +18,10 @@ class WidgetList<T extends NodeAttribut> extends StatefulWidget {
     required this.model,
     required this.isSelected,
     this.onSelectRow,
-    this.withSpacer=true,
+    this.withSpacer = true,
   });
 
-  final Function getNewAttribut;
+  final T Function() getNewAttribut;
   final Function loadAll;
   final Function onSave;
   final ModelSchema model;
@@ -32,7 +33,7 @@ class WidgetList<T extends NodeAttribut> extends StatefulWidget {
   State<WidgetList<T>> createState() => _WidgetListState();
 }
 
-class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
+class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> with WidgetHelper {
   final List<T> _choices = [];
 
   void _addChoice() {
@@ -105,13 +106,21 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
         context,
       );
       if (widget.withSpacer) cells.add(Spacer());
-      if (!widget.withSpacer) cells.add(SizedBox(width: 20,));
+      if (!widget.withSpacer) cells.add(SizedBox(width: 20));
       cells.add(
         Padding(
           padding: EdgeInsets.only(right: 50),
           child: InkWell(
             child: Icon(Icons.highlight_off),
-            onTap: () => _removeChoice(index),
+            onTap: () async {
+              bool result = await askUser(
+                context,
+                'Confirmation',
+                'Are you sure you want to remove ${choice.info.name} ?',
+              );
+              if (!result) return;
+              return _removeChoice(index);
+            },
           ),
         ),
       );
@@ -175,8 +184,7 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> {
 
   Widget getHover(Key key, T attr, Widget child) {
     return HoverableCard(
-      onBuild: (state, ctx) {
-      },
+      onBuild: (state, ctx) {},
       key: key,
       isSelected: (State state) {
         bool isSelected = widget.isSelected(attr, state, rowSelectedState);

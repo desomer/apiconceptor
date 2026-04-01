@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/feature/home/background_screen.dart';
 import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/pages/router_layout.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
+import 'package:jsonschema/widget/widget_zoom_selector.dart';
 
 mixin GenericPage {
   NavigationInfo? initNavigation(
@@ -10,6 +13,28 @@ mixin GenericPage {
     BuildContext context,
     PageInit? pageInit,
   );
+
+  List<Widget> getDefaultActionModel() {
+    return [
+      WidgetSearchText(),
+      Text('   Open factor '),
+      WidgetZoomSelector(zoom: openFactor),
+      // IconButton(
+      //   icon: const Icon(Icons.search),
+      //   tooltip: 'Rechercher',
+      //   onPressed: () {
+      //     // Action de recherche
+      //   },
+      // ),
+      // IconButton(
+      //   icon: const Icon(Icons.notifications),
+      //   tooltip: 'Notifications',
+      //   onPressed: () {
+      //     // Action de notification
+      //   },
+      // ),
+    ];
+  }
 
   Widget getBackground(int num, Widget child) {
     return Stack(
@@ -32,9 +57,10 @@ abstract class GenericPageStateless extends StatelessWidget with GenericPage {
 
   const GenericPageStateless({super.key});
 
-  bool isCacheValid(GoRouterState state, String uri) {
+  bool isCacheValid(GoRouterState state, String uri, BuildContext context) {
     return true;
   }
+
 }
 
 // ignore: must_be_immutable
@@ -87,4 +113,5 @@ abstract class GenericPageState<T extends StatefulWidget> extends State<T>
 class NavigationInfo {
   List<BreadNode> breadcrumbs = [];
   List<BreadNode> navLeft = [];
+  List<Widget> actions = [];
 }

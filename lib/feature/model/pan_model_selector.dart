@@ -76,14 +76,14 @@ class PanModelSelector extends PanYamlTree {
           ),
         ),
       );
-      row.add(
-        TextButton.icon(
-          onPressed: () async {
-            node.doTapHeader();
-          },
-          label: Icon(Icons.remove_red_eye),
-        ),
-      );
+      // row.add(
+      //   TextButton.icon(
+      //     onPressed: () async {
+      //       node.doTapHeader();
+      //     },
+      //     label: Icon(Icons.remove_red_eye),
+      //   ),
+      // );
       row.add(
         TextButton.icon(
           icon: Icon(Icons.import_export),

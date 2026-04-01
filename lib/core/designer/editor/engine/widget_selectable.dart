@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:jsonschema/core/compute/compute_manager.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_animated_drag.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
@@ -12,6 +13,7 @@ import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
+import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
 var currentSelectorManager = WidgetSelectorManager();
 
@@ -55,6 +57,66 @@ class WidgetSelectorManager {
       lastSelectedCtx = ctx;
       ctx?.aFactory.lastSelectedCtx = ctx;
       lastSelectedTime = DateTime.now().millisecondsSinceEpoch;
+
+      BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.clear();
+
+      String? impl = ctx?.dataWidget?[cwImplement];
+      Map? bind = ctx?.dataWidget?[cwProps]?['bind'];
+
+      BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
+        BreadNode(
+          settings: RouteSettings(name: impl?.toString() ?? "?"),
+          type: BreadNodeType.widget,
+        ),
+      );
+
+      if (ctx?.widgetState is CwWidgetStateBindJson) {
+        CwWidgetStateBindJson s = ctx?.widgetState as CwWidgetStateBindJson;
+        if (s.bindInfo.computedInfo != null) {
+          String name =
+              '${s.bindInfo.repository?.ds.dsName}';
+          BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
+            BreadNode(
+              settings: RouteSettings(name: name),
+              type: BreadNodeType.widget,
+            ),
+          );
+
+          name = s.bindInfo.computedInfo!['name'] ?? '?';
+          BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
+            BreadNode(
+                settings: RouteSettings(name: 'computed: $name'),
+                type: BreadNodeType.widget,
+              )
+              ..tooltip = s.bindInfo.computedInfo!['expression']
+              ..onTap = () {
+                ComputeManager().editCompute(
+                  ctx!,
+                  ctx.aFactory.designRootKey.currentContext!,
+                );
+              },
+          );
+        } else {
+          String name = '${bind?['from']} of ${s.bindInfo.repository?.ds.dsName}';
+          BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
+            BreadNode(
+              settings: RouteSettings(name: name),
+              type: BreadNodeType.widget,
+            ),
+          );
+          name = '${s.bindInfo.bindAttribut?.getJsonPath(withRoot: false)}';
+          BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
+            BreadNode(
+              settings: RouteSettings(name: name),
+              type: BreadNodeType.widget,
+            ),
+          );
+        }
+      }
+
+      // ignore: invalid_use_of_protected_member
+      BreadCrumbNavigator.keyBreadcrumb.currentState?.setState(() {});
+
       return (true, true);
     }
     return (false, false);
@@ -299,8 +361,8 @@ class WidgetSelectableState extends State<WidgetSelectable> {
       // remplace par un container vide orange pendant le drag
       childWhenDragging: Container(
         color: Colors.orangeAccent.withAlpha(50),
-        width: ctx.selectorCtxIfDesign?.lastSize?.width ?? 20,
-        height: ctx.selectorCtxIfDesign?.lastSize?.height ?? 40,
+        width: ctx.selectorCtxIfDesign?.lastSizeForDrag?.width ?? 20,
+        height: ctx.selectorCtxIfDesign?.lastSizeForDrag?.height ?? 40,
       ),
       onDragEnd: (details) {
         currentSelectorManager.draggingWidget = null;
@@ -468,18 +530,19 @@ class WidgetSelectableState extends State<WidgetSelectable> {
     var ctx = widget.slotConfig!.ctx;
     WidgetFactory factory = ctx.aFactory;
     var keybox = ctx.getBoxKey()!;
-    var p = TKPosition.getPosition(
-      factory.designViewPortKey,
-      factory.designRootKey,
-    );
+    var p = TKPosition.getPosition(factory.designerKey, factory.designRootKey);
 
     CWRec recSlot = CWRec();
-    initRecWithKeyPosition(keybox, factory.designerKey, recSlot, ctx);
-    recSlot.top += p!.dy + d.localPosition.dy;
-    recSlot.left += p.dx + d.localPosition.dx;
+    initRecWithKeyPosition(
+      keybox,
+      factory.designViewPortKey,
+      recSlot,
+      ctx,
+      event: d,
+    );
+    recSlot.top += p!.dy;
+    recSlot.left += p.dx;
     factory.popupActionKey.currentState?.open(recSlot);
-
-    //debugPrint('$p $recSlot');
   }
 
   // lock le block (pour drag) aprés une selection
@@ -568,7 +631,7 @@ class WidgetSelectableState extends State<WidgetSelectable> {
         captureKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
 
     if (boundary == null) return null;
-    widget.slotConfig?.ctx.selectorCtx.lastSize = boundary.size;
+    widget.slotConfig?.ctx.selectorCtx.lastSizeForDrag = boundary.size;
     if (boundary.debugNeedsPaint) {
       return null;
     }
@@ -622,9 +685,10 @@ RenderBox? initRecWithKeyPosition(
   GlobalKey selectedKey,
   GlobalKey sourceKey,
   CWRec rectToInit,
-  CwWidgetCtx ctx,
-) {
-  final Offset? position = TKPosition.getPosition(selectedKey, sourceKey);
+  CwWidgetCtx ctx, {
+  PointerDownEvent? event,
+}) {
+  Offset? position = TKPosition.getPosition(selectedKey, sourceKey);
 
   if (position == null) {
     print(
@@ -633,7 +697,14 @@ RenderBox? initRecWithKeyPosition(
     return null;
   }
 
-  var designerKey = ctx.aFactory.designViewPortKey;
+  if (event != null) {
+    position = position.translate(
+      event.localPosition.dx,
+      event.localPosition.dy,
+    );
+  }
+
+  var designerKey = ctx.aFactory.designerKey;
 
   Offset positionRefMin =
       TKPosition.getPosition(ctx.aFactory.scaleKeyMin, designerKey)!;
@@ -641,21 +712,24 @@ RenderBox? initRecWithKeyPosition(
       TKPosition.getPosition(ctx.aFactory.scaleKey100, designerKey)!;
   Offset positionRefMax =
       TKPosition.getPosition(ctx.aFactory.scaleKeyMax, designerKey)!;
-  double previewPixelRatio = (positionRef100.dx - positionRefMin.dx) / 100;
+
+  double previewPixelRatioX = (positionRef100.dx - positionRefMin.dx) / 100;
+  double previewPixelRatioY = (positionRef100.dy - positionRefMin.dy) / 100;
 
   final RenderBox box =
       selectedKey.currentContext!.findRenderObject() as RenderBox;
 
-  rectToInit.left = position.dx * previewPixelRatio + positionRefMin.dx;
-  rectToInit.bottom =
-      position.dy * previewPixelRatio +
-      positionRefMin.dy +
-      box.size.height * previewPixelRatio;
-  rectToInit.top = position.dy * previewPixelRatio + positionRefMin.dy;
+  rectToInit.left = position.dx * previewPixelRatioX + positionRefMin.dx;
   rectToInit.right =
-      position.dx * previewPixelRatio +
+      position.dx * previewPixelRatioX +
       positionRefMin.dx +
-      box.size.width * previewPixelRatio;
+      box.size.width * previewPixelRatioX;
+
+  rectToInit.bottom =
+      position.dy * previewPixelRatioY +
+      positionRefMin.dy +
+      box.size.height * previewPixelRatioY;
+  rectToInit.top = position.dy * previewPixelRatioY + positionRefMin.dy;
 
   if (rectToInit.top < positionRefMin.dy) {
     rectToInit.top = positionRefMin.dy;

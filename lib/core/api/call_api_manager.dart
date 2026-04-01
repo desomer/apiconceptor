@@ -4,11 +4,13 @@ import 'dart:math';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 
 class APICallManager {
@@ -49,6 +51,137 @@ class APICallManager {
 
   List<String> logs = [];
 
+  Future<Map> generateSwagger(
+    List<dynamic> servers,
+    Map<String, Map<dynamic, dynamic>> cmp,
+  ) async {
+    currentAPIRequest ??= await GoTo().getApiRequestModel(
+      this,
+      namespace,
+      attrApi.masterID!,
+      withDelay: false,
+    );
+
+    String httpOpe = httpOperation.toLowerCase();
+    var api = currentCompany.listAPI!.selectedAttr!;
+    var aServer = getServerFromNode(api);
+    servers.removeWhere((s) => s['url'] == aServer);
+    servers.add({'url': aServer, 'description': 'Production'});
+    var url = getURLfromNode(api, withServer: false);
+
+    String tag = api.info.properties?['tag'] ?? 'default';
+    NodeAttribut? docNode = currentAPIRequest!.modelPropExtended['#doc'];
+    String? doc = docNode?.info.properties?['#doc'];
+    String? summary = api.info.properties?['summary'];
+    String? description = api.info.properties?['description'];
+
+    params.clear();
+    initParamsForDoc();
+    var allparam = [];
+    for (var param in params) {
+      var info = param.info!;
+      var entry = info.properties ?? {};
+      bool requi = (entry['required'] == true);
+      if (param.type == 'path') {
+        requi = true;
+      }
+      String title = entry['title'] ?? '';
+      String description = entry['description'] ?? '';
+      var p = {
+        'name': info.name,
+        'description': '$title $description',
+        'in': param.type,
+        if (requi) 'required': requi,
+        'schema': {'type': info.type},
+      };
+      allparam.add(p);
+    }
+
+    currentAPIResponse ??= await GoTo().getApiResponseModel(
+      this,
+      namespace,
+      attrApi.masterID!,
+      withDelay: false,
+    );
+
+    var responses = {};
+    var r = currentAPIResponse?.mapModelYaml.entries;
+
+    for (MapEntry element in r ?? {}) {
+      if (element.key != null && element.value != null) {
+        // valide key with regex for http status code
+        if (RegExp(r'^[1-5][0-9]{2}$').hasMatch('${element.key}')) {
+             
+          var sub = await currentAPIResponse!.getSubSchema(
+            subNode: element.key,
+          );
+          if (sub == null) continue;
+
+          var d = Export2JsonSchema(
+            config: BrowserConfig(
+              isGet: httpOperation == 'get',
+              isApi: true,
+              refTarget: 'components/schemas',
+            ),
+          )..browse(sub, false);
+
+          d.json.remove("\$schema");
+          d.json.remove("\$id");
+          d.json.remove("\$example");
+
+          var aComp = d.json.remove("components");
+          
+          var s = cmp['schemas'] as Map;
+           
+          Map allCmp = aComp['schemas'] ?? {};
+          for (var e in allCmp.entries) {
+            (e.value as Map).remove('title');
+            s[e.key] = e.value;
+          }
+
+          if (element.value.toString().startsWith('\$')) {
+            String ref = element.value.toString().substring(1);
+            responses['"${element.key}"'] = {
+              'description': '',
+              'content': {
+                'application/json': {
+                  'schema': {'\$ref': '#/components/schemas/$ref'},
+                },
+              },
+            };
+            cmp['schemas']![ref] = d.json;
+            d.json.remove('title');
+          } else {
+            responses['"${element.key}"'] = {
+              'description': '',
+              'content': {
+                'application/json': {'schema': d.json},
+              },
+            };
+          }
+        }
+      }
+    }
+
+    var opertionId = api.info.properties?['short name'];
+    var aPath = {
+      url: {
+        httpOpe: {
+          if (opertionId != null) 'operationId': opertionId,
+          'tags': [tag],
+          if (summary != null) 'summary': summary,
+          if (description != null || doc != null)
+            'description':
+                (description ?? '') + (doc != null ? '\n\n$doc' : ''),
+          'parameters': allparam,
+          if (responses.isNotEmpty) 'responses': responses,
+        },
+      },
+    };
+
+    return aPath;
+  }
+
   Future<List<AttributInfo>> getExamples() async {
     var exampleModel = ModelSchema(
       category: Category.exampleApi,
@@ -62,7 +195,7 @@ class APICallManager {
       withProperties: true,
     );
 
-    var a = BrowseSingle();
+    var a = BrowseSingle(config: BrowserConfig());
     a.browse(exampleModel, false);
 
     var examples = exampleModel.mapInfoByJsonPath.values.where((e) {
@@ -93,7 +226,7 @@ class APICallManager {
 path:
 ${urlp}query:
 header:        
-cookies:        
+cookie:        
 body :
 ''';
       currentAPIResquest.doChangeAndRepaintYaml(null, true, 'init');
@@ -129,7 +262,7 @@ body :
     var idEnv = currentCompany.listEnv.selectedAttr?.info.masterID!;
     if (idEnv == null) return;
     var envVar = await loadVarEnv(namespace, idEnv, "variables", true);
-    var browseSingle = BrowseSingle();
+    var browseSingle = BrowseSingle(config: BrowserConfig());
     browseSingle.browse(envVar, true);
 
     for (var element in browseSingle.root) {
@@ -257,7 +390,7 @@ body :
     return result;
   }
 
-  String getURLfromNode(NodeAttribut api) {
+  String getURLfromNode(NodeAttribut api, {bool withServer = true}) {
     url = '';
 
     var nd = api.parent;
@@ -267,7 +400,9 @@ body :
       var n = nd.info.name;
       if (nd.info.properties?['\$server'] != null) {
         var urlserv = nd.info.properties?['\$server'];
-        url = '$urlserv$url';
+        if (withServer) {
+          url = '$urlserv$url';
+        }
         break;
       }
       _addUrlNode(n);
@@ -280,6 +415,20 @@ body :
     }
 
     return url;
+  }
+
+  String? getServerFromNode(NodeAttribut api) {
+    var nd = api.parent;
+
+    while (nd != null) {
+      if (nd.info.properties?['\$server'] != null) {
+        var urlserv = nd.info.properties?['\$server'];
+        return urlserv;
+      }
+      nd = nd.parent;
+    }
+
+    return null;
   }
 
   void _addUrlNode(String name) {

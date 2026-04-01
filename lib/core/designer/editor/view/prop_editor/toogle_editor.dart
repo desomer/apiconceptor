@@ -122,7 +122,7 @@ class _ToogleEditorState extends State<ToogleEditor> with HelperEditor {
                 if (v.isEmpty) {
                   widget.json.remove(widget.config.id);
                 } else {
-                  widget.json[widget.config.id] = v;
+                  widget.json[widget.config.id] = v.toString();
                 }
                 widget.onJsonChanged?.call(widget.json);
               } else {

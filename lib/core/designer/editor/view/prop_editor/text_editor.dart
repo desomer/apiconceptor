@@ -20,7 +20,7 @@ class TextEditor extends GenericEditor {
 
 class _TextEditorState extends State<TextEditor> with HelperEditor {
   late TextEditingController controller;
-  FormatterTextfield formatter = FormatterTextfield();
+  FormatterTextfield formatter = FormatterTextfield(null);
 
   @override
   void initState() {

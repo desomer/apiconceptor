@@ -19,6 +19,7 @@ var cstAnyChoice = '##__choise__##';
 var cstPropLabel = '\$\$__proplabel\$\$__';
 
 class Export2UI<T> extends JsonBrowser<T> {
+  
   @override
   dynamic getChild(
     ModelSchema model,
@@ -111,6 +112,8 @@ class Export2UI<T> extends JsonBrowser<T> {
   }
 
   Map<String, dynamic> json = {};
+
+  Export2UI({required super.config});
 
   @override
   T getRoot(NodeAttribut node) {

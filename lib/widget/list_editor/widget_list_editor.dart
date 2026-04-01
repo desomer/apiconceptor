@@ -10,8 +10,8 @@ class WidgetListEditor extends StatefulWidget {
     required this.model,
     this.getModel,
     required this.change,
-    this.onSelectRow, 
-    this.withSpacer=true,
+    this.onSelectRow,
+    this.withSpacer = true,
   });
 
   final ModelSchema? model;
@@ -92,15 +92,21 @@ class _WidgetListEditorState extends State<WidgetListEditor> {
                 );
               },
               loadAll: () {
-                var browseSingle = BrowseSingle();
+                var browseSingle = BrowseSingle(
+                  config: BrowserConfig(),
+                );
                 browseSingle.browse(model, true);
                 return browseSingle.root;
               },
               onSave: (List<NodeAttribut> choices) {
                 StringBuffer sb = StringBuffer();
+                int index = 0;
                 for (var choice in choices) {
-                  sb.write(choice.info.name.isEmpty ? 'new' : choice.info.name);
+                  sb.write(
+                    choice.info.name.isEmpty ? 'new $index' : choice.info.name,
+                  );
                   sb.writeln(" : item");
+                  index++;
                 }
                 model.modelYaml = sb.toString();
                 if (model.doChangeAndRepaintYaml(null, true, 'import')) {

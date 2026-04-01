@@ -59,25 +59,32 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
 
       initRecWithKeyPosition(
         keybox,
-        ctx.ctx!.aFactory.designerKey,
+        ctx.ctx!.aFactory.designViewPortKey,
         position,
         ctx.ctx!,
       );
 
-      // print(  "select pos for ${ctx.path} : "
-      //     "t=${position.top} l=${position.left}  ${position.right - position.left} x ${position.bottom - position.top}");
+      // print(
+      //   "select pos for ${ctx.path} : "
+      //   "t=${position.top} l=${position.left}  ${position.right - position.left} x ${position.bottom - position.top}",
+      // );
 
       final RenderBox? b =
           keybox.currentContext?.findRenderObject() as RenderBox?;
-      ctx.ctx?.selectorCtxIfDesign?.lastSize = b?.size;
+      ctx.ctx?.selectorCtxIfDesign?.lastSizeForDrag = b?.size;
 
       // var h = position.bottom - position.top;
       // var w = position.right - position.left;
       //dev.log("size for ${ctx.path} : $w x $h");
 
-      setState(() {}); // postionne l'indicateur
-
       if (displayProps) {
+        if (currentSelect?.ctx != ctx.ctx) {
+          // reset pour recalculer si on affiche ou pas les actions
+          showIndicator = null;
+        } else if (showIndicator == false) {
+          showIndicator = true;
+        }
+
         currentSelect = ctx;
         currentSelectorManager.lastSelectedCtx = ctx.ctx;
         dev.log("select ${ctx.path}");
@@ -87,6 +94,7 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
         }
       }
       ctx.callback?.call();
+      setState(() {}); // postionne l'indicateur
     });
 
     on(CDDesignEvent.reselect, (selected) {
@@ -107,7 +115,7 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
 
       initRecWithKeyPosition(
         ctx.ctx!.getBoxKey()!,
-        ctx.ctx!.aFactory.designerKey,
+        ctx.ctx!.aFactory.designViewPortKey,
         position,
         ctx.ctx!,
       );
@@ -135,6 +143,8 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
     super.initState();
   }
 
+  bool? showIndicator;
+
   @override
   Widget build(BuildContext context) {
     var width = position.right - position.left;
@@ -145,17 +155,44 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
     }
 
     List<Widget> childrenAction = [];
-    childrenAction.add(getZone(deleteZone, position));
-    childrenAction.add(getZone(sizeZone, position));
-    childrenAction.add(getZone(topZone, position));
-    childrenAction.add(getZone(bottomZone, position));
-    childrenAction.add(getZone(rightZone, position));
-    childrenAction.add(getZone(leftZone, position));
+    if (showIndicator == null && width * height < 50 * 50) {
+      showIndicator = false;
+    }
+
+    if (showIndicator ?? true) {
+      childrenAction.add(getZone(deleteZone, position));
+      childrenAction.add(getZone(sizeZone, position));
+      childrenAction.add(getZone(topZone, position));
+      childrenAction.add(getZone(bottomZone, position));
+      childrenAction.add(getZone(rightZone, position));
+      childrenAction.add(getZone(leftZone, position));
+    } else {}
 
     childrenAction.add(
       BoxSelected(key: boxkey, rec: position, mode: CWModeBox.content),
     );
 
+    // if (showIndicator == false) {
+    //   childrenAction.add(
+    //     Positioned(
+    //       top: position.top,
+    //       left: position.left,
+    //       child: SizedBox(
+    //         width: position.right - position.left,
+    //         height: position.bottom - position.top,
+
+    //         //color: Colors.green.withAlpha(30),
+    //         child: Listener(
+    //           behavior: HitTestBehavior.translucent,
+    //           onPointerDown: (event) {
+    //             showIndicator = true;
+    //             setState(() {});
+    //           },
+    //         ),
+    //       ),
+    //     ),
+    //   );
+    // }
     return Stack(children: childrenAction);
   }
 
@@ -374,8 +411,19 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
     };
 
     deleteZone.initPosFct = (CWRec r) {
-      deleteZone.top = r.bottom - 20;
-      deleteZone.left = r.left - 20;
+      var width = position.right - position.left;
+      var height = position.bottom - position.top;
+
+      var deltaB = 20;
+      var deltaL = 20;
+      if (width * height < 50 * 50) {
+        //gestion des petite zone ou on ne peut pas afficher les bouton autour
+        deltaB = 10;
+        deltaL = 30;
+      }
+
+      deleteZone.top = r.bottom - deltaB;
+      deleteZone.left = r.left - deltaL;
       deleteZone.width = 60;
       deleteZone.height = 60;
 
@@ -390,8 +438,18 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
     };
 
     sizeZone.initPosFct = (CWRec r) {
-      sizeZone.top = r.bottom - 20;
-      sizeZone.left = r.right - 20;
+      var width = position.right - position.left;
+      var height = position.bottom - position.top;
+      var deltaB = 20;
+      var deltaR = 20;
+      if (width * height < 50 * 50) {
+        //gestion des petite zone ou on ne peut pas afficher les bouton autour
+        deltaB = 10;
+        deltaR = 10;
+      }
+
+      sizeZone.top = r.bottom - deltaB;
+      sizeZone.left = r.right - deltaR;
       sizeZone.width = 60;
       sizeZone.height = 60;
 
@@ -462,7 +520,6 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
 
           emitLater(CDDesignEvent.reselect, "all", waitFrame: 1);
 
-        
           if (sizeZone.visibility) {
             setState(() {
               rightZone.visibility = false;
@@ -470,7 +527,6 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
               sizeZone.visibility = false;
             });
           }
-
         },
         onDraggableCanceled: (velocity, offset) {
           dragInProgess = false;

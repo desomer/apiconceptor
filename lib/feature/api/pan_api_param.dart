@@ -6,6 +6,7 @@ import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
@@ -190,7 +191,10 @@ class _PanApiParamState extends State<PanApiParam> {
 
   Future<void> initBodyValidator(ModelSchema aSchema) async {
     var export = Export2JsonSchema(
-      readOnly: widget.requestHelper.apiCallInfo.httpOperation == 'get',
+      config: BrowserConfig(
+        isGet: widget.requestHelper.apiCallInfo.httpOperation == 'get',
+        isApi: true,
+      ),
     );
     await export.browseSync(aSchema, false, 0);
     try {
@@ -258,6 +262,9 @@ class _PanApiParamState extends State<PanApiParam> {
                 modeArray: ModeArrayEnum.anyInstance,
                 mode: ModeEnum.fake,
                 propMode: PropertyRequiredEnum.all,
+                config: BrowserConfig(
+                  isApi: true,
+                ),
               )..browse(aSchema, false);
               widget.requestHelper.apiCallInfo.body = export.json;
               widget.requestHelper.apiCallInfo.bodyStr = export.prettyPrintJson(

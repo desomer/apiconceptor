@@ -319,7 +319,11 @@ class WidgetAPIHelper with WidgetHelper {
 
   Future<void> initResponseValidator(ModelSchema aSchema) async {
     var export = Export2JsonSchema(
-      readOnly: apiCallInfo.httpOperation == 'get',
+      config: BrowserConfig(
+        isGet: apiCallInfo.httpOperation == 'get',
+        isApi: true,
+        refTarget: '\$def',
+      ),
     );
 
     await export.browseSync(aSchema, false, 0);

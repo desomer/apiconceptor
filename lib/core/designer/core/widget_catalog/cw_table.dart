@@ -9,6 +9,12 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_layout.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 
+import 'package:flutter/services.dart';
+import 'package:jsonschema/widget/widget_scroller.dart';
+
+import 'export/export.dart';
+import 'export/export_csv.dart';
+
 class CwTable extends CwWidget {
   const CwTable({super.key, required super.ctx, required super.cacheWidget});
 
@@ -54,6 +60,56 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
   }
 
   @override
+  void setFilterValue(String? text, List<CwWidgetCtx> listCell) {
+    var pathA = bindInfo.bindAttribut?.getJsonPath(sep: '/');
+    var v = bindInfo.getValue(context, widget.ctx, this, false, true);
+
+    List listRow = [];
+    if (v is List) {
+      listRow = v;
+    }
+
+    if (text == null || text.isEmpty) {
+      var hasRemove = false;
+      for (Map r in listRow) {
+        if (r.remove('#isFilterHide') == true) {
+          hasRemove = true;
+        }
+      }
+      if (hasRemove) {
+        clearWidgetCache();
+        widget.ctx.repaint();
+      }
+      return;
+    }
+
+    for (Map r in listRow) {
+      var match = false;
+      a:
+      for (var d in listCell) {
+        var v = d.getValueFromRow(r, this, pathA);
+        if (v is bool && v == true) {
+          v =
+              d.dataWidget?[cwProps]?['tooltip'] ??
+              d.dataWidget?[cwProps]?['label'];
+        }
+        if (v != null &&
+            v.toString().toLowerCase().contains(text.toLowerCase())) {
+          match = true;
+          break a;
+        }
+      }
+      if (match) {
+        r.remove('#isFilterHide');
+      } else {
+        r['#isFilterHide'] = true;
+      }
+    }
+    clearWidgetCache();
+    widget.ctx.repaint();
+  }
+
+  @override
   bool clearWidgetCache({bool clearInnerWidget = false}) {
     if (mounted) {
       var state = tableKey.currentState;
@@ -72,61 +128,22 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
       constraints,
       _,
     ) {
-      List listRow = [];
+      List filteredList = [];
       StateContainerArray? arrayContainer;
 
-      var v = bindInfo.getValue(context, ctx, this, false, true);
-      if (v != null) {
-        if (v is List) {
-          //print(' listRow $pathData length=${l.length}');
-          arrayContainer =
-              bindInfo.dataContainer!.stateChild[bindInfo.attrName]
-                  as StateContainerArray?;
-          listRow = v;
-        } else {
-          listRow = [];
+      List? originalList = bindInfo.getValue(context, ctx, this, false, true);
+      if (originalList != null) {
+        //print(' listRow $pathData length=${l.length}');
+        arrayContainer =
+            bindInfo.dataContainer!.stateChild[bindInfo.attrName]
+                as StateContainerArray?;
+        for (var element in originalList) {
+          if (element is Map && element['#isFilterHide'] == true) {
+            continue;
+          }
+          filteredList.add(element);
         }
       }
-
-      // if (stateRepository != null && bindAttribut != null) {
-      //   String? oldPathData = pathData;
-
-      //   pathData = stateRepository!.getDataPath(
-      //     context,
-      //     bindAttribut!.path,
-      //     widgetPath: ctx.aWidgetPath,
-      //     typeListContainer: true,
-      //     inArray: false,
-      //     state: this,
-      //   );
-      //   if (oldPathData != '?' && oldPathData != pathData) {
-      //     stateRepository!.disposeContainer(oldPathData, this);
-      //   }
-      //   stateRepository!.registerContainer(pathData, this);
-
-      //   String pathContainer;
-      //   String attrName;
-      //   (pathContainer, attrName) = stateRepository!.getPathInfo(pathData);
-      //   StateContainer? dataContainer;
-      //   (dataContainer, _) = stateRepository!.getStateContainer(
-      //     pathContainer,
-      //     context: context,
-      //     pathWidgetRepos: ctx.aWidgetPath,
-      //   );
-
-      // if (dataContainer != null) {
-      //   var l = dataContainer.jsonData[attrName] ?? [];
-
-      //   if (l is List) {
-      //     //print(' listRow $pathData length=${l.length}');
-      //     arrayContainer =
-      //         dataContainer.stateChild[attrName] as StateContainerArray?;
-      //     listRow = l;
-      //   } else {
-      //     listRow = [];
-      //   }
-      // }
-      //
 
       int nbCol = getIntProp(ctx, 'nbchild') ?? 0;
 
@@ -153,7 +170,7 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
       var mright = styleBoxRow.getStyleDouble('mright', 0);
 
       double rowWidthBorder = ((bSize + 1) * 1);
-      double defaultColWidth =
+      var availableWidth =
           (constraints!.maxWidth -
               styleFactory.config.wMargin -
               styleFactory.config.wPadding -
@@ -163,18 +180,9 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
               pleft -
               pright -
               mleft -
-              mright) /
-          nbCol;
+              mright);
 
-      if (defaultColWidth < 100) {
-        // pas trop petit
-        defaultColWidth = 100;
-      }
-
-      if (defaultColWidth == double.infinity) {
-        // si pas de width defini
-        defaultColWidth = 100;
-      }
+      double defaultColWidth = availableWidth / nbCol;
 
       var array = FrozenTableView(
         key: tableKey,
@@ -184,7 +192,7 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
             (nbColFreeze == 0 ? (rowWidthBorder + pleft + mleft) : 0),
         rowWidthBorderL:
             nbColFreeze == 0 ? 0 : (rowWidthBorder + pleft + mleft),
-        rowCount: listRow.length + 1,
+        rowCount: filteredList.length + 1,
         buildTopCell: _cellBuilder,
         buildBottomCell: _cellBuilder,
         buildLeftCell: _cellBuilder,
@@ -207,7 +215,7 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
             nbColFreeze: nbColFreeze,
             propsRow: propsRow,
             arrayContainer: arrayContainer,
-            data: row == 0 ? propsRow : listRow[row - 1],
+            data: row == 0 ? propsRow : filteredList[row - 1],
           );
 
           CwTableRow? rowWidgetCached = tableState.getCacheTableRowState(
@@ -228,19 +236,39 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
               );
 
           return CWInheritedRow(
-            key: ObjectKey(row == 0 ? propsRow : listRow[row - 1]),
+            key: ObjectKey(row == 0 ? propsRow : filteredList[row - 1]),
             rowkey: rowWidget.key as GlobalKey,
             tableKey: tableKey,
             path: bindInfo.pathData,
-            rowIdx: row - 1,
+            rowIdx:
+                row == 0 ? -1 : originalList!.indexOf(filteredList[row - 1]),
             child: rowWidget,
           );
         },
 
-        getColWidth: (int col) {
+        getColWidth: (int col, double usedWidth, bool isCalc, int nbFillCol) {
           num? colWidth =
               ctx.dataWidget?[cwSlots]?['header_$col']?[cwProps]?['width'];
+          if (isCalc && colWidth != null) {
+            return colWidth.toDouble();
+          }
 
+          if (isCalc) {
+            return -1;
+          }
+
+          var canCalcDefault = usedWidth >= 0 && nbFillCol >= 0;
+          if (canCalcDefault && colWidth == null) {
+            defaultColWidth =
+                (availableWidth - usedWidth) / (nbCol - nbFillCol);
+            if (defaultColWidth == double.infinity) {
+              // si pas de width defini
+              defaultColWidth = 100;
+            }
+            if (defaultColWidth < 100) {
+              defaultColWidth = 100;
+            }
+          }
           return colWidth?.toDouble() ?? defaultColWidth;
         },
         getRowHeight: (int row) {
@@ -293,4 +321,151 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
       ),
     );
   }
+
+  void doExport(BuildContext context) {
+    List<CwWidgetCtx> data = widget.ctx.getAllCellsCtx();
+
+    var arrayState = widget.ctx.widgetState as CwWidgetStateBindJson;
+    var v = arrayState.bindInfo.getValue(
+      context,
+      widget.ctx,
+      this,
+      false,
+      true,
+    );
+
+    List filteredList = [];
+    if (v is List) {
+      for (Map element in v) {
+        if (element['#isFilterHide'] == true) {
+          continue;
+        }
+        filteredList.add(element);
+      }
+    }
+    List<Map<String, dynamic>> jsonl = [];
+    var pathA = arrayState.bindInfo.bindAttribut?.getJsonPath(sep: '/');
+    for (var element in filteredList) {
+      var l = <String, dynamic>{};
+      for (var d in data) {
+        var label = d.dataWidget?[cwProps]['label'];
+        if (label != null) {
+          var v = d.getValueFromRow(element, arrayState, pathA);
+          l[label] = v;
+        }
+      }
+      jsonl.add(l);
+    }
+
+    showCsvDialog(context, jsonl);
+  }
+}
+
+void showCsvDialog(BuildContext context, List<Map<String, dynamic>> jsonl) {
+  Size size = MediaQuery.of(context).size;
+  double width = size.width * 0.8;
+  double height = size.height * 0.8;
+
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return AlertDialog(
+        title: const Text("CSV Result"),
+        content: SizedBox(
+          width: width,
+          height: height,
+          child: WidgetScroller(
+            child: Text(
+              jsonlToCsvExcelFriendly(
+                jsonl,
+                options: CsvOptions(separator: '\t'),
+              ).csv,
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
+          ),
+        ),
+
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(
+                ClipboardData(
+                  text:
+                      jsonlToCsvExcelFriendly(
+                        jsonl,
+                        options: CsvOptions(
+                          separator: '\t',
+                          excelProtectSensitiveValues: false,
+                        ),
+                      ).csv,
+                ),
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("CSV copied to clipboard")),
+              );
+            },
+            child: const Text("Clipboard Gsheet"),
+          ),
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(
+                ClipboardData(
+                  text:
+                      jsonlToCsvExcelFriendly(
+                        jsonl,
+                        options: CsvOptions(separator: '\t'),
+                      ).csv,
+                ),
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("CSV copied to clipboard")),
+              );
+            },
+            child: const Text("Clipboard Excel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              final path = await exportCsv(
+                jsonlToCsvExcelFriendly(
+                  jsonl,
+                  options: CsvOptions(
+                    separator: ',',
+                    excelProtectSensitiveValues: false,
+                  ),
+                ),
+              );
+              if (path != null) {
+                // ignore: use_build_context_synchronously
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text("File exported: $path")));
+              }
+            },
+            child: const Text("CSV File GSheet"),
+          ),
+          TextButton(
+            onPressed: () async {
+              final path = await exportCsv(
+                jsonlToCsvExcelFriendly(
+                  jsonl,
+                  options: CsvOptions(separator: ';'),
+                ),
+              );
+              if (path != null) {
+                ScaffoldMessenger.of(
+                  // ignore: use_build_context_synchronously
+                  context,
+                ).showSnackBar(SnackBar(content: Text("File exported: $path")));
+              }
+            },
+            child: const Text("CSV File Excel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Close"),
+          ),
+        ],
+      );
+    },
+  );
 }

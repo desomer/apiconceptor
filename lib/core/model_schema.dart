@@ -141,6 +141,7 @@ class ModelSchema {
   String? namespace;
 
   bool? readOnly;
+  bool? isApi;
 
   List<AttributInfo>? getModelByRefName(String refName) {
     List<AttributInfo>? aModelByName;
@@ -513,7 +514,8 @@ class ModelSchema {
   }
 
   Future<void> _initVersion(bool withOlderVersion) async {
-    if (currentVersion == null && category == Category.model) {
+    if (currentVersion == null &&
+        (category == Category.model || category == Category.api)) {
       var versions = await bddStorage.getAllVersion(this);
       if (versions.isEmpty) {
         ModelVersion version = ModelVersion(
@@ -778,6 +780,9 @@ class ModelSchema {
               refDomain: refDomain,
             )..namespace = namespace;
             aSchema.autoSaveProperties = false;
+            aSchema.isApi = isApi;
+            aSchema.readOnly = readOnly;
+
             await aSchema.loadYamlAndProperties(
               cache: false,
               withProperties: true,
@@ -795,7 +800,8 @@ class ModelSchema {
               )
               ..namespace = namespace
               ..autoSaveProperties = false;
-
+        aSchema.isApi = isApi;
+        aSchema.readOnly = readOnly;
         aSchema.loadSubSchema(subNode, this);
       }
     }

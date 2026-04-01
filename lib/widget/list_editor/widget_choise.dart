@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 
@@ -19,7 +20,9 @@ class WidgetChoise extends StatefulWidget {
 class _WidgetChoiseState extends State<WidgetChoise> {
   @override
   Widget build(BuildContext context) {
-    var browseSingle = BrowseSingle();
+    var browseSingle = BrowseSingle(
+      config: BrowserConfig(),
+    );
     browseSingle.browse(widget.model, true);
 
     return Wrap(

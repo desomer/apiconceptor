@@ -34,37 +34,15 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   );
   final GlobalKey keyAttrEditor = GlobalKey(debugLabel: 'keyAttrEditor');
 
-  final TreeViewBrowserWidget jsonBrowserWidget = TreeViewBrowserWidget();
+  final TreeViewBrowserWidget jsonBrowserWidget = TreeViewBrowserWidget(
+    config: BrowserConfig(),
+  );
 
   void onInit(BuildContext context) {}
   void onInitSchema(BuildContext context) {}
 
   TextSelection? getTextSelection() {
     return _yamlConfig?.codeEditorState?.controller.selection;
-  }
-
-  OverlayEntry? blocker;
-
-  void showGlassPane(BuildContext context) {
-    blocker = OverlayEntry(
-      builder:
-          (_) => Positioned.fill(
-            child: AbsorbPointer(
-              absorbing: true,
-              child: Container(
-                color: Colors.black.withAlpha(150), // effet verre
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-            ),
-          ),
-    );
-
-    Overlay.of(context).insert(blocker!);
-  }
-
-  void hideGlassPane() {
-    blocker?.remove();
-    blocker = null;
   }
 
   void scrollCodeEditorTo(NodeAttribut attr) {
@@ -512,10 +490,32 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return count;
   }
 
-  void setOpenStructure(bool open) {
-    keyTreeEditor.currentState?.openStructure = open;
+  void changeOpenStructure() {
+    var mode = keyTreeEditor.currentState?.openStructureMode;
+    if (mode == 'all') {
+      keyTreeEditor.currentState?.openStructureMode = 'onlyStructure';
+    } else if (mode == 'onlyStructure') {
+      keyTreeEditor.currentState?.openStructureMode = 'structure';
+    } else {
+      keyTreeEditor.currentState?.openStructureMode = 'all';
+    }
+
     keyTreeEditor.currentState?.openFactorInProgess =
         DateTime.now().millisecondsSinceEpoch;
+    keyTreeEditor.currentState?.repaintInProgess =
+        DateTime.now().millisecondsSinceEpoch;
+    // ignore: invalid_use_of_protected_member
+    keyTreeEditor.currentState?.setState(() {});
+  }
+
+  void changeFilterTarget(String target) {
+    //var mode = keyTreeEditor.currentState?.filterType;
+    //if (mode == 'all') {
+    keyTreeEditor.currentState?.filterType = target;
+    //}
+
+    // keyTreeEditor.currentState?.openFactorInProgess =
+    //     DateTime.now().millisecondsSinceEpoch;
     keyTreeEditor.currentState?.repaintInProgess =
         DateTime.now().millisecondsSinceEpoch;
     // ignore: invalid_use_of_protected_member
@@ -547,7 +547,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
 //-------------------------------------------------------------------------------
 class TreeViewBrowserWidget extends JsonBrowser {
-  TreeViewBrowserWidget({super.readOnly});
+  TreeViewBrowserWidget({required super.config});
 
   List<String>? pathFilter;
   double maxSize = 0;
@@ -602,11 +602,17 @@ class TreeViewBrowserWidget extends JsonBrowser {
       }
       if (!find) return null;
     }
-    if (readOnly == true) {
+    if (config.isGet == true) {
       bool wr = node.info.properties?['writeOnly'] ?? false;
       if (wr) {
         return null;
       }
+    }
+
+    if (config.isApi == true &&
+        !(node.info.properties?['#target']?.toString().contains('api') ??
+            true)) {
+      return null;
     }
 
     node.info.widgetRowState = repaintRowState;

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/start_core.dart';
 
 class Export2JsonSchema<T extends Map<String, dynamic>>
@@ -10,7 +11,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   Map<String, dynamic> json = {};
   Map<String, NodeJson> ref = {};
 
-  Export2JsonSchema({super.readOnly});
+  Export2JsonSchema({required super.config});
 
   @override
   void onInit(ModelSchema model) {
@@ -44,7 +45,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   @override
   void onReady(ModelSchema model) {
     var def = {};
-    json['\$def'] = def;
+    setValueAtPath(json, config.refTarget, def);
     for (var element in ref.entries) {
       def[element.key] = element.value.value;
     }
@@ -71,8 +72,6 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     return NodeJson(name: name, value: child);
   }
 
-
-
   @override
   NodeJson doArrayOfType(String name, String type, NodeAttribut node) {
     var prop = {...node.info.properties ?? {}};
@@ -87,7 +86,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     } else if (node.child.firstOrNull?.info.name == constRefOn) {
       // ajoute le type et ses properties
       String refName = node.info.isRef!;
-      child['items'] = {'\$ref': '#/\$def/$refName'};
+      child['items'] = {'\$ref': '#/${config.refTarget}/$refName'};
       node.addChildOn = "items";
       ref[refName] = NodeJson(
         name: name,
@@ -157,7 +156,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   NodeJson doRef(String name, NodeAttribut node) {
     node.addInAttr = "properties";
     var refName = node.info.isRef!;
-    var child = {'\$ref': '#/\$def/$refName'};
+    var child = {'\$ref': '#/${config.refTarget}/$refName'};
 
     ref[refName] = NodeJson(
       name: name,
@@ -168,10 +167,9 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       },
     );
     var propObj = ref[refName]!.value;
-    if (node.info.properties?["title"]!=null)
-     {
+    if (node.info.properties?["title"] != null) {
       propObj['title'] = node.info.properties!["title"];
-     }
+    }
     addRequired(node.child.first, propObj);
     return NodeJson(name: name, value: child)..parentOfChild = propObj;
   }
@@ -250,7 +248,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
         case 'date-time':
           // date time au format ISO 8601
           prop['pattern'] =
-              r'^(?:19\d{2}|20\d{2})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12]\d|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)$';
+              r'^(?:19\d{2}|20\d{2})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12]\d|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-][01]\d:[0-5]\d)$';
           break;
         case 'email':
           prop['pattern'] = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
@@ -282,22 +280,22 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   }
 }
 
-class ExportJsonSchema2clipboard {
-  Future<void> doExport(ModelSchema model) async {
-    // var export = Export2JsonSchema()..browse(model, false);
+// class ExportJsonSchema2clipboard {
+//   Future<void> doExport(ModelSchema model) async {
+//     // var export = Export2JsonSchema()..browse(model, false);
 
-    // Clipboard.setData(
-    //   ClipboardData(text: export.prettyPrintJson(export.json)),
-    // ).then((_) {
-    //   if (stateModel.keyYamlListModel.currentContext?.mounted ?? false) {
-    //     ScaffoldMessenger.of(
-    //       stateModel.keyYamlListModel.currentContext!,
-    //     ).showSnackBar(
-    //       const SnackBar(content: Text('Copied to your clipboard !')),
-    //     );
-    //   }
-    // });
+//     // Clipboard.setData(
+//     //   ClipboardData(text: export.prettyPrintJson(export.json)),
+//     // ).then((_) {
+//     //   if (stateModel.keyYamlListModel.currentContext?.mounted ?? false) {
+//     //     ScaffoldMessenger.of(
+//     //       stateModel.keyYamlListModel.currentContext!,
+//     //     ).showSnackBar(
+//     //       const SnackBar(content: Text('Copied to your clipboard !')),
+//     //     );
+//     //   }
+//     // });
 
-    //print(export.json);
-  }
-}
+//     //print(export.json);
+//   }
+// }

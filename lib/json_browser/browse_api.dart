@@ -6,7 +6,9 @@ import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
-class BrowseAPI<T extends Map> extends JsonBrowser<T> {
+class BrowseListAPI<T extends Map> extends JsonBrowser<T> {
+  BrowseListAPI({required super.config});
+
   @override
   void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
     if (aNodeAttribut.info.type == 'ope') {
@@ -21,7 +23,12 @@ class BrowseAPI<T extends Map> extends JsonBrowser<T> {
   }
 
   @override
-  dynamic getChild(ModelSchema model, NodeAttribut parentNode, NodeAttribut node, dynamic parent) {
+  dynamic getChild(
+    ModelSchema model,
+    NodeAttribut parentNode,
+    NodeAttribut node,
+    dynamic parent,
+  ) {
     return {};
   }
 
@@ -32,7 +39,6 @@ class BrowseAPI<T extends Map> extends JsonBrowser<T> {
 
 //************************************************************************* */
 class InfoManagerAPI extends InfoManager with WidgetHelper {
-
   @override
   Function? getValidateKey() {
     return null;
@@ -307,8 +313,6 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
       ),
     );
   }
-
-
 }
 
 class InfoManagerTrashAPI extends InfoManager with WidgetHelper {

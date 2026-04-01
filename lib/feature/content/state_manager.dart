@@ -275,7 +275,7 @@ class StateContainerArray extends StateContainer {
 
   void initSelected(int idx, String pathWidgetArray, CwTableRowState rowSelectedState) {
     rowSelected[pathWidgetArray] = rowSelectedState;
-    print(" initSelected $pathWidgetArray at $idx  on ${rowSelectedState.widget.key} ${rowSelectedState.widget.info.data.hashCode}");
+   // print(" initSelected $pathWidgetArray at $idx  on ${rowSelectedState.widget.key} ${rowSelectedState.widget.info.data.hashCode}");
   }
 
   CWInheritedRow? getRowState(BuildContext context) {

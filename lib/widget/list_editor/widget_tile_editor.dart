@@ -3,7 +3,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/list_editor/widget_tile.dart';
-    
+
 class WidgetTileEditor extends StatefulWidget {
   const WidgetTileEditor({super.key});
 
@@ -12,11 +12,10 @@ class WidgetTileEditor extends StatefulWidget {
 }
 
 class _WidgetTileEditorState extends State<WidgetTileEditor> {
-
   final mapEntryEmpty = const MapEntry('', null);
   final GlobalKey keyDragDrop = GlobalKey(debugLabel: 'keyDragDrop');
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return Row(
       children: [
@@ -40,7 +39,7 @@ class _WidgetTileEditorState extends State<WidgetTileEditor> {
               },
               loadAll: () {
                 var env = currentCompany.listEnv;
-                var browseSingle = BrowseSingle();
+                var browseSingle = BrowseSingle(config: BrowserConfig());
                 browseSingle.browse(env, true);
                 return browseSingle.root;
               },

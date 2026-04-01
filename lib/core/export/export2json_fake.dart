@@ -26,7 +26,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     required this.modeArray,
     required this.mode,
     required this.propMode,
-    super.readOnly,
+    required super.config,
   });
 
   @override
@@ -187,7 +187,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
       case 'date-time':
         // date time au format ISO 8601
         pattern ??=
-            r'^(?:19\d{2}|20\d{2})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12]\d|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:Z|[+-][01]\d:[0-5]\d)$';
+            r'^(?:19\d{2}|20\d{2})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12]\d|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-][01]\d:[0-5]\d)$';
         break;
       case 'email':
         pattern ??= r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
@@ -215,7 +215,12 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     } else if (type == "boolean") {
       return faker.randomGenerator.boolean();
     } else {
-      if (lowerCase.contains('firstname')) {
+      // cas de string
+      if (format == 'email') {
+        return faker.internet.email();
+      } else if (format == 'url') {
+        return faker.internet.httpsUrl();
+      } else if (lowerCase.contains('firstname')) {
         return faker.person.firstName();
       } else if (lowerCase.contains('lastname')) {
         return faker.person.lastName();
@@ -230,10 +235,6 @@ class Export2FakeJson<T extends Map<String, dynamic>>
         return faker.internet.email();
       } else if (lowerCase.contains('phonenumber')) {
         return faker.phoneNumber.us();
-      } else if (format == 'email') {
-        return faker.internet.email();
-      } else if (format == 'url') {
-        return faker.internet.httpsUrl();
       }
       return faker.lorem.word();
     }

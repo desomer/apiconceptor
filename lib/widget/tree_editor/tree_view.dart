@@ -8,6 +8,7 @@ import 'package:jsonschema/widget/widget_overflow.dart';
 class TreeNodeData<T> {
   List<TreeNodeData<T>>? children;
   bool isExpanded;
+  bool isShow = true;
   late int depth;
   late List<bool> lastChild;
   bool isLast = false;
@@ -199,7 +200,8 @@ class TreeViewState<T> extends State<TreeView<T>> {
   bool isDisposed = false;
 
   State? currentRowSelectedState;
-  bool openStructure = false;
+  String openStructureMode = 'all';
+  String filterType = 'all';
 
   @override
   void initState() {
@@ -244,10 +246,11 @@ class TreeViewState<T> extends State<TreeView<T>> {
 
     TreeViewData<T> data = widget.getNodes();
     List<TreeNodeData<T>> nodes = data.nodes;
+    Size size = MediaQuery.of(ctx).size;
 
     NodeStack stack = NodeStack();
     list = _flattenNodeTree(stack, 0, nodes);
-    openStructure = false;
+    //openStructureMode = 'all';
 
     var ret = ValueListenableBuilder(
       valueListenable: zoom,
@@ -258,6 +261,9 @@ class TreeViewState<T> extends State<TreeView<T>> {
             (headerSize < data.headerSize && dragInProgess == 0)) {
           headerSize = data.headerSize;
           repaintInProgess = timeBuild;
+          if (headerSize > size.width - 300 - 350 - 550) {
+            headerSize = size.width - 300 - 350 - 550;
+          }
           if (headerSize < 200) headerSize = 200;
         }
         return Scrollbar(
@@ -298,6 +304,42 @@ class TreeViewState<T> extends State<TreeView<T>> {
       node.depth = deep;
       node.isRoot = deep == 0;
       node.isLast = node == nodes.last;
+
+      if (millisecondsSinceEpoch2 - openFactorInProgess < 500) {
+        if (openStructureMode == 'structure') {
+          node.isExpanded = false;
+          if (hasStructure(node)) {
+            node.isExpanded = true;
+          }
+        } else if (openStructureMode == 'onlyStructure') {
+          node.isExpanded = false;
+          if (!isStructure(node)) {
+            node.isShow = false;
+            continue;
+          }
+          if (node.isRoot || hasStructure(node)) {
+            node.isExpanded = true;
+          }
+        } else {
+          node.isShow = true;
+          node.isExpanded = deep < openFactor;
+        }
+      }
+
+      if (node.isShow == false) {
+        continue;
+      }
+
+      if (filterType != 'all') {
+        if (node.data is NodeAttribut) {
+          var info = (node.data as NodeAttribut).info;
+          if (!(info.properties?["#target"]?.toString().contains(filterType) ??
+              true)) {
+            continue;
+          }
+        }
+      }
+
       result.add(node);
       var r = <bool>[];
       for (var i = 0; i < stack.stack.length; i++) {
@@ -305,17 +347,6 @@ class TreeViewState<T> extends State<TreeView<T>> {
       }
       node.lastChild = r;
       stack.push(node);
-
-      if (millisecondsSinceEpoch2 - openFactorInProgess < 500) {
-        if (openStructure) {
-          node.isExpanded = false;
-          if (hasStructure(node)) {
-            node.isExpanded = true;
-          }
-        } else {
-          node.isExpanded = deep < openFactor;
-        }
-      }
 
       if (node.children != null &&
           node.children!.isNotEmpty &&
@@ -371,6 +402,11 @@ class TreeViewState<T> extends State<TreeView<T>> {
   void doTapHeader(TreeNodeData<T> node, String type) {
     if (widget.onTapHeader case final OnTap<T> on) {
       on(node, ctx, type);
+    }
+    if (node.isExpanded) {
+      setState(() {
+        _showChildren(node);
+      });
     }
   }
 
@@ -490,6 +526,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
 
   void _toogleChildren(TreeNodeData node, bool invisible) {
     for (var element in node.children ?? const <TreeNodeData>[]) {
+      element.isShow = true;
       if (invisible) {
         element.isInvisibleRequested = invisible;
       } else {
@@ -498,6 +535,17 @@ class TreeViewState<T> extends State<TreeView<T>> {
       }
       element.timeChange = DateTime.now().millisecondsSinceEpoch;
       _toogleChildren(element, invisible);
+    }
+  }
+
+  void _showChildren(TreeNodeData node) {
+    for (var element in node.children ?? const <TreeNodeData>[]) {
+      if (element.isShow == false) {
+        element.isInvisibleRequested = false;
+        element.isShow = true;
+        element.timeChange = DateTime.now().millisecondsSinceEpoch;
+      }
+      _showChildren(element);
     }
   }
 
@@ -580,6 +628,21 @@ class TreeViewState<T> extends State<TreeView<T>> {
             type2 == '\$anyof') {
           return true;
         }
+      }
+    }
+    return false;
+  }
+
+  bool isStructure(TreeNodeData data) {
+    if (data.data is NodeAttribut) {
+      var info = data.data as NodeAttribut;
+      var type2 = info.info.type.toLowerCase();
+      if (type2 == 'root' ||
+          type2 == 'object' ||
+          type2 == 'array' ||
+          type2 == '\$ref' ||
+          type2 == '\$anyof') {
+        return true;
       }
     }
     return false;

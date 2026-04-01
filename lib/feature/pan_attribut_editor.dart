@@ -10,9 +10,11 @@ class EditorProperties extends StatefulWidget {
     super.key,
     required this.getModel,
     required this.typeAttr,
+    this.onClose,
   });
   final Function getModel;
   final TypeAttr typeAttr;
+  final Function? onClose;
 
   @override
   State<EditorProperties> createState() => _EditorPropertiesState();
@@ -23,10 +25,42 @@ class _EditorPropertiesState extends State<EditorProperties> {
   Widget build(BuildContext context) {
     ModelSchema? model = widget.getModel();
 
-    return WidgetTab(
-      listTab: [Tab(text: 'Info')],
-      listTabCont: [SingleChildScrollView(child: getInfoForm(model))],
-      heightTab: 30,
+    return Column(
+      children: [
+        getHeader(model),
+        Expanded(
+          child: WidgetTab(
+            listTab: [Tab(text: 'Info')],
+            listTabCont: [SingleChildScrollView(child: getInfoForm(model))],
+            heightTab: 30,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Container getHeader(ModelSchema? model) {
+    return Container(
+      padding: EdgeInsets.all(3),
+      color: Colors.blue,
+      child: Row(
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                if (widget.onClose != null) {
+                  widget.onClose!();
+                }
+              },
+              child: Icon(Icons.close),
+            ),
+          ),
+          Expanded(
+            child: Center(child: Text(model?.selectedAttr?.info.name ?? '')),
+          ),
+        ],
+      ),
     );
   }
 
@@ -70,7 +104,7 @@ class _EditorPropertiesState extends State<EditorProperties> {
               propName: 'short name',
             ),
             inArray: false,
-          ),          
+          ),
         ],
       ),
     );

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/editor/engine/undo_manager.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -11,8 +10,8 @@ import 'package:jsonschema/widget/login/login_screen.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_global_zoom.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
-import 'package:jsonschema/widget/widget_zoom_selector.dart';
 
 bool showLoginDialog = true;
 bool connectBdd = true;
@@ -33,15 +32,16 @@ class Layout extends StatefulWidget {
   State<Layout> createState() => _LayoutState();
 }
 
-class _LayoutState extends State<Layout> {
+class _LayoutState extends State<Layout> with WidgetHelper {
   @override
-  Widget build(BuildContext context) {
+   Widget build(BuildContext context) {
     final String location = widget.routerState.uri.toString();
 
     GenericPage page = (getPage(context, widget.routerState) as GenericPage);
 
     var navigationInfo =
         page.initNavigation(widget.routerState, context, null)!;
+
     BreadCrumbNavigator.currentNavigationInfo = navigationInfo;
 
     if (!connectBdd) {
@@ -91,25 +91,7 @@ class _LayoutState extends State<Layout> {
               title: Row(
                 children: [BackButton(), getBreadcrumb(navigationInfo)],
               ),
-              actions: [
-                WidgetSearchText(),
-                Text('   Open factor '),
-                WidgetZoomSelector(zoom: openFactor),
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  tooltip: 'Rechercher',
-                  onPressed: () {
-                    // Action de recherche
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.notifications),
-                  tooltip: 'Notifications',
-                  onPressed: () {
-                    // Action de notification
-                  },
-                ),
-              ],
+              actions: navigationInfo.actions,
             ),
             body: GestureDetector(
               onTap: () {
@@ -139,21 +121,28 @@ class _LayoutState extends State<Layout> {
                 // InkWell(child: Icon(Icons.redo)),
                 // SizedBox(width: 5),
                 SizedBox(height: 20, child: WidgetGlobalZoom()),
-                IconButton(
-                  onPressed: () {
-                    prefs.remove("page_designer_data");
-                    String keyFactory = 'factoryName';
-                    WidgetFactory? aFactory = cacheLinkPage.get(keyFactory);
-                    if (aFactory != null) {
-                      aFactory.getEmptyApp();
-                      aFactory.pageDesignerKey.currentState?.setState(() {});
-                      aFactory.rootCtx?.widgetState?.clearWidgetCache();
-                      aFactory.rootCtx?.repaint();
-                      aFactory.rootCtx?.selectOnDesigner();
-                    }
-                  },
-                  icon: Icon(Icons.delete),
-                ),
+//                 IconButton(
+//                   onPressed: () async {
+//                     bool result = await askUser(
+//                       context,
+//                       'Confirmation',
+//                       'Are you sure you want to clear the cache and reset the app?',
+//                     );
+//                     if (!result) return;
+
+// //                    prefs.remove("page_designer_data_${factory.id}");
+//                     String keyFactory = "query";
+//                     WidgetFactory? aFactory = cacheLinkPage.get(keyFactory);
+//                     if (aFactory != null) {
+//                       aFactory.getEmptyApp();
+//                       aFactory.pageDesignerKey.currentState?.setState(() {});
+//                       aFactory.rootCtx?.widgetState?.clearWidgetCache();
+//                       aFactory.rootCtx?.repaint();
+//                       aFactory.rootCtx?.selectOnDesigner();
+//                     }
+//                   },
+//                   icon: Icon(Icons.delete),
+//                 ),
                 IconButton(
                   onPressed: () {
                     globalUndoManager.undo();
@@ -197,7 +186,7 @@ class _LayoutState extends State<Layout> {
                   },
                 ),
                 Spacer(),
-                Text('API Architect by Desomer G. V1.0.3.47'),
+                Text('API Architect by Desomer G. V1.0.3.61'),
               ],
             ),
           ),
@@ -206,29 +195,29 @@ class _LayoutState extends State<Layout> {
     );
   }
 
-  Widget getActionBtn(BuildContext context) {
-    return PopupMenuButton<String>(
-      onSelected: (value) {
-        switch (value) {
-          case 'Home':
-            context.push('/');
-            break;
-          case 'Paramètres':
-            context.push('/settings');
-            break;
-          case 'À propos':
-            context.push('/about');
-            break;
-        }
-      },
-      itemBuilder:
-          (context) => [
-            const PopupMenuItem(value: 'Home', child: Text('Home')),
-            const PopupMenuItem(value: 'Paramètres', child: Text('Paramètres')),
-            const PopupMenuItem(value: 'À propos', child: Text('À propos')),
-          ],
-    );
-  }
+  // Widget getAcgtionBtn(BuildContext context) {
+  //   return PopupMenuButton<String>(
+  //     onSelected: (value) {
+  //       switch (value) {
+  //         case 'Home':
+  //           context.push('/');
+  //           break;
+  //         case 'Paramètres':
+  //           context.push('/settings');
+  //           break;
+  //         case 'À propos':
+  //           context.push('/about');
+  //           break;
+  //       }
+  //     },
+  //     itemBuilder:
+  //         (context) => [
+  //           const PopupMenuItem(value: 'Home', child: Text('Home')),
+  //           const PopupMenuItem(value: 'Paramètres', child: Text('Paramètres')),
+  //           const PopupMenuItem(value: 'À propos', child: Text('À propos')),
+  //         ],
+  //   );
+  // }
 
   Widget getNavigationItem(
     NavigationInfo navigationInfo,
@@ -241,7 +230,9 @@ class _LayoutState extends State<Layout> {
       location = loc[0];
     }
     for (var element in navigationInfo.navLeft) {
-      if (element.path == location) {
+      var p = element.path?.split('?');
+      var elementPath = p != null && p.length == 2 ? p[0] : element.path; 
+      if (elementPath == location) {
         selectedIndex = navigationInfo.navLeft.indexOf(element) + 1;
         break;
       }
@@ -269,34 +260,11 @@ class _LayoutState extends State<Layout> {
             }
           }
         }
-        // switch (index) {
-        //   case 0:
-        //     context.push('/');
-        //     break;
-        //   case 1:
-        //     context.push('/about');
-        //     break;
-        //   case 2:
-        //     context.push('/about');
-        //     break;
-        //   case 3:
-        //     context.push('/about');
-        //     break;
-        // }
       },
       labelType: NavigationRailLabelType.all,
       destinations: [
         NavigationRailDestination(icon: Icon(Icons.apps), label: Text('Home')),
         ...contextMenu,
-        // NavigationRailDestination(
-        //   icon: Icon(Icons.star_sharp),
-        //   label: Text('Favorites'),
-        // ),
-        // NavigationRailDestination(
-        //   icon: Icon(Icons.settings),
-        //   label: Text('Parameters'),
-        // ),
-        // NavigationRailDestination(icon: Icon(Icons.info), label: Text('About')),
       ],
     );
   }
@@ -335,9 +303,6 @@ class _LayoutState extends State<Layout> {
                 return navigationInfo.breadcrumbs;
               },
             ),
-            //Spacer(),
-            // Text('Open factor '),
-            // WidgetZoomSelector(zoom: openFactor),
           ],
         ),
       ),
@@ -361,6 +326,7 @@ class _WidgetSearchTextState extends State<WidgetSearchText> {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        TextToggle(),
         if (maxSearchIndex > 0) Text('${searchIndex + 1}/$maxSearchIndex '),
         SizedBox(
           width: 150,
@@ -405,6 +371,7 @@ class _WidgetSearchTextState extends State<WidgetSearchText> {
           ),
         ),
         SizedBox(width: 10),
+        VerticalDivider(width: 1, thickness: 1, indent: 3, endIndent: 3),
       ],
     );
   }
@@ -485,4 +452,35 @@ class UserAuthentication {
 
 class BackIntent extends Intent {
   const BackIntent();
+}
+
+class TextToggle extends StatefulWidget {
+  const TextToggle({super.key});
+
+  @override
+  State<TextToggle> createState() => _TextToggleState();
+}
+
+class _TextToggleState extends State<TextToggle> {
+  bool isOn = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed:
+          () => setState(() {
+            isOn = !isOn;
+            if (currentYamlTree != null) {
+              currentYamlTree!.changeFilterTarget(isOn ? 'api' : 'all');
+            }
+          }),
+      child: Text(
+        isOn ? "Only API target" : "API",
+        style: TextStyle(
+          color: isOn ? Colors.green : Colors.grey,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
 }

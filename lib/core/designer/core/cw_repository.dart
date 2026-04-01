@@ -4,6 +4,7 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/start_core.dart';
@@ -52,6 +53,7 @@ class StateRepository extends StateManager {
       modeArray: ModeArrayEnum.anyInstance,
       mode: ModeEnum.empty,
       propMode: PropertyRequiredEnum.all,
+      config: BrowserConfig(isApi: schema.readOnly != null, refTarget: '\$def'),
     );
     await browserEmpty.browseSync(schema, false, 0);
     dataEmpty = browserEmpty.json;
@@ -61,6 +63,10 @@ class StateRepository extends StateManager {
         modeArray: ModeArrayEnum.anyInstance,
         mode: ModeEnum.empty,
         propMode: PropertyRequiredEnum.all,
+        config: BrowserConfig(
+          isApi: schema.readOnly != null,
+          refTarget: '\$def',
+        ),
       );
       await browserData.browseSync(schema, false, 0);
       data = browserData.json;

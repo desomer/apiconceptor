@@ -5,8 +5,12 @@ class CoreExpression {
 
   late CoreDataEval exp;
 
-  void init(String expression, {required List<String> logs, required bool isAsync}) {
-    String cacheKey = expression;
+  void init(
+    String expression, {
+    required List<String> logs,
+    required bool isAsync,
+  }) {
+    String cacheKey = expression + (isAsync ? '_async' : '_sync');
     if (cache[cacheKey] != null) {
       exp = cache[cacheKey]!;
     } else {
@@ -34,7 +38,7 @@ class CoreExpression {
     String? self,
     Map<String, dynamic>? variables,
     required List<String> logs,
-  })  {
+  }) {
     if (self != null) {
       exp.self = double.tryParse(self);
     }

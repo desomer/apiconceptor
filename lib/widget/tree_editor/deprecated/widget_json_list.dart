@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';
-import 'package:jsonschema/widget/tree_editor/widget_json_row.dart';
-import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
+import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_row.dart';
+import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_tree.dart';
 
 class JsonList extends StatefulWidget {
   const JsonList({super.key, required this.modelInfo});

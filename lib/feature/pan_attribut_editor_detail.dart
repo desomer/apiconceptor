@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:highlight/languages/tex.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -28,30 +32,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
 
     return Column(
       children: [
-        Container(
-          padding: EdgeInsets.all(3),
-          color: Colors.blue,
-          child: Row(
-            children: [
-              MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: () {
-                    if (widget.onClose != null) {
-                      widget.onClose!();
-                    }
-                  },
-                  child: Icon(Icons.close),
-                ),
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(model?.selectedAttr?.info.name ?? ''),
-                ),
-              ),
-            ],
-          ),
-        ),
+        getHeader(model),
         Expanded(
           child: WidgetTab(
             listTab: [
@@ -73,6 +54,31 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
         ),
       ],
+    );
+  }
+
+  Container getHeader(ModelSchema? model) {
+    return Container(
+      padding: EdgeInsets.all(3),
+      color: Colors.blue,
+      child: Row(
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                if (widget.onClose != null) {
+                  widget.onClose!();
+                }
+              },
+              child: Icon(Icons.close),
+            ),
+          ),
+          Expanded(
+            child: Center(child: Text(model?.selectedAttr?.info.name ?? '')),
+          ),
+        ],
+      ),
     );
   }
 
@@ -387,15 +393,32 @@ class _AttributPropertiesState extends State<AttributProperties> {
             // inArray: false,
           ),
 
-          CellEditor(
-            key: ValueKey('enum#${info.hashCode}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: model,
-              propName: 'enum',
-            ),
-            line: 5,
-            inArray: false,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 5,
+            children: [
+              Expanded(
+                child: CellEditor(
+                  key: ValueKey('enum#${info.hashCode}'),
+                  acces: ModelAccessorAttr(
+                    node: info,
+                    schema: model,
+                    propName: 'enum',
+                  ),
+                  line: 5,
+                  inArray: false,
+                ),
+              ),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    showLabelDialog(info, model, context);
+                  },
+                  child: Icon(Icons.label),
+                ),
+              ),
+            ],
           ),
 
           CellEditor(
@@ -454,6 +477,88 @@ class _AttributPropertiesState extends State<AttributProperties> {
           // "contentMediaType": "image/png"
         ],
       ),
+    );
+  }
+
+  Future<void> showLabelDialog(
+    NodeAttribut info,
+    ModelSchema model,
+    BuildContext ctx,
+  ) async {
+    var str =
+        ModelAccessorAttr(node: info, schema: model, propName: 'enum').get();
+
+    var label = ModelAccessorAttr(
+      node: info,
+      schema: model,
+      propName: '#enumLabel',
+    );
+
+    List<String> enumer = str.toString().split('\n');
+    enumer.removeWhere((value) => value.trim().isEmpty);
+    String? jsonLabel = label.get();
+
+    jsonLabel ??= "{}";
+    Map mapLabel = jsonDecode(jsonLabel);
+
+    List<Widget> listEnumWidget = [];
+    for (var element in enumer) {
+      listEnumWidget.add(
+        Row(
+          children: [
+            Expanded(child: Text(element)),
+            Expanded(
+              flex: 2,
+              child: TextField(
+                enabled: label.isEditable(),
+                decoration: InputDecoration(
+                  filled: true,
+                  labelText: 'Label for "$element"',
+                ),
+                controller: TextEditingController(
+                  text: mapLabel[element] ?? '',
+                ),
+                onChanged: (value) {
+                  if (label.isEditable()) {
+                    mapLabel[element] = value;
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return showDialog<void>(
+      context: ctx,
+      barrierDismissible: true, // user must tap button!
+      builder: (BuildContext context) {
+        Size size = MediaQuery.of(ctx).size;
+        double width = size.width * 0.5;
+        double height = size.height * 0.8;
+        return AlertDialog(
+          content: SizedBox(
+            width: width,
+            height: height,
+            child: ListView(children: listEnumWidget),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (mapLabel.isEmpty) {
+                  label.remove();
+                } else {
+                  var v = jsonEncode(mapLabel);
+                  label.set(v);
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -520,7 +625,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
 
-          getTargetWidget(typeModelAccessor),
+          Row(spacing: 10, children: [Text('target'), getTargetWidget(typeModelAccessor)]),
 
           TagSelector(
             key: ValueKey('tag#${info.hashCode}'),
@@ -629,7 +734,6 @@ class _AttributPropertiesState extends State<AttributProperties> {
 
     var info = model!.selectedAttr!;
 
-
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -637,7 +741,6 @@ class _AttributPropertiesState extends State<AttributProperties> {
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           CellEditor(
             key: ValueKey('source#${info.hashCode}'),
             acces: ModelAccessorAttr(
@@ -648,7 +751,6 @@ class _AttributPropertiesState extends State<AttributProperties> {
             line: 5,
             inArray: false,
           ),
-
         ],
       ),
     );
@@ -691,7 +793,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
 
   Widget getTargetWidget(ModelAccessorAttr typeModelAccessor) {
     ValueNotifier<String> sourceName = ValueNotifier(
-      typeModelAccessor.get() ?? 'api;bdd',
+      typeModelAccessor.get() ?? 'api;bdd;event',
     );
 
     return ValueListenableBuilder(
@@ -700,10 +802,30 @@ class _AttributPropertiesState extends State<AttributProperties> {
         var sel = Set<String>.from(value.split(';'));
         return SegmentedButton<String>(
           multiSelectionEnabled: true,
+          showSelectedIcon: false,
           segments: [
-            ButtonSegment(value: 'api', label: Text('for API')),
-            ButtonSegment(value: 'bdd', label: Text('for BDD')),
+            ButtonSegment(
+              value: 'api',
+              label: Text('API', style: TextStyle(fontSize: 12)),
+            ),
+            ButtonSegment(
+              value: 'bdd',
+              label: Text('BDD', style: TextStyle(fontSize: 12)),
+            ),
+            ButtonSegment(
+              value: 'event',
+              label: Text('Event', style: TextStyle(fontSize: 12)),
+            ),
           ],
+          style: SegmentedButton.styleFrom(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: EdgeInsets.zero, // enlève le padding interne
+            visualDensity: const VisualDensity(
+              horizontal: -4,
+              vertical: -4,
+            ), // compresse encore plus
+            minimumSize: const Size(0, 28),
+          ),
           onSelectionChanged: (value) {
             String str = value.join(';');
             typeModelAccessor.set(str);

@@ -20,16 +20,28 @@ class PanApiActionHub extends StatelessWidget {
     return SizedBox(
       height: 30,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        spacing: 10,
         children: [
           ElevatedButton.icon(
             icon: Icon(Icons.add_box_outlined),
             onPressed: () {
-              if (currentCompany.listAPI!=null) {
+              if (currentCompany.listAPI != null) {
                 selector.showImportDialog(context);
               }
             },
             style: style,
             label: Text('New API'),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.create_new_folder_outlined),
+            onPressed: () {
+              if (currentCompany.listAPI != null) {
+                selector.showSwaggerDialog(context);
+              }
+            },
+            style: style,
+            label: Text('Generate Swagger'),
           ),
           // ElevatedButton(onPressed: () {}, child: Text('New component')),
           // ElevatedButton(onPressed: () {}, child: Text('New DTO')),

@@ -6,7 +6,6 @@ import 'package:jsonschema/core/designer/editor/view/bloc_drop_attr.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/transform/pan_model_viewer.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
-import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 import 'package:shortid/shortid.dart' show shortid;
 
@@ -23,6 +22,8 @@ class PagesDatasource extends StatelessWidget {
   Widget build(BuildContext context) {
     ValueNotifier<String> sourceName = ValueNotifier<String>("Criteria");
     ValueNotifier<String> typeName = ValueNotifier<String>("Form");
+    var valueNotifier = ValueNotifier(0);
+
     return Column(
       children: [
         SizedBox(
@@ -81,6 +82,11 @@ class PagesDatasource extends StatelessWidget {
                   } else if (value == 'Computed') {
                     computeManager.computedProps =
                         dsCaller.config.computedProps;
+
+                    var listComputeKey = GlobalKey(
+                      debugLabel: 'ListComputeWidget',
+                    );
+
                     return Column(
                       children: [
                         TextButton(
@@ -93,40 +99,28 @@ class PagesDatasource extends StatelessWidget {
                                   'compute ${computeManager.computedProps.length + 1}',
                               expression: '',
                             );
+                            computeManager.onCloseScriptEditor = () {
+                              // ignore: invalid_use_of_protected_member
+                              listComputeKey.currentState?.setState(() {});
+
+                              var attr = <String, dynamic>{
+                                'src': 'Computed',
+                                'type': 'input',
+                                'id': cv.id,
+                                'label': cv.name,
+                                'path': 'show computed ${cv.name}',
+                              };
+                              dsCaller.panBuilderConfig.add(attr);
+                              valueNotifier.value++;
+                            };
                             computeManager.showScriptEditor(cv, context);
                           },
                           child: Text("add computed property"),
                         ),
                         Expanded(
-                          child: ListView.builder(
-                            itemCount: computeManager.computedProps.length,
-                            itemBuilder: (context, index) {
-                              var prop = computeManager.computedProps[index];
-                              return Draggable<Map<String, dynamic>>(
-                                dragAnchorStrategy: pointerDragAnchorStrategy,
-                                data: <String, dynamic>{
-                                  'src': 'Computed',
-                                  'type': 'input',
-                                  'id': prop.id,
-                                  'label': prop.name,
-                                  'path': 'show computed ${prop.name}',
-                                },
-                                feedback: Material(child: Text(prop.name)),
-                                child: InkWell(
-                                  onTap: () {
-                                    // edit computed prop
-                                    computeManager.showScriptEditor(
-                                      prop,
-                                      context,
-                                    );
-                                  },
-                                  child: ListTile(
-                                    title: Text(prop.name),
-                                    subtitle: Text(prop.expression),
-                                  ),
-                                ),
-                              );
-                            },
+                          child: ListComputeWidget(
+                            key: listComputeKey,
+                            computeManager: computeManager,
                           ),
                         ),
                       ],
@@ -142,42 +136,59 @@ class PagesDatasource extends StatelessWidget {
                   }
                 },
               ),
+              ValueListenableBuilder(
+                valueListenable: valueNotifier,
+                builder: (context, value, child) {
+                  return DroppableListView<Map<String, dynamic>, Object>(
+                    initialItems: dsCaller.panBuilderConfig,
+                    onItemRemoved: (item) {},
+                    onDropConvert: (detail) {
+                      if (detail.data is Map<String, dynamic>) {
+                        // from action or computed
+                        return detail.data as Map<String, dynamic>;
+                      }
 
-              DroppableListView<Map<String, dynamic>, Object>(
-                initialItems: dsCaller.selectionConfig,
-                onItemRemoved: (item) {},
-                onDropConvert: (detail) {
-                  if (detail.data is Map<String, dynamic>) {
-                    return detail.data as Map<String, dynamic>;
-                  }
+                      var data =
+                          (detail.data as TreeNodeData<NodeAttribut>).data;
+                      var masterPath = data.info.getMasterIDPath();
+                      if (masterPath.isEmpty) {
+                        masterPath = data.info.getMasterID();
+                      }
+                      return <String, dynamic>{
+                        'type': 'attr',
+                        'src': sourceName.value,
+                        'id': masterPath,
+                        'path': data.info.getJsonPath(withRoot: false),
+                        'widget': 'input',
+                      };
+                    },
+                    itemBuilder: (context, item, index) {
+                      Icon icon = const Icon(Icons.description);
+                      if (item['type'] == 'data_link') {
+                        icon = const Icon(Icons.link);
+                      } else if (item['type'] == 'load_criteria_action') {
+                        icon = const Icon(Icons.search_rounded);
+                      }
 
-                  var data = (detail.data as TreeNodeData<NodeAttribut>).data;
-                  return <String, dynamic>{
-                    'type': 'attr',
-                    'src': sourceName.value,
-                    'id':
-                        data.info.masterID ??
-                        data.info.properties?[constMasterID],
-                    'path': data.info.getJsonPath().substring(5),
-                  };
-                },
-                itemBuilder: (context, item, index) {
-                  Icon icon = const Icon(Icons.description);
-                  if (item['type'] == 'data_link') {
-                    icon = const Icon(Icons.link);
-                  } else if (item['type'] == 'load_criteria_action') {
-                    icon = const Icon(Icons.search_rounded);
-                  }
-
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 2,
-                      vertical: 2,
-                    ),
-                    child: ListTile(
-                      leading: icon,
-                      title: Text(item['path'].toString()),
-                    ),
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 2,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ListTile(
+                                leading: icon,
+                                title: Text(item['path'].toString()),
+                              ),
+                            ),
+                            TypeDropdownWidget(item: item),
+                            SizedBox(width: 40),
+                          ],
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -266,6 +277,86 @@ class PagesDatasource extends StatelessWidget {
       },
       feedback: Material(child: Text(label)),
       child: ListTile(dense: true, title: Text("action $label"), leading: icon),
+    );
+  }
+}
+
+class ListComputeWidget extends StatefulWidget {
+  const ListComputeWidget({super.key, required this.computeManager});
+
+  final ComputeManager computeManager;
+
+  @override
+  State<ListComputeWidget> createState() => _ListComputeWidgetState();
+}
+
+class _ListComputeWidgetState extends State<ListComputeWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: widget.computeManager.computedProps.length,
+      itemBuilder: (context, index) {
+        var prop = widget.computeManager.computedProps[index];
+        return Draggable<Map<String, dynamic>>(
+          dragAnchorStrategy: pointerDragAnchorStrategy,
+          data: <String, dynamic>{
+            'src': 'Computed',
+            'type': 'input',
+            'id': prop.id,
+            'label': prop.name,
+            'path': 'show computed ${prop.name}',
+          },
+          feedback: Material(child: Text(prop.name)),
+          child: InkWell(
+            onTap: () {
+              widget.computeManager.onCloseScriptEditor = () {
+                setState(() {});
+              };
+              // edit computed prop
+              widget.computeManager.showScriptEditor(prop, context);
+            },
+            child: ListTile(
+              title: Text(prop.name),
+              subtitle: Text(prop.expression),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class TypeDropdownWidget extends StatefulWidget {
+  const TypeDropdownWidget({super.key, required this.item});
+
+  final Map<String, dynamic> item;
+
+  @override
+  State<TypeDropdownWidget> createState() => _TypeDropdownWidgetState();
+}
+
+class _TypeDropdownWidgetState extends State<TypeDropdownWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButton<String>(
+      hint: Text('widget type'),
+      value: widget.item['widget'] ?? 'input',
+      underline: const SizedBox(),
+      onChanged: (value) {
+        setState(() {
+          widget.item['widget'] = value;
+        });
+      },
+      itemHeight: kMinInteractiveDimension,
+      isDense: true,
+
+      items: [
+        DropdownMenuItem(value: 'input', child: Text('Input')),
+        DropdownMenuItem(value: 'label', child: Text('Label')),
+        DropdownMenuItem(value: 'icon', child: Text('Icon')),
+        DropdownMenuItem(value: 'indicator', child: Text('Indicator')),
+        DropdownMenuItem(value: 'action', child: Text('Action button')),
+      ],
     );
   }
 }

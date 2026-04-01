@@ -96,6 +96,7 @@ class DesignModelPage extends GenericPageStateless {
           settings: const RouteSettings(name: 'List model'),
           type: BreadNodeType.widget,
         ),
-      ];
+      ]
+      ..actions = getDefaultActionModel();
   }
 }

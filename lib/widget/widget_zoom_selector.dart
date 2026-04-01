@@ -4,7 +4,7 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart' show stateOpenFactor;
-import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
+import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_tree.dart';
 
 class WidgetZoomSelector extends StatefulWidget {
   const WidgetZoomSelector({super.key, required this.zoom});
@@ -59,11 +59,12 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
         IconButton(
           onPressed: () {
             if (currentYamlTree != null) {
-              currentYamlTree!.setOpenStructure(true);
+              currentYamlTree!.changeOpenStructure();
             }
           },
           icon: Icon(Icons.auto_awesome_motion_outlined),
         ),
+        VerticalDivider(width: 1, thickness: 1, indent: 3, endIndent: 3),
         IconButton(
           onPressed: () {
             bddStorage.localCache.clear();

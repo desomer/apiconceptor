@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/dart.dart';
 import 'package:jsonschema/core/compute/core_expression.dart';
+import 'package:jsonschema/core/designer/core/cw_widget.dart';
+import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
@@ -11,6 +13,36 @@ class ComputeManager {
   late List<ComputedValue> computedProps;
   Function? onCloseScriptEditor;
   var variables = <String, dynamic>{};
+
+  void editCompute(CwWidgetCtx sel, BuildContext context) {
+    Map bind = sel.dataWidget?[cwProps]?['bind'];
+    String repoId = bind['repository'];
+    String computedId = bind['computedId'];
+    Map computedInfo = sel.aFactory.appData[cwRepos][repoId][cwComputed];
+    String expression = computedInfo[computedId]['expression'];
+
+    ComputedValue cv = ComputedValue(
+      id: computedId,
+      name: computedInfo[computedId]['name'],
+      expression: expression,
+    );
+    computedProps = [cv];
+    onCloseScriptEditor = () {
+      // update the bind with new expression
+      sel.aFactory.appData[cwRepos][repoId][cwComputed][cv.id] = {
+        'id': cv.id,
+        'name': cv.name,
+        'expression': cv.expression,
+      };
+      sel.repaint();
+    };
+    variables = {
+      '\$\$__ctx__\$\$': sel,
+      '\$\$__buildctx__\$\$': sel.widgetState!.context,
+      '\$\$__state__\$\$': sel.widgetState,
+    };
+    showScriptEditor(cv, context);
+  }
 
   void showScriptEditor(ComputedValue cv, BuildContext context) {
     MediaQueryData mediaQueryData = MediaQuery.of(context);
@@ -29,6 +61,7 @@ class ComputeManager {
     );
 
     ValueNotifier<String> valueListenableEval = ValueNotifier<String>("");
+    activeOverlayEntry?.remove();
 
     activeOverlayEntry = OverlayEntry(
       builder: (context) {
@@ -44,27 +77,45 @@ class ComputeManager {
                   children: [
                     SizedBox(
                       width: width,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue, // couleur du bouton
-                          foregroundColor: Colors.white, // couleur du texte
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        children: [
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue, // couleur du bouton
+                              foregroundColor: Colors.white, // couleur du texte
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+
+                            child: const Text('Save'),
+                            onPressed: () {
+                              if (computedProps.contains(cv) == false) {
+                                computedProps.add(cv);
+                              }
+
+                              activeOverlayEntry?.remove();
+                              activeOverlayEntry = null;
+                              if (onCloseScriptEditor != null) {
+                                onCloseScriptEditor!();
+                              }
+                            },
                           ),
-                        ),
-
-                        child: const Text('Close'),
-                        onPressed: () {
-                          if (computedProps.contains(cv) == false) {
-                            computedProps.add(cv);
-                          }
-
-                          activeOverlayEntry?.remove();
-                          activeOverlayEntry = null;
-                          if (onCloseScriptEditor != null) {
-                            onCloseScriptEditor!();
-                          }
-                        },
+                          ElevatedButton(
+                            // style: ElevatedButton.styleFrom(
+                            //   backgroundColor: Colors.red, // couleur du bouton
+                            //   foregroundColor: Colors.white, // couleur du texte
+                            //   shape: RoundedRectangleBorder(
+                            //     borderRadius: BorderRadius.circular(12),
+                            //   ),
+                            // ),
+                            child: const Text('Cancel'),
+                            onPressed: () {
+                              activeOverlayEntry?.remove();
+                              activeOverlayEntry = null;
+                            },
+                          ),
+                        ],
                       ),
                     ),
                     Expanded(
@@ -137,7 +188,7 @@ class ComputeManager {
           }
 
           codeEditorConfig?.codeEditorState?.controller.insertStr(
-            '\$.data["${dataAttr.info.getJsonPath().substring(5)}"]',
+            '\$.data["${dataAttr.info.getJsonPath(withRoot: false, noEndWithArray: true)}"]',
           );
         }
       },
@@ -173,12 +224,16 @@ class PanEditComputedProp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var textEditingController = TextEditingController(text: cv.name);
     return Column(
       children: [
         Text("Edit computed property"),
         TextField(
-          controller: TextEditingController(text: ''),
-          onChanged: (value) {},
+          focusNode: FocusNode(),
+          controller: textEditingController,
+          onChanged: (value) {
+            cv.name = value;
+          },
           decoration: const InputDecoration(labelText: 'Name'),
         ),
         Expanded(child: _getCode()),

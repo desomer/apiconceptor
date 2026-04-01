@@ -10,6 +10,7 @@ import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_factory_bloc.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
+import 'package:jsonschema/widget/widget_glasspan.dart';
 import 'package:shortid/shortid.dart';
 
 class DropCtx {
@@ -87,7 +88,7 @@ class DragComponentCtx extends DragCtx {
   }
 }
 
-class DragNewComponentCtx extends DragCtx {
+class DragNewComponentCtx extends DragCtx with GlassPaneMixin {
   String idComponent;
   final Map config;
   DragNewComponentCtx({required this.idComponent, required this.config});
@@ -192,7 +193,7 @@ class DragNewComponentCtx extends DragCtx {
   void doActionDropNewCmpImpl(CwWidgetCtx ctx, Map<String, dynamic> childData) {
     if (childData[cwSlots]?.length == 1) {
       bool notContainerIfSingle =
-          ctx.isParentOfType(['container'], layout: 'form') ||
+          ctx.isParentOfType(['container']) ||
           ctx.slotProps?.id == 'rdrawer' ||
           ctx.slotProps?.type == 'cell' ||
           ctx.slotProps?.type == 'header';
@@ -288,11 +289,13 @@ class DragNewComponentCtx extends DragCtx {
               },
             ),
             TextButton(
-              child: const Text('add data source'),
+              child: const Text('add data fields'),
               onPressed: () async {
+                showGlassPane(context);
                 ret = await CwFactoryBloc().doDataSrcBloc(config, ds, ctx);
                 // ignore: use_build_context_synchronously
                 emitLater(CDDesignEvent.reselect, null, multiple: true);
+                hideGlassPane();
                 // ignore: use_build_context_synchronously
                 Navigator.of(context).pop();
               },

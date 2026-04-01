@@ -64,7 +64,7 @@ mixin HelperEditor {
       hintText: info?.hint,
       //error: _errorWidget,
       // labelText: labelWidget == null ? info.label : null,
-      label: Text(label),
+      label: Text(label, overflow: TextOverflow.ellipsis, softWrap: false),
       border: UnderlineInputBorder(),
       isDense: true,
       contentPadding: EdgeInsets.fromLTRB(5, margeTop, 5, 5),

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:jsonschema/core/api/call_api_manager.dart';
+import 'package:jsonschema/core/json_browser.dart';
 //import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/start_core.dart';
@@ -27,7 +28,9 @@ void startServer() async {
   currentCompany.listDomain.mapInfoByTreePath.forEach((key, value) {
     var namespace = value.masterID!;
     loadAllAPI(namespace: namespace).then((modelApi) async {
-      var b = BrowseAPI();
+      var b = BrowseListAPI(
+        config: BrowserConfig(isApi: false, refTarget: '\$def'),
+      );
       await b.browseSync(modelApi, false, 20);
       modelApi.mapInfoByTreePath.forEach((key, api) {
         if (api.type == 'ope') {

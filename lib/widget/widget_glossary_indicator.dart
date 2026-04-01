@@ -51,16 +51,18 @@ class WidgetGlossaryIndicator extends StatelessWidget with WidgetHelper {
       // textWidget = TextStyle(color: Colors.black);
     }
     if (text.startsWith('[')) text = text.substring(1, text.length - 1);
+    var green = isValid && (info.unexistWord?.isEmpty ?? true);
+
     return getChip(
       Row(
         children: [
           Icon(icon, size: 20),
-          SizedBox(width: 5),
-          Text(text, style: textWidget),
+          if (!green) SizedBox(width: 5),
+          if (!green) Text(text, style: textWidget),
         ],
       ),
       color:
-          isValid && (info.unexistWord?.isEmpty ?? true)
+          green
               ? Colors.green
               : (info.unexistWord?.isEmpty ?? true
                   ? Colors.orange

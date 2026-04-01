@@ -22,6 +22,8 @@ List<String> autorizedGlossaryType = [
 ];
 
 class BrowseGlossary<T extends Map> extends JsonBrowser<T> {
+  BrowseGlossary({required super.config});
+
   @override
   void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
     if (autorizedGlossaryType.contains(aNodeAttribut.info.type)) {

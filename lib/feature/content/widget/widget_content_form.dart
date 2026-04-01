@@ -8,6 +8,7 @@ import 'package:highlight/languages/json.dart';
 import 'package:jsonschema/core/api/sessionStorage.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
@@ -66,7 +67,10 @@ class _WidgetContentFormState extends State<WidgetContentForm>
   @override
   void dispose() {
     aScrollController.dispose();
-    widget.info.json2ui.stateMgr.depsBindingManager.disposeContainer(widget.info.pathValue!, this);
+    widget.info.json2ui.stateMgr.depsBindingManager.disposeContainer(
+      widget.info.pathValue!,
+      this,
+    );
     super.dispose();
   }
 
@@ -148,7 +152,9 @@ class _WidgetContentFormState extends State<WidgetContentForm>
             ),
             onPressed: () async {
               var pages = await loadDataSource("all", false);
-              BrowseSingle().browse(pages, false);
+              BrowseSingle(
+                config: BrowserConfig(),
+              ).browse(pages, false);
               var attr = pages.mapInfoByName[e.toDatasrc];
               if (attr?.isNotEmpty ?? false) {
                 PageData pageData = PageData(

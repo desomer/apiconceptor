@@ -37,7 +37,7 @@ String removeComments(String jsonWithComments) =>
 
 //************************************************************************* */
 class BrowseModel<T extends Map> extends JsonBrowser<T> {
-  BrowseModel({super.readOnly});
+  BrowseModel({required super.config});
 
   @override
   void doTree(ModelSchema model, NodeAttribut aNodeAttribut, r) {
@@ -59,6 +59,19 @@ class BrowseModel<T extends Map> extends JsonBrowser<T> {
     NodeAttribut node,
     dynamic parent,
   ) {
+    if (config.isGet == true) {
+      bool wr = node.info.properties?['writeOnly'] ?? false;
+      if (wr) {
+        return null;
+      }
+    }
+
+    if (config.isApi == true &&
+        !(node.info.properties?['#target']?.toString().contains('api') ??
+            true)) {
+      return null;
+    }
+
     return parent;
   }
 
@@ -68,6 +81,7 @@ class BrowseModel<T extends Map> extends JsonBrowser<T> {
 }
 
 class BrowseSingle<T extends Map> extends JsonBrowser<T> {
+  BrowseSingle({required super.config});
   List<NodeAttribut> root = [];
 
   @override
@@ -82,6 +96,19 @@ class BrowseSingle<T extends Map> extends JsonBrowser<T> {
     NodeAttribut node,
     dynamic parent,
   ) {
+    if (config.isGet == true) {
+      bool wr = node.info.properties?['writeOnly'] ?? false;
+      if (wr) {
+        return null;
+      }
+    }
+
+    if (config.isApi == true &&
+        !(node.info.properties?['#target']?.toString().contains('api') ??
+            true)) {
+      return null;
+    }
+
     root.add(node);
     return parent;
   }
@@ -240,6 +267,8 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
 class InfoManagerChangeStyle {
   Color? addColor;
   Color? nameChange;
+  Color? pathChange;
+  String? tooltipMessage;
 
   void initStyle(ModelSchema modelSchema, TreeNodeData<NodeAttribut> node) {
     if (modelSchema.olderModelSchema != null && !node.isRoot) {
@@ -252,6 +281,13 @@ class InfoManagerChangeStyle {
       } else {
         if (exist.info.name != node.data.info.name) {
           nameChange = Colors.orangeAccent;
+          tooltipMessage =
+              'from "${exist.info.name}" to "${node.data.info.name}"';
+        } 
+        if (exist.info.getJsonPath(onlyPath: true) != node.data.info.getJsonPath(onlyPath: true)) {
+          pathChange = Colors.yellowAccent;
+          tooltipMessage = 
+              'from "${exist.info.getJsonPath(withRoot: false, sep: '.')}" to "${node.data.info.getJsonPath(withRoot: false, sep: '.')}"';
         }
       }
     }
@@ -451,19 +487,34 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
                 if (changeStyle.addColor != null)
                   Padding(
                     padding: const EdgeInsets.only(right: 3, top: 6, bottom: 6),
-                    child: Container(width: 4, color: changeStyle.addColor),
-                  ), // for error display
-                Text(
-                  name,
-                  style:
-                      (isObject || isArray)
-                          ? TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: colorText,
-                          )
-                          : (colorText != null
-                              ? TextStyle(color: colorText)
-                              : null),
+                    child: Tooltip(
+                      message: 'Added',
+                      child: Container(width: 4, color: changeStyle.addColor),
+                    ),
+                  ),
+                if (changeStyle.pathChange != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 3, top: 6, bottom: 6),
+                    child: Tooltip(
+                      message: 'Path changed ${changeStyle.tooltipMessage}',
+                      child: Container(width: 4, color: changeStyle.pathChange),
+                    ),
+                  ), // for error display   // for error display
+                getTooltipText(
+                  changeStyle,
+                  'Name ',
+                  Text(
+                    name,
+                    style:
+                        (isObject || isArray)
+                            ? TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: colorText,
+                            )
+                            : (colorText != null
+                                ? TextStyle(color: colorText)
+                                : null),
+                  ),
                 ),
                 Spacer(),
                 getWidgetType(node.data, isModel, isRoot, context),
@@ -472,6 +523,19 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
           ),
         ),
       ],
+    );
+  }
+
+  Widget getTooltipText(
+    InfoManagerChangeStyle changeStyle,
+    String message,
+    Widget child,
+  ) {
+    if (changeStyle.tooltipMessage == null) return child;
+
+    return Tooltip(
+      message: '$message ${changeStyle.tooltipMessage}',
+      child: child,
     );
   }
 

@@ -10,13 +10,13 @@ import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'package:jsonschema/widget/widget_dialog_card.dart';
 
 mixin class WidgetHelper {
-  Future<bool> askUser(BuildContext context) async {
+  Future<bool> askUser(BuildContext context, String title, String message) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Question'),
-          content: Text('Can you remove this item ?'),
+          title: Text(title),
+          content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),

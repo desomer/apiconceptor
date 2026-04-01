@@ -5,6 +5,7 @@ import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/model/widget_example_choiser.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -84,8 +85,8 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     if (currentCompany.currentModel == null) {
       return Text('select model first');
     }
-    var export =
-        Export2JsonSchema(readOnly: false)..browse(currentCompany.currentModel!, false);
+    var export = Export2JsonSchema(config: BrowserConfig())
+      ..browse(currentCompany.currentModel!, false);
     jsonSchema = export.json;
     try {
       jsonValidator = JsonSchema.create(jsonSchema);
@@ -157,6 +158,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                     'max' => PropertyRequiredEnum.all,
                     _ => PropertyRequiredEnum.all,
                   },
+                  config: BrowserConfig()
                 )
                 ..maxArrayItems = 4
                 ..browse(currentCompany.currentModel!, false);

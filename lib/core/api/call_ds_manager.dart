@@ -25,7 +25,7 @@ class CallerDatasource {
   List<AttributInfo>? exampleData;
 
   String typeLayout = 'Form';
-  List<Map<String, dynamic>> selectionConfig = [];
+  List<Map<String, dynamic>> panBuilderConfig = [];
 
   Future<void> loadDs(String dataSourceId, String? parentParamId) async {
     dsId = dataSourceId;
@@ -147,7 +147,7 @@ class CallerDatasource {
             withProperties: true,
           );
 
-          var a = BrowseSingle();
+          var a = BrowseSingle(config: BrowserConfig());
           a.browse(paramModel, false);
 
           var paramAttr = paramModel.mapInfoByName[param]?.firstOrNull;
@@ -171,7 +171,7 @@ class CallerDatasource {
 
   Future<ModelSchema> getDataSourceModel(String domainName) async {
     var apps = await loadDataSource(domainName, false);
-    var b = BrowseSingle();
+    var b = BrowseSingle(config: BrowserConfig());
     b.browse(apps, false);
     return apps;
   }

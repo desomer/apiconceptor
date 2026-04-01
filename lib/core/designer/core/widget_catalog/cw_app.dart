@@ -12,15 +12,15 @@ class CwApp extends CwWidget {
   static void initFactory(WidgetFactory factory) {
     factory.registerComponent(
       id: 'app',
-      build:
-          (ctx) =>
-              CwApp(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
+      build: (ctx) {
+        return CwApp(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget());
+      },
       config: (ctx) {
         return CwWidgetConfig()
-            .addStyle(
+            .addProp(
               CwWidgetProperties(id: 'color', name: 'seed color')..isColor(ctx),
             )
-            .addStyle(
+            .addProp(
               CwWidgetProperties(id: 'darkMode', name: 'dark mode')
                 ..isBool(ctx),
             );
@@ -34,27 +34,33 @@ class CwApp extends CwWidget {
 
 class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
   final themeController = ThemeController();
-  late ValueNotifier<String> routeController;
-  final routerBuilderController = ValueNotifier<int>(0);
+  //late ValueNotifier<String> routeController;
+  final routerReBuildController = ValueNotifier<int>(0);
 
   @override
   void initState() {
-    routeController = ValueNotifier<String>('/');
-    if (widget.ctx.aFactory.isModeDesigner()) {
-      widget.ctx.aFactory.routeControllerDesigner = routeController;
-    } else {
-      widget.ctx.aFactory.routeControllerViewer = routeController;
-    }
+    // routeController = ValueNotifier<String>(
+    //   widget.ctx.aFactory.currentRoute ?? '/',
+    // );
+    // if (widget.ctx.aFactory.isModeDesigner()) {
+    //   widget.ctx.aFactory.routeControllerDesigner = routeController;
+    // } else {
+    //   widget.ctx.aFactory.routeControllerViewer = routeController;
+    // }
     super.initState();
   }
 
   @override
   void dispose() {
-    widget.ctx.aFactory.routeControllerViewer = null;
-    widget.ctx.aFactory.routeControllerDesigner = null;
+    // if (widget.ctx.aFactory.routeControllerViewer == routeController) {
+    //   widget.ctx.aFactory.routeControllerViewer = null;
+    // }
+    // if (widget.ctx.aFactory.routeControllerDesigner == routeController) {
+    //   widget.ctx.aFactory.routeControllerDesigner = null;
+    // }
     themeController.dispose();
-    routeController.dispose();
-    routerBuilderController.dispose();
+    //routeController.dispose();
+    routerReBuildController.dispose();
     super.dispose();
   }
 
@@ -69,14 +75,21 @@ class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
       ThemeData theme = getTheme(isDark);
       themeController.setDefaultTheme(theme);
       var ret = ValueListenableBuilder<int>(
-        valueListenable: routerBuilderController,
+        valueListenable: routerReBuildController,
         builder: (context, value, child) {
-          final GoRouter router = goRouter();
-          ctx.aFactory.router = router;
+          if (widget.ctx.aFactory.routerDesigner == null ||
+              widget.ctx.aFactory.routerViewer == null) {
+            widget.ctx.aFactory.routerDesigner = goRouter();
+            widget.ctx.aFactory.routerViewer = goRouter();
+          }
+          //final GoRouter router = goRouter();
+          // ctx.aFactory.router = router;
           return MaterialApp.router(
             key: GlobalKey(debugLabel: 'MaterialApp.router - CwPage'),
             debugShowCheckedModeBanner: false,
-            routerConfig: router,
+            routerConfig: widget.ctx.aFactory.isModeDesigner()
+                ? widget.ctx.aFactory.routerDesigner!
+                : widget.ctx.aFactory.routerViewer!,
             theme: themeController.theme,
           );
         },
@@ -147,7 +160,7 @@ class CwPageState extends CwWidgetState<CwApp> with HelperEditor {
     var myRouteObserver = MyRouteObserver(factory: widget.ctx.aFactory);
     var router = GoRouter(
       observers: [myRouteObserver],
-      initialLocation: routeController.value,
+      initialLocation: '/',
       routes: [
         ShellRoute(
           builder: (context, state, child) {
@@ -219,9 +232,10 @@ class MyRouteObserver extends NavigatorObserver {
 
   @override
   void didPush(Route route, Route? previousRoute) {
-    //print("Route push: ${route.settings.name} ${router.state.path}");
-    factory.routeControllerDesigner?.value = router.state.path!;
-    factory.routeControllerViewer?.value = router.state.path!;
+    print("Route push: ${route.settings.name} ${router.state.path}");
+    // factory.routeControllerDesigner?.value = router.state.path!;
+    // factory.routeControllerViewer?.value = router.state.path!;
+    factory.currentRoute = router.state.path!;
   }
 
   @override

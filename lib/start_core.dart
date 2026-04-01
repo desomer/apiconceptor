@@ -12,6 +12,7 @@ import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/pages/apps/apps_list_page.dart';
 import 'package:jsonschema/pages/content/content_map_page.dart';
 import 'package:jsonschema/pages/datasource/data_sources_page.dart';
 import 'package:jsonschema/pages/router_layout.dart';
@@ -41,7 +42,7 @@ Future<bool> startCore(String usermail, String password) async {
   }
 
   UserAuthentication.stateConnection.value = 'Loading environment ...';
-  var a = BrowseSingle();
+  var a = BrowseSingle(config: BrowserConfig());
   currentCompany.listEnv = await loadSchema(
     TypeMD.env,
     'env',
@@ -50,6 +51,7 @@ Future<bool> startCore(String usermail, String password) async {
     infoManager: InfoManagerEnv(),
     category: Category.env,
     browser: a,
+    config: BrowserConfig(),
   );
 
   if (a.root.isNotEmpty) {
@@ -65,7 +67,7 @@ Future<bool> startCore(String usermail, String password) async {
   }
 
   UserAuthentication.stateConnection.value = 'Loading domain ...';
-  var b = BrowseSingle();
+  var b = BrowseSingle(config: BrowserConfig());
   currentCompany.listDomain = await loadSchema(
     TypeMD.domain,
     'domain',
@@ -74,6 +76,7 @@ Future<bool> startCore(String usermail, String password) async {
     infoManager: InfoManagerDomain(),
     category: Category.domain,
     browser: b,
+    config: BrowserConfig(),
   );
   if (b.root.isNotEmpty) {
     var currentDomain = prefs.getString("currentDomain");
@@ -137,7 +140,7 @@ Future<ModelSchema> loadAllAPI({String? namespace}) async {
   if (withBdd) {
     try {
       await allApi.loadYamlAndProperties(cache: false, withProperties: true);
-      BrowseAPI().browse(allApi, false);
+      BrowseListAPI(config: BrowserConfig()).browse(allApi, false);
     } on Exception catch (e) {
       print("$e");
       startError.add("$e");
@@ -162,7 +165,7 @@ Future<ModelSchema> loadGlossary(String id, String name) async {
   if (withBdd) {
     try {
       await schema.loadYamlAndProperties(cache: false, withProperties: true);
-      BrowseGlossary().browse(schema, false);
+      BrowseGlossary(config: BrowserConfig()).browse(schema, false);
     } on Exception catch (e) {
       print("$e");
       startError.add("$e");
@@ -242,6 +245,29 @@ Future<ModelSchema> loadDataMap(String idDomain, bool cache) async {
   return schema;
 }
 
+Future<ModelSchema> loadApps(String idDomain, bool cache) async {
+  var schema = ModelSchema(
+    category: Category.apps,
+    headerName: "apps",
+    id: 'apps/$idDomain',
+    infoManager: InfoManagerApps(),
+    refDomain: null,
+  );
+  schema.namespace = idDomain;
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  schema.namespace = idDomain;
+  currentCompany.currentApps = schema;
+  return schema;
+}
+
 Future<ModelSchema> loadVarEnv(
   String idDomain,
   String idEnv,
@@ -279,6 +305,7 @@ Future<ModelSchema> loadSchema(
   ModelVersion? version,
   bool sync = false,
   ModelSchema? ref,
+  required BrowserConfig config
 }) async {
   if (category == null && type == TypeMD.listmodel) {
     infoManager = InfoManagerListModel(typeMD: type);
@@ -298,9 +325,13 @@ Future<ModelSchema> loadSchema(
     try {
       await m.loadYamlAndProperties(cache: false, withProperties: true);
       if (sync) {
-        await (browser ?? BrowseModel()).browseSync(m, true, 0);
+        await (browser ?? BrowseModel(config: config)).browseSync(
+          m,
+          true,
+          0,
+        );
       } else {
-        (browser ?? BrowseModel()).browse(m, true);
+        (browser ?? BrowseModel(config: config)).browse(m, true);
       }
     } on Exception catch (e) {
       print('$e');
@@ -329,6 +360,8 @@ final ValueNotifier<double> openFactor = ValueNotifier(10);
 WidgetZoomSelectorState? stateOpenFactor;
 final ValueNotifier<int> zoom = ValueNotifier(100);
 int timezoom = 0;
+ValueNotifier<double> designZoomNotifier = ValueNotifier(100);
+ValueNotifier<String> modelAttributFilterNotifier = ValueNotifier('');
 
 //GlobalKey keyAPIEditor = GlobalKey();
 

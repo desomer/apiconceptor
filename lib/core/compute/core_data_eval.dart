@@ -9,6 +9,7 @@ import 'package:jmespath/jmespath.dart' show search;
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/start_core.dart';
 
 class CoreDataEval {
@@ -47,15 +48,25 @@ class CoreDataEval {
     map[$String('getData')] = $Closure((runtime, target, args) {
       String attr = args[0]!.$value.toString();
       CwWidgetCtx ctx = variables!['\$\$__ctx__\$\$'];
-      BuildContext context = variables!['\$\$__buildctx__\$\$'];
-      CwWidgetStateBindJson? state = variables!['\$\$__state__\$\$'];
-      var ret = ctx.getDataValueForEval(
-        jsonPath: attr,
-        context: context,
-        listBindInfo: listBindInfo,
-        state: state,
-      );
-      return getEvalObj(ret);
+      BuildContext? context = variables!['\$\$__buildctx__\$\$'];
+      if (context == null) {
+        // special case for export data 
+        Map row = variables!['\$\$__row__\$\$'];
+        String rowPath = variables!['\$\$__rowPath__\$\$'];
+        String path = attr.substring(rowPath.length + 1);
+        path = path.replaceAll('.', '/');
+        var valueFromPath = getValueFromPath(row, path);
+        return getEvalObj(valueFromPath);
+      } else {
+        CwWidgetStateBindJson? state = variables!['\$\$__state__\$\$'];
+        var ret = ctx.getDataValueForEval(
+          jsonPath: attr,
+          context: context,
+          listBindInfo: listBindInfo,
+          state: state,
+        );
+        return getEvalObj(ret);
+      }
     });
 
     map[$String('setVar')] = $Closure((runtime, target, args) {
@@ -103,7 +114,12 @@ class CoreDataEval {
   final regexVar = RegExp(r'\$\.var\[');
   final regexVarData = RegExp(r'\$\.data\[');
 
-  ResultCompil compilProgram(List<String> lines, int ligne, Compiler compiler, bool isAsync) {
+  ResultCompil compilProgram(
+    List<String> lines,
+    int ligne,
+    Compiler compiler,
+    bool isAsync,
+  ) {
     StringBuffer debug = StringBuffer();
     compilOk = false;
 
@@ -217,7 +233,7 @@ class CoreDataEval {
        return await send(r);
     }
 
-    dynamic main(dynamic v, Map<String, Function> callback) ${isAsync?'async':''} {
+    dynamic main(dynamic v, Map<String, Function> callback) ${isAsync ? 'async' : ''} {
       _callback = callback;
       var getVar = callback['getVar'];
       var getData = callback['getData'];

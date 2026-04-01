@@ -16,7 +16,7 @@ class _WidgetGlobalZoomState extends State<WidgetGlobalZoom> {
     return CartStepperInt(
       value: zoom.value,
       size: 20,
-      stepper: 2,
+      stepper: 5,
 
       style: CartStepperTheme.of(context).copyWith(
         activeForegroundColor: Colors.white,

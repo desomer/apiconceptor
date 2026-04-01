@@ -8,7 +8,7 @@ import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
-import 'package:jsonschema/widget/tree_editor/widget_json_row.dart';
+import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_row.dart';
 import 'package:uuid/uuid.dart';
 // import 'package:nanoid/async.dart';
 
@@ -18,13 +18,20 @@ String getKeyParamFromYaml(dynamic key) {
   return (key is Map ? '{${key.keys.firstOrNull}}' : key).toString();
 }
 
+class BrowserConfig {
+  bool? isGet;
+  bool isApi = false;
+  String refTarget;
+  BrowserConfig({this.isGet, this.isApi = false, this.refTarget = '\$def'});
+}
+
 class JsonBrowser<T> {
   bool ready = false;
   var uuid = Uuid();
 
-  bool? readOnly;
+  BrowserConfig config;
 
-  JsonBrowser({this.readOnly});
+  JsonBrowser({required this.config});
 
   void onInit(ModelSchema model) {}
   void onReady(ModelSchema model) {}
@@ -35,7 +42,8 @@ class JsonBrowser<T> {
     bool unknowedMode,
     int antiloop,
   ) async {
-    readOnly ??= model.readOnly;
+    //config ??= BrowserConfig(isApi: model.readOnly != null, refTarget: '\$def');
+    config.isGet = model.readOnly;
     var ret = browse(model, unknowedMode);
     if (ret.wait != null && antiloop < cstAntiloop) {
       //await Future.delayed(Duration(milliseconds: 300));
@@ -46,7 +54,10 @@ class JsonBrowser<T> {
   }
 
   NodeBrowser browse(ModelSchema model, bool unknowedMode) {
-    readOnly ??= model.readOnly;
+    //config ??= ;
+    config.isGet = model.readOnly;
+    config.isApi = model.isApi ?? false;
+
     int time = DateTime.now().millisecondsSinceEpoch;
     NodeBrowser browser = NodeBrowser()..time = time;
     browser.selectedPath = model.lastBrowser?.selectedPath;
@@ -101,25 +112,6 @@ class JsonBrowser<T> {
       });
       browser.wait = Future.wait(waitAllRef);
     }
-
-    //List<Future> waitAllAsync = [];
-    // for (var element in browser.asyncMaster) {
-    //   element.masterId!.then((value) {
-    //     element.nodeAttribut.info.properties?[constMasterID] = value;
-    //     element.nodeAttribut.info.masterID = value;
-    //     element.nodeAttribut.info.cacheRowWidget = null;
-    //   });
-    //   waitAllAsync.add(element.masterId!);
-    // }
-    // if (waitAllAsync.isNotEmpty) {
-    //   Future.wait(waitAllAsync).then((value) {
-    //     model.first = true; // pour les nouveau noeud ajouter par les $ref
-    //     onPropertiesChanged();
-    //     if (model.autoSave) {
-    //       model.saveProperties();
-    //     }
-    //   });
-    // }
 
     if (browser.propertiesChanged) {
       onPropertiesChanged();
@@ -815,7 +807,13 @@ class AttributInfo {
     return masterIDPath.join('>');
   }
 
-  String getJsonPath({bool withRoot = true, bool withType = false}) {
+  String getJsonPath({
+    bool withRoot = true,
+    bool withType = false,
+    bool noEndWithArray = false,
+    bool onlyPath = false,
+    String sep = '.',
+  }) {
     StringBuffer curPath = StringBuffer(withRoot ? "root" : "");
     List<String> pathJson = path.split(">");
     bool nextIsTypeOf = false;
@@ -832,10 +830,23 @@ class AttributInfo {
         // l'objet est uniquement le type
         continue;
       }
-      curPath.isEmpty ? curPath.write(p) : curPath.write('.$p');
+      curPath.isEmpty ? curPath.write(p) : curPath.write('$sep$p');
     }
-    print(curPath.toString());
-    return curPath.toString();
+
+    //print(curPath.toString());
+    var ret = curPath.toString();
+    if (onlyPath) {
+      int idx = ret.lastIndexOf('.');
+      if (idx > 0) {
+        ret = ret.substring(0, idx);
+      } else {
+        ret = '';
+      }
+    }
+    if (noEndWithArray && ret.endsWith('[]')) {
+      ret = ret.substring(0, ret.length - 2);
+    }
+    return ret;
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_table.dart';
 import 'package:jsonschema/core/designer/editor/engine/behavior_manager.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
@@ -53,6 +54,40 @@ class _CwInputState extends CwWidgetStateBindJson<CwAction> with HelperEditor {
     super.initState();
   }
 
+  // StringBuffer jsonlToCsv({required List<Map<String, dynamic>> jsonl}) {
+  //   // Parse chaque ligne JSON
+
+  //   final Set<String> headers = {};
+
+  //   for (final line in jsonl) {
+  //     headers.addAll(line.keys);
+  //   }
+
+  //   final headerList = headers.toList();
+
+  //   // Construire le CSV
+  //   final buffer = StringBuffer();
+
+  //   // Ligne d'en-tête
+  //   buffer.writeln(headerList.join(','));
+
+  //   // Lignes de données
+  //   for (final obj in jsonl) {
+  //     final row = headerList
+  //         .map((h) {
+  //           final value = obj[h];
+  //           if (value == null) return '';
+  //           final str = value.toString().replaceAll('"', '""');
+  //           return '"$str"';
+  //         })
+  //         .join(',');
+
+  //     buffer.writeln(row);
+  //   }
+
+  //   return buffer;
+  // }
+
   @override
   Widget build(BuildContext context) {
     return buildWidget(false, ModeBuilderWidget.noConstraint, (
@@ -66,13 +101,20 @@ class _CwInputState extends CwWidgetStateBindJson<CwAction> with HelperEditor {
       Icon? icon = getIconProp(ctx, 'icon');
 
       void onPressed() async {
-        setSelectedRow(context);
-
-        BehaviorManager.executeBehaviors(
-          ctx,
-          // ignore: use_build_context_synchronously
+        doChangeRowFromParent(
           context,
+          pathWidgetRepos: widget.ctx.parentCtx?.aWidgetPath,
         );
+
+        if (label?.toLowerCase().contains('export') ?? false) {
+          //find export arrya in parent
+          var arrayCtx = ctx.findParentArrayContainer();
+          if (arrayCtx != null) {
+            (arrayCtx.widgetState as CwTableState).doExport(context);
+          }
+        }
+
+        BehaviorManager.executeBehaviors(this, ctx, context);
       }
 
       var type = ctx.slotProps?.type;

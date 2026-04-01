@@ -216,7 +216,7 @@ class HomePage extends GenericPageStateless {
           WidgetMenuBtn(
             label: 'Design pages',
             icon: Icons.design_services,
-            route: Pages.pageDesigner,
+            route: Pages.listApps,
           ),
         ],
       ),

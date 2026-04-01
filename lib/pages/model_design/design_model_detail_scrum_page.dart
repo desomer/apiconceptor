@@ -38,7 +38,7 @@ class DesignModelDetailScrumPage extends GenericPageStateless {
 
         BreadNode(
           icon: const Icon(Icons.devices),
-          settings: const RouteSettings(name: 'UI schema'),
+          settings: const RouteSettings(name: 'UI view'),
           type: BreadNodeType.widget,
           path: Pages.modelUI.urlpath,
         ),

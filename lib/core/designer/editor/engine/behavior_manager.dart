@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/compute/core_expression.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_repository_action.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
@@ -50,7 +51,11 @@ class BehaviorManager {
     return descriptions;
   }
 
-  static void executeBehaviors(CwWidgetCtx ctx, BuildContext context) async {
+  static void executeBehaviors(
+    State state,
+    CwWidgetCtx ctx,
+    BuildContext context,
+  ) async {
     if (ctx.dataWidget == null) return;
     var fact = ctx.aFactory;
 
@@ -71,10 +76,10 @@ class BehaviorManager {
             }
           }
           url = fact.mapPath2PathSlot[url] ?? url;
-          fact.router!.push(url);
+          fact.gotoUrl(url);
         }
       } else if (behavior.type == 'repository') {
-        await behavior.doActionOnRepository(ctx, context);
+        await behavior.doActionOnRepository(state, ctx, context);
       }
     }
   }
@@ -111,6 +116,7 @@ class BehaviorDescription {
   }
 
   Future<void> doActionOnRepository(
+    State state,
     CwWidgetCtx ctx,
     BuildContext context,
   ) async {
@@ -135,6 +141,38 @@ class BehaviorDescription {
             case 'nextPage':
               repoAction.doNextPage(infoPress, 1000000);
               repoAction.loadData(context);
+            case 'computed':
+              var bind = infoPress['bind'];
+              print('execute computed action with bind $bind');
+              Map aComputedInfo =
+                  ctx
+                      .aFactory
+                      .appData[cwRepos][infoPress['repository']][cwComputed];
+              String computedId = bind['computedId'];
+              if (aComputedInfo[computedId] != null) {
+                var computedInfo = aComputedInfo[computedId];
+                String expression = computedInfo!['expression'];
+                if (ctx.aFactory.isModeViewer()) {
+                  CoreExpression eval = CoreExpression();
+                  eval.init(expression, logs: [], isAsync: true);
+                  var r = eval.eval(
+                    variables: {
+                      '\$\$__ctx__\$\$': ctx,
+                      '\$\$__buildctx__\$\$': context,
+                      '\$\$__state__\$\$': state,
+                    },
+                    logs: [],
+                  );
+                  if (r is Future) {
+                    r.then((value) {
+                      print('result = $value');
+                    });
+                  } else {
+                    print('result = $r');
+                  }
+                }
+              }
+            //repoAction.loadData(context);
             default:
               break;
           }

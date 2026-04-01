@@ -4,6 +4,7 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
+import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
@@ -11,7 +12,6 @@ import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
-import 'package:jsonschema/widget/widget_version_state.dart';
 
 enum ModeExample { design, browse }
 
@@ -19,11 +19,13 @@ class ExampleConfig {
   final ModeExample mode;
   final Function onSelectHeader;
   final Function onSelectMock;
+  final TypeAPITab typeTab;
 
   ExampleConfig({
     required this.onSelectMock,
     required this.onSelectHeader,
     required this.mode,
+    required this.typeTab,
   });
 }
 
@@ -91,26 +93,28 @@ class PanApiExample extends PanYamlTree {
       );
 
       if (config.mode == ModeExample.design) {
-        row.add(SizedBox(width: 10));
-        row.add(WidgetVersionState(margeVertical: 2, version: null));
-        row.add(
-          TextButton.icon(
-            icon: Icon(Icons.assignment_turned_in),
-            onPressed: () async {
-              await gotoTestApi(node.data, true, false);
-            },
-            label: Text('Mock response'),
-          ),
-        );
-        row.add(
-          TextButton.icon(
-            icon: Icon(Icons.import_export),
-            onPressed: () async {
-              await gotoTestApi(node.data, false, true);
-            },
-            label: Text('Test API'),
-          ),
-        );
+        //row.add(SizedBox(width: 10));
+        //row.add(WidgetVersionState(margeVertical: 2, version: null));
+        if (config.typeTab == TypeAPITab.test) {
+          row.add(
+            TextButton.icon(
+              icon: Icon(Icons.assignment_turned_in),
+              onPressed: () async {
+                await gotoTestApi(node.data, true, false);
+              },
+              label: Text('Mock response'),
+            ),
+          );
+          row.add(
+            TextButton.icon(
+              icon: Icon(Icons.import_export),
+              onPressed: () async {
+                await gotoTestApi(node.data, false, true);
+              },
+              label: Text('Test API'),
+            ),
+          );
+        }
       }
     }
   }
@@ -150,7 +154,6 @@ class PanApiExample extends PanYamlTree {
 }
 
 class InfoManagerApiExample extends InfoManager with WidgetHelper {
-
   @override
   Function? getValidateKey() {
     return null;

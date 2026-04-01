@@ -11,6 +11,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_doc_response.dart';
+import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
@@ -87,8 +88,10 @@ class BrowseAPIPage extends GenericPageStateful {
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
           path: byTag ? Pages.apiBrowserTag.urlpath : Pages.apiBrowser.urlpath,
-        ),
-      ];
+        )
+      ]
+      ..actions = getDefaultActionModel()
+      ;
   }
 }
 
@@ -141,6 +144,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
   Widget _createExampleTab(String idApi) {
     return PanApiExample(
       config: ExampleConfig(
+        typeTab: TypeAPITab.definition,
         mode: ModeExample.browse,
         onSelectHeader: () {},
         onSelectMock: () {},
@@ -433,7 +437,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
         Tab(text: 'Parameters examples'),
         Tab(text: 'API documentation'),
         Tab(text: 'Request object details'),
-        Tab(text: 'Responses objectdetails'),
+        Tab(text: 'Responses object details'),
       ],
       listTabCont: [
         getExample(),

@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:jsonschema/core/compute/core_expression.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 
@@ -60,7 +61,11 @@ class CallerApi {
           modeArray: ModeArrayEnum.anyInstance,
           mode: ModeEnum.fake,
           propMode: PropertyRequiredEnum.all,
-          readOnly: info.httpOperation == 'get',
+          config: BrowserConfig(
+            isGet: info.httpOperation == 'get',
+            isApi: true,
+            refTarget: '\$def',
+          ),
         )..browse(m, false);
         apiResponse.size = exportFake.json.toString().length;
         r.data = exportFake.json;

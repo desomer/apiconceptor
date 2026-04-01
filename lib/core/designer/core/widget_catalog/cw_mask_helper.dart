@@ -1,10 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:jsonschema/core/designer/core/cw_widget.dart';
+import 'package:timezone/timezone.dart' as tz;
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 typedef TextValidator =
     String? Function(String? value, TextfieldBuilderInfo info);
+
+final paris = tz.getLocation('Europe/Paris');
+final String defaultLocale = 'fr';
 
 class TextfieldBuilderInfo {
   TextfieldBuilderInfo({
@@ -40,32 +47,143 @@ class TextfieldBuilderInfo {
   bool? required;
   Map<String, dynamic> additionalInfo = {};
 
-  dynamic getUnmaskedValue(FormatterTextfield info, dynamic v) {
+  AttributBindInfo? bindInfo;
+
+  dynamic getMaskedValue(FormatterTextfield info, dynamic v) {
+    if (v == null) return '';
+
+    //var apattern = pattern ?? '';
+    var asuffix = suffix ?? '';
+    var aprefix = prefix ?? '';
+
+    if (v is String || v is bool) {
+      if (bindType == 'DATE' || bindType == 'DATETIME') {
+        //final offset = DateTime.now().timeZoneOffset;
+        // final locations = tz.timeZoneDatabase.locations;
+
+        // final systemLocation = locations.entries.firstWhere(
+        //   (entry) => entry.value.currentTimeZone.offset.inSeconds == offset.inSeconds,
+        //   orElse: () => MapEntry('UTC', tz.getLocation('UTC')),
+        // );
+
+        var dateFormat = DateFormat(info.patternDate);
+
+        try {
+          final parsed = DateTime.parse(v); // converti en local (CET/CEST)
+          final tzDateTime = tz.TZDateTime.from(parsed, paris);
+          var date = dateFormat.format(tzDateTime);
+          v = date;
+        } on Exception catch (_) {
+          // TODO
+        }
+      }
+      if (bindInfo?.bindAttribut != null) {
+        var enumLabel = bindInfo!.bindAttribut!.properties?['#enumLabel'];
+        if (enumLabel != null) {
+          var mapLabel = jsonDecode(enumLabel);
+          if (mapLabel[v] != null) {
+            var l = mapLabel[v];
+            if (l != null) {
+              v = l;
+            }
+          }
+        }
+      }
+
+      return '$aprefix$v$asuffix';
+    } else {
+      if (pattern == null) {
+        return '$aprefix$v$asuffix';
+      }
+      var numFormatter = NumberFormat(pattern, defaultLocale);
+      var format = numFormatter.format(v);
+      return '$aprefix$format$asuffix';
+    }
+    // var numFormatter = NumberFormat(apattern, defaultLocale);
+    // v = numFormatter.tryParse(vt);
+    // if (v != null) {
+    //   if (bindType == 'INT') {
+    //     return (v as num).toInt();
+    //   } else if (bindType == 'DOUBLE' ||
+    //       bindType == 'CUR' ||
+    //       bindType == 'PRCT') {
+    //     return (v as num).toDouble();
+    //   }
+    // }
+    // return v;
+  }
+
+  dynamic getUnmaskedValue(FormatterTextfield info, String v) {
     var apattern = pattern ?? '';
     var asuffix = suffix ?? '';
     var aprefix = prefix ?? '';
     final String defaultLocale = 'fr'; //Platform.localeName;
 
-    String vt = v;
-    if (vt.startsWith(aprefix)) {
-      vt = vt.substring(aprefix.length);
+    if (v.startsWith(aprefix)) {
+      v = v.substring(aprefix.length);
     }
-    if (vt.endsWith(asuffix)) {
-      vt = vt.substring(0, vt.length - asuffix.length);
+    if (v.endsWith(asuffix)) {
+      v = v.substring(0, v.length - asuffix.length);
     }
+
     if (!info.isNum) {
-      return vt.toString();
+      if (bindType == 'DATE' || bindType == 'DATETIME') {
+        //final offset = DateTime.now().timeZoneOffset;
+        // final locations = tz.timeZoneDatabase.locations;
+
+        // final systemLocation = locations.entries.firstWhere(
+        //   (entry) => entry.value.currentTimeZone.offset.inSeconds == offset.inSeconds,
+        //   orElse: () => MapEntry('UTC', tz.getLocation('UTC')),
+        // );
+
+        // var dateFormat = DateFormat(info.patternDate);
+        var dateFormat = DateFormat(info.patternDate);
+
+        try {
+          final parsed = dateFormat.parse(
+            v.toString(),
+          ); // converti en local (CET/CEST)
+          // //final tzDateTime = tz.TZDateTime.from(parsed, paris);
+          // var date = parsed.toIso8601String();
+          final localParis = tz.TZDateTime.parse(
+            paris,
+            parsed.toUtc().toIso8601String(),
+          );
+          final utc = localParis.toUtc();
+          var df = utc.toIso8601String();
+          return df;
+        } on Exception catch (_) {
+          // TODO
+        }
+      }
+
+      if (bindInfo?.bindAttribut != null) {
+        var enumLabel = bindInfo!.bindAttribut!.properties?['#enumLabel'];
+        if (enumLabel != null) {
+          Map mapLabel = jsonDecode(enumLabel);
+          var l = mapLabel.entries.firstWhere(
+            (entry) => entry.value == v,
+            orElse: () => MapEntry<String, dynamic>('', null),
+          );
+          if (l.key != null && l.key != '') {
+            v = l.key;
+          }
+        }
+      }
+
+      return v;
     }
 
     var numFormatter = NumberFormat(apattern, defaultLocale);
-    v = numFormatter.tryParse(vt);
-    if (v != null) {
+    var vnum = numFormatter.tryParse(v);
+
+    if (vnum != null) {
       if (bindType == 'INT') {
-        return (v as num).toInt();
+        return vnum.toInt();
       } else if (bindType == 'DOUBLE' ||
           bindType == 'CUR' ||
           bindType == 'PRCT') {
-        return (v as num).toDouble();
+        return vnum.toDouble();
       }
     }
     return v;
@@ -79,8 +197,14 @@ class FormatterTextfield {
   List<TextValidator>? validators;
   String? hint;
   bool isNum = false;
+  String? patternDate;
+  final TextfieldBuilderInfo? aInfoMask;
 
-  void initMaskAndValidatorInfo(TextfieldBuilderInfo infoMask) {
+  FormatterTextfield(this.aInfoMask);
+
+  void initMaskAndValidatorInfo(TextfieldBuilderInfo? infoMask) {
+    infoMask ??= aInfoMask;
+    if (infoMask == null) return;
     isNum =
         infoMask.bindType == 'INT' ||
         infoMask.bindType == 'DOUBLE' ||
@@ -202,6 +326,7 @@ class FormatterTextfield {
         break;
 
       case 'DATE':
+        patternDate = 'dd/MM/yyyy';
         formatters = [maskDate];
         hint = '__/__/____';
         validators ??= [];
@@ -223,6 +348,52 @@ class FormatterTextfield {
               }
             }
           }
+          return 'wrong date';
+        });
+        break;
+
+      case 'DATETIME':
+        patternDate = 'dd/MM/yyyy HH:mm:ss';
+        formatters = [maskDateTime];
+        hint = '__/__/____ __:__:__';
+        validators ??= [];
+        validators!.add((value, current) {
+          if (value == null || value.isEmpty) {
+            return null;
+          }
+          String datePart = value.split(' ').first;
+          final components = datePart.split('/');
+          if (components.length == 3) {
+            final day = int.tryParse(components[0]);
+            final month = int.tryParse(components[1]);
+            final year = int.tryParse(components[2]);
+            if (day != null && month != null && year != null && year > 1900) {
+              var date = DateTime(year, month, day);
+              var bool =
+                  date.year == year && date.month == month && date.day == day;
+              if (bool) {
+                return null;
+              }
+            }
+          }
+          String timePart = value.split(' ').last;
+          final timeComponents = timePart.split(':');
+          if (timeComponents.length == 3) {
+            final hour = int.tryParse(timeComponents[0]);
+            final minute = int.tryParse(timeComponents[1]);
+            final second = int.tryParse(timeComponents[2]);
+            if (hour != null && minute != null && second != null) {
+              var dateTime = DateTime(0, 1, 1, hour, minute, second);
+              var bool =
+                  dateTime.hour == hour &&
+                  dateTime.minute == minute &&
+                  dateTime.second == second;
+              if (bool) {
+                return null;
+              }
+            }
+          }
+
           return 'wrong date';
         });
         break;
@@ -251,7 +422,7 @@ class FormatterTextfield {
         // hint = 'required';
         validators ??= [];
         validators!.add((value, current) {
-          if ((infoMask.required ?? false) && (value?.isEmpty ?? true)) {
+          if ((infoMask!.required ?? false) && (value?.isEmpty ?? true)) {
             return 'Can\'t be empty';
           }
           if ((value?.length ?? 0) < (valueMin ?? 0)) {
@@ -268,6 +439,12 @@ class FormatterTextfield {
 //-------------------------------------------------------------------------------
 final MaskTextInputFormatter maskDate = MaskTextInputFormatter(
   mask: '##/##/####',
+  filter: {'#': RegExp(r'[0-9]')},
+  type: MaskAutoCompletionType.eager,
+);
+
+final MaskTextInputFormatter maskDateTime = MaskTextInputFormatter(
+  mask: '##/##/#### ##:##:##',
   filter: {'#': RegExp(r'[0-9]')},
   type: MaskAutoCompletionType.eager,
 );
@@ -470,7 +647,9 @@ class NumericInputFormatter extends TextInputFormatter {
       posCur = prefix.length + 1;
     }
 
-    print('TextEditingValue ====>$valText  nbt=$nbT nbt2=$nbT2  nbgroup=$dblgroup  idx=$posCur');
+    print(
+      'TextEditingValue ====>$valText  nbt=$nbT nbt2=$nbT2  nbgroup=$dblgroup  idx=$posCur',
+    );
 
     return TextEditingValue(
       text: prefix + valText + suffix,

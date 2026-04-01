@@ -6,6 +6,7 @@ import 'package:jsonschema/core/export/export2dto_nestjs.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/export/export2mongoose_nestjs.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
@@ -60,7 +61,7 @@ class _PanScrumModelState extends State<PanScrumModel> {
     apiCallInfo.responseSchema = await apiResponse.getSubSchema(subNode: 200);
     apiCallInfo.currentAPIRequest = apiRequest;
     apiCallInfo.currentAPIResponse = apiResponse;
-    apiCallInfo.responseSchema!.headerName = 'Response 200';
+    apiCallInfo.responseSchema?.headerName = 'Response 200';
     apiIsLoading = true;
 
     return widget.requestHelper!;
@@ -131,14 +132,25 @@ class DocumentationOptions {
   Widget getAPIDocumentation(final WidgetAPIHelper? requestHelper) {
     refDisplayed.clear();
     var apiCallInfo = requestHelper!.apiCallInfo;
-    var exportSchema = Export2JsonSchema(
-      readOnly: apiCallInfo.httpOperation == 'get',
-    )..browse(apiCallInfo.responseSchema!, false);
+    Export2JsonSchema? exportSchema;
+
+    if (apiCallInfo.responseSchema != null) {
+      exportSchema = Export2JsonSchema(
+        config: BrowserConfig(
+          isGet: apiCallInfo.httpOperation == 'get',
+          isApi: true,
+        ),
+      )..browse(apiCallInfo.responseSchema!, false);
+    }
+
     StringBuffer md = StringBuffer();
 
     md.writeln('# 🔗 API Specification\n');
 
-    md.writeln(getDocAccessor(apiCallInfo.currentAPIRequest!).get());
+    md.writeln(
+      getDocAccessor(apiCallInfo.currentAPIRequest!).get() ??
+          'No documentation',
+    );
 
     //     md.writeln('## API objective');
     //     md.writeln('''
@@ -160,10 +172,10 @@ class DocumentationOptions {
     // ''');
 
     md.writeln('## Endpoint');
-    md.writeln('### Method');
+    md.writeln('#### Method');
     md.writeln("`${apiCallInfo.httpOperation.toUpperCase()}`");
 
-    md.writeln('### URL');
+    md.writeln('#### URL');
     var url = apiCallInfo.getURLfromNode(
       currentCompany.listAPI!.getNodeByMasterIdPath(
         apiCallInfo.attrApi.masterID!,
@@ -187,10 +199,11 @@ class DocumentationOptions {
       String description = entry['description'] ?? '';
       final defaultValue =
           entry.containsKey('default') ? '`${entry['default']}`' : '';
-      final enumValues =
-          entry.containsKey('enum')
-              ? entry['enum'].map((e) => '`$e`').join(', ')
-              : '';
+      String enumValues = getEnumMD(entry);
+
+      // if (enumValues.length > 50) {
+      //   print(enumValues);
+      // }
       String validationStr = doValidationMD(entry);
       md.writeln(
         '| `${param.type}` | `${param.name}` | ${required ? '✅ Yes' : '❌ No'} | $defaultValue | $enumValues | $validationStr | $title | $description |',
@@ -201,14 +214,38 @@ class DocumentationOptions {
     md.writeln('`${apiCallInfo.httpOperation.toUpperCase()} $url`');
 
     md.writeln('# Response HTTP 200');
-    getMarkdownModel(
-      apiCallInfo.responseSchema!,
-      exportSchema,
-      md,
-      apiCallInfo.httpOperation == 'get',
-    );
+    if (apiCallInfo.responseSchema == null) {
+      md.writeln('No response schema');
+    } else {
+      getMarkdownModel(
+        apiCallInfo.responseSchema!,
+        exportSchema!,
+        md,
+        apiCallInfo.httpOperation == 'get',
+      );
+    }
 
     return getWidgetToDisplay(md);
+  }
+
+  String getEnumMD(Map entry) {
+    String enumValues = '';
+    if (entry.containsKey('enum')) {
+      if (entry['enum'] is String) {
+        String en = entry['enum'].toString();
+        enumValues = en
+            .split('\n')
+            .map((e) => '`$e`')
+            .join(', ')
+            .replaceAll(RegExp(r'\r\n?'), '');
+      } else if (entry['enum'] is List) {
+        enumValues = (entry['enum'] as List)
+            .map((e) => '`$e`')
+            .join(', ')
+            .replaceAll(RegExp(r'\r\n?'), '');
+      }
+    }
+    return enumValues;
   }
 
   ModelAccessorAttr getDocAccessor(ModelSchema model) {
@@ -224,8 +261,11 @@ class DocumentationOptions {
 
   Widget getModelDocumentation() {
     refDisplayed.clear();
-    var exportSchema = Export2JsonSchema(readOnly: null)
-      ..browse(currentCompany.currentModel!, false);
+    var exportSchema = Export2JsonSchema(
+      config: BrowserConfig(
+        isApi: currentCompany.currentModel!.readOnly != null,
+      ),
+    )..browse(currentCompany.currentModel!, false);
 
     StringBuffer md = StringBuffer();
 
@@ -331,7 +371,7 @@ class DocumentationOptions {
       modeArray: ModeArrayEnum.anyInstance,
       mode: ModeEnum.fake,
       propMode: PropertyRequiredEnum.required,
-      readOnly: readOnly,
+      config: BrowserConfig(isGet: readOnly, isApi: readOnly != null),
     )..browse(modelschema, false);
     var json = exportFake.prettyPrintJson(exportFake.json);
 
@@ -343,7 +383,7 @@ class DocumentationOptions {
       modeArray: ModeArrayEnum.anyInstance,
       mode: ModeEnum.fake,
       propMode: PropertyRequiredEnum.all,
-      readOnly: readOnly,
+      config: BrowserConfig(isGet: readOnly, isApi: readOnly != null),
     )..browse(modelschema, false);
     json = exportFake.prettyPrintJson(exportFake.json);
 
@@ -548,10 +588,7 @@ class DocumentationOptions {
     String title = entry['title'] ?? '';
     final defaultValue =
         entry.containsKey('default') ? '`${entry['default']}`' : '';
-    final enumValues =
-        entry.containsKey('enum')
-            ? entry['enum'].map((e) => '`$e`').join(', ')
-            : '';
+    final enumValues = getEnumMD(entry);
 
     String path = jsonPath.replaceAll(".", ">");
     var n = schema.mapInfoByJsonPath['root>$path'];

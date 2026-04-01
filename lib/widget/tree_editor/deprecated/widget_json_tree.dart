@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:jsonschema/widget/tree_editor/widget_json_list.dart';
+import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_list.dart';
 import 'package:jsonschema/start_core.dart';
-import 'package:jsonschema/widget/tree_editor/widget_json_row.dart';
+import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_row.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 
+@Deprecated('use tree view instead')
 class JsonBrowserWidget extends JsonBrowser {
   late JsonListEditorState state;
   late TreeNode<NodeAttribut> rootTree;
@@ -17,6 +18,8 @@ class JsonBrowserWidget extends JsonBrowser {
   List<String>? pathFilter;
 
   double maxSize = 300;
+
+  JsonBrowserWidget({required super.config});
 
   void gotoPath(ModelSchema model, String path) {
     AttributInfo? node;
@@ -211,7 +214,9 @@ class JsonListEditorState extends State<JsonListEditor>
     widget.config.textConfig?.treeJsonState = this;
 
     var jsonBrowserWidget =
-        JsonBrowserWidget()
+        JsonBrowserWidget(
+            config: BrowserConfig(),
+          )
           ..state = this
           ..pathFilter = pathFilter;
 

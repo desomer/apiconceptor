@@ -250,7 +250,7 @@ class CwTableRowState extends State<CwTableRow> {
         child: GestureDetector(
           onTap: () {
             var w = (ctx.widgetState as CwWidgetStateBindJson);
-            w.setSelectedRow(context, stateArray: w);
+            w.doChangeRowFromParent(context, stateArray: w);
           },
           child: child,
         ),

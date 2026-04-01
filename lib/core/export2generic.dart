@@ -6,7 +6,7 @@ import 'package:jsonschema/start_core.dart';
 
 abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     extends JsonBrowser<T> {
-  JsonBrowser2generic({super.readOnly});
+  JsonBrowser2generic({required super.config});
 
   @override
   dynamic getChild(
@@ -24,11 +24,17 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
       node.info.type = 'object';
     }
 
-    if (readOnly == true) {
+    if (config.isGet == true) {
       bool wr = node.info.properties?['writeOnly'] ?? false;
       if (wr) {
         return null;
       }
+    }
+
+    if (config.isApi == true &&
+        !(node.info.properties?['#target']?.toString().contains('api') ??
+            true)) {
+      return null;
     }
 
     NodeJson toAdd;

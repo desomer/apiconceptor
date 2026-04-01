@@ -18,7 +18,7 @@ class PanRequestApi extends PanYamlTree with PanModelEditorHelper {
     List<Widget> row,
     BuildContext context,
   ) {
-    if (node.data.level > 1) {
+    if (node.data.level > 0) {
       addAttributWidget(row, node.data, schema);
     }
   }
@@ -39,6 +39,9 @@ class PanRequestApi extends PanYamlTree with PanModelEditorHelper {
       getModel: () {
         return getSchema();
       },
+      onClose: () {
+        doShowAttrEditor(null);
+      },      
     );
   }
 }

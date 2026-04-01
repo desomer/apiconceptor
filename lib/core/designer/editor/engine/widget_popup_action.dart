@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/compute/compute_manager.dart';
+import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/designer/editor/engine/overlay_action.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
+import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 
 class WidgetPopupAction extends StatefulWidget {
   const WidgetPopupAction({super.key});
@@ -39,7 +40,6 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
 
     double t = e.top;
     double? l = e.left;
-    double? r;
 
     double hpopup = 200;
 
@@ -56,47 +56,16 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
         //          var app = CWApplication.of();
 
         var sel = currentSelectorManager.lastSelectedCtx;
-        Map? bind = sel?.dataWidget?[cwProps]?['bind'];
-        if (bind != null) {
-          String repoId = bind['repository'];
-          //repository = sel!.aFactory.mapRepositories[repoId];
-          Map computedInfo = sel!.aFactory.appData[cwRepos][repoId][cwComputed];
-          String? computedId = bind['computedId'];
-          if (computedId != null && computedInfo[computedId] != null) {
-            String? expression = computedInfo[computedId]['expression'];
-            if (expression != null) {
-              listActionWidget.add(
-                getMenu('Edit compute code...', () {
-                  // openBindDataDialog(context);
-                  Navigator.pop(context);
-                  ComputeManager computeManager = ComputeManager();
-                  ComputedValue cv = ComputedValue(
-                    id: computedId,
-                    name: computedInfo[computedId]['name'],
-                    expression: expression,
-                  );
-                  computeManager.computedProps = [cv];
-                  computeManager.onCloseScriptEditor = () {
-                    // update the bind with new expression
-                    sel.aFactory.appData[cwRepos][repoId][cwComputed][cv.id] = {
-                      'id': cv.id,
-                      'name': cv.name,
-                      'expression': cv.expression,
-                    };
-                    sel.repaint();
-                  };
-                  computeManager.variables = {
-                    '\$\$__ctx__\$\$': sel,
-                    '\$\$__buildctx__\$\$': sel.widgetState!.context,
-                    '\$\$__state__\$\$': sel.widgetState,
-                  };
-                  computeManager.showScriptEditor(cv, context);
-                }),
-              );
-              addMenuSeparator(listActionWidget);
-            }
-            // eval = CoreExpression();
-            // eval!.init(expression, logs: [], isAsync: true);
+        addComputedInNeeded(sel, listActionWidget, context);
+
+        if (sel?.isParentOfType(['container']) ?? false) {
+          int nb = HelperEditor.getIntProp(sel!.parentCtx!, 'nbchild') ?? 2;
+          if (nb < 2) {
+            listActionWidget.add(
+              getMenu('Remove unnecessary container', () {
+                // openPopulateDialog(context);
+              }),
+            );
           }
         }
 
@@ -149,7 +118,6 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
             Positioned(
               left: l,
               top: t,
-              right: r,
               child: Material(
                 elevation: 10,
                 color: Colors.black54,
@@ -163,10 +131,39 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
     );
   }
 
+  void addComputedInNeeded(
+    CwWidgetCtx? sel,
+    List<Widget> listActionWidget,
+    BuildContext context,
+  ) {
+    Map? bind = sel?.dataWidget?[cwProps]?['bind'];
+    if (bind != null) {
+      String repoId = bind['repository'];
+      //repository = sel!.aFactory.mapRepositories[repoId];
+      Map computedInfo = sel!.aFactory.appData[cwRepos][repoId][cwComputed];
+      String? computedId = bind['computedId'];
+      if (computedId != null && computedInfo[computedId] != null) {
+        String? expression = computedInfo[computedId]['expression'];
+        if (expression != null) {
+          listActionWidget.add(
+            getMenu('Edit compute code...', () {
+              // openBindDataDialog(context);
+              Navigator.pop(context);
+              ComputeManager().editCompute(sel, context);
+            }),
+          );
+          addMenuSeparator(listActionWidget);
+        }
+        // eval = CoreExpression();
+        // eval!.init(expression, logs: [], isAsync: true);
+      }
+    }
+  }
+
   void addMenuSeparator(List<Widget> listActionWidget) {
     listActionWidget.add(
       SizedBox(
-        width: 200,
+        width: 250,
         child: Divider(height: 1, thickness: 1, color: Colors.white24),
       ),
     );
@@ -175,7 +172,7 @@ class WidgetPopupActionState extends State<WidgetPopupAction> {
   SizedBox getMenu(String label, GestureTapCallback? call) {
     return SizedBox(
       height: 40,
-      width: 200,
+      width: 250,
       child: InkWell(
         onTap: call,
         child: Padding(padding: EdgeInsets.all(10), child: Text(label)),

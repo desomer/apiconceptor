@@ -20,6 +20,7 @@ class CwDivider extends CwWidget {
             .addProp(
               CwWidgetProperties(id: 'type', name: 'view type')..isToogle(ctx, [
                 {'icon': Icons.horizontal_rule, 'value': 'divider'},
+                {'icon': Icons.horizontal_rule, 'value': 'vdivider', 'quarterTurns': 1},
                 {'icon': Icons.settings_ethernet, 'value': 'spacer'},
               ], defaultValue: 'divider'),
             )
@@ -31,10 +32,10 @@ class CwDivider extends CwWidget {
   }
 
   @override
-  State<CwDivider> createState() => _CwTabBarState();
+  State<CwDivider> createState() => _CwDividerState();
 }
 
-class _CwTabBarState extends CwWidgetState<CwDivider> with HelperEditor {
+class _CwDividerState extends CwWidgetState<CwDivider> with HelperEditor {
   @override
   Widget build(BuildContext context) {
     return buildWidget(true, ModeBuilderWidget.constraintBuilder, (
@@ -45,8 +46,11 @@ class _CwTabBarState extends CwWidgetState<CwDivider> with HelperEditor {
       double height = 1;
       var label = getStringProp(ctx, 'label');
       var spacer = getStringProp(ctx, 'type') == 'spacer';
+      var vertical = getStringProp(ctx, 'type') == 'vdivider';
       if (spacer) {
         return getSizeDesignBox(const Spacer());
+      } else if (vertical) {
+        return getSizeDesignBox(const VerticalDivider());
       } else {
         return label != null
             ? getDividerWithLabel(height, label)

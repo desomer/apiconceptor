@@ -25,7 +25,8 @@ class FrozenTableView extends StatefulWidget {
     FrozenTableViewState tableState,
   )
   buildRow;
-  final double Function(int col) getColWidth;
+  final double Function(int col, double usedWidth, bool isCalc, int nbFillCol)
+  getColWidth;
   final double? Function(int row) getRowHeight;
 
   const FrozenTableView({
@@ -261,27 +262,53 @@ class FrozenTableViewState extends State<FrozenTableView> {
   }
 
   double getWitdhL(int start, int end) {
+    double totalFix = 0;
+    int nbFillCol = 0;
+    for (int i = start; i < end; i++) {
+      if (colWidthMap.containsKey(i)) {
+        totalFix += colWidthMap[i]!;
+        nbFillCol++;
+        continue;
+      }
+      var colWidth = widget.getColWidth(i, totalFix, true, -1);
+      if (colWidth > 0) {
+        totalFix += colWidth;
+        nbFillCol++;
+      }
+    }
     double total = 0;
     for (int i = start; i < end; i++) {
       if (colWidthMap.containsKey(i)) {
         total += colWidthMap[i]!;
         continue;
       }
-
-      total += widget.getColWidth(i);
+      total += widget.getColWidth(i, totalFix, false, nbFillCol);
     }
     return total + widget.rowWidthBorderL;
   }
 
   double getWitdhR(int start, int end) {
+    double totalfix = 0;
+    int nbFillCol = 0;
+    for (int i = start; i < end; i++) {
+      if (colWidthMap.containsKey(i)) {
+        totalfix += colWidthMap[i]!;
+        nbFillCol++;
+        continue;
+      }
+      var colWidth = widget.getColWidth(i, totalfix, true, -1);
+      if (colWidth > 0) {
+        totalfix += colWidth;
+        nbFillCol++;
+      }
+    }
     double total = 0;
     for (int i = start; i < end; i++) {
       if (colWidthMap.containsKey(i)) {
         total += colWidthMap[i]!;
         continue;
       }
-
-      total += widget.getColWidth(i);
+      total += widget.getColWidth(i, totalfix, false, nbFillCol);
     }
     return total + widget.rowWidthBorderR;
   }
@@ -293,7 +320,7 @@ class FrozenTableViewState extends State<FrozenTableView> {
       //print(' getColWidth $colIndex = $r');
       return r;
     }
-    r = widget.getColWidth(colIndex);
+    r = widget.getColWidth(colIndex, -1, false, -1);
     //print(' getColWidth $colIndex = $r');
     return r;
   }
@@ -316,7 +343,7 @@ class FrozenTableViewState extends State<FrozenTableView> {
           right: 0,
           top: 0,
           bottom: 0,
-          child: getResizeHandle(colIndex),
+          child: getResizeHandle(colIndex, isHover: isHover),
         ),
       ],
     );
@@ -364,7 +391,7 @@ class FrozenTableViewState extends State<FrozenTableView> {
     );
   }
 
-  Widget getResizeHandle(int colIndex) {
+  Widget getResizeHandle(int colIndex, {required ValueNotifier<bool> isHover}) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onHorizontalDragUpdate: (details) {
@@ -376,16 +403,23 @@ class FrozenTableViewState extends State<FrozenTableView> {
           // For this example, we'll just increase the width of the first column
           if (colWidthMap.containsKey(colIndex)) {
             colWidthMap[colIndex] = (colWidthMap[colIndex]! + details.delta.dx)
-                .clamp(50.0, 500.0);
+                .clamp(50.0, 4000.0);
           } else {
             colWidthMap[colIndex] = (getColWidth(colIndex) + details.delta.dx)
-                .clamp(50.0, 500.0);
+                .clamp(50.0, 4000.0);
           }
         });
       },
       child: MouseRegion(
         cursor: SystemMouseCursors.resizeColumn,
-        child: Container(width: 5),
+        onHover: (_) => isHover.value = true,
+        onExit: (_) => isHover.value = false,
+        child: ValueListenableBuilder(
+          valueListenable: isHover,
+          builder: (context, value, child) {
+            return SizedBox(width: 5, child: value ? VerticalDivider() : null);
+          },
+        ),
       ),
     );
   }

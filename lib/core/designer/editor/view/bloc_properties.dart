@@ -322,36 +322,39 @@ class WidgetFactoryProperty {
   }
 
   Widget _getHeaderProps(String name, CwWidgetCtx aCtx) {
-    return GestureDetector(
-      onTap: () {
-        aCtx.selectOnDesigner();
-      },
-      child: Container(
-        margin: EdgeInsets.fromLTRB(0, 0, 0, 5),
-        width: double.infinity,
-        padding: const EdgeInsets.all(3),
-        color: ThemeHolder.theme.colorScheme.secondaryContainer,
-        child: Row(
-          children: [
-            Expanded(
-              child: Center(
-                child: Text(
-                  name,
-                  style: TextStyle(color: Colors.white60, fontSize: 14),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () {
+          aCtx.selectOnDesigner();
+        },
+        child: Container(
+          margin: EdgeInsets.fromLTRB(0, 0, 0, 5),
+          width: double.infinity,
+          padding: const EdgeInsets.all(3),
+          color: ThemeHolder.theme.colorScheme.secondaryContainer,
+          child: Row(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Text(
+                    name,
+                    style: TextStyle(color: Colors.white60, fontSize: 14),
+                  ),
                 ),
               ),
-            ),
-            IconButton(
-              onPressed: () {
-                aCtx.aFactory.controllerTabProps?.animateTo(1);
-                aCtx.selectOnDesigner();
-              },
-              icon: Icon(Icons.style, size: 17),
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-            ),
-            const SizedBox(width: 10),
-          ],
+              GestureDetector(
+                onTap: () {
+                  aCtx.aFactory.controllerTabProps?.animateTo(1);
+                  aCtx.selectOnDesigner();
+                },
+                child: Icon(Icons.style, size: 17),
+                // constraints: const BoxConstraints(),
+                // padding: EdgeInsets.zero,
+              ),
+              const SizedBox(width: 10),
+            ],
+          ),
         ),
       ),
     );

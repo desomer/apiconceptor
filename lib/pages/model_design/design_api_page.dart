@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_highlight/themes/dark.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
@@ -17,8 +19,6 @@ import 'package:yaml/yaml.dart';
 class DesignAPIPage extends GenericPageStateless {
   const DesignAPIPage({super.key});
 
-  //final GlobalKey keySel = GlobalKey();
-
   @override
   Widget build(BuildContext context) {
     var panAPISelector = PanAPISelector(
@@ -36,7 +36,9 @@ class DesignAPIPage extends GenericPageStateless {
       2,
       WidgetTab(
         onInitController: (TabController tab) {
-          //stateApi.tabApi = tab;
+          tab.addListener(() async {
+            if (tab.index == 1 && tab.indexIsChanging) {}
+          });
         },
         listTab: [Tab(text: 'API Browser'), Tab(text: 'Trashcan')],
         listTabCont: [
@@ -120,6 +122,24 @@ class DesignAPIPage extends GenericPageStateless {
           settings: const RouteSettings(name: 'List API'),
           type: BreadNodeType.widget,
         ),
-      ];
+      ]
+      ..actions = getDefaultActionModel();
+  }
+}
+
+class YamlHighlightViewer extends StatelessWidget {
+  final String yaml;
+
+  const YamlHighlightViewer({super.key, required this.yaml});
+
+  @override
+  Widget build(BuildContext context) {
+    return HighlightView(
+      yaml,
+      language: 'yaml',
+      theme: darkTheme,
+      padding: const EdgeInsets.all(12),
+      textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+    );
   }
 }

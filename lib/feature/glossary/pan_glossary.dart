@@ -5,7 +5,7 @@ import 'package:jsonschema/json_browser/browse_glossary.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
+import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_tree.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';

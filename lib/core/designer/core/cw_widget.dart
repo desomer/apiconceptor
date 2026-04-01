@@ -22,6 +22,7 @@ import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_event_bus.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 
@@ -129,7 +130,8 @@ class CwWidgetCtx {
   }
 
   bool isParentOfType(List<String> type, {String? layout}) {
-    if (parentCtx != null && type.contains(parentCtx!.dataWidget?[cwImplement])) {
+    if (parentCtx != null &&
+        type.contains(parentCtx!.dataWidget?[cwImplement])) {
       var lay = parentCtx?.dataWidget?[cwProps]?['layout'];
       if (layout == null || lay == layout) {
         return true;
@@ -338,8 +340,15 @@ class CwWidgetCtx {
         parentCtx?.initChanged();
         aWidgetState = parentCtx?.widgetState;
       }
+      if (aWidgetPath == "") {
+        // cas de la racine qui n'a pas toujours de widgetState
+        aWidgetState = aFactory.rootCtx?.widgetState;
+      }
+
       if (aWidgetState == null || aWidgetState.mounted == false) {
-        print('ERROR: onValueChange state is null for $aWidgetPath');
+        print(
+          'ERROR: onValueChange state is null for $aWidgetPath ${aWidgetState?.hashCode}',
+        );
         return;
       }
       aWidgetState.widget.ctx.repaint();
@@ -559,10 +568,98 @@ class CwWidgetCtx {
     var ret = bindInfo.getValue(context, this, state!, inArray, false);
     return ret;
   }
+
+  CwWidgetCtx? findParentArrayContainer() {
+    CwWidgetCtx? arrayCtx;
+    CwWidgetCtx? aParentCtx = parentCtx;
+
+    while (aParentCtx != null && arrayCtx == null) {
+      if (aParentCtx.dataWidget?[cwImplement] == 'table') {
+        arrayCtx = aParentCtx;
+        break;
+      }
+      aParentCtx.childrenCtx?.entries.forEach((e) {
+        if (e.value.dataWidget?[cwImplement] == 'table') {
+          arrayCtx = e.value;
+        }
+      });
+      aParentCtx = aParentCtx.parentCtx;
+    }
+
+    return arrayCtx;
+  }
+
+  List<CwWidgetCtx> getAllCellsCtx() {
+    List<CwWidgetCtx> data = [];
+    List<CwWidgetCtx> dataCompute = [];
+    childrenCtx?.entries.forEach((e) {
+      if (e.key.startsWith('cell_')) {
+        findAllInputCtx(e.value, data, dataCompute);
+      }
+    });
+    data.addAll(dataCompute);
+    return data;
+  }
+
+  void findAllInputCtx(
+    CwWidgetCtx value,
+    List<CwWidgetCtx> data,
+    List<CwWidgetCtx> dataCompute,
+  ) {
+    if (value.dataWidget?[cwImplement] == 'input') {
+      if ((value.widgetState as CwWidgetStateBindJson).bindInfo.computedInfo !=
+          null) {
+        dataCompute.add(value);
+      } else {
+        data.add(value);
+      }
+    }
+    value.childrenCtx?.entries.forEach((e) {
+      findAllInputCtx(e.value, data, dataCompute);
+    });
+  }
+
+  dynamic getValueFromRow(
+    Map row,
+    CwWidgetStateBindJson<CwWidget> arrayState,
+    String? pathArray,
+  ) {
+    var b = widgetState as CwWidgetStateBindJson;
+    if (b.bindInfo.computedInfo != null) {
+      var eval = CoreExpression();
+      eval.init(
+        b.bindInfo.computedInfo!["expression"],
+        logs: [],
+        isAsync: false,
+      );
+
+      var r = eval.eval(
+        variables: {
+          '\$\$__ctx__\$\$': this,
+          '\$\$__row__\$\$': row,
+          '\$\$__rowPath__\$\$': arrayState.bindInfo.bindAttribut?.getJsonPath(
+            sep: '.',
+            withRoot: false,
+          ),
+        },
+        logs: [],
+      );
+      return r;
+    } else {
+      var pathD = b.bindInfo.bindAttribut?.getJsonPath(sep: '/');
+      if (pathD != null && pathArray != null) {
+        String path = pathD.substring(pathArray.length + 1);
+        // print('export pathD=$pathD pathA=$pathArray path=$path');
+        var v = getValueFromPath(row, path);
+        // print('export value=$v');
+        return v;
+      }
+    }
+  }
 }
 
 class CWWidgetCtxSelector {
-  Size? lastSize;
+  Size? lastSizeForDrag;
   String? inSlotName;
   CwSlotState? slotState;
 
@@ -597,6 +694,7 @@ class AttributBindInfo {
 
   CwRepository? repository;
   StateRepository? stateRepository;
+  Map? computedInfo;
 
   String pathData = '?';
   AttributInfo? bindAttribut;
@@ -611,30 +709,33 @@ class AttributBindInfo {
       String repoId = bind['repository'];
       repository = widgetCtx.aFactory.mapRepositories[repoId];
       if (repository != null && bind['from'] == 'criteria') {
-        String attrId = bind['attr'];
+        String attrMasterPath = bind['attr'];
         stateRepository = repository!.criteriaState;
         bindAttribut =
             repository!.ds.helper!.apiCallInfo.currentAPIRequest!
-                .getNodeByMasterIdPath(attrId)
+                .getNodeByMasterIdPath(attrMasterPath)
                 ?.info;
       } else if (repository != null && bind['from'] == 'data') {
-        String? attrId = bind['attr'];
+        String? attrMasterPath = bind['attr'];
         stateRepository = repository!.dataState;
-        if (attrId?.startsWith('self@') ?? false) {
+        if (attrMasterPath?.startsWith('self@') ?? false) {
           // bind sur un tableau de string ou nombre
-          attrId = attrId!.substring(5);
+          attrMasterPath = attrMasterPath!.substring(5);
           isPrimitiveArrayValue = true;
         }
         bindAttribut =
-            repository!.ds.modelHttp200!.getNodeByMasterIdPath(attrId)?.info;
+            repository!.ds.modelHttp200!
+                .getNodeByMasterIdPath(attrMasterPath)
+                ?.info;
       } else if (repository != null && bind['computedId'] != null) {
-        if (widgetCtx.aFactory.isModeViewer()) {
-          stateRepository = repository!.dataState;
-          Map computedInfo =
-              widgetCtx.aFactory.appData[cwRepos][repoId][cwComputed];
-          String computedId = bind['computedId'];
-          if (computedInfo[computedId] != null) {
-            String expression = computedInfo[computedId]['expression'];
+        stateRepository = repository!.dataState;
+        Map aComputedInfo =
+            widgetCtx.aFactory.appData[cwRepos][repoId][cwComputed];
+        String computedId = bind['computedId'];
+        if (aComputedInfo[computedId] != null) {
+          computedInfo = aComputedInfo[computedId];
+          String expression = computedInfo!['expression'];
+          if (widgetCtx.aFactory.isModeViewer()) {
             eval = CoreExpression();
             eval!.init(expression, logs: [], isAsync: true);
           }
@@ -710,7 +811,7 @@ class AttributBindInfo {
       if (dataContainer != null) {
         dynamic val = dataContainer!.jsonData[attrName];
         if (modeDesigner && !typeListContainer) {
-          return pathData;
+          return '{$attrName}';
         } else {
           return val;
         }
@@ -745,9 +846,10 @@ class AttributBindInfo {
 class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
   AttributBindInfo bindInfo = AttributBindInfo();
 
-  void setSelectedRow(
+  void doChangeRowFromParent(
     BuildContext context, {
     CwWidgetStateBindJson? stateArray,
+    String? pathWidgetRepos,
   }) {
     var pathRow = getPathData(
       context,
@@ -757,7 +859,7 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
     bindInfo.doChangeRow(
       rowContext: context,
       pathRow: pathRow,
-      pathWidgetRepos: stateArray?.widget.ctx.aWidgetPath,
+      pathWidgetRepos: stateArray?.widget.ctx.aWidgetPath ?? pathWidgetRepos,
     );
   }
 
@@ -771,7 +873,7 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
         bindInfo.stateRepository != null &&
         bindInfo.bindAttribut != null) {
       //String? oldPathData = pathData;
-      bool inArray = widget.ctx.parentCtx?.isType(['list', 'table']) ?? false;
+      bool inArray = widget.ctx.hasParentOfType(['list', 'table']);
       r = bindInfo.stateRepository!.getDataPath(
         // ignore: use_build_context_synchronously
         context,
@@ -784,7 +886,12 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
       bindInfo.pathData = r;
     } else {
       var s = stateArray ?? widget.ctx.parentCtx?.widgetState;
-      if (s is! CwWidgetStateBindJson) return null;
+      while (s != null && s is! CwWidgetStateBindJson) {
+        s = s.widget.ctx.parentCtx?.widgetState;
+      }
+      if (s == null || s is! CwWidgetStateBindJson) {
+        return null;
+      }
       var pathJson =
           'root${s.bindInfo.pathData.replaceAll('/', '>').replaceAll('[*]', '[]')}';
       pathJson = '$pathJson[]>*';
@@ -811,6 +918,8 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
   }
 
   void setSelectedRowIndex(int idx) {}
+
+  void setFilterValue(String? text, List<CwWidgetCtx> listCell) {}
 }
 
 enum ModeBuilderWidget { noConstraint, layoutBuilder, constraintBuilder }
@@ -850,7 +959,6 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
     ModeBuilderWidget mode,
     CacheWidgetBuilder builder,
   ) {
-    widget.ctx.widgetState = this;
     Widget retWidget;
 
     switch (mode) {

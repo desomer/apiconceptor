@@ -11,10 +11,13 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/widget/editor/doc_editor.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
+import 'package:jsonschema/widget/widget_glasspan.dart';
 import 'package:jsonschema/widget/widget_glossary_indicator.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 import '../../widget/tree_editor/tree_view.dart';
+
+var withGlosarryIndicator = true;
 
 mixin PanModelEditorHelper {
   Widget getChip(Widget content, {required Color? color, double? height}) {
@@ -58,7 +61,12 @@ mixin PanModelEditorHelper {
         (attr.info.properties?['minItems'] != null) ||
         (attr.info.properties?['maxItems'] != null);
 
-    attr.info.cacheIndicatorWidget ??= WidgetGlossaryIndicator(attr: attr.info);
+    if (withGlosarryIndicator) {
+      attr.info.cacheIndicatorWidget ??= WidgetGlossaryIndicator(
+        attr: attr.info,
+      );
+    }
+
     row.addAll(<Widget>[
       SizedBox(width: 10),
       if (attr.info.properties?['required'] == true)
@@ -73,8 +81,11 @@ mixin PanModelEditorHelper {
       if (attr.info.properties?['format'] != null)
         getChip(Text(attr.info.properties?['format']), color: null),
       if (minmax) Icon(Icons.tune),
+      if (attr.info.properties?['#enumLabel'] != null)
+        Icon(Icons.label_outline),       
       if (attr.info.properties?['#link'] != null)
         getChip(Text('link'), color: Colors.blue),
+
     ]);
 
     if (attr.info.properties?['#tag'] != null) {
@@ -93,7 +104,9 @@ mixin PanModelEditorHelper {
       }
     }
 
-    row.addAll(<Widget>[Spacer(), attr.info.cacheIndicatorWidget!]);
+    if (attr.info.cacheIndicatorWidget != null) {
+      row.addAll(<Widget>[Spacer(), attr.info.cacheIndicatorWidget!]);
+    }
   }
 }
 
@@ -120,7 +133,8 @@ class _PanModelEditorMainState extends State<PanModelEditorMain> {
 }
 
 // ignore: must_be_immutable
-class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
+class PanModelEditor extends PanYamlTree
+    with PanModelEditorHelper, GlassPaneMixin {
   PanModelEditor({super.key, required super.getSchemaFct});
 
   final GlobalKey keyVersion = GlobalKey();
@@ -138,13 +152,13 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
               Tab(text: 'Structure'),
               Tab(text: 'Info'),
               Tab(text: 'Version'),
-              Tab(text: 'Restore point'),
+              //Tab(text: 'Restore point'),
             ],
             listTabCont: [
               super.getLoader(),
               Container(),
               Container(),
-              Container(),
+              //Container(),
             ],
             heightTab: 30,
           ),
@@ -209,16 +223,16 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         Tab(text: 'Schema detail'),
         Tab(text: 'Documentation'),
         Tab(text: 'Change log'),
-        Tab(text: 'Life cycle method'),
-        Tab(text: 'Mapping rules'),
-        Tab(text: 'Recommendation'),
+        // Tab(text: 'Life cycle method'),
+        // Tab(text: 'Mapping rules'),
+        // Tab(text: 'Recommendation'),
       ],
       listTabCont: [
         viewer,
         WidgetDoc(accessorAttr: getDocAccessor()),
         _getChangeLogTab(),
-        getLifeCycleTab(),
-        Container(),
+        //getLifeCycleTab(),
+        //Container(),
         // PanDestSelector(
         //   getSchemaFct: () async {
         //     var m = ModelSchema(
@@ -232,7 +246,7 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         //     return m;
         //   },
         // ),
-        Container(),
+        //Container(),
       ],
       heightTab: 30,
     );
@@ -277,13 +291,13 @@ class PanModelEditor extends PanYamlTree with PanModelEditorHelper {
         Tab(text: 'Structure'),
         Tab(text: 'Info'),
         Tab(text: 'Version'),
-        Tab(text: 'Restore point'),
+        //Tab(text: 'Restore point'),
       ],
       listTabCont: [
         super.getLeftPan(withSep, context),
         getInfoForm(),
         getVersionTab(context),
-        Container(),
+        //Container(),
       ],
       heightTab: 30,
     );

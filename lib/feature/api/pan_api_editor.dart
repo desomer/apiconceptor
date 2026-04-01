@@ -10,6 +10,8 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
+import 'package:jsonschema/core/util.dart';
+import 'package:jsonschema/feature/api/html_swagger.dart';
 import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_mock.dart';
@@ -23,19 +25,25 @@ import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
+import 'package:jsonschema/widget/widget_scroller.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 
+import '../../core/designer/core/widget_catalog/export/export_csv.dart';
 import '../../widget/editor/doc_editor.dart';
 import 'pan_api_request.dart';
+import 'package:json2yaml/json2yaml.dart';
 
 TabController? tabSubApi;
 
+enum TypeAPITab { definition, test }
+
 class PanApiEditor extends StatefulWidget {
-  const PanApiEditor({super.key, required this.idApi});
+  const PanApiEditor({super.key, required this.idApi, required this.typeTab});
 
   final String idApi;
+  final TypeAPITab typeTab;
 
   @override
   State<PanApiEditor> createState() => _PanApiEditorState();
@@ -45,6 +53,8 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
   String? url;
   late WidgetAPIHelper requestHelper;
   ValueNotifier<int> modelLoad = ValueNotifier<int>(0);
+  ValueNotifier<String> modelSwagger = ValueNotifier<String>('');
+  Map yamlSwagger = {};
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +62,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
     currentCompany.listAPI!.selectedAttr = attr;
     requestHelper = WidgetAPIHelper(
       apiNode: currentCompany.listAPI!.selectedAttr!,
-      apiCallInfo: getAPICall(
+      apiCallInfo: _getAPICall(
         currentCompany.currentNameSpace,
         currentCompany.listAPI!.selectedAttr!,
       ),
@@ -63,91 +73,143 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
     return WidgetTab(
       onInitController: (TabController tab) {
         tabSubApi = tab;
-        tab.addListener(() {
-          if (tab.index == 4) {
-            repaintManager.doRepaint(ChangeTag.apiparam);
+        tab.addListener(() async {
+          //if (tab.index == 4) {
+          repaintManager.doRepaint(ChangeTag.apiparam);
+          //}
+          if (tab.index == 3) {
+            var cmp = {'schemas': {}};
+            var path = {};
+            var servers = [];
+
+            Map aPath = await requestHelper.apiCallInfo.generateSwagger(
+              servers,
+              cmp,
+            );
+
+            path.addAll(aPath);
+
+            yamlSwagger = getOpenApiSpec(servers, path, cmp);
+
+            modelSwagger.value = json2yaml(
+              toStringKeyMap(yamlSwagger),
+              yamlStyle: YamlStyle.pubspecYaml,
+            );
           }
         });
       },
       listTab: [
-        Tab(text: 'Definition'),
-        Tab(text: 'Documentation'),
+        if (widget.typeTab == TypeAPITab.definition) Tab(text: 'Definition'),
+        if (widget.typeTab == TypeAPITab.definition) Tab(text: 'Documentation'),
         Tab(text: 'Parameters book'),
-        Tab(text: 'Mock responses'),
-        Tab(
-          child: Row(
-            spacing: 10,
-            children: [
-              Text('Test & check compliant'),
-              RepaintBoundary(
-                child: GlowingHalo(child: Icon(Icons.play_circle_outline)),
-              ),
-            ],
+        if (widget.typeTab == TypeAPITab.definition) Tab(text: 'Swagger spec preview'),
+        if (widget.typeTab == TypeAPITab.test) Tab(text: 'Mock responses'),
+        if (widget.typeTab == TypeAPITab.test)
+          Tab(
+            child: Row(
+              spacing: 10,
+              children: [
+                Text('Test & check compliant'),
+                RepaintBoundary(
+                  child: GlowingHalo(child: Icon(Icons.play_circle_outline)),
+                ),
+              ],
+            ),
           ),
-        ),
-        Tab(text: 'Browse response'),
+        if (widget.typeTab == TypeAPITab.test) Tab(text: 'Browse response'),
       ],
       listTabCont: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            requestHelper.getAPIWidgetPath(context, 'view'),
-            Expanded(child: getDefinitionApiTab()),
-          ],
-        ),
-        ValueListenableBuilder(
-          valueListenable: modelLoad,
-          builder: (context, value, child) {
-            if (requestHelper.apiCallInfo.currentAPIRequest == null) {
-              return Center(child: CircularProgressIndicator());
-            }
-            return WidgetDoc(accessorAttr: getDocAccessor());
-          },
-        ),
+        if (widget.typeTab == TypeAPITab.definition)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              requestHelper.getAPIWidgetPath(context, 'view'),
+              Expanded(child: _getDefinitionApiTab()),
+            ],
+          ),
+        if (widget.typeTab == TypeAPITab.definition)
+          ValueListenableBuilder(
+            valueListenable: modelLoad,
+            builder: (context, value, child) {
+              if (requestHelper.apiCallInfo.currentAPIRequest == null) {
+                return Center(child: CircularProgressIndicator());
+              }
+              return WidgetDoc(accessorAttr: _getDocAccessor());
+            },
+          ),
 
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             requestHelper.getAPIWidgetPath(context, 'view'),
-            Expanded(child: getExampleTab()),
+            Expanded(child: _getExampleTab()),
           ],
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            requestHelper.getAPIWidgetPath(context, 'view'),
-            Expanded(
-              child: WidgetApiMock(
-                idApi: widget.idApi,
-                // key: ObjectKey(attr),
-                requestHelper: requestHelper,
+        if (widget.typeTab == TypeAPITab.definition)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  var html = HtmlSwagger().htmlSwagger(yamlSwagger);
+                  exportFile(html, fileName: "swagger.html");
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Swagger HTML exported')),
+                  );
+                },
+                child: Text('Download HTML Swagger'),
               ),
-            ),
-          ],
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            requestHelper.getAPIWidgetPath(context, 'preview'),
-            Expanded(
-              child: KeepAliveWidget(
-                child: WidgetApiCall(
+              Expanded(
+                child: WidgetScroller(
+                  child: ValueListenableBuilder(
+                    valueListenable: modelSwagger,
+                    builder: (context, value, child) {
+                      return SelectableText(
+                        value.isEmpty ? 'Generate swagger...' : value,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        if (widget.typeTab == TypeAPITab.test)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              requestHelper.getAPIWidgetPath(context, 'view'),
+              Expanded(
+                child: WidgetApiMock(
                   idApi: widget.idApi,
                   // key: ObjectKey(attr),
                   requestHelper: requestHelper,
                 ),
               ),
-            ),
-          ],
-        ),
-        //        Container(),
-        getBrowseModel(),
+            ],
+          ),
+        if (widget.typeTab == TypeAPITab.test)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              requestHelper.getAPIWidgetPath(context, 'preview'),
+              Expanded(
+                child: KeepAliveWidget(
+                  child: WidgetApiCall(
+                    idApi: widget.idApi,
+                    // key: ObjectKey(attr),
+                    requestHelper: requestHelper,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        if (widget.typeTab == TypeAPITab.test) _getBrowseResponse(),
       ],
       heightTab: 40,
     );
   }
 
-  ModelAccessorAttr getDocAccessor() {
+  ModelAccessorAttr _getDocAccessor() {
     ModelSchema model = requestHelper.apiCallInfo.currentAPIRequest!;
     var examplesNode = model.getExtendedNode("#doc");
 
@@ -159,7 +221,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
     return access;
   }
 
-  Widget getBrowseModel() {
+  Widget _getBrowseResponse() {
     TextEditingController ctrl = TextEditingController();
 
     CodeEditorConfig conf = CodeEditorConfig(
@@ -226,19 +288,41 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
     );
   }
 
-  Widget getExampleTab() {
+  Widget _getExampleTab() {
     return PanApiExample(
       config: ExampleConfig(
+        typeTab: widget.typeTab,
         mode: ModeExample.design,
         onSelectHeader: () {
-          tabSubApi?.animateTo(4);
+          if (widget.typeTab == TypeAPITab.test) {
+            tabSubApi?.animateTo(2);
+          }
         },
         onSelectMock: () {
-          tabSubApi?.animateTo(3);
+          if (widget.typeTab == TypeAPITab.test) {
+            tabSubApi?.animateTo(1);
+          }
         },
       ),
       requestHelper: requestHelper,
       getSchemaFct: () async {
+        if (requestHelper.apiCallInfo.currentAPIRequest == null) {
+          await GoTo().getApiRequestModel(
+            requestHelper.apiCallInfo,
+            currentCompany.listAPI!.namespace!,
+            widget.idApi,
+            withDelay: false,
+          );
+        }
+        if (requestHelper.apiCallInfo.currentAPIResponse == null) {
+          await GoTo().getApiResponseModel(
+            requestHelper.apiCallInfo,
+            currentCompany.listAPI!.namespace!,
+            widget.idApi,
+            withDelay: false,
+          );
+        }
+
         var model = ModelSchema(
           category: Category.exampleApi,
           headerName: 'example',
@@ -262,7 +346,7 @@ YourExample : example
     );
   }
 
-  APICallManager getAPICall(String namespace, NodeAttribut attr) {
+  APICallManager _getAPICall(String namespace, NodeAttribut attr) {
     String httpOpe = attr.info.name.toLowerCase();
     var apiCallInfo = APICallManager(
       namespace: namespace,
@@ -272,7 +356,7 @@ YourExample : example
     return apiCallInfo;
   }
 
-  Widget getDefinitionApiTab() {
+  Widget _getDefinitionApiTab() {
     return WidgetTab(
       listTab: [
         Tab(text: 'Request'),

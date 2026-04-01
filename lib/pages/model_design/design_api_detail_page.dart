@@ -5,14 +5,46 @@ import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
+List<BreadNode> getLeftNavApi(String query) {
+  return [
+    BreadNode(
+      icon: const Icon(Icons.api_outlined),
+      settings: const RouteSettings(name: 'API Spec.'),
+      type: BreadNodeType.widget,
+      path: Pages.apiDetail.id(query),
+    ),
+
+    BreadNode(
+      icon: const Icon(Icons.grading),
+      settings: const RouteSettings(name: 'Test API'),
+      type: BreadNodeType.widget,
+      path: Pages.apiTest.id(query),
+    ),
+
+    BreadNode(
+      icon: const Icon(Icons.api_outlined),
+      settings: const RouteSettings(name: 'API UI'),
+      type: BreadNodeType.widget,
+      path: Pages.apiUI.id(query),
+    ),
+    BreadNode(
+      icon: const Icon(Icons.airplane_ticket),
+      settings: const RouteSettings(name: 'Scrum'),
+      type: BreadNodeType.widget,
+      path: Pages.apiScrum.id(query),
+    ),
+  ];
+}
+
 // ignore: must_be_immutable
 class CallAPIPageDetail extends GenericPageStateless {
-  CallAPIPageDetail({super.key});
+  CallAPIPageDetail({super.key, required this.typeTab});
   String query = '';
+  final TypeAPITab typeTab;
 
   @override
   Widget build(BuildContext context) {
-    return getBackground(2, PanApiEditor(idApi: query));
+    return getBackground(2, PanApiEditor(idApi: query, typeTab: typeTab));
   }
 
   @override
@@ -26,27 +58,7 @@ class CallAPIPageDetail extends GenericPageStateless {
     // goTo.initApi(query);
 
     return NavigationInfo()
-      ..navLeft = [
-        BreadNode(
-          icon: const Icon(Icons.api_outlined),
-          settings: const RouteSettings(name: 'API Spec.'),
-          type: BreadNodeType.widget,
-          path: Pages.apiDetail.id(query),
-        ),
-
-        BreadNode(
-          icon: const Icon(Icons.api_outlined),
-          settings: const RouteSettings(name: 'API UI'),
-          type: BreadNodeType.widget,
-          path: Pages.apiUI.id(query),
-        ),
-        BreadNode(
-          icon: const Icon(Icons.airplane_ticket),
-          settings: const RouteSettings(name: 'Scrum'),
-          type: BreadNodeType.widget,
-          path: Pages.apiScrum.id(query),
-        ),        
-      ]
+      ..navLeft = getLeftNavApi(query)
       ..breadcrumbs = [
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
@@ -62,7 +74,8 @@ class CallAPIPageDetail extends GenericPageStateless {
           },
         ),
         ...goTo.getBreadcrumbApi(query),
-      ];
+      ]
+      ..actions = getDefaultActionModel();
   }
 }
 

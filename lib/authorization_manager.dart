@@ -36,6 +36,8 @@ class CompanyModelSchema {
   String companyId = 'test2';
   String userId = 'gdesomer';
 
+  ModelSchema? currentApps;
+
   String get currentNameSpace {
     if (isInit && listDomain.selectedAttr != null) {
       return listDomain.selectedAttr!.info.masterID!;
@@ -53,6 +55,7 @@ class CompanyModelSchema {
       'Business models',
       TypeModelBreadcrumb.businessmodel,
       namespace: idDomain,
+      config: BrowserConfig(),
     );
     var m = listModel.getNodeByMasterIdPath(idModel);
     if (m != null) {
@@ -82,6 +85,7 @@ class CompanyModelSchema {
         'Business models',
         TypeModelBreadcrumb.businessmodel,
         namespace: attr.masterID!,
+        config: BrowserConfig()
       );
       var m = listModel.mapInfoByName[idModel]?.first;
       if (m != null) {
@@ -119,4 +123,5 @@ enum Category {
   domain,
   variable,
   dataMap,
+  apps,
 }

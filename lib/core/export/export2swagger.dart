@@ -4,6 +4,8 @@ import 'package:jsonschema/core/model_schema.dart';
 class ExportToSwagger<T extends List<Tag>> extends JsonBrowser {
   List<Tag> tags = [];
 
+  ExportToSwagger({required super.config});
+
   @override
   List<Tag> getRoot(NodeAttribut node) {
     return tags as T;

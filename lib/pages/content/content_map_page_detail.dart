@@ -95,7 +95,7 @@ class MappingEngineConfig {
 
     var access = ModelAccessorAttr(node: dmNode, schema: model, propName: id);
     return access;
-  }  
+  }
 
   void loadEngineConfig(State? state) {
     var d = getAccessor().get();
@@ -119,17 +119,18 @@ class MappingEngineConfig {
       saveData['dest'],
     );
 
-    await BrowseSingle().browseSync(currentSrcModel!, false, 0);
-    await BrowseSingle().browseSync(currentDestModel!, false, 0);
+    await BrowseSingle(
+      config: BrowserConfig(),
+    ).browseSync(currentSrcModel!, false, 0);
+    await BrowseSingle(
+      config: BrowserConfig(),
+    ).browseSync(currentDestModel!, false, 0);
     return true;
   }
-
 }
 
-
 class _DetailMappingPageState extends State<DetailMappingPage> {
-
-  MappingEngineConfig config = MappingEngineConfig(); 
+  MappingEngineConfig config = MappingEngineConfig();
 
   @override
   Widget build(BuildContext context) {
@@ -291,7 +292,9 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
           config.currentDestModel = aModel;
         }
 
-        await BrowseSingle().browseSync(aModel!, false, 0);
+        await BrowseSingle(
+          config: BrowserConfig(),
+        ).browseSync(aModel!, false, 0);
         setState(() {});
       },
       getSchemaFct: () async {
@@ -302,6 +305,7 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
           'Business models',
           TypeModelBreadcrumb.businessmodel,
           namespace: currentCompany.currentNameSpace,
+          config: BrowserConfig(),
         );
         return currentCompany.listModel!;
       },
@@ -351,8 +355,6 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
     print(out);
   }
 
-
-
   void saveEngineConfig() {
     var object = {
       "src": config.currentSrcModel!.id,
@@ -365,8 +367,6 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
     config.getAccessor().set(j);
     config.saveData = object;
   }
-
-
 
   late TabController tabController;
 

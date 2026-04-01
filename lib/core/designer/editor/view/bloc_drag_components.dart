@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/core/cw_slot.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
@@ -41,6 +42,11 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
             "name": "Divider, Spacer",
             "icon": Icons.horizontal_rule,
           },
+          {
+            "id": "inputSearch",
+            "name": "Filter, Search",
+            "icon": Icons.search,
+          },          
         ],
       },
       {
@@ -72,7 +78,7 @@ class _WidgetChoiserState extends State<WidgetChoiser> {
           return const Center(child: Text('No data available'));
         } else {
           var ds = snapshot.data as ModelSchema;
-          var b = BrowseSingle();
+          var b = BrowseSingle(config: BrowserConfig());
           b.browse(ds, false);
           var j = b.root;
           var listDataSource = <Map<String, dynamic>>[];

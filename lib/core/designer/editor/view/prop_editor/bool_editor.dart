@@ -43,12 +43,18 @@ class _BoolEditorState extends State<BoolEditor> with HelperEditor {
     return SizedBox(
       height: 30,
       child: Row(
+        mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            overflow: TextOverflow.ellipsis,
-            softWrap: false,
-            widget.config.name,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(5, 0, 0, 0),
+              child: Text(
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                widget.config.name,
+              ),
+            ),
           ),
           Transform.scale(
             scale: 0.75,

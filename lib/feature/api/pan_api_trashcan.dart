@@ -8,7 +8,7 @@ import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/pan_attribut_editor.dart';
-import 'package:jsonschema/widget/tree_editor/widget_json_tree.dart';
+import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_tree.dart';
 import 'package:jsonschema/widget/widget_hidden_box.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
 import 'package:jsonschema/start_core.dart';

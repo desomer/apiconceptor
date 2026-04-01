@@ -56,12 +56,13 @@ class _SlideEditorState extends State<SliderEditor> with HelperEditor {
       ret.addAll([Icon(widget.icon), const SizedBox(width: 5)]);
     }
     ret.addAll([
-      Text(
-        widget.config.name,
-        overflow: TextOverflow.ellipsis,
-        softWrap: false,
+      Expanded(
+        child: Text(
+          widget.config.name,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+        ),
       ),
-      const Spacer(),
       SizedBox(
         width: 100,
         child: Slider(

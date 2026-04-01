@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/designer/core/widget_catalog/cw_mask_helper.dart';
 import 'package:jsonschema/core/designer/editor/view/prop_editor/helper_editor.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
@@ -29,7 +30,7 @@ class CwInput extends CwWidget {
               CwInput(key: ctx.getKey(), ctx: ctx, cacheWidget: CachedWidget()),
       config: (ctx) {
         return CwWidgetConfig()
-            .addProp(
+            .addStyle(
               CwWidgetProperties(id: 'type', name: 'view type')..isToogle(ctx, [
                 {'icon': Icons.label, 'value': 'label'},
                 {'icon': Icons.text_fields, 'value': 'textfield'},
@@ -37,11 +38,22 @@ class CwInput extends CwWidget {
                 {'icon': Icons.add_reaction, 'value': 'icon'},
               ], defaultValue: 'label'),
             )
+            .addStyle(
+              CwWidgetProperties(id: 'dataType', name: 'data type')
+                ..isToogle(ctx, [
+                  {'icon': Icons.text_fields, 'value': 'TEXT'},
+                  {'icon': Icons.date_range, 'value': 'DATE'},
+                  {'icon': Icons.access_time, 'value': 'DATETIME'},
+                  {'icon': Icons.onetwothree, 'value': 'INT'},
+                  {'icon': Icons.numbers, 'value': 'DOUBLE'},
+                  {'icon': Icons.euro, 'value': 'CUR'},
+                ], defaultValue: 'TEXT'),
+            )
             .addProp(
               CwWidgetProperties(id: 'label', name: 'label')..isText(ctx),
             )
-            .addProp(
-              CwWidgetProperties(id: 'dense', name: 'dense')..isBool(ctx),
+            .addStyle(
+              CwWidgetProperties(id: 'tooltip', name: 'tooltip')..isText(ctx),
             )
             .addProp(CwWidgetProperties(id: 'size', name: 'size')..isSize(ctx))
             .addStyle(
@@ -52,6 +64,9 @@ class CwInput extends CwWidget {
                   defaultValue: 'border',
                   path: [cwStyle],
                 ),
+            )
+            .addStyle(
+              CwWidgetProperties(id: 'dense', name: 'dense')..isBool(ctx),
             )
             .addStyle(
               CwWidgetProperties(id: 'icon', name: 'icon')..isIcon(ctx),
@@ -68,10 +83,14 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
   @override
   void setBindJsonValue(value) {
     if (widget.ctx.aFactory.isModeViewer()) {
-      ctrlInput?.text = value?.toString() ?? '';
+      if (formatter != null) {
+        value = formatter!.aInfoMask!.getMaskedValue(formatter!, value);
+      }
+
+      ctrlInput?.text = value;
       widget.ctx.repaint(); // pour les text widget
     } else {
-      ctrlInput?.text = bindInfo.pathData;
+      ctrlInput?.text = '{${bindInfo.bindAttribut?.name ?? bindInfo.pathData}}';
     }
   }
 
@@ -93,6 +112,7 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
   void initState() {
     super.initState();
     initBind();
+
     var modeViewer = widget.ctx.aFactory.isModeViewer();
     if (bindInfo.stateRepository != null) {
       ctrlInput = TextEditingController(text: '');
@@ -115,7 +135,8 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
             );
             if (dataContainer != null) {
               var value = ctrlInput!.text;
-              dataContainer.jsonData[attrName] = value;
+              dataContainer.jsonData[attrName] = formatter!.aInfoMask!
+                  .getUnmaskedValue(formatter!, value);
             }
           }
         });
@@ -124,12 +145,15 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
           if (focusNode!.hasFocus) {
             bindInfo.doChangeRow(
               pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
+              rowContext: context,
             );
           }
         });
       }
     }
   }
+
+  FormatterTextfield? formatter;
 
   @override
   Widget build(BuildContext context) {
@@ -143,13 +167,26 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
             getBoolProp(ctx, 'dense') ?? ctx.hasParentOfType(['table']);
         bool inListOrArray = widget.ctx.hasParentOfType(['list', 'table']);
 
+        TextfieldBuilderInfo info = TextfieldBuilderInfo(
+          label: isDense ? null : getStringProp(ctx, 'label') ?? '',
+          bindType: getStringProp(ctx, 'dataType') ?? 'TEXT',
+          editable: true,
+          enable: true,
+        );
+
+        info.bindInfo = bindInfo;
+
+        formatter = FormatterTextfield(info);
+        formatter?.initMaskAndValidatorInfo(null);
+
         var modeDesigner = ctx.aFactory.isModeDesigner();
         if (bindInfo.stateRepository != null && bindInfo.bindAttribut != null) {
-          ctrlInput?.text =
-              bindInfo
-                  .getValue(context, ctx, this, inListOrArray, false)
-                  ?.toString() ??
-              '';
+          var v = bindInfo.getValue(context, ctx, this, inListOrArray, false);
+          if (modeDesigner) {
+            ctrlInput?.text = v.toString();
+          } else {
+            ctrlInput?.text = info.getMaskedValue(formatter!, v);
+          }
         } else if (bindInfo.stateRepository != null && bindInfo.eval != null) {
           var r = bindInfo.eval!.eval(
             variables: {
@@ -162,13 +199,26 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
           if (r is Future) {
             r.then((value) {
               if (value != null) {
-                ctrlInput?.text = value.toString();
+                ctrlInput?.text = info.getMaskedValue(formatter!, value);
                 //throw 'not implemented for async value'; // à revoir pour les valeur async
               }
             });
           } else {
-            ctrlInput?.text = r?.toString() ?? '';
+            ctrlInput?.text = info.getMaskedValue(formatter!, r);
           }
+        } else if (modeDesigner && bindInfo.computedInfo != null) {
+          ctrlInput?.text = '#{${bindInfo.computedInfo!['name']}}';
+        }
+
+        var appearance = styleFactory.getStyleString("appearance", "border");
+        if (appearance == 'border' &&
+            !styleFactory.styleExist(['bSize', 'bColor'])) {
+          styleFactory.config.side = BorderSide(
+            width: 1,
+            //color FFBDBDBD
+            color: Color(0xFFBDBDBD),
+          );
+          styleFactory.config.hBorder = 1 * 2;
         }
 
         var appearanceBorder = {
@@ -199,14 +249,13 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
           "custom": InputBorder.none,
         };
 
-        var appearance = styleFactory.getStyleString("appearance", "border");
         InputDecoration decoration = InputDecoration(
           isDense: isDense,
           filled:
               styleFactory.config.decoration?.color != null ||
               appearance == 'fill',
           fillColor: styleFactory.config.decoration?.color,
-          labelText: isDense ? null : getStringProp(ctx, 'label') ?? '',
+          labelText: info.label,
           enabledBorder: appearanceBorder[appearance],
           focusedBorder: appearanceBorder[appearance],
           contentPadding: styleFactory.config.edgePadding,
@@ -267,34 +316,74 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
 
   Widget getWidgetText(String widgetType, bool modeDesigner) {
     var data = ctrlInput?.text ?? getStringProp(widget.ctx, 'label') ?? '';
+    // if (modeDesigner && bindInfo.computedInfo != null) {
+    //   data = '#{${bindInfo.computedInfo!['name']}}';
+    // }
     if (widgetType == 'checkbox') {
-      return Row(
-        spacing: 8,
-        children: [
-          Text(
-            style: styleFactory.getTextStyle(null),
-            getStringProp(widget.ctx, 'label') ?? '',
-          ),
-          Checkbox(
-            value: data == 'true',
-            onChanged: (value) {
-              ctrlInput?.text = value.toString();
-            },
-          ),
-        ],
+      return addTooltip(
+        Row(
+          spacing: 8,
+          children: [
+            Text(
+              style: styleFactory.getTextStyle(null),
+              overflow: TextOverflow.ellipsis,
+              getStringProp(widget.ctx, 'label') ?? '',
+            ),
+            Checkbox(
+              value: data == 'true',
+              onChanged: (value) {
+                ctrlInput?.text = value.toString();
+              },
+            ),
+          ],
+        ),
       );
     } else if (widgetType == 'icon') {
-      Icon iconData =
-          getIconProp(widget.ctx, 'icon') ?? Icon(Icons.check);
+      Icon iconData = getIconProp(widget.ctx, 'icon') ?? Icon(Icons.check);
       if (data == 'true' || modeDesigner) {
-        return iconData;
+        return addTooltip(iconData);
       } else {
         return const SizedBox();
       }
     } else {
       return addIcon(
-        Text(maxLines: 1, style: styleFactory.getTextStyle(16), data),
+        addTooltip(
+          Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) {
+              if (bindInfo.pathData == '?') {
+                doChangeRowFromParent(
+                  context,
+                  pathWidgetRepos: widget.ctx.parentCtx?.aWidgetPath,
+                );
+              } else {
+                bindInfo.doChangeRow(
+                  pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
+                  rowContext: context,
+                );
+              }
+            },
+            child: SelectableRegion(
+              selectionControls: materialTextSelectionControls,
+              child: Text(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: styleFactory.getTextStyle(16),
+                data,
+              ),
+            ),
+          ),
+        ),
       );
+    }
+  }
+
+  Widget addTooltip(Widget child) {
+    String? tooltip = getStringProp(widget.ctx, 'tooltip');
+    if (tooltip != null && tooltip.isNotEmpty) {
+      return Tooltip(message: tooltip, child: child);
+    } else {
+      return child;
     }
   }
 

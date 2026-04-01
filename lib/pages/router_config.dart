@@ -12,6 +12,7 @@ import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/apps/apps_list_page.dart';
 import 'package:jsonschema/pages/content/content_map_engine_yaml.dart';
 import 'package:jsonschema/pages/content/content_map_page.dart';
 import 'package:jsonschema/pages/datasource/data_sources_data_viewer.dart';
@@ -69,6 +70,7 @@ enum Pages {
   apiBrowserTag("/apis/browserByTag"),
   //apiByTree("/apis/doc-by-tree"),
   apiDetail("/apis/detail"),
+  apiTest("/apis/test"),
   apiUI("/apis/ui"),
   apiScrum("/apis/scrum"),
   mock("/apis/mock"),
@@ -89,6 +91,7 @@ enum Pages {
   appPage("/app/page"),
   appPageDetail("/app/page/detail"),
 
+  listApps("/apps"),
   pageDesigner("/pages/designer"),
   pageViewer("/pages/viewer"),
   pageDebug("/pages/debug");
@@ -183,7 +186,7 @@ Widget getPage(BuildContext context, GoRouterState state) {
     Widget? pc = cacheRoute[path]!.cache;
     if (pc != null) {
       if (pc is GenericPageStateless) {
-        if (pc.isCacheValid(state, uri) == false) {
+        if (pc.isCacheValid(state, uri, context) == false) {
           dev.log("cache page $uri invalidated");
           pc = null;
         } else {
@@ -345,8 +348,13 @@ final GoRouter router = GoRouter(
         addRouteBy(Pages.modelScrum, const DesignModelDetailScrumPage()),
         addRouteBy(Pages.modelUI, DesignModelUIPage()),
         //----------------------------------------------------------------
-        addRouteBy(Pages.api, const DesignAPIPage()),
-        addRouteBy(Pages.apiDetail, CallAPIPageDetail()),
+        addRouteBy(Pages.api, DesignAPIPage()),
+        addRouteBy(
+          Pages.apiDetail,
+          CallAPIPageDetail(typeTab: TypeAPITab.definition),
+        ),
+        addRouteBy(Pages.apiTest, CallAPIPageDetail(typeTab: TypeAPITab.test)),
+
         addRouteBy(Pages.apiUI, CallAPIPageDetailUI()),
         addRouteBy(Pages.apiScrum, DesignApiDetailScrumPage()),
         //----------------------------------------------------------------
@@ -415,6 +423,7 @@ final GoRouter router = GoRouter(
           Pages.pageDesigner,
           AppsPageDesigner(mode: DesignMode.designer),
         ),
+        addRouteBy(Pages.listApps, AppsListPage()),
         addRouteBy(Pages.pageViewer, AppsPageDesigner(mode: DesignMode.viewer)),
 
         // addRoute(
@@ -507,6 +516,7 @@ class GoTo {
           //browser: TreeViewBrowserWidget(),
           sync: true,
           ref: model.refDomain,
+          config: BrowserConfig(),
         );
       }
     }
@@ -524,17 +534,6 @@ class GoTo {
       await Future.delayed(Duration(milliseconds: gotoDelay));
     }
 
-    // var attr = currentCompany.listAPI!.nodeByMasterId[idApi]!;
-    // var key = attr.info.properties![constMasterID];
-
-    // currentCompany.listModel = await loadSchema(
-    //   TypeMD.listmodel,
-    //   'model',
-    //   'Business models',
-    //   TypeModelBreadcrumb.businessmodel,
-    //   namespace: currentCompany.listAPI!.namespace,
-    // );
-
     // recupere le models du domain
     currentCompany.listModel = await loadSchema(
       TypeMD.listmodel,
@@ -542,16 +541,19 @@ class GoTo {
       'Business models',
       TypeModelBreadcrumb.businessmodel,
       namespace: domain,
+      config: BrowserConfig(),
     );
 
     // recupere la définition de la request
     var currentAPIResquest = ModelSchema(
       category: Category.api,
       infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
-      headerName: "Parameters query, header, cookies, body",
+      headerName: "Parameters query, header, cookie, body",
       id: idApi,
       refDomain: currentCompany.listModel,
     )..namespace = domain;
+    currentAPIResquest.isApi = true;
+    currentAPIResquest.readOnly = call.httpOperation == 'get';
 
     await currentAPIResquest.loadYamlAndProperties(
       cache: false,
@@ -566,7 +568,9 @@ class GoTo {
 
     call.initApiParamIfEmpty(currentAPIResquest);
 
-    BrowseAPI().browse(currentAPIResquest, false);
+    BrowseListAPI(
+      config: BrowserConfig(isApi: false, refTarget: '\$def'),
+    ).browse(currentAPIResquest, false);
 
     currentCompany.currentAPIResquest = currentAPIResquest;
     call.currentAPIRequest = currentAPIResquest;
@@ -602,10 +606,14 @@ class GoTo {
     );
 
     await BrowseModel(
-      readOnly: call.httpOperation == 'get',
+      config: BrowserConfig(
+        isGet: call.httpOperation == 'get',
+        isApi: true,
+        refTarget: '\$def',
+      ),
     ).browseSync(responseModel, false, 0);
+    responseModel.isApi = true;
     responseModel.readOnly = call.httpOperation == 'get';
-    //repaintManager.doRepaint(ChangeTag.apichange);
 
     currentCompany.currentAPIResponse = responseModel;
 

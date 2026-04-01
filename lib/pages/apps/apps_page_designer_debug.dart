@@ -9,13 +9,13 @@ import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
-
 // ignore: must_be_immutable
 class AppsPageDesignerDebug extends GenericPageStateless {
-  const AppsPageDesignerDebug({super.key});
+  AppsPageDesignerDebug({super.key});
+  String query = 'factoryName';
 
   @override
-  bool isCacheValid(GoRouterState state, String uri) {
+  bool isCacheValid(GoRouterState state, String uri, BuildContext context) {
     return false;
   }
 
@@ -26,8 +26,8 @@ class AppsPageDesignerDebug extends GenericPageStateless {
 
   @override
   Widget build(BuildContext context) {
-    String keyFactory = 'factoryName';
-    WidgetFactory f = getFactory(keyFactory);
+    String keyFactory = query;
+    WidgetFactory f = getFactory(keyFactory, context);
 
     return TextEditor(
       config: CodeEditorConfig(
@@ -43,7 +43,7 @@ class AppsPageDesignerDebug extends GenericPageStateless {
     );
   }
 
-  WidgetFactory getFactory(String keyFactory) {
+  WidgetFactory getFactory(String keyFactory, BuildContext context) {
     WidgetFactory? f = cacheLinkPage.get(keyFactory);
     if (f == null) {
       f = WidgetFactory();
@@ -58,25 +58,26 @@ class AppsPageDesignerDebug extends GenericPageStateless {
     BuildContext context,
     PageInit? pageInit,
   ) {
+    query = routerState.uri.queryParameters['id'] ?? "";
     return NavigationInfo()
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.edit),
           settings: const RouteSettings(name: 'Edit Page'),
           type: BreadNodeType.widget,
-          path: Pages.pageDesigner.urlpath,
+          path: Pages.pageDesigner.id(query),
         ),
         BreadNode(
           icon: const Icon(Icons.play_arrow_rounded),
           settings: const RouteSettings(name: 'Test Page'),
           type: BreadNodeType.widget,
-          path: Pages.pageViewer.urlpath,
+          path: Pages.pageViewer.id(query),
         ),
         BreadNode(
           icon: const Icon(Icons.bug_report),
           settings: const RouteSettings(name: 'Debug app'),
           type: BreadNodeType.widget,
-          path: Pages.pageDebug.urlpath,
+          path: Pages.pageDebug.id(query),
         ),
       ];
   }

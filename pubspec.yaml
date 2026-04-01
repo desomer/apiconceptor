@@ -83,17 +83,20 @@ dependencies:
   libcel: ^1.0.2
   markdown_toolbar: ^0.5.0
   json2yaml: ^3.0.1
-
+  timezone: ^0.11.0
+  web: ^1.1.1
 
   flutter:
     sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
+  # cupertino_icons: ^1.0.8
 
   flutter_localizations:
     sdk: flutter
+
+
 
 
 
@@ -155,7 +158,7 @@ msix_config:
   display_name: Api Architect
   publisher_display_name: ApiArchitect
   identity_name: apiarchitect
-  msix_version: 1.0.3.47
+  msix_version: 1.0.3.61
   logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
   capabilities: internetClient
   sign_msix: true
