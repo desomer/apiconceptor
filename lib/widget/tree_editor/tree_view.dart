@@ -10,7 +10,8 @@ class TreeNodeData<T> {
   bool isExpanded;
   bool isShow = true;
   late int depth;
-  late List<bool> lastChild;
+  late List<bool> listParentIndicator;
+  bool noTab = false;
   bool isLast = false;
   bool isRoot = false;
   Color? bgColor;
@@ -18,6 +19,7 @@ class TreeNodeData<T> {
   int timeChange = 0;
   bool isToogleRequested = false;
   bool isInvisibleRequested = false;
+
   T data;
 
   // ValueNotifier<int> changed = ValueNotifier(0);
@@ -97,6 +99,10 @@ typedef IsSelected<T> =
     );
 
 typedef IsRowCached<T> = int Function(TreeNodeData<T> node);
+typedef OnSelectionChanged<T> = void Function(Set<TreeNodeData<T>> selected);
+typedef OnCopy<T> = void Function(Set<TreeNodeData<T>> nodes);
+typedef OnPaste<T> =
+    void Function(Set<TreeNodeData<T>> clipboard, TreeNodeData<T> target);
 
 class TreeViewData<T> {
   final List<TreeNodeData<T>> nodes;
@@ -163,6 +169,11 @@ class TreeView<T> extends StatefulWidget {
     this.onTapHeader,
     required this.isSelected,
     this.isRowCached,
+    this.onSelectionChanged,
+    this.contextMenuItems,
+    this.showCheckboxes = false,
+    this.onCopy,
+    this.onPaste,
   });
 
   final GetNode<T> getNodes;
@@ -172,10 +183,22 @@ class TreeView<T> extends StatefulWidget {
   final OnBuild<T>? onBuild;
   final IsSelected<T> isSelected;
   final IsRowCached<T>? isRowCached;
+  final OnSelectionChanged<T>? onSelectionChanged;
+  final OnCopy? onCopy;
+  final OnPaste? onPaste;
+
+  /// Affiche une case à cocher en début de chaque ligne.
+  final bool showCheckboxes;
+
+  /// Optional extra menu items appended after the built-in actions.
+  /// Each entry: {'label': String, 'icon': IconData?, 'value': String}
+  final List<Map<String, dynamic>>? contextMenuItems;
 
   @override
   State<TreeView> createState() => TreeViewState<T>();
 }
+
+final Set<TreeNodeData> _clipboardNodes = {};
 
 class TreeViewState<T> extends State<TreeView<T>> {
   double headerSize = -1;
@@ -183,11 +206,11 @@ class TreeViewState<T> extends State<TreeView<T>> {
   //double height = 30.0;
 
   IndentInfo indent = IndentInfo(
-    indent: 30,
-    start: 12,
-    end: 5,
+    indent: 20,
+    start: 10,
+    end: 0,
     height: 30.0,
-    color: Colors.white38,
+    color: Color.fromARGB(255, 73, 77, 79),
   );
 
   int timeBuild = 0;
@@ -203,9 +226,21 @@ class TreeViewState<T> extends State<TreeView<T>> {
   String openStructureMode = 'all';
   String filterType = 'all';
 
+  final Set<TreeNodeData<T>> selectedNodes = {};
+
+  late bool showCheckboxes;
+
+  void toggleCheckboxMode() {
+    setState(() {
+      showCheckboxes = !showCheckboxes;
+      repaintInProgess = DateTime.now().millisecondsSinceEpoch;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    showCheckboxes = widget.showCheckboxes;
   }
 
   @override
@@ -293,7 +328,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
   }
 
   List<TreeNodeData<T>> _flattenNodeTree(
-    NodeStack stack,
+    NodeStack stackLevelIndicator,
     int deep,
     List<TreeNodeData<T>> nodes,
   ) {
@@ -340,20 +375,71 @@ class TreeViewState<T> extends State<TreeView<T>> {
         }
       }
 
-      result.add(node);
-      var r = <bool>[];
-      for (var i = 0; i < stack.stack.length; i++) {
-        r.add(stack.stack[i].isLast);
+      bool noDisplayNodeButKeepChildren = false;
+      bool noTab = false;
+
+      if (node.data is NodeAttribut) {
+        var attr = (node.data as NodeAttribut);
+        var info = attr.info;
+        if (info.name == constInherit) {
+          // les attributs d'un $inherit sont affichés au même niveau que le $inherit lui même
+          noTab = true;
+        }
+
+        // if (attr.parent?.info.name == constInherit && info.type == '\$ref') {
+        //   noTab = true;
+        //   //noDisplayNodeButKeepChildren = true;
+        // }
+
+        if (info.type == '\$ref') {
+          noTab = true;
+          //noDisplayNodeButKeepChildren = true;
+
+        }        
       }
-      node.lastChild = r;
-      stack.push(node);
+
+      if (noDisplayNodeButKeepChildren) {
+        // on affiche pas le noeud $ref mais on affiche directement ses attributs
+        noTab = true;
+      } else {
+        result.add(node);
+      }
+
+      var r = <bool>[];
+      for (var i = 0; i < stackLevelIndicator.stack.length; i++) {
+        if (stackLevelIndicator.stack[i].noTab) {
+          // if (stackLevelIndicator.stack.length > i + 1) {
+          //   stackLevelIndicator.stack[i + 1].isLast = false;
+          // }
+          continue;
+        }
+        r.add(stackLevelIndicator.stack[i].isLast);
+      }
+
+      node.listParentIndicator = r;
+
+      stackLevelIndicator.push(node);
+
+      if (noTab) {
+        node.noTab = true;
+        // on affiche pas le noeud $ref mais on affiche directement ses attributs
+        deep--;
+      }
 
       if (node.children != null &&
           node.children!.isNotEmpty &&
           node.isExpanded) {
-        result.addAll(_flattenNodeTree(stack, deep + 1, node.children!));
+        result.addAll(
+          _flattenNodeTree(stackLevelIndicator, deep + 1, node.children!),
+        );
       }
-      stack.pop();
+
+      if (noTab) {
+        // on affiche pas le noeud $ref mais on affiche directement ses attributs
+        deep++;
+      }
+
+      stackLevelIndicator.pop();
     }
 
     return result;
@@ -361,6 +447,11 @@ class TreeViewState<T> extends State<TreeView<T>> {
 
   Widget getHover(TreeNodeData<T> attr, Widget child) {
     return HoverableCard(
+      onHover: (isHovered) {
+        if (attr.data is NodeAttribut) {
+          (attr.data as NodeAttribut).info.isHoover?.value = isHovered;
+        }
+      },
       onBuild: (state, ctx) {
         if (attr.data is NodeAttribut) {
           (attr.data as NodeAttribut).widgetRowHoverState = state;
@@ -443,17 +534,233 @@ class TreeViewState<T> extends State<TreeView<T>> {
   // }
 
   Widget _buildNode(BuildContext context, TreeNodeData<T> node) {
-    return Stack(
-      children: [
-        getHover(node, _getRowCached(node)),
-        if (node.depth > 0)
-          Positioned(
-            left: 0,
-            top: 0,
-            child: TreeConnector(node: node, indentInfo: indent),
+    return GestureDetector(
+      onSecondaryTapDown: (details) {
+        _showContextMenu(context, details.globalPosition, node);
+      },
+      child: Stack(
+        children: [
+          getHover(node, _getRowCached(node)),
+          if (node.depth > 0)
+            Positioned(
+              left: 0,
+              top: 0,
+              child: TreeConnector(node: node, indentInfo: indent),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showContextMenu(
+    BuildContext context,
+    Offset position,
+    TreeNodeData<T> node,
+  ) async {
+    final bool isSelected = selectedNodes.contains(node);
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+
+    final items = <PopupMenuEntry<String>>[
+      PopupMenuItem<String>(
+        value: 'toggle_checkbox_mode',
+        child: Row(
+          children: [
+            Icon(
+              showCheckboxes
+                  ? Icons.check_box_outlined
+                  : Icons.check_box_outline_blank,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              showCheckboxes
+                  ? 'Hide selected checkboxes'
+                  : 'Show selected checkboxes',
+            ),
+          ],
+        ),
+      ),
+      const PopupMenuDivider(),
+      PopupMenuItem<String>(
+        value: 'toggle_select',
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(isSelected ? 'Deselect' : 'Select'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'select_all',
+        child: const Row(
+          children: [
+            Icon(Icons.select_all, size: 18),
+            SizedBox(width: 8),
+            Text('Select all'),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'deselect_all',
+        child: const Row(
+          children: [
+            Icon(Icons.deselect, size: 18),
+            SizedBox(width: 8),
+            Text('Deselect all'),
+          ],
+        ),
+      ),
+      if (node.children?.isNotEmpty == true) ...[
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'expand',
+          child: const Row(
+            children: [
+              Icon(Icons.expand_more, size: 18),
+              SizedBox(width: 8),
+              Text('Expand'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'collapse',
+          child: const Row(
+            children: [
+              Icon(Icons.expand_less, size: 18),
+              SizedBox(width: 8),
+              Text('Collapse'),
+            ],
+          ),
+        ),
+      ],
+      const PopupMenuDivider(),
+      PopupMenuItem<String>(
+        value: 'copy',
+        child: Row(
+          children: [
+            const Icon(Icons.copy, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              selectedNodes.isEmpty
+                  ? 'Copy node'
+                  : 'Copy (${selectedNodes.length})',
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        enabled: _clipboardNodes.isNotEmpty,
+        value: 'paste',
+        child: Row(
+          children: [
+            Icon(
+              Icons.paste,
+              size: 18,
+              color: _clipboardNodes.isEmpty ? Colors.grey : null,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _clipboardNodes.isEmpty
+                  ? 'Paste'
+                  : 'Paste (${_clipboardNodes.length})',
+              style: TextStyle(
+                color: _clipboardNodes.isEmpty ? Colors.grey : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+      if (widget.contextMenuItems != null &&
+          widget.contextMenuItems!.isNotEmpty) ...[
+        const PopupMenuDivider(),
+        for (final item in widget.contextMenuItems!)
+          PopupMenuItem<String>(
+            value: item['value'] as String,
+            child: Row(
+              children: [
+                if (item['icon'] != null) ...[
+                  Icon(item['icon'] as IconData, size: 18),
+                  const SizedBox(width: 8),
+                ],
+                Text(item['label'] as String),
+              ],
+            ),
           ),
       ],
+    ];
+
+    final result = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(position.dx, position.dy, 0, 0),
+        Offset.zero & overlay.size,
+      ),
+      items: items,
     );
+
+    if (result == null) return;
+
+    switch (result) {
+      case 'toggle_checkbox_mode':
+        toggleCheckboxMode();
+      case 'toggle_select':
+        setState(() {
+          if (selectedNodes.contains(node)) {
+            selectedNodes.remove(node);
+          } else {
+            selectedNodes.add(node);
+          }
+          node.numUpdate++;
+        });
+        widget.onSelectionChanged?.call(Set.unmodifiable(selectedNodes));
+      case 'select_all':
+        setState(() {
+          selectedNodes.addAll(list);
+          for (var element in list) {
+            element.numUpdate++;
+          }
+        });
+        widget.onSelectionChanged?.call(Set.unmodifiable(selectedNodes));
+      case 'deselect_all':
+        setState(() {
+          for (var element in selectedNodes) {
+            element.numUpdate++;
+          }
+          selectedNodes.clear();
+        });
+        widget.onSelectionChanged?.call(Set.unmodifiable(selectedNodes));
+      case 'copy':
+        setState(() {
+          _clipboardNodes.clear();
+          if (selectedNodes.isNotEmpty) {
+            _clipboardNodes.addAll(selectedNodes);
+          } else {
+            _clipboardNodes.add(node);
+          }
+        });
+        widget.onCopy?.call(Set.unmodifiable(_clipboardNodes));
+      case 'paste':
+        if (_clipboardNodes.isNotEmpty) {
+          widget.onPaste?.call(Set.unmodifiable(_clipboardNodes), node);
+        }
+      case 'expand':
+        setState(() {
+          node.isExpanded = true;
+        });
+      case 'collapse':
+        setState(() {
+          doToogle(node);
+        });
+      default:
+        // Delegate unknown values to the caller via a dedicated callback
+        // (contextMenuItems entries are identified by their 'value' key).
+        break;
+    }
   }
 
   Widget _getRowCached(TreeNodeData<T> node) {
@@ -477,18 +784,47 @@ class TreeViewState<T> extends State<TreeView<T>> {
   }
 
   Widget _getRow(TreeNodeData<T> node) {
+    var left = indent.indent * node.depth;
+    var w = headerSize - left;
+    if (w < 20) {
+      w = 20;
+    }
+    final Color? effectiveColor =
+        selectedNodes.contains(node)
+            ? Colors.orange.withAlpha(100)
+            : node.bgColor;
+
     return Container(
-      color: node.bgColor,
+      color: effectiveColor,
       height: rowHeight,
       //width:  300,
-      padding: EdgeInsets.only(left: indent.indent * node.depth, right: 10),
+      padding: EdgeInsets.only(left: left, right: 10),
       child: NoOverflowErrorFlex(
         direction: Axis.horizontal,
         children: [
-          SizedBox(
-            width: headerSize - indent.indent * node.depth,
-            child: widget.getHeader(node),
-          ),
+          if (showCheckboxes)
+            SizedBox(
+              width: 24,
+              child: Checkbox(
+                value: selectedNodes.contains(node),
+                onChanged: (_) {
+                  setState(() {
+                    if (selectedNodes.contains(node)) {
+                      selectedNodes.remove(node);
+                    } else {
+                      selectedNodes.add(node);
+                    }
+                    node.numUpdate++;
+                  });
+                  widget.onSelectionChanged?.call(
+                    Set.unmodifiable(selectedNodes),
+                  );
+                },
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          SizedBox(width: w, child: widget.getHeader(node)),
           _getBtnToogle(node, node.isExpanded),
           _getDrag(rowHeight),
           Expanded(child: widget.getDataRow(node)),
@@ -740,9 +1076,9 @@ class _TreeConnectorPainter extends CustomPainter {
     canvas.drawLine(Offset(startX, midY), Offset(endX, midY), paint);
     indentPix = indentInfo.start;
     // print('${node.data} >  ${node.lastChild}');
-    for (var i = 1; i < node.lastChild.length; i++) {
+    for (var i = 1; i < node.listParentIndicator.length; i++) {
       indentPix = indentPix + indentInfo.indent;
-      if (!node.lastChild[i]) {
+      if (!node.listParentIndicator[i]) {
         final startX = indentPix - indentInfo.indent;
         final bottomY = size.height;
         canvas.drawLine(Offset(startX, topY), Offset(startX, bottomY), paint);
@@ -761,11 +1097,13 @@ class NodeStack {
     stack.add(value);
   }
 
-  TreeNodeData pop() {
+  TreeNodeData? pop() {
     if (stack.isEmpty) {
-      throw StateError('La pile est vide');
+      // throw StateError('La pile est vide');
+      return null;
+    } else {
+      return stack.removeLast();
     }
-    return stack.removeLast();
   }
 
   TreeNodeData peek() {

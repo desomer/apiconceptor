@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_import_dialog.dart';
 import 'package:jsonschema/feature/pan_attribut_editor.dart';
@@ -65,6 +64,7 @@ class PanModelSelector extends PanYamlTree {
           version: null,
           model: getSchema(),
           attr: attr,
+          modelParent: currentCompany.listModel!,
         ),
       );
       row.add(
@@ -84,20 +84,20 @@ class PanModelSelector extends PanYamlTree {
       //     label: Icon(Icons.remove_red_eye),
       //   ),
       // );
-      row.add(
-        TextButton.icon(
-          icon: Icon(Icons.import_export),
-          onPressed: () async {
-            if (attr.info.type == 'model') {
-              var key = attr.info.properties![constMasterID];
+      // row.add(
+      //   TextButton.icon(
+      //     icon: Icon(Icons.import_export),
+      //     onPressed: () async {
+      //       if (attr.info.type == 'model') {
+      //         var key = attr.info.properties![constMasterID];
 
-              // ignore: use_build_context_synchronously
-              context.push(Pages.modelJsonSchema.id(key));
-            }
-          },
-          label: Text('Json schemas'),
-        ),
-      );
+      //         // ignore: use_build_context_synchronously
+      //         context.push(Pages.modelJsonSchema.id(key));
+      //       }
+      //     },
+      //     label: Text('Json schemas'),
+      //   ),
+      // );
     }
   }
 
@@ -119,7 +119,7 @@ class PanModelSelector extends PanYamlTree {
       var key = attr.info.properties![constMasterID];
 
       // ignore: use_build_context_synchronously
-      context.push(Pages.modelDetail.id(key));
+      RouteManager.goto(Pages.modelDetail.id(key), context);
 
       //context.push(Pages.modelDetail.url);
     } else {

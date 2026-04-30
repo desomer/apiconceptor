@@ -29,7 +29,7 @@ class _WidgetTileEditorState extends State<WidgetTileEditor> {
             ),
             child: WidgetTile<NodeAttribut>(
               key: keyDragDrop,
-              model: currentCompany.listEnv,
+              model: currentCompany.listEnv!,
               getNewAttribut: () {
                 return NodeAttribut(
                   yamlNode: mapEntryEmpty,
@@ -38,13 +38,13 @@ class _WidgetTileEditorState extends State<WidgetTileEditor> {
                 );
               },
               loadAll: () {
-                var env = currentCompany.listEnv;
+                var env = currentCompany.listEnv!;
                 var browseSingle = BrowseSingle(config: BrowserConfig());
                 browseSingle.browse(env, true);
                 return browseSingle.root;
               },
               onSave: (List<NodeAttribut> choices) {
-                var env = currentCompany.listEnv;
+                var env = currentCompany.listEnv!;
                 StringBuffer sb = StringBuffer();
                 for (var choice in choices) {
                   sb.write(choice.info.name.isEmpty ? 'new' : choice.info.name);
@@ -63,7 +63,7 @@ class _WidgetTileEditorState extends State<WidgetTileEditor> {
           width: 500,
           child: Wrap(
             children: [
-              for (var e in currentCompany.listEnv.useAttributInfo)
+              for (var e in currentCompany.listEnv!.useAttributInfo)
                 Chip(
                   label: Text(e.name),
                   onDeleted: () {

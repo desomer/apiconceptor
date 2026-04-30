@@ -48,7 +48,7 @@ class DesignApiDetailScrumPage extends GenericPageStateless {
     PageInit? pageInit,
   ) {
     query = routerState.uri.queryParameters['id']!;
-    var goTo = GoTo();
+    var goTo = ApiRequestNavigator();
 
     return NavigationInfo()
       ..navLeft = getLeftNavApi(query)

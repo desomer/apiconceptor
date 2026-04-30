@@ -105,8 +105,9 @@ class Export2FakeJson<T extends Map<String, dynamic>>
 
   @override
   NodeJson doRef(String name, NodeAttribut node) {
-    var child = {};
-    return NodeJson(name: name, value: child);
+    return doObject(name, node);
+    // var child = {};  
+    // return NodeJson(name: name, value: child)..add = addName;
   }
 
   @override
@@ -190,7 +191,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
             r'^(?:19\d{2}|20\d{2})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12]\d|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-][01]\d:[0-5]\d)$';
         break;
       case 'email':
-        pattern ??= r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+        pattern ??= r"^[a-zA-Z0-9._%+\-']+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
         break;
       case 'url':
         pattern ??=
@@ -307,5 +308,10 @@ class Export2FakeJson<T extends Map<String, dynamic>>
   ) {
     // TODO: implement doAllOf
     throw UnimplementedError();
+  }
+  
+  @override
+  NodeJson doRefInherit(String name, NodeAttribut node) {
+     return doRef(name, node)..add = false;
   }
 }

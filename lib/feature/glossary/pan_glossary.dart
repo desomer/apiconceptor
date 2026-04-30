@@ -163,7 +163,7 @@ class WidgetGlossary extends StatelessWidget with WidgetHelper {
           key: ObjectKey(attr),
           margin: EdgeInsets.all(1),
           child: getToolTip(
-            toolContent: getTooltipFromAttr(attr.info),
+            toolContent: getTooltipFromAttr(attr.info, schemaGlossary),
             child: Row(children: row),
           ),
         ),

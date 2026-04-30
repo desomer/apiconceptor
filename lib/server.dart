@@ -25,7 +25,7 @@ void startServer() async {
 
   print('Serving at http://${server!.address.host}:${server!.port}');
 
-  currentCompany.listDomain.mapInfoByTreePath.forEach((key, value) {
+  currentCompany.listDomain?.mapInfoByTreePath.forEach((key, value) {
     var namespace = value.masterID!;
     loadAllAPI(namespace: namespace).then((modelApi) async {
       var b = BrowseListAPI(

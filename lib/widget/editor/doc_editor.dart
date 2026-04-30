@@ -20,12 +20,13 @@ class WidgetDoc extends StatefulWidget {
 class _WidgetDocState extends State<WidgetDoc> {
   final TextEditingController _controller = TextEditingController();
   late final FocusNode _focusNode;
+  //late final FocusNode _focusNode2;
 
   @override
   void initState() {
-    _controller.addListener(() => setState(() {}));
+    //_controller.addListener(() => setState(() {}));
     _focusNode = FocusNode();
-
+    //_focusNode2 = FocusNode();
     var doc = widget.accessorAttr?.get();
     if (doc != null) {
       _controller.text = doc.toString();
@@ -42,7 +43,7 @@ class _WidgetDocState extends State<WidgetDoc> {
   void dispose() {
     _controller.dispose();
     _focusNode.dispose();
-
+    //_focusNode2.dispose();
     super.dispose();
   }
 

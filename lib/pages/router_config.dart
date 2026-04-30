@@ -1,5 +1,6 @@
 import 'dart:developer' as dev show log;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/authorization_manager.dart';
@@ -154,8 +155,30 @@ void clearRouteCache(Pages page) {
   cacheRoute[page.urlpath]!.cache = null;
 }
 
+class TempPage extends GenericPageStateless {
+  const TempPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+
+  @override
+  NavigationInfo? initNavigation(
+    GoRouterState routerState,
+    BuildContext context,
+    PageInit? pageInit,
+  ) {
+    return NavigationInfo();
+  }
+}
+
 Widget getPage(BuildContext context, GoRouterState state) {
   // print("getPage ${state.uri}");
+
+  if (deepLinkPath != null && deepLinkPath != Pages.home.urlpath) {
+    return TempPage();
+  }
 
   var path = state.uri.path;
   if (lastPagePath == path && forceNewPage > 0) {
@@ -196,7 +219,7 @@ Widget getPage(BuildContext context, GoRouterState state) {
         dev.log("load page $uri from route cache");
       }
     } else {
-      dev.log("buid page $uri");
+      dev.log("build page $uri");
     }
 
     pc ??= cacheRoute[path]!.builder(context, state);
@@ -257,12 +280,41 @@ class RouteManager {
   RouteManager({required this.builder});
 
   static int last = 0;
+
   static void goto(String location, BuildContext ctx) {
     int d = DateTime.now().millisecondsSinceEpoch;
     int v = d - last;
     if (v < 1000) return;
-    ctx.push(location);
+
+    location = prepareLinkParam(location);
+
+    if (kIsWeb) {
+      ctx.go(location);
+    } else {
+      ctx.push(location);
+    }
     last = d;
+  }
+
+  static String prepareLinkParam(String location) {
+    if (location.startsWith("${Pages.models.urlpath}/")) {
+      if (!location.contains('?id=')) {
+        location = '$location?id=${currentCompany.currentModel?.id ?? ''}';
+      }
+    } else if (location.startsWith("${Pages.api.urlpath}/")) {
+      if (!location.contains('?id=')) {
+        location = '$location?id=${currentCompany.currentModel?.id ?? ''}';
+      }
+    }
+
+    String sep = location.contains('?') ? '&' : '?';
+
+    if (location.startsWith(Pages.models.urlpath)) {
+      location = '$location${sep}ns=${currentCompany.currentNameSpace}';
+    } else if (location.startsWith(Pages.api.urlpath)) {
+      location = '$location${sep}ns=${currentCompany.currentNameSpace}';
+    }
+    return location;
   }
 }
 
@@ -270,10 +322,16 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'routerkey',
 );
 
+final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'globalNavigatorKey',
+);
+
+String? deepLinkPath;
+
 class Dialog with WidgetHelper {
-  Future<void> doMustDomainFirst() async {
+  Future<void> doMustDomainFirst(BuildContext context) async {
     return messageBuilder(
-      navigatorKey.currentContext!,
+      context,
       Text(
         textAlign: TextAlign.center,
         'Create your domain first',
@@ -286,26 +344,44 @@ class Dialog with WidgetHelper {
 final GoRouter router = GoRouter(
   observers: [routeObserver],
   redirect: (context, state) async {
-    if (connectBdd &&
-        state.fullPath != Pages.home.urlpath &&
-        state.fullPath != Pages.domain.urlpath &&
-        currentCompany.listDomain.selectedAttr == null) {
-      await Dialog().doMustDomainFirst();
+    if (showLoginDialog) {
+      deepLinkPath = state.uri.toString();
+      if (!deepLinkPath!.contains('?id=')) {
+        deepLinkPath = null;
+        return Pages.home.urlpath;
+      }
+      print('deepLinkPath: $deepLinkPath');
+      // return Pages.home.urlpath;
+    }
+
+    var path = (state.fullPath ?? ' ');
+
+    if (!showLoginDialog &&
+        connectBdd &&
+        path != Pages.home.urlpath &&
+        path != Pages.domain.urlpath &&
+        currentCompany.listDomain?.selectedAttr == null) {
+      // ignore: use_build_context_synchronously
+      await Dialog().doMustDomainFirst(context);
       return Pages.domain.urlpath;
     }
 
-    if (state.fullPath == Pages.home.urlpath) {
+    // if (!showLoginDialog) {
+    //   await prepareDeepLinking(state.uri);
+    // }
+
+    if (path == Pages.home.urlpath) {
       return null; // No redirection logic needed
     }
     return null; // No redirection logic needed
   },
-
   initialLocation: Pages.home.urlpath,
   routes: [
     ShellRoute(
-      navigatorKey: navigatorKey,
+      // navigatorKey: navigatorKey,
       builder: (context, state, childPage) {
         return ValueListenableBuilder(
+          key: navigatorKey,
           valueListenable: zoom,
           builder: (context, value, child) {
             scale = (zoom.value - 5) / 100.0;
@@ -316,7 +392,7 @@ final GoRouter router = GoRouter(
                 textScaler: TextScaler.linear(scale + 0.05),
                 supportsShowingSystemContextMenu: true,
               ),
-              child: Layout(
+              child: PageLayout(
                 routerState: state,
                 navChild: childPage, // 🔥 route actuelle
               ),
@@ -341,14 +417,20 @@ final GoRouter router = GoRouter(
           (context, state) => const GlossaryPage(),
         ),
         //----------------------------------------------------------------
-        addRouteBy(Pages.models, const DesignModelPage()),
+        addRoute(
+          GoRoute(path: Pages.models.urlpath, pageBuilder: getPageAnim),
+          (context, state) => DesignListModelPage(state: state),
+        ),
         addRouteBy(Pages.modelDetail, DesignModelDetailPage()),
         addRouteBy(Pages.modelJsonSchema, DesignModelJsonSchemaPage()),
         addRouteBy(Pages.modelGraph, const DesignModelGraphPage()),
         addRouteBy(Pages.modelScrum, const DesignModelDetailScrumPage()),
         addRouteBy(Pages.modelUI, DesignModelUIPage()),
         //----------------------------------------------------------------
-        addRouteBy(Pages.api, DesignAPIPage()),
+        addRoute(
+          GoRoute(path: Pages.api.urlpath, pageBuilder: getPageAnim),
+          (context, state) => DesignAPIPage(state: state),
+        ),        
         addRouteBy(
           Pages.apiDetail,
           CallAPIPageDetail(typeTab: TypeAPITab.definition),
@@ -452,10 +534,40 @@ final GoRouter router = GoRouter(
   ],
 );
 
+Future<void> prepareDeepLinking(Uri uri) async {
+  //controle le namespace et charge les models du domain si besoin pour les pages model et api
+  // get param ns in url
+  final path = uri.path;
+  final ns = uri.queryParameters['ns'];
+  if (ns != null && currentCompany.currentNameSpace != ns) {
+    currentCompany.setDomainByMasterID(ns);
+  }
+
+  if (path.startsWith(Pages.models.urlpath) &&
+      currentCompany.listModel == null) {
+    currentCompany.listModel = await loadSchema(
+      TypeMD.listmodel,
+      'model',
+      'Business models',
+      TypeModelBreadcrumb.businessmodel,
+      namespace: currentCompany.currentNameSpace,
+      config: BrowserConfig(),
+    );
+    currentCompany.listModel!.isReadOnlyModel =
+        isDomainAllowed(currentCompany.currentNameSpace) == false;
+  }
+
+  if (path.startsWith(Pages.api.urlpath) && currentCompany.listAPI == null) {
+    await loadAllAPIGlobal();
+    currentCompany.listAPI!.isReadOnlyModel =
+        isDomainAllowed(currentCompany.currentNameSpace) == false;
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 int gotoDelay = 100;
 
-class GoTo {
+class ApiRequestNavigator {
   List<BreadNode> getBreadcrumbApi(String id) {
     var attr = currentCompany.listAPI!.getNodeByMasterIdPath(id)!;
     var modelPath = <BreadNode>[];
@@ -520,6 +632,7 @@ class GoTo {
         );
       }
     }
+    model.isReadOnlyModel = isDomainAllowed(model.namespace ?? '') == false;
     currentCompany.currentModel = model;
     return currentCompany.currentModel!;
   }
@@ -548,12 +661,12 @@ class GoTo {
     var currentAPIResquest = ModelSchema(
       category: Category.api,
       infoManager: InfoManagerAPIParam(typeMD: TypeMD.apiparam),
-      headerName: "Parameters query, header, cookie, body",
+      headerName: "Parameters query, header, cookie...",
       id: idApi,
       refDomain: currentCompany.listModel,
     )..namespace = domain;
     currentAPIResquest.isApi = true;
-    currentAPIResquest.readOnly = call.httpOperation == 'get';
+    currentAPIResquest.readOnlyApi = call.httpOperation == 'get';
 
     await currentAPIResquest.loadYamlAndProperties(
       cache: false,
@@ -613,7 +726,7 @@ class GoTo {
       ),
     ).browseSync(responseModel, false, 0);
     responseModel.isApi = true;
-    responseModel.readOnly = call.httpOperation == 'get';
+    responseModel.readOnlyApi = call.httpOperation == 'get';
 
     currentCompany.currentAPIResponse = responseModel;
 

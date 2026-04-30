@@ -137,18 +137,24 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
               var value = ctrlInput!.text;
               dataContainer.jsonData[attrName] = formatter!.aInfoMask!
                   .getUnmaskedValue(formatter!, value);
+              // print(
+              //   ' change value for input ${widget.ctx.aWidgetPath} : $value masked=${ctrlInput?.text}  hash=$hashCode w=${widget.hashCode} ',
+              // );
             }
           }
         });
 
-        focusNode?.addListener(() {
-          if (focusNode!.hasFocus) {
-            bindInfo.doChangeRow(
-              pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
-              rowContext: context,
-            );
-          }
-        });
+        bool inListOrArray = widget.ctx.hasParentOfType(['list', 'table']);
+        if (inListOrArray) {
+          focusNode?.addListener(() {
+            if (focusNode!.hasFocus) {
+              bindInfo.doChangeRow(
+                pathWidgetRepos: widget.ctx.parentCtx!.aWidgetPath,
+                rowContext: context,
+              );
+            }
+          });
+        }
       }
     }
   }
@@ -158,160 +164,164 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
   @override
   Widget build(BuildContext context) {
     String widgetType = getStringProp(widget.ctx, 'type') ?? 'label';
+    var useContainerWrapper = widgetType != 'textfield';
 
-    return buildWidget(
-      widgetType != 'textfield',
-      ModeBuilderWidget.noConstraint,
-      (ctx, constraints, _) {
-        bool isDense =
-            getBoolProp(ctx, 'dense') ?? ctx.hasParentOfType(['table']);
-        bool inListOrArray = widget.ctx.hasParentOfType(['list', 'table']);
+    return buildWidget(useContainerWrapper, ModeBuilderWidget.noConstraint, (
+      ctx,
+      constraints,
+      _,
+    ) {
+      bool isDense =
+          getBoolProp(ctx, 'dense') ?? ctx.hasParentOfType(['table']);
+      bool inListOrArray = widget.ctx.hasParentOfType(['list', 'table']);
 
-        TextfieldBuilderInfo info = TextfieldBuilderInfo(
-          label: isDense ? null : getStringProp(ctx, 'label') ?? '',
-          bindType: getStringProp(ctx, 'dataType') ?? 'TEXT',
-          editable: true,
-          enable: true,
-        );
+      TextfieldBuilderInfo info = TextfieldBuilderInfo(
+        label: isDense ? null : getStringProp(ctx, 'label') ?? '',
+        bindType: getStringProp(ctx, 'dataType') ?? 'TEXT',
+        editable: true,
+        enable: true,
+      );
 
-        info.bindInfo = bindInfo;
+      info.bindInfo = bindInfo;
 
-        formatter = FormatterTextfield(info);
-        formatter?.initMaskAndValidatorInfo(null);
+      formatter = FormatterTextfield(info);
+      formatter?.initMaskAndValidatorInfo(null);
 
-        var modeDesigner = ctx.aFactory.isModeDesigner();
-        if (bindInfo.stateRepository != null && bindInfo.bindAttribut != null) {
-          var v = bindInfo.getValue(context, ctx, this, inListOrArray, false);
-          if (modeDesigner) {
-            ctrlInput?.text = v.toString();
-          } else {
-            ctrlInput?.text = info.getMaskedValue(formatter!, v);
-          }
-        } else if (bindInfo.stateRepository != null && bindInfo.eval != null) {
-          var r = bindInfo.eval!.eval(
-            variables: {
-              '\$\$__ctx__\$\$': ctx,
-              '\$\$__buildctx__\$\$': context,
-              '\$\$__state__\$\$': this,
-            },
-            logs: [],
-          );
-          if (r is Future) {
-            r.then((value) {
-              if (value != null) {
-                ctrlInput?.text = info.getMaskedValue(formatter!, value);
-                //throw 'not implemented for async value'; // à revoir pour les valeur async
-              }
-            });
-          } else {
-            ctrlInput?.text = info.getMaskedValue(formatter!, r);
-          }
-        } else if (modeDesigner && bindInfo.computedInfo != null) {
-          ctrlInput?.text = '#{${bindInfo.computedInfo!['name']}}';
-        }
-
-        var appearance = styleFactory.getStyleString("appearance", "border");
-        if (appearance == 'border' &&
-            !styleFactory.styleExist(['bSize', 'bColor'])) {
-          styleFactory.config.side = BorderSide(
-            width: 1,
-            //color FFBDBDBD
-            color: Color(0xFFBDBDBD),
-          );
-          styleFactory.config.hBorder = 1 * 2;
-        }
-
-        var appearanceBorder = {
-          "border": OutlineInputBorder(
-            borderSide: styleFactory.config.side ?? const BorderSide(),
-            borderRadius:
-                styleFactory.config.borderRadius ??
-                const BorderRadius.all(Radius.circular(4.0)),
-          ),
-          "fill": UnderlineInputBorder(
-            borderSide: styleFactory.config.side ?? const BorderSide(),
-            borderRadius:
-                styleFactory.config.borderRadius ??
-                const BorderRadius.only(
-                  topLeft: Radius.circular(4.0),
-                  topRight: Radius.circular(4.0),
-                ),
-          ),
-          "under": UnderlineInputBorder(
-            borderSide: styleFactory.config.side ?? const BorderSide(),
-            borderRadius:
-                styleFactory.config.borderRadius ??
-                const BorderRadius.only(
-                  topLeft: Radius.circular(4.0),
-                  topRight: Radius.circular(4.0),
-                ),
-          ),
-          "custom": InputBorder.none,
-        };
-
-        InputDecoration decoration = InputDecoration(
-          isDense: isDense,
-          filled:
-              styleFactory.config.decoration?.color != null ||
-              appearance == 'fill',
-          fillColor: styleFactory.config.decoration?.color,
-          labelText: info.label,
-          enabledBorder: appearanceBorder[appearance],
-          focusedBorder: appearanceBorder[appearance],
-          contentPadding: styleFactory.config.edgePadding,
-        );
-
-        Widget widgetInput;
-
-        if (widgetType == 'textfield') {
-          focusNode?.canRequestFocus = !modeDesigner;
-          focusNode?.skipTraversal = modeDesigner;
-          var isSizeDefined = styleFactory.isSizeDefined();
-
-          widgetInput = ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: isSizeDefined ? double.infinity : 300,
-              maxHeight: isSizeDefined ? double.infinity : 50,
-            ),
-            child: AbsorbPointer(
-              absorbing: modeDesigner,
-              child: TextField(
-                style: styleFactory.getTextStyle(null),
-                focusNode: focusNode,
-                //readOnly: modeDesigner ? true : false,
-                //onTap: modeDesigner ? () {} : null,
-                controller: ctrlInput,
-                decoration: decoration,
-              ),
-            ),
-          );
-
-          var elevation = styleFactory.getElevation();
-          if (elevation != null && elevation > 0) {
-            widgetInput = Material(
-              elevation: elevation,
-              borderRadius: styleFactory.config.borderRadius,
-              child: widgetInput,
-            );
-          }
+      var modeDesigner = ctx.aFactory.isModeDesigner();
+      if (bindInfo.stateRepository != null && bindInfo.bindAttribut != null) {
+        var v = bindInfo.getValue(context, ctx, this, inListOrArray, false);
+        if (modeDesigner) {
+          ctrlInput?.text = v.toString();
         } else {
-          if (ctrlInput != null &&
-              (bindInfo.eval != null || widgetType == 'checkbox')) {
-            // gestion asynchrone des valeur computed en asynchrone
-            widgetInput = ValueListenableBuilder(
-              valueListenable: ctrlInput!,
-              builder: (context, value, child) {
-                return getWidgetText(widgetType, modeDesigner);
-              },
-            );
-          } else {
-            widgetInput = getWidgetText(widgetType, modeDesigner);
-          }
+          ctrlInput?.text = info.getMaskedValue(formatter!, v);
         }
+        // print(
+        //   ' bind value for input ${ctx.aWidgetPath} : $v masked=${ctrlInput?.text}  hash=$hashCode w=${widget.hashCode} ',
+        // );
+      } else if (bindInfo.stateRepository != null && bindInfo.eval != null) {
+        var r = bindInfo.eval!.eval(
+          variables: {
+            '\$\$__ctx__\$\$': ctx,
+            '\$\$__buildctx__\$\$': context,
+            '\$\$__state__\$\$': this,
+          },
+          logs: [],
+        );
+        if (r is Future) {
+          r.then((value) {
+            if (value != null) {
+              ctrlInput?.text = info.getMaskedValue(formatter!, value);
+              //throw 'not implemented for async value'; // à revoir pour les valeur async
+            }
+          });
+        } else {
+          ctrlInput?.text = info.getMaskedValue(formatter!, r);
+        }
+      } else if (modeDesigner && bindInfo.computedInfo != null) {
+        ctrlInput?.text = '#{${bindInfo.computedInfo!['name']}}';
+      }
 
-        return widgetInput;
-      },
-    );
+      var appearance = styleFactory.getStyleString("appearance", "border");
+      if (appearance == 'border' &&
+          !styleFactory.styleExist(['bSize', 'bColor'])) {
+        styleFactory.config.side = BorderSide(
+          width: 1,
+          //color FFBDBDBD
+          color: Color(0xFFBDBDBD),
+        );
+        styleFactory.config.hBorder = 1 * 2;
+      }
+
+      var appearanceBorder = {
+        "border": OutlineInputBorder(
+          borderSide: styleFactory.config.side ?? const BorderSide(),
+          borderRadius:
+              styleFactory.config.borderRadius ??
+              const BorderRadius.all(Radius.circular(4.0)),
+        ),
+        "fill": UnderlineInputBorder(
+          borderSide: styleFactory.config.side ?? const BorderSide(),
+          borderRadius:
+              styleFactory.config.borderRadius ??
+              const BorderRadius.only(
+                topLeft: Radius.circular(4.0),
+                topRight: Radius.circular(4.0),
+              ),
+        ),
+        "under": UnderlineInputBorder(
+          borderSide: styleFactory.config.side ?? const BorderSide(),
+          borderRadius:
+              styleFactory.config.borderRadius ??
+              const BorderRadius.only(
+                topLeft: Radius.circular(4.0),
+                topRight: Radius.circular(4.0),
+              ),
+        ),
+        "custom": InputBorder.none,
+      };
+
+      InputDecoration decoration = InputDecoration(
+        isDense: isDense,
+        filled:
+            styleFactory.config.decoration?.color != null ||
+            appearance == 'fill',
+        fillColor: styleFactory.config.decoration?.color,
+        labelText: info.label,
+        enabledBorder: appearanceBorder[appearance],
+        focusedBorder: appearanceBorder[appearance],
+        contentPadding: styleFactory.config.edgePadding,
+      );
+
+      Widget widgetInput;
+
+      if (widgetType == 'textfield') {
+        focusNode?.canRequestFocus = !modeDesigner;
+        focusNode?.skipTraversal = modeDesigner;
+        var isSizeDefined = styleFactory.isSizeDefined();
+
+        widgetInput = ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: isSizeDefined ? double.infinity : 300,
+            maxHeight: isSizeDefined ? double.infinity : 50,
+          ),
+          child: AbsorbPointer(
+            absorbing: modeDesigner,
+            child: TextField(
+              style: styleFactory.getTextStyle(null),
+              focusNode: focusNode,
+              //readOnly: modeDesigner ? true : false,
+              //onTap: modeDesigner ? () {} : null,
+              controller: ctrlInput,
+              decoration: decoration,
+            ),
+          ),
+        );
+
+        var elevation = styleFactory.getElevation();
+        if (elevation != null && elevation > 0) {
+          widgetInput = Material(
+            elevation: elevation,
+            borderRadius: styleFactory.config.borderRadius,
+            child: widgetInput,
+          );
+        }
+      } else {
+        if (ctrlInput != null &&
+            (bindInfo.eval != null || widgetType == 'checkbox')) {
+          // gestion asynchrone des valeur computed en asynchrone
+          widgetInput = ValueListenableBuilder(
+            valueListenable: ctrlInput!,
+            builder: (context, value, child) {
+              return getWidgetText(widgetType, modeDesigner);
+            },
+          );
+        } else {
+          widgetInput = getWidgetText(widgetType, modeDesigner);
+        }
+      }
+
+      return widgetInput;
+    });
   }
 
   Widget getWidgetText(String widgetType, bool modeDesigner) {

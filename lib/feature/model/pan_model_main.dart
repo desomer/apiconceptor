@@ -14,9 +14,14 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:yaml/yaml.dart';
 
-class WidgetModelMain extends StatelessWidget with WidgetHelper {
+class WidgetModelMain extends StatefulWidget with WidgetHelper {
   const WidgetModelMain({super.key});
 
+  @override
+  State<WidgetModelMain> createState() => _WidgetModelMainState();
+}
+
+class _WidgetModelMainState extends State<WidgetModelMain> {
   @override
   Widget build(BuildContext context) {
     return getBrowser(context);
@@ -35,6 +40,8 @@ class WidgetModelMain extends StatelessWidget with WidgetHelper {
           namespace: currentCompany.currentNameSpace,
           config: BrowserConfig(),
         );
+        currentCompany.listModel!.isReadOnlyModel =
+            isDomainAllowed(currentCompany.currentNameSpace) == false;
         return currentCompany.listModel!;
       },
     );

@@ -122,6 +122,7 @@ class WidgetFactory {
   }
 
   void removeAllCache(CwWidgetCtx? aCtx) {
+    CwWidgetCtx.globalChangeTime = DateTime.now().millisecondsSinceEpoch;
     aCtx?.clearWidgetCache(clearInnerWidget: true);
     List<CwWidgetCtx> object =
         aCtx?.childrenCtx?.entries.map((e) => e.value).toList() ?? [];

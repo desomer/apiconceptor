@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/feature/model/pan_model_change_log.dart';
 import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_detail.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -11,6 +10,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/widget/editor/doc_editor.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
+import 'package:jsonschema/widget/widget_comment.dart';
 import 'package:jsonschema/widget/widget_glasspan.dart';
 import 'package:jsonschema/widget/widget_glossary_indicator.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -53,6 +53,43 @@ mixin PanModelEditorHelper {
       ),
     );
 
+    attr.info.isHoover = ValueNotifier(false);
+    row.add(
+      ValueListenableBuilder<bool>(
+        valueListenable: attr.info.isHoover!,
+        builder: (context, isHovered, child) {
+          return SizedBox(
+            height: rowHeight,
+            width: 30,
+            // decoration:
+            //     isHovered
+            //         ? BoxDecoration(border: Border.all(color: Colors.grey))
+            //         : null,
+            //color: Colors.blueAccent,
+            //margin: EdgeInsets.only(left: 10),
+            child: Row(
+              children: [
+                ThreadCommentCell(
+                  contextId: '${attr.info.getMasterID()}@${schema.id}', // unique par attribut
+                  childIfComment: Icon(Icons.comment, color: Colors.white),
+                  childOver:
+                      isHovered
+                          ? Icon(Icons.add_comment_outlined, color: Colors.grey)
+                          : SizedBox.shrink(),
+                ),
+                // if (isHovered)
+                //   Icon(Icons.add_comment_outlined, color: Colors.grey),
+                // Text(
+                //   'comment',
+                //   style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                // ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
     bool minmax =
         (attr.info.properties?['minimum'] != null) ||
         (attr.info.properties?['maximun'] != null) ||
@@ -68,7 +105,7 @@ mixin PanModelEditorHelper {
     }
 
     row.addAll(<Widget>[
-      SizedBox(width: 10),
+      //SizedBox(width: 10),
       if (attr.info.properties?['required'] == true)
         Icon(Icons.check_circle_outline),
       if (attr.info.properties?['#nullable'] == true)
@@ -82,10 +119,9 @@ mixin PanModelEditorHelper {
         getChip(Text(attr.info.properties?['format']), color: null),
       if (minmax) Icon(Icons.tune),
       if (attr.info.properties?['#enumLabel'] != null)
-        Icon(Icons.label_outline),       
+        Icon(Icons.label_outline),
       if (attr.info.properties?['#link'] != null)
         getChip(Text('link'), color: Colors.blue),
-
     ]);
 
     if (attr.info.properties?['#tag'] != null) {
@@ -125,7 +161,7 @@ class _PanModelEditorMainState extends State<PanModelEditorMain> {
       color: Colors.black87,
       child: PanModelEditor(
         getSchemaFct: () async {
-          return GoTo().getModel(widget.idModel);
+          return ApiRequestNavigator().getModel(widget.idModel);
         },
       ),
     );
@@ -138,7 +174,6 @@ class PanModelEditor extends PanYamlTree
   PanModelEditor({super.key, required super.getSchemaFct});
 
   final GlobalKey keyVersion = GlobalKey();
-  final GlobalKey keyChangeViewer = GlobalKey();
   late TabController tabEditor;
 
   @override
@@ -168,6 +203,31 @@ class PanModelEditor extends PanYamlTree
     );
   }
 
+  Widget buildStarsFromPercent(double percent) {
+    // Convertit 0–100% en 0–5 étoiles
+    final rating = (percent / 100) * 5;
+
+    final fullStars = rating.floor(); // étoiles pleines
+    final hasHalfStar = (rating - fullStars) >= 0.5; // demi-étoile ?
+    final emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    return Row(
+      children: [
+        // Étoiles pleines
+        for (int i = 0; i < fullStars; i++)
+          const Icon(Icons.star, color: Colors.amber, size: 20),
+
+        // Demi-étoile
+        if (hasHalfStar)
+          const Icon(Icons.star_half, color: Colors.amber, size: 20),
+
+        // Étoiles vides
+        for (int i = 0; i < emptyStars; i++)
+          const Icon(Icons.star_border, color: Colors.amber, size: 20),
+      ],
+    );
+  }
+
   @override
   void addRowWidget(
     TreeNodeData<NodeAttribut> node,
@@ -177,6 +237,19 @@ class PanModelEditor extends PanYamlTree
   ) {
     var attr = node.data;
     if (attr.info.type == 'root') {
+      ModelSchemaQuality modelCompletude = schema.getModelQualityInfo();
+      schema.qualityInfo = modelCompletude;
+      row.add(buildStarsFromPercent(modelCompletude.completude));
+      row.add(SizedBox(width: 10));
+      row.add(
+        Text('Completude ${modelCompletude.completude.toStringAsFixed(2)}%'),
+      );
+      row.add(SizedBox(width: 10));
+      row.add(
+        Text(
+          'Duplicate ${modelCompletude.wordDuplication.toString()} (${modelCompletude.wordDuplicationNumber.toStringAsFixed(2)})',
+        ),
+      );
       return;
     }
 
@@ -213,16 +286,16 @@ class PanModelEditor extends PanYamlTree
         tabEditor = tab;
         tab.addListener(() {
           // raffraichi lr change log
-          if (tab.indexIsChanging && tab.index == 3) {
-            // ignore: invalid_use_of_protected_member
-            keyChangeViewer.currentState?.setState(() {});
-          }
+          // if (tab.indexIsChanging && tab.index == 3) {
+          //   // ignore: invalid_use_of_protected_member
+          //   keyChangeViewer.currentState?.setState(() {});
+          // }
         });
       },
       listTab: [
         Tab(text: 'Schema detail'),
         Tab(text: 'Documentation'),
-        Tab(text: 'Change log'),
+        // Tab(text: 'Change log'),
         // Tab(text: 'Life cycle method'),
         // Tab(text: 'Mapping rules'),
         // Tab(text: 'Recommendation'),
@@ -230,7 +303,7 @@ class PanModelEditor extends PanYamlTree
       listTabCont: [
         viewer,
         WidgetDoc(accessorAttr: getDocAccessor()),
-        _getChangeLogTab(),
+        //_getChangeLogTab(),
         //getLifeCycleTab(),
         //Container(),
         // PanDestSelector(
@@ -277,11 +350,6 @@ class PanModelEditor extends PanYamlTree
     );
   }
 
-  Widget _getChangeLogTab() {
-    if (currentCompany.currentModel == null) return Container();
-
-    return PanModelChangeLog(key: keyChangeViewer);
-  }
   //-----------------------------------------------------------------------------
 
   @override
@@ -318,6 +386,7 @@ class PanModelEditor extends PanYamlTree
           child: PanModelVersionList(
             key: keyVersion,
             schema: model,
+            modelParent: currentCompany.listModel!,
             onTap: (ModelVersion version) async {
               showGlassPane(context);
               tabEditor.animateTo(0);
@@ -337,32 +406,34 @@ class PanModelEditor extends PanYamlTree
   Future<void> addVersion(BuildContext context, ModelSchema model) async {
     showGlassPane(context);
     tabEditor.animateTo(0);
-    await bddStorage.prepareSaveModel(model);
-    await bddStorage.doStoreSync();
-    var versionNum = int.parse(model.versions!.first.version) + 1;
-    ModelVersion version = ModelVersion(
-      id: model.id,
-      version: '$versionNum',
-      data: {
-        'state': 'D',
-        'by': currentCompany.userId,
-        'versionTxt': '0.0.$versionNum',
-      },
-    );
-    model.versions!.insert(0, version);
-    model.currentVersion = version;
-    await bddStorage.storeVersion(model, version);
-    String modelYaml = model.modelYaml;
-    var modelProperties = [...model.useAttributInfo];
-    var extend = {...model.modelPropExtended};
-    model.clear();
-    await bddStorage.duplicateVersion(
-      model,
-      version,
-      modelYaml,
-      modelProperties,
-      extend,
-    );
+    await model.addVersion();
+    
+    // await bddStorage.prepareSaveModel(model);
+    // await bddStorage.doStoreSync();
+    // var versionNum = int.parse(model.versions!.first.version) + 1;
+    // ModelVersion version = ModelVersion(
+    //   id: model.id,
+    //   version: '$versionNum',
+    //   data: {
+    //     'state': 'D',
+    //     'by': currentCompany.shortUserId,
+    //     'versionTxt': '0.0.$versionNum',
+    //   },
+    // );
+    // model.versions!.insert(0, version);
+    // model.currentVersion = version;
+    // await bddStorage.storeVersion(model, version);
+    // String modelYaml = model.modelYaml;
+    // var modelProperties = [...model.useAttributInfo];
+    // var extend = {...model.modelPropExtended};
+    // model.clear();
+    // await bddStorage.duplicateVersion(
+    //   model,
+    //   version,
+    //   modelYaml,
+    //   modelProperties,
+    //   extend,
+    // );
     await Future.delayed(Duration(seconds: 2));
     await changeVersion(model);
     // ignore: invalid_use_of_protected_member

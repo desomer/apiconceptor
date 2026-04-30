@@ -248,7 +248,7 @@ class StateContainerArray extends StateContainer {
     String pathData,
     State? rowSelectedState,
   ) {
-    print("  setIndexChanged $pathData to $idx old=$currentIndex");
+    print(" setIndexChanged $pathData to $idx old=$currentIndex");
     repos.dataState.depsBindingManager.listContainerByPath[pathData]?.removeWhere((state) {
       return state.mounted == false;
     });
@@ -263,7 +263,7 @@ class StateContainerArray extends StateContainer {
       if (state.mounted) {
         // ignore: invalid_use_of_protected_member
         state.setState(() {});
-        print('key row changed ${state.widget.key}');
+        print('   repaint row deselected ${state.widget.key}');
       }
     }
     if (rowSelectedState != null) {

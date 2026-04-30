@@ -24,8 +24,8 @@ class HomePage extends GenericPageStateless {
               return Column(
                 spacing: 40,
                 children: [
-                  getExpansible("Get started", getMenuStarted(context)),
-                  SizedBox(height: 30),
+                  // getExpansible("Get started", getMenuStarted(context)),
+                  // SizedBox(height: 30),
                   getExpansible(
                     "For architect & tech designer",
                     getMenuArchitect(context),
@@ -114,7 +114,7 @@ class HomePage extends GenericPageStateless {
         alignment: WrapAlignment.start,
         children: [
           WidgetMenuBtn(
-            label: 'Data Glossary',
+            label: 'Company Glossary',
             icon: Icons.language,
             route: Pages.glossary,
           ),

@@ -29,12 +29,17 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       }
     }
 
+    NodeAttribut? docNode = model.modelPropExtended['#doc'];
+    String? doc = docNode?.info.properties?['#doc'];
+    doc =
+        (doc ?? '') +
+        (currentCompany.currentModelSel?.info.properties?['description'] ?? '');
+
     json = {
       "\$schema": "https://json-schema.org/draft/2020-12/schema",
       "\$id": model.headerName,
       "title": model.headerName,
-      "description":
-          currentCompany.currentModelSel?.info.properties?['description'] ?? '',
+      "description": doc,
       "type": "object",
       "properties": {},
       "additionalProperties": false,
@@ -87,11 +92,19 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       // ajoute le type et ses properties
       String refName = node.info.isRef!;
       child['items'] = {'\$ref': '#/${config.refTarget}/$refName'};
+
+      var model = listRefModel[refName];
+
+      NodeAttribut? docNode = model?.modelPropExtended['#doc'];
+      String? doc = docNode?.info.properties?['#doc'];
+      doc = '${model?.modelProperties['description'] ?? ''}\n${doc ?? ''}';
+
       node.addChildOn = "items";
       ref[refName] = NodeJson(
         name: name,
         value: {
           "type": "object",
+          "description": doc,
           "additionalProperties": false,
           "properties": {},
         },
@@ -158,10 +171,17 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     var refName = node.info.isRef!;
     var child = {'\$ref': '#/${config.refTarget}/$refName'};
 
+    var model = listRefModel[refName];
+
+    NodeAttribut? docNode = model?.modelPropExtended['#doc'];
+    String? doc = docNode?.info.properties?['#doc'];
+    doc = '${model?.modelProperties['description'] ?? ''}\n${doc ?? ''}';
+
     ref[refName] = NodeJson(
       name: name,
       value: {
         "type": "object",
+        "description": doc,
         "additionalProperties": false,
         "properties": {},
       },
@@ -234,6 +254,24 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       );
       prop['enum'] = enumer;
     }
+
+    var enumLabel = node.info.properties?['#enumLabel'];
+    if (enumLabel != null) {
+      Map mapLabel = jsonDecode(enumLabel);
+      StringBuffer markdownEnumLabel = StringBuffer();
+      for (var key in mapLabel.keys) {
+        if (prop['enum'] != null && prop['enum'].contains(key)) {
+          prop['x-enum-labels'] ??= {};
+          prop['x-enum-labels'][key] = mapLabel[key];
+          markdownEnumLabel.writeln('- **$key**: ${mapLabel[key]}');
+        }
+      }
+      if (markdownEnumLabel.isNotEmpty) {
+        prop['description'] =
+            ' ${(prop['description'] ?? '')}\n\n${markdownEnumLabel.toString()}';
+      }
+    }
+
     if (node.info.properties?['format'] != null) {
       prop['format'] = node.info.properties!['format'];
       switch (prop['format']) {
@@ -251,7 +289,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
               r'^(?:19\d{2}|20\d{2})-(?:(?:01|03|05|07|08|10|12)-(?:0[1-9]|[12]\d|3[01])|(?:04|06|09|11)-(?:0[1-9]|[12]\d|30)|02-(?:0[1-9]|1\d|2[0-8]))T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-][01]\d:[0-5]\d)$';
           break;
         case 'email':
-          prop['pattern'] = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+          prop['pattern'] =
+              r"^[a-zA-Z0-9._%+\-']+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
           break;
         // add more formats as needed
       }
@@ -277,6 +316,17 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     parentNodeJson.remove('properties');
     parentNodeJson.remove('additionalProperties');
     return NodeJson(name: name, value: child);
+  }
+
+  @override
+  NodeJson doRefInherit(String name, NodeAttribut node) {
+    if (node.parent?.addChildOn == 'items') {
+      // #items pour que le doClean enlève le # et que l'enfant soit ajouté dans items de l'object parent
+      node.child.first.addChildOn = '#items';
+    }
+    return doObject(name, node)..add = false;
+
+    // return doObject(name, node);
   }
 }
 

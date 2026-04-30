@@ -1,7 +1,10 @@
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
+import 'package:jsonschema/widget/widget_glowing_halo.dart';
 
 // ignore: must_be_immutable
 class ExampleManager extends StatelessWidget {
@@ -12,6 +15,7 @@ class ExampleManager extends StatelessWidget {
   Function? onSelect;
   Function? onBeforeSave;
   ValueNotifier<int> onChangeExample = ValueNotifier(0);
+  ValueNotifier<String> onChangeSizeInfo = ValueNotifier('');
 
   ExampleManager({super.key});
 
@@ -61,10 +65,11 @@ class ExampleManager extends StatelessWidget {
           content: SizedBox(
             width: width,
             height: height,
-            child: DraggableEditableList(
-              json: jsonFake!,
+            child: DraggableExampleList(
+              onJsonChange: ValueNotifier(''),
+              json: () => jsonFake!,
               initialItems: examples!,
-              onChanged: (updatedList) {
+              onItemChanged: (updatedList) {
                 access.set(updatedList);
                 clearSelected();
               },
@@ -121,40 +126,72 @@ class ExampleManager extends StatelessWidget {
 }
 
 //-------------------------------------------------------------------------
-class DraggableEditableList extends StatefulWidget {
-  final String json;
+class DraggableExampleList extends StatefulWidget {
+  //final String json;
   final List<dynamic> initialItems;
-  final void Function(List<Map<String, dynamic>>) onChanged;
+  final void Function(List<Map<String, dynamic>>) onItemChanged;
   final void Function(List<Map<String, dynamic>>, int idx) onLoad;
   final void Function(List<Map<String, dynamic>>, int idx) onReplace;
+  final String Function() json;
+  final ValueNotifier<String?> onJsonChange;
 
-  const DraggableEditableList({
+  const DraggableExampleList({
     super.key,
     required this.initialItems,
-    required this.onChanged,
+    required this.onItemChanged,
     required this.onLoad,
     required this.onReplace,
     required this.json,
+    required this.onJsonChange,
   });
 
   @override
-  State<DraggableEditableList> createState() => _DraggableEditableListState();
+  State<DraggableExampleList> createState() => _DraggableExampleListState();
 }
 
-class _DraggableEditableListState extends State<DraggableEditableList> {
+class _DraggableExampleListState extends State<DraggableExampleList> {
   late List<Map<String, dynamic>> items;
+  int? _selectedIndex;
+  String? _selectedAction;
+  String? currentJsonFake;
 
   @override
   void initState() {
     super.initState();
     items = List<Map<String, dynamic>>.from(widget.initialItems);
+    if (items.isNotEmpty) {
+      _selectedIndex = 0;
+      _selectedAction = 'view';
+      currentJsonFake = items[0]['json'];
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        widget.onLoad(items, 0);
+      });
+    }
+
+    widget.onJsonChange.addListener(listener);
+  }
+
+  void listener() {
+    if (_selectedAction != 'replace' &&
+        (_selectedIndex != null && currentJsonFake != null) &&
+        currentJsonFake != widget.onJsonChange.value) {
+      _setSelection(_selectedIndex!, 'replace');
+    }
+
+    currentJsonFake = widget.onJsonChange.value;
+  }
+
+  @override
+  void dispose() {
+    widget.onJsonChange.removeListener(listener);
+    super.dispose();
   }
 
   void _updateName(int index, String newName) {
     setState(() {
       items[index]['name'] = newName;
     });
-    widget.onChanged(items);
+    widget.onItemChanged(items);
   }
 
   void _onReorder(int oldIndex, int newIndex) {
@@ -162,22 +199,52 @@ class _DraggableEditableListState extends State<DraggableEditableList> {
       if (newIndex > oldIndex) newIndex -= 1;
       final item = items.removeAt(oldIndex);
       items.insert(newIndex, item);
+      _selectedIndex = null;
+      _selectedAction = null;
     });
-    widget.onChanged(items);
+    widget.onItemChanged(items);
   }
 
   void _addItem() {
     setState(() {
-      items.add({'name': 'new', 'json': widget.json});
+      items.add({'name': 'new', 'json': widget.json()});
     });
-    widget.onChanged(items);
+    widget.onItemChanged(items);
   }
 
   void _removeItem(int index) {
     setState(() {
       items.removeAt(index);
+      if (_selectedIndex == index) {
+        _selectedIndex = null;
+        _selectedAction = null;
+      } else if (_selectedIndex != null && _selectedIndex! > index) {
+        _selectedIndex = _selectedIndex! - 1;
+      }
     });
-    widget.onChanged(items);
+    widget.onItemChanged(items);
+  }
+
+  bool isInBuildPhase() {
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    return phase == SchedulerPhase.persistentCallbacks;
+  }
+
+  void _setSelection(int index, String action) {
+    _selectedIndex = index;
+    _selectedAction = action;
+    currentJsonFake = null;
+    if (!isInBuildPhase() && mounted) {
+      setState(() {});
+    }
+  }
+
+  Color? _selectedColor(int index) {
+    if (_selectedIndex != index) return Colors.black;
+    if (_selectedAction == 'replace') {
+      return Colors.orange.withValues(alpha: 0.20);
+    }
+    return Colors.blue.withValues(alpha: 0.20);
   }
 
   @override
@@ -187,47 +254,91 @@ class _DraggableEditableListState extends State<DraggableEditableList> {
         ElevatedButton.icon(
           onPressed: _addItem,
           icon: Icon(Icons.add),
-          label: Text('Add new example'),
+          label: GlowingHalo(child: Text('Add new example')),
         ),
         SizedBox(height: 12),
         ReorderableListView(
+          key: ObjectKey(items),
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+          //physics: NeverScrollableScrollPhysics(),
           onReorder: _onReorder,
           children: List.generate(items.length, (index) {
             return ListTile(
-              key: ValueKey('item_$index'),
-              title: Row(
-                spacing: 5,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      widget.onLoad(items, index);
-                    },
-                    child: Text('Load'),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Name example ${index + 1}',
-                        border: OutlineInputBorder(),
+              key: ObjectKey(items[index]),
+              //tileColor: _selectedColor(index),
+              title: Container(
+                color: _selectedColor(index),
+                child: Row(
+                  spacing: 5,
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            _selectedIndex == index &&
+                                    (_selectedAction == 'view' ||
+                                        _selectedAction == 'focus')
+                                ? Colors.white
+                                : null,
+                        backgroundColor:
+                            _selectedIndex == index &&
+                                    (_selectedAction == 'view' ||
+                                        _selectedAction == 'focus')
+                                ? Colors.blue
+                                : null,
                       ),
-                      controller: TextEditingController(
-                          text: items[index]['name'],
-                        )
-                        ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: items[index]['name']?.length ?? 0),
-                        ),
-                      onChanged: (value) => _updateName(index, value),
+                      onPressed: () {
+                        _setSelection(index, 'view');
+                        widget.onLoad(items, index);
+                      },
+                      child: Text('View'),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      widget.onReplace(items, index);
-                    },
-                    child: Text('Replace'),
-                  ),
-                ],
+                    Expanded(
+                      child: Focus(
+                        onFocusChange: (hasFocus) {
+                          if (hasFocus) {
+                            _setSelection(index, 'focus');
+                            widget.onLoad(items, index);
+                          }
+                        },
+                        child: TextField(
+                          decoration: InputDecoration(
+                            labelText: 'Name example ${index + 1}',
+                            border: OutlineInputBorder(),
+                          ),
+                          controller: TextEditingController(
+                              text: items[index]['name'],
+                            )
+                            ..selection = TextSelection.fromPosition(
+                              TextPosition(
+                                offset: items[index]['name']?.length ?? 0,
+                              ),
+                            ),
+                          onChanged: (value) => _updateName(index, value),
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            _selectedIndex == index &&
+                                    _selectedAction == 'replace'
+                                ? Colors.white
+                                : null,
+                        backgroundColor:
+                            _selectedIndex == index &&
+                                    _selectedAction == 'replace'
+                                ? Colors.orange
+                                : null,
+                      ),
+                      onPressed: () {
+                        _setSelection(index, 'view');
+                        currentJsonFake = items[index]['json'];
+                        widget.onReplace(items, index);
+                      },
+                      child: Text('Replace'),
+                    ),
+                  ],
+                ),
               ),
               trailing: IconButton(
                 icon: Icon(Icons.delete, color: Colors.red),

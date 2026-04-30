@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/api/session_storage.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
@@ -58,7 +58,7 @@ class CwRepositoryAction {
     repo.criteriaState.loadDataInContainer(criteria);
   }
 
-  void loadCriteria(Map info) async {
+  Future<void> loadCriteria(Map info) async {
     APICallManager apiCallInfo = repo.ds.helper!.apiCallInfo;
     AttributInfo? element = repo.ds.exampleData?.firstWhere(
       (e) => e.masterID == info['idParam'],
@@ -110,7 +110,7 @@ class CwRepositoryAction {
         mode: ModeEnum.fake,
         propMode: PropertyRequiredEnum.all,
         config: BrowserConfig(
-          isApi: repo.dataState.schema?.readOnly != null,
+          isApi: repo.dataState.schema?.readOnlyApi != null,
           refTarget: '\$def',
         ),
       );
@@ -140,7 +140,7 @@ class CwRepositoryAction {
           mode: ModeEnum.fake,
           propMode: PropertyRequiredEnum.all,
           config: BrowserConfig(
-            isApi: repo.dataState.schema?.readOnly != null,
+            isApi: repo.dataState.schema?.readOnlyApi != null,
             refTarget: '\$def',
           ),
         );

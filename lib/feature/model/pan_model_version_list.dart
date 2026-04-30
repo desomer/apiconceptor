@@ -8,8 +8,10 @@ class PanModelVersionList extends StatefulWidget {
     super.key,
     required this.schema,
     required this.onTap,
+    required this.modelParent,
   });
   final ModelSchema schema;
+  final ModelSchema modelParent;
   final Function onTap;
 
   @override
@@ -94,6 +96,7 @@ class _PanModelVersionListState extends State<PanModelVersionList>
                 margeVertical: 5,
                 model: widget.schema,
                 version: version,
+                modelParent: widget.modelParent,
               ),
             ),
           ],
@@ -126,7 +129,7 @@ class _PanModelVersionListState extends State<PanModelVersionList>
           title: Text('Delete version'),
           onTap: () {
             if (bCtx != null) Navigator.pop(bCtx!);
-           // widget.schema.versions!.removeAt(index);
+            // widget.schema.versions!.removeAt(index);
             setState(() {});
           },
         ),

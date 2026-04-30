@@ -1,8 +1,10 @@
+import 'package:flutter/scheduler.dart';
 import 'package:highlight/languages/yaml.dart' show yaml;
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
+import 'package:jsonschema/feature/model/pan_model_change_log.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_layout.dart';
@@ -99,7 +101,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   }
 
   bool isReadOnly() {
-    return false;
+    return _schema.isReadOnlyModel;
   }
 
   bool withEditor() {
@@ -140,7 +142,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
             secondaryWidth: _showAttrEditor.value,
             primaryWidth: -1,
             children: [
-              getTree(context),
+              readOnlyCapable(isReadOnly(), getTree(context)),
               attributProp,
               //WidgetHiddenBox(showNotifier: _showAttrEditor, child: attributProp),
             ],
@@ -283,7 +285,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
             }
           },
           child: getToolTip(
-            toolContent: getTooltipFromAttr(node.data.info),
+            toolContent: getTooltipFromAttr(node.data.info, _schema),
             child: NoOverflowErrorFlex(
               crossAxisAlignment: CrossAxisAlignment.end,
               direction: Axis.horizontal,
@@ -327,32 +329,61 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
       debugLabel: 'yamlEditor',
     );
 
-    return Container(
-      color: Colors.black,
-      child: TextEditor(
-        onSelection: (String yamlPath) {
-          print("on Selection go to path $yamlPath");
-          var attr = _schema.getNodeByMasterJsonPath(yamlPath);
-          if (attr != null) {
-            doSelectedRow(attr, true);
-            doScrollToSelected();
-          }
-        },
-        header: getHeaderCode(),
-        onHelp:
-            doc != null
-                ? (BuildContext ctx) {
-                  showDialog(
-                    context: ctx,
-                    barrierDismissible: true,
-                    builder: (BuildContext context) {
-                      return doc;
-                    },
-                  );
-                }
-                : null,
-        key: yamlEditor,
-        config: _yamlConfig!,
+    return readOnlyCapable(
+      isReadOnly(),
+      Container(
+        color: Colors.black,
+        child: TextEditor(
+          onHistory: (BuildContext ctx) {
+            Size size = MediaQuery.of(ctx).size;
+            double width = size.width * 0.8;
+            double height = size.height * 0.8;
+            showDialog(
+              context: ctx,
+              barrierDismissible: true,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  content: SizedBox(
+                    width: width,
+                    height: height,
+                    child: PanModelChangeLog(currentModel: _schema),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Text('Close'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+          onSelection: (String yamlPath) {
+            print("on Selection go to path $yamlPath");
+            var attr = _schema.getNodeByMasterJsonPath(yamlPath);
+            if (attr != null) {
+              doSelectedRow(attr, true);
+              doScrollToSelected();
+            }
+          },
+          header: getHeaderCode(),
+          onHelp:
+              doc != null
+                  ? (BuildContext ctx) {
+                    showDialog(
+                      context: ctx,
+                      barrierDismissible: true,
+                      builder: (BuildContext context) {
+                        return doc;
+                      },
+                    );
+                  }
+                  : null,
+          key: yamlEditor,
+          config: _yamlConfig!,
+        ),
       ),
     );
   }
@@ -554,18 +585,33 @@ class TreeViewBrowserWidget extends JsonBrowser {
   TreeNodeData<NodeAttribut>? rootTree;
   TreeViewState? repaintRowState;
 
+  bool isInBuildPhase() {
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    return phase == SchedulerPhase.persistentCallbacks;
+  }
+
   @override
   void onStrutureChanged() {
     if (repaintRowState == null) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (isInBuildPhase()) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        repaintRowState!.headerSize = -1;
+        repaintRowState!.repaintInProgess =
+            DateTime.now().millisecondsSinceEpoch;
+        if (repaintRowState!.mounted) {
+          // ignore: invalid_use_of_protected_member
+          repaintRowState!.setState(() {});
+        }
+      });
+    } else {
       repaintRowState!.headerSize = -1;
       repaintRowState!.repaintInProgess = DateTime.now().millisecondsSinceEpoch;
       if (repaintRowState!.mounted) {
         // ignore: invalid_use_of_protected_member
         repaintRowState!.setState(() {});
       }
-    });
+    }
   }
 
   @override
@@ -592,6 +638,7 @@ class TreeViewBrowserWidget extends JsonBrowser {
     });
 
     newNode.data = node;
+
     if (pathFilter != null) {
       var find = false;
       for (var element in pathFilter!) {
@@ -602,6 +649,7 @@ class TreeViewBrowserWidget extends JsonBrowser {
       }
       if (!find) return null;
     }
+
     if (config.isGet == true) {
       bool wr = node.info.properties?['writeOnly'] ?? false;
       if (wr) {
@@ -622,12 +670,14 @@ class TreeViewBrowserWidget extends JsonBrowser {
     newNode.bgColor = node.bgcolor;
 
     double wIcon = 30;
+    double marge = 10;
 
     double sizeType = wIcon + node.info.type.length * 8 * (zoom.value / 100);
     double size =
+        marge +
         wIcon +
         (node.info.name.length * 8 * (zoom.value / 100)) +
-        (node.level * (repaintRowState?.indent.height ?? 0)) +
+        (node.level * (repaintRowState?.indent.indent ?? 0)) +
         sizeType;
 
     if (maxSize < size) {

@@ -53,7 +53,10 @@ class StateRepository extends StateManager {
       modeArray: ModeArrayEnum.anyInstance,
       mode: ModeEnum.empty,
       propMode: PropertyRequiredEnum.all,
-      config: BrowserConfig(isApi: schema.readOnly != null, refTarget: '\$def'),
+      config: BrowserConfig(
+        isApi: schema.readOnlyApi != null,
+        refTarget: '\$def',
+      ),
     );
     await browserEmpty.browseSync(schema, false, 0);
     dataEmpty = browserEmpty.json;
@@ -64,7 +67,7 @@ class StateRepository extends StateManager {
         mode: ModeEnum.empty,
         propMode: PropertyRequiredEnum.all,
         config: BrowserConfig(
-          isApi: schema.readOnly != null,
+          isApi: schema.readOnlyApi != null,
           refTarget: '\$def',
         ),
       );
@@ -135,13 +138,15 @@ class StateRepository extends StateManager {
               onIndexChange(idx);
               if (context != null && pathWidgetRepos != null) {
                 var r = getRowState(context);
-                lastArray.setIndexChanged(
-                  repository,
-                  idx,
-                  pathWidgetRepos,
-                  "$curPath/$arrayName",
-                  r!.rowkey.currentState,
-                );
+                if (r != null) {
+                  lastArray.setIndexChanged(
+                    repository,
+                    idx,
+                    pathWidgetRepos,
+                    "$curPath/$arrayName",
+                    r.rowkey.currentState,
+                  );
+                }
               }
             }
           }

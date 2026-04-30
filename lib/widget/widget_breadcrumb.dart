@@ -1,6 +1,5 @@
 import 'package:assorted_layout_widgets/assorted_layout_widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -9,12 +8,10 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/list_editor/widget_choise.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
-
-
 class BreadCrumbNavigator extends StatefulWidget {
   static NavigationInfo? currentNavigationInfo;
   static GlobalKey keyBreadcrumb = GlobalKey(debugLabel: 'keyBreadcrumb');
-  
+
   const BreadCrumbNavigator({super.key, required this.getList});
   final Function getList;
 
@@ -58,19 +55,24 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
             dialogBuilderBelow(
               context,
               WidgetChoise(
-                model: currentCompany.listDomain,
+                model: currentCompany.listDomain!,
                 onSelected: (AttributInfo sel) {
                   prefs.setString("currentDomain", sel.masterID!);
-                  currentCompany.listDomain.setCurrentAttr(sel);
                   Navigator.of(context).pop();
 
                   Future.delayed(Duration(milliseconds: 200)).then((timeStamp) {
                     // attend fermeture du popup
                     forceNewPage = 2;
-                    // ignore: use_build_context_synchronously
-                    context.pushReplacement(
-                      '${route.path}?id=${currentCompany.currentNameSpace}',
+                    currentCompany.listDomain!.setCurrentAttr(sel);
+                    RouteManager.goto(
+                      '${route.path}?id=${sel.masterID!}',
+                      // ignore: use_build_context_synchronously
+                      context,
                     );
+                    // // ignore: use_build_context_synchronously
+                    // context.pushReplacement(
+                    //   '${route.path}?id=${sel.masterID!}',
+                    // );                    
                   });
                   //setState(() {});
                 },
@@ -88,7 +90,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
               children: [
                 Icon(Icons.domain, size: 18),
                 Text(
-                  currentCompany.listDomain.selectedAttr?.info.name ?? '?',
+                  currentCompany.listDomain?.selectedAttr?.info.name ?? '?',
                   style: _textStyle,
                 ),
                 Icon(Icons.arrow_drop_down, size: 20),
@@ -114,7 +116,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
               route.onTap!();
             }
             if (route.path != null) {
-              context.push(route.path!);
+              RouteManager.goto(route.path!, context);
             }
           },
           child: btn,

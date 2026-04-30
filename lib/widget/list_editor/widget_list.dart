@@ -33,7 +33,8 @@ class WidgetList<T extends NodeAttribut> extends StatefulWidget {
   State<WidgetList<T>> createState() => _WidgetListState();
 }
 
-class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> with WidgetHelper {
+class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>>
+    with WidgetHelper {
   final List<T> _choices = [];
 
   void _addChoice() {
@@ -51,6 +52,7 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> with
   }
 
   void _onReorder(int oldIndex, int newIndex) {
+    if (widget.model.isReadOnlyModel) return;
     setState(() {
       if (newIndex > oldIndex) newIndex -= 1;
       final item = _choices.removeAt(oldIndex);
@@ -90,6 +92,7 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> with
           child: CellEditor(
             key: ValueKey('name#${choice.info.masterID}'),
             acces: NodeAccessorAttr(
+              model: widget.model,
               attr: choice,
               onSave: () {
                 widget.onSave(_choices);
@@ -107,31 +110,33 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> with
       );
       if (widget.withSpacer) cells.add(Spacer());
       if (!widget.withSpacer) cells.add(SizedBox(width: 20));
-      cells.add(
-        Padding(
-          padding: EdgeInsets.only(right: 50),
-          child: InkWell(
-            child: Icon(Icons.highlight_off),
-            onTap: () async {
-              bool result = await askUser(
-                context,
-                'Confirmation',
-                'Are you sure you want to remove ${choice.info.name} ?',
-              );
-              if (!result) return;
-              return _removeChoice(index);
-            },
+      if (widget.model.isReadOnlyModel == false) {
+        cells.add(
+          Padding(
+            padding: EdgeInsets.only(right: 50),
+            child: InkWell(
+              child: Icon(Icons.highlight_off),
+              onTap: () async {
+                bool result = await askUser(
+                  context,
+                  'Confirmation',
+                  'Are you sure you want to remove ${choice.info.name} ?',
+                );
+                if (!result) return;
+                return _removeChoice(index);
+              },
+            ),
           ),
-        ),
-      );
+        );
+      }
 
       listRows.add(
         getHover(
           ValueKey(_choices[index].info),
           _choices[index],
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
+          Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) {
               doSelectedRow(_choices[index]);
             },
             child: Row(children: cells),
@@ -140,24 +145,27 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> with
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        getBtnNewEnd(),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              border: BoxBorder.fromLTRB(
-                top: BorderSide(color: Colors.grey, width: 1),
+    return readOnlyCapable(
+      widget.model.isReadOnlyModel,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          getBtnNewEnd(),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                border: BoxBorder.fromLTRB(
+                  top: BorderSide(color: Colors.grey, width: 1),
+                ),
+              ),
+              child: ReorderableListView(
+                onReorder: _onReorder,
+                children: listRows,
               ),
             ),
-            child: ReorderableListView(
-              onReorder: _onReorder,
-              children: listRows,
-            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -170,6 +178,9 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> with
   );
 
   Widget getBtnNewEnd() {
+    if (widget.model.isReadOnlyModel) {
+      return Container();
+    }
     return ElevatedButton.icon(
       icon: Icon(Icons.add_box_outlined),
       style: style,
@@ -211,8 +222,13 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>> with
 class NodeAccessorAttr extends ValueAccessor {
   final NodeAttribut attr;
   final Function onSave;
+  final ModelSchema model;
 
-  NodeAccessorAttr({required this.onSave, required this.attr});
+  NodeAccessorAttr({
+    required this.onSave,
+    required this.attr,
+    required this.model,
+  });
 
   @override
   get() {
@@ -226,7 +242,7 @@ class NodeAccessorAttr extends ValueAccessor {
 
   @override
   bool isEditable() {
-    return true;
+    return model.isReadOnlyModel == false;
   }
 
   @override

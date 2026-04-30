@@ -23,7 +23,7 @@ class _WidgetOverlySelectorState extends State<WidgetOverlySelector> {
   ZoneDesc deleteZone = ZoneDesc();
   ZoneDesc sizeZone = ZoneDesc();
 
-  GlobalKey boxkey = GlobalKey();
+  GlobalKey boxkey = GlobalKey(debugLabel: 'boxkey');
 
   @override
   void dispose() {

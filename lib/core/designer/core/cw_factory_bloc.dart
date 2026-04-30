@@ -352,7 +352,7 @@ class CwFactoryBloc with NameMixin {
         },
       });
       Map<String, dynamic> onPress = {
-        "operation": "action",
+        "operation": cwActionRepos,
         "repository": repositoryId,
         "idAction": "computed",
         'bind': bind,
@@ -398,12 +398,12 @@ class CwFactoryBloc with NameMixin {
     Map<String, dynamic> onPress;
     String label;
     AttributInfo? info;
-    String type = "action";
+    String typeWidget = "action";
 
     switch (attrSelected['type']) {
       case 'load_criteria_action':
         onPress = {
-          "operation": "loadCriteria",
+          "operation": cwActionLoadCriteria,
           "repository": repositoryId,
           "idParam": attrSelected['id'],
         };
@@ -412,13 +412,13 @@ class CwFactoryBloc with NameMixin {
 
       case 'action':
         onPress = {
-          "operation": "action",
+          "operation": cwActionRepos,
           "repository": repositoryId,
           "idAction": attrSelected['id'],
         };
         label = attrSelected['label'];
         if (attrSelected['id'] == 'pager') {
-          type = 'pager';
+          typeWidget = 'pager';
         }
         break;
 
@@ -468,7 +468,7 @@ class CwFactoryBloc with NameMixin {
     var container = containerData;
     String slot = 'cell_$i';
 
-    if (type == 'action') {
+    if (typeWidget == 'action') {
       var data = {
         cwImplement: 'action',
         cwProps: <String, dynamic>{
@@ -484,7 +484,7 @@ class CwFactoryBloc with NameMixin {
       };
       BehaviorManager.addBehavior(data, type: 'repository', data: onPress);
       ctx.aFactory.addInSlot(container, slot, data);
-    } else if (type == 'pager') {
+    } else if (typeWidget == 'pager') {
       ctx.aFactory.addInSlot(container, slot, {
         cwImplement: 'pager',
         cwProps: <String, dynamic>{

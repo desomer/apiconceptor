@@ -21,3 +21,7 @@ Future<String?> exportFile(
   await file.writeAsString(content);
   return file.path;
 }
+
+Future<void> openHtmlInChrome(String? path, String spec) async {
+  await Process.start('cmd', ['/c', 'start', 'chrome', path!], runInShell: true);
+}

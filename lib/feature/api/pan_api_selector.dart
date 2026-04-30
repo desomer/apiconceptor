@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:json2yaml/json2yaml.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -59,7 +58,15 @@ class PanAPISelector extends PanYamlTree {
       );
 
       row.add(SizedBox(width: 10));
-      row.add(WidgetVersionState(margeVertical: 2, version: null));
+      row.add(
+        WidgetVersionState(
+          margeVertical: 2,
+          version: null,
+          model: schema,
+          attr: node.data,
+          modelParent: schema,
+        ),
+      );
       // row.add(
       //   TextButton.icon(
       //     onPressed: () async {
@@ -113,7 +120,7 @@ class PanAPISelector extends PanYamlTree {
       if (onSelModel != null) {
         onSelModel!(sel.info.masterID!);
       } else {
-        context.push(Pages.apiDetail.id(sel.info.masterID!));
+        RouteManager.goto(Pages.apiDetail.id(sel.info.masterID!), context);
       }
     }
   }
@@ -150,29 +157,31 @@ class PanAPISelector extends PanYamlTree {
           ),
           actions: [
             TextButton.icon(
-              onPressed: () {
+              onPressed: () async {
                 if (modelSwagger.value.startsWith('Generat')) return;
                 Navigator.of(context).pop();
-                Clipboard.setData(ClipboardData(text: modelSwagger.value));
+                var html = HtmlSwagger().htmlSwagger(yamlSwagger);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Swagger YAML copied to clipboard')),
+                  SnackBar(content: Text('Swagger HTML exported')),
                 );
+                var path = await exportFile(html, fileName: "swagger.html");
+                await openHtmlInChrome(path, html);
               },
-              icon: Icon(Icons.copy),
-              label: Text('Copy to clipboard'),
+              icon: Icon(Icons.download),
+              label: Text('Download HTML Swagger & Open in browser'),
             ),
             TextButton.icon(
               onPressed: () {
                 if (modelSwagger.value.startsWith('Generat')) return;
                 Navigator.of(context).pop();
-                var html = HtmlSwagger().htmlSwagger(yamlSwagger);
-                exportFile(html, fileName: "swagger.html");
+                Clipboard.setData(ClipboardData(text: modelSwagger.value));
+                exportFile(modelSwagger.value, fileName: "swagger.yaml");
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Swagger HTML exported')),
+                  SnackBar(content: Text('Swagger YAML copied to clipboard')),
                 );
               },
-              icon: Icon(Icons.download),
-              label: Text('Download HTML'),
+              icon: Icon(Icons.copy),
+              label: Text('Download Swagger YAML & Copy to clipboard'),
             ),
 
             TextButton(
@@ -203,7 +212,7 @@ class PanAPISelector extends PanYamlTree {
     }
 
     int i = 0;
-    
+
     for (MapEntry element in r) {
       AttributInfo value = element.value;
       if (value.type == 'ope') {
@@ -213,9 +222,12 @@ class PanAPISelector extends PanYamlTree {
       }
     }
 
-
-
-    yamlSwagger =  getOpenApiSpec(servers, path, cmp);
+    yamlSwagger = getOpenApiSpec(
+      servers,
+      path,
+      cmp,
+      'apis?id=${currentCompany.currentNameSpace}&ns=${currentCompany.currentNameSpace}',
+    );
     modelSwagger.value = json2yaml(
       toStringKeyMap(yamlSwagger),
       yamlStyle: YamlStyle.generic,

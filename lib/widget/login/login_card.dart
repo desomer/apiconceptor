@@ -95,6 +95,7 @@ class _LoginCardState extends State<LoginCard> {
     _passwordController.text = widget.pwd;
 
     if (autoLoging && widget.email.isNotEmpty && widget.pwd.isNotEmpty) {
+      autoLoging = false;
       Future.delayed(Duration(seconds: 1), () {
         final email = _mailController.text;
         final password = _passwordController.text;

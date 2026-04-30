@@ -6,6 +6,9 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 
+String cwActionLoadCriteria = 'loadCriteria';
+String cwActionRepos = 'action';
+
 class BehaviorManager {
   static void addBehavior(
     Map<String, dynamic> dataWidget, {
@@ -107,7 +110,7 @@ class BehaviorDescription {
         CwRepository? repo2 =
             ctx.aFactory.mapRepositories[metadata['link']['repository']];
         return Text('Link ${repo?.ds.dsName} to ${repo2?.ds.dsName}');
-      } else if (metadata['operation'] == 'loadCriteria') {
+      } else if (metadata['operation'] == cwActionLoadCriteria) {
         return Text('set criteria on ${repo!.ds.dsName}');
       }
       return Text('${metadata['operation']} on ${repo!.ds.dsName}');
@@ -130,7 +133,7 @@ class BehaviorDescription {
           ctx: ctx,
           repo: repo,
         );
-        if (infoPress['operation'] == 'action') {
+        if (infoPress['operation'] == cwActionRepos) {
           switch (infoPress['idAction']) {
             case 'search':
               repoAction.loadData(context);
@@ -138,9 +141,11 @@ class BehaviorDescription {
             case 'prevPage':
               repoAction.doPrevPage(infoPress, 0);
               repoAction.loadData(context);
+              break;
             case 'nextPage':
               repoAction.doNextPage(infoPress, 1000000);
               repoAction.loadData(context);
+              break;
             case 'computed':
               var bind = infoPress['bind'];
               print('execute computed action with bind $bind');
@@ -172,6 +177,7 @@ class BehaviorDescription {
                   }
                 }
               }
+              break;
             //repoAction.loadData(context);
             default:
               break;
@@ -193,8 +199,9 @@ class BehaviorDescription {
               paramSessionId: paramSessionId,
             );
           }
-        } else if (infoPress['operation'] == 'loadCriteria') {
-          repoAction.loadCriteria(infoPress);
+        } else if (infoPress['operation'] == cwActionLoadCriteria) {
+          await repoAction.loadCriteria(infoPress);
+          // ignore: use_build_context_synchronously
           repoAction.loadData(context);
         }
       }

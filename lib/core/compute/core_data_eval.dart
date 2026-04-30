@@ -360,7 +360,7 @@ class CoreDataEval {
   Future _loadApi(String domain, String name) async {
     dynamic req;
 
-    var v = currentCompany.listDomain;
+    var v = currentCompany.listDomain!;
     var r = v.allAttributInfo.values.firstWhereOrNull((element) {
       return element.name.toLowerCase() == domain;
     });

@@ -45,3 +45,18 @@ Future<String?> exportFile(
 
   return null; // pas de chemin sur Web/WASM
 }
+
+Future<void> openHtmlInChrome(String? path, String spec) async {
+  var encode = utf8.encode(spec);
+
+  final bytes = encode.toJS;
+  final blob = web.Blob([bytes].toJS, web.BlobPropertyBag(type: "text/html"));
+
+  final url = web.URL.createObjectURL(blob);
+
+  web.window.open(url, '_blank');
+
+  Future.delayed(Duration(seconds: 2), () {
+    web.URL.revokeObjectURL(url);
+  });
+}

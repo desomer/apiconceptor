@@ -12,6 +12,9 @@ class WidgetApiParam extends StatefulWidget {
 class _WidgetApiParamState extends State<WidgetApiParam> {
   @override
   Widget build(BuildContext context) {
-    return Text(widget.apiCallInfo.addParametersOnUrl(''));
+    return Text(
+      widget.apiCallInfo.addParametersOnUrl(''),
+      overflow: TextOverflow.ellipsis,
+    );
   }
 }

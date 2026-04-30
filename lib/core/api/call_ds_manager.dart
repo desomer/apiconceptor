@@ -2,7 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
-import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/api/session_storage.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -33,19 +33,21 @@ class CallerDatasource {
 
     var apiCallInfo = helper!.apiCallInfo;
 
-    apiCallInfo.currentAPIRequest ??= await GoTo().getApiRequestModel(
-      apiCallInfo,
-      apiCallInfo.namespace,
-      apiCallInfo.attrApi.masterID!,
-      withDelay: false,
-    );
+    apiCallInfo.currentAPIRequest ??= await ApiRequestNavigator()
+        .getApiRequestModel(
+          apiCallInfo,
+          apiCallInfo.namespace,
+          apiCallInfo.attrApi.masterID!,
+          withDelay: false,
+        );
 
-    apiCallInfo.currentAPIResponse ??= await GoTo().getApiResponseModel(
-      apiCallInfo,
-      apiCallInfo.namespace,
-      apiCallInfo.attrApi.masterID!,
-      withDelay: false,
-    );
+    apiCallInfo.currentAPIResponse ??= await ApiRequestNavigator()
+        .getApiResponseModel(
+          apiCallInfo,
+          apiCallInfo.namespace,
+          apiCallInfo.attrApi.masterID!,
+          withDelay: false,
+        );
 
     modelHttp200 = await apiCallInfo.currentAPIResponse!.getSubSchema(
       subNode: 200,
@@ -106,7 +108,7 @@ class CallerDatasource {
       );
     }
 
-    var v = currentCompany.listDomain;
+    var v = currentCompany.listDomain!;
     var r = v.allAttributInfo.values.firstWhereOrNull((element) {
       return element.name.toLowerCase() == domainDs;
     });

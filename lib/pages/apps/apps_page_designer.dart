@@ -27,6 +27,7 @@ class AppsPageDesigner extends GenericPageStateless with GlassPaneMixin {
     f.cwFactoryProps.listStyleSelectorEditor = [];
     f.onStarted = (context) {
       f.onStarted = null;
+      f.removeAllCache(f.rootCtx);
       Future.delayed(Duration(milliseconds: 1000), () {
         // ignore: invalid_use_of_protected_member
         f.pageDesignerKey.currentState?.setState(() {});
@@ -35,8 +36,8 @@ class AppsPageDesigner extends GenericPageStateless with GlassPaneMixin {
           SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
             f.rootCtx?.selectOnDesigner();
           });
-          hideGlassPane();
         }
+        hideGlassPane();
       });
     };
 

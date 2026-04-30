@@ -3,9 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:highlight/languages/json.dart';
-import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/api/session_storage.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -152,9 +151,7 @@ class _WidgetContentFormState extends State<WidgetContentForm>
             ),
             onPressed: () async {
               var pages = await loadDataSource("all", false);
-              BrowseSingle(
-                config: BrowserConfig(),
-              ).browse(pages, false);
+              BrowseSingle(config: BrowserConfig()).browse(pages, false);
               var attr = pages.mapInfoByName[e.toDatasrc];
               if (attr?.isNotEmpty ?? false) {
                 PageData pageData = PageData(
@@ -164,11 +161,13 @@ class _WidgetContentFormState extends State<WidgetContentForm>
 
                 sessionStorage.put('${pageData.hashCode}', pageData);
                 // ignore: use_build_context_synchronously
-                context.push(
+                RouteManager.goto(
                   Pages.appPage.param(
                     attr!.first.masterID!,
                     "param=${pageData.hashCode}",
                   ),
+                  // ignore: use_build_context_synchronously
+                  context,
                 );
               }
             },

@@ -46,7 +46,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
       //   keyBtnSave.currentState?.setState(() {});
       // });
 
-      GoTo()
+      ApiRequestNavigator()
           .getApiRequestModel(
             widget.requestHelper.apiCallInfo,
             currentCompany.listAPI!.namespace!,
@@ -57,7 +57,7 @@ class WidgetApiCallState extends State<WidgetApiCall> {
             widget.requestHelper.apiCallInfo.currentAPIRequest = value;
           });
 
-      GoTo()
+      ApiRequestNavigator()
           .getApiResponseModel(
             widget.requestHelper.apiCallInfo,
             currentCompany.listAPI!.namespace!,

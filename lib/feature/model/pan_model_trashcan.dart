@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/yaml.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:intl/intl.dart';
+import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/authorization_manager.dart';
@@ -135,7 +138,108 @@ class PanModelTrashcan extends StatelessWidget with WidgetHelper {
 
     row.add(
       TextButton.icon(
-        onPressed: () async {},
+        onPressed: () async {
+          // gestion de la restauration du modèle
+          // ajoute le modèle dans la liste des modèles de l'entreprise
+          JsonToSchemaYaml import = JsonToSchemaYaml();
+          import.rawJson = modelToDisplay!.modelYaml;
+          var path = attr.info.type.split('>');
+          var yaml = import.doImportJSON().yaml.toString();
+
+          var modelSchemaDetail = currentCompany.listModel!;
+          YamlDoc docYaml = YamlDoc();
+          docYaml.load(modelSchemaDetail.modelYaml);
+          docYaml.doAnalyse();
+
+          YamlLine? domain;
+          if (path.length > 2) {
+            var mainPath = path[1];
+            for (var element in docYaml.listRoot) {
+              if (element.name?.toLowerCase() == mainPath.toLowerCase()) {
+                domain = element;
+                break;
+              }
+            }
+            var domainKey = mainPath;
+            domain ??= docYaml.addAtEnd(domainKey, '');
+
+            YamlLine subDomain = domain;
+            for (var i = 2; i < path.length - 1; i++) {
+              // recherche de la ligne du path
+              var subPath = path[i];
+              domain = null;
+              for (YamlLine element in subDomain.child ?? <YamlLine>[]) {
+                if (element.name?.toLowerCase() == subPath.toLowerCase()) {
+                  domain = element;
+                  break;
+                }
+              }
+              if (domain == null) {
+                subDomain = docYaml.addChild(subDomain, subPath, '');
+                domain = subDomain;
+              } else {
+                subDomain = domain;
+              }
+            }
+          }
+
+          var nameKey = path.last;
+          if (domain == null) {
+            docYaml.addAtEnd(nameKey, '');
+          } else {
+            docYaml.addChild(domain, nameKey, 'model');
+          }
+          var newYaml = docYaml.getDoc();
+          print(newYaml);
+
+          modelSchemaDetail.modelYaml = newYaml;
+          modelSchemaDetail.doChangeAndRepaintYaml(null, true, 'restore');
+
+          await bddStorage.restore(modelSchemaDetail, attr);
+
+
+          // for (var path in path) {
+          //   if (element.name?.toLowerCase() == path?.toLowerCase()) {
+          //     domain = element;
+          //     break;
+          //   }
+          // }
+
+          // for (var element in docYaml.listRoot) {
+          //   if (element.name?.toLowerCase() == info['domain']?.toLowerCase()) {
+          //     domain = element;
+          //     break;
+          //   }
+          // }
+          // var domainKey = info['domain'] ?? 'new';
+          // var nameKey = info['model name'] ?? 'new';
+          // domain ??= docYaml.addAtEnd(domainKey, '');
+          // docYaml.addChild(domain, nameKey, 'model');
+
+          // var newYaml = docYaml.getDoc();
+          // modelSchemaDetail.modelYaml = newYaml;
+          // modelSchemaDetail.doChangeAndRepaintYaml(
+          //   yamlEditorConfig,
+          //   true,
+          //   'import',
+          // );
+
+          // WidgetsBinding.instance.addPostFrameCallback((_) {
+          //   // save du json du model
+          //   var newModel =
+          //       modelSchemaDetail.mapInfoByJsonPath['root>$domainKey>$nameKey'];
+          //   var id = newModel!.masterID!;
+          //   var aModel = ModelSchema(
+          //     category: Category.model,
+          //     infoManager: InfoManagerModel(typeMD: TypeMD.model),
+          //     headerName: nameKey,
+          //     id: id,
+          //     refDomain: currentCompany.listModel,
+          //   );
+          //   aModel.modelYaml = yaml;
+          //   aModel.doChangeAndRepaintYaml(null, true, 'import');
+          // });
+        },
         label: Icon(Icons.restore, size: 20),
       ),
     );

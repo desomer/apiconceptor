@@ -26,7 +26,7 @@ class PanAPIImport extends StatelessWidget {
   }
 
   Widget _getURLImport(Url2Api import) {
-    var dom = currentCompany.listDomain.selectedAttr;
+    var dom = currentCompany.listDomain!.selectedAttr;
     import.raw =
         '''
         # GET /<YOUR_DOMAIN>/example/v1

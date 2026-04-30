@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
 import 'package:jsonschema/pages/datasource/data_sources_link_viewer.dart';
-import 'package:jsonschema/pages/router_config.dart' show Pages;
+import 'package:jsonschema/pages/router_config.dart' show Pages, RouteManager;
 
 class WidgetContentRow extends StatefulWidget {
   const WidgetContentRow({
@@ -48,7 +47,7 @@ class _WidgetContentRowState extends State<WidgetContentRow> {
           );
           String key = '${w.hashCode}';
           cacheLinkPage.put(key, w);
-          context.push(Pages.appPageDetail.id(key));
+          RouteManager.goto(Pages.appPageDetail.id(key), context);
 
           //showDetailDialog(w, context);
         },

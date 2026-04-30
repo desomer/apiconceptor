@@ -50,7 +50,7 @@ class InfoManagerApps extends InfoManager with WidgetHelper {
         onPressed: () {
           currentCompany.currentApps = schema;
           schema.selectedAttr = attr;
-          context.push(Pages.pageDesigner.id(attr.info.masterID!));
+          RouteManager.goto(Pages.pageDesigner.id(attr.info.masterID!), context);
         },
         child: Text('Edit app'),
       ),
@@ -60,7 +60,7 @@ class InfoManagerApps extends InfoManager with WidgetHelper {
         onPressed: () {
           currentCompany.currentApps = schema;
           schema.selectedAttr = attr;
-          context.push(Pages.pageViewer.id(attr.info.masterID!));
+          RouteManager.goto(Pages.pageViewer.id(attr.info.masterID!), context);
         },
         child: Text('Open app'),
       ),

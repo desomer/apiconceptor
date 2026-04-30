@@ -10,11 +10,11 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/widget/widget_comment.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:supabase/supabase.dart';
 
 DataAcces bddStorage = DataAcces();
-User? user;
 
 class DataAcces {
   SupabaseClient? _sup;
@@ -41,30 +41,39 @@ class DataAcces {
       );
       // ignore: unused_local_variable
       final Session? session = res.session;
-      user = res.user;
+      currentCompany.user = res.user;
       UserAuthentication.stateConnection.value = 'Loading profile ...';
 
       var queryattr = supabase
           .from('user_profil')
           .select('*')
-          .eq('uid', user!.id);
+          .eq('uid', currentCompany.user!.id);
 
       var ret2 = await queryattr;
       if (ret2.isNotEmpty) {
         for (var element in ret2) {
           // liste des company
-          print('profil $element');
+          print('user profil $element >> ${currentCompany.user}');
+          currentCompany.userProfil = element;
+          if (element['namedId'] == null) {
+            currentCompany.userProfil!['namedId'] = currentCompany.user!.email;
+            await supabase.from('user_profil').upsert([
+              currentCompany.userProfil,
+            ]);
+          }
         }
       } else {
-        UserAuthentication.stateConnection.value = 'Create ${user?.email}';
-        await supabase.from('user_profil').upsert([
-          {
-            'uid': user!.id,
-            'role': {
-              'rule': ['invit'],
-            },
+        UserAuthentication.stateConnection.value =
+            'Create ${currentCompany.user!.email}';
+        currentCompany.userProfil = {
+          'uid': currentCompany.user!.id,
+          'namedId': currentCompany.user!.email,
+          'data': {
+            'rule': ['invit'],
           },
-        ]);
+          'company_id': currentCompany.companyId,
+        };
+        await supabase.from('user_profil').upsert([currentCompany.userProfil]);
       }
 
       // var l = await supabase.auth.admin.listUsers();
@@ -176,7 +185,10 @@ class DataAcces {
             model.mapInfoByJsonPath[info.path] = info;
           }
         }
-        return model.modelProperties;
+        return {
+          'prop': model.modelProperties,
+          'extended': model.modelPropExtended,
+        };
       }
     } else {
       //print("load yaml from bdd $id");
@@ -547,6 +559,17 @@ class DataAcces {
     await supabase.from(event.table).upsert([event.data]);
   }
 
+  Future<void> restore(ModelSchema model, NodeAttribut attr) async {
+    await supabase
+        .from('attributs')
+        .update({'state': 'R'})
+        .eq('attr_id', attr.info.getMasterID())
+        .eq('company_id', currentCompany.companyId)
+        .eq('version', model.currentVersion?.version ?? '1')
+        .eq('namespace', currentCompany.currentNameSpace)
+        .eq('schema_id', model.id);
+  }
+
   void setYaml(ModelSchema model, dynamic value, ModelVersion? version) async {
     String cacheId = getCacheId(model, model.id, version);
     _setCache(cacheId, value);
@@ -620,6 +643,126 @@ class DataAcces {
     await prepareSaveModel(model);
     await doStoreSync();
   }
+
+  Future<List<Map<String, dynamic>>?> getUserAuthByAuthId(
+    String category,
+    String authId,
+  ) async {
+    //print("load param api from bdd $apiid");
+    var queryattr = supabase
+        .from('user_auth')
+        .select('*, user_profil(namedId)')
+        .eq('company_id', currentCompany.companyId)
+        .eq('category', category)
+        .eq('auth_id', authId);
+    var ret2 = await queryattr;
+
+    return ret2;
+  }
+
+  Future<List<Map<String, dynamic>>?> getUserAuth(String userId) async {
+    //print("load param api from bdd $apiid");
+    var queryattr = supabase
+        .from('user_auth')
+        .select('*')
+        .eq('company_id', currentCompany.companyId)
+        .eq('uid', userId);
+    var ret2 = await queryattr;
+
+    return ret2;
+  }
+
+  Future<List<Map<String, dynamic>>?> getHistories(
+    ModelSchema modelSchema,
+  ) async {
+    var queryattr = supabase
+        .from('histories')
+        .select('*')
+        .eq('company_id', currentCompany.companyId)
+        .eq('version', modelSchema.getVersionId())
+        .eq('model_id', modelSchema.id)
+        .order('created_at', ascending: false)
+        .limit(100);
+
+    var ret2 = await queryattr;
+    modelSchema.histories.clear();
+    for (var element in ret2) {
+      modelSchema.histories.add(element['history']);
+    }
+
+    return ret2;
+  }
+
+  void saveHistory(ModelSchema modelSchema, Map<String, dynamic> histo) {
+    var saveHisto = {...histo};
+    saveHisto.remove('node');
+
+    var save = SaveEvent(
+      model: modelSchema,
+      version: modelSchema.currentVersion,
+      id: '',
+      table: 'histories',
+      data: {
+        'company_id': currentCompany.companyId,
+        'model_id': modelSchema.id,
+        'version': modelSchema.getVersionId(),
+        'user_id': currentCompany.user?.id,
+        'uuid': histo['uuid'],
+        'history': saveHisto,
+      },
+    );
+    storeManager.add(save);
+  }
+
+  // ---- Comments ----
+
+  Future<List<Comment>> getComments(String contextId) async {
+    var ret = await supabase
+        .from('comments')
+        .select('*')
+        .eq('company_id', currentCompany.companyId)
+        .eq('context_id', contextId)
+        .order('date', ascending: true);
+
+    return ret
+        .map<Comment>(
+          (e) => Comment.fromJson({
+            'id': e['id'],
+            'author': e['author'],
+            'text': e['text'],
+            'date': e['date'],
+            'color': e['color'],
+            'reactions': e['reactions'] ?? [],
+            'replies': e['replies'] ?? [],
+          }),
+        )
+        .toList();
+  }
+
+  Future<void> saveComment(String contextId, Comment comment) async {
+    await supabase.from('comments').upsert([
+      {
+        'id': comment.id,
+        'company_id': currentCompany.companyId,
+        'context_id': contextId,
+        'author': comment.author,
+        'text': comment.text,
+        'date': comment.date.toIso8601String(),
+        'color': comment.color,
+        'reactions': comment.reactions.map((r) => r.toJson()).toList(),
+        'replies': comment.replies.map((r) => r.toJson()).toList(),
+      },
+    ]);
+  }
+
+  Future<void> deleteComment(String contextId, String commentId) async {
+    await supabase
+        .from('comments')
+        .delete()
+        .eq('company_id', currentCompany.companyId)
+        .eq('context_id', contextId)
+        .eq('id', commentId);
+  }
 }
 
 //--------------------------------------------------------------------------
@@ -645,6 +788,10 @@ class Debouncer {
       _timer!.cancel();
     }
     _timer = Timer(Duration(milliseconds: milliseconds), action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
   }
 }
 

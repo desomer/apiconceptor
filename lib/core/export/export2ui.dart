@@ -65,7 +65,7 @@ class Export2UI<T> extends JsonBrowser<T> {
     } else if (type == 'object') {
       if (name.toLowerCase() == constInherit) {
         toAdd =
-            doAnyOf(name, node)
+            doRef(name, node)
               ..parentOfChild = parent
               ..add = false;
       } else if (node.info.isRef != null) {

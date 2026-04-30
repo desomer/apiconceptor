@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/json.dart' show json;
@@ -6,11 +7,17 @@ import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/widget_example_choiser.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:archive/archive.dart';
+import 'package:jsonschema/widget/widget_long_json_viewer.dart';
+import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/widget_tab.dart';
 
 class WidgetJsonValidator extends StatefulWidget {
   const WidgetJsonValidator({super.key, required this.idModel});
@@ -23,59 +30,112 @@ class WidgetJsonValidator extends StatefulWidget {
 class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   late dynamic jsonSchema;
   CodeEditorConfig? textConfig;
-  ExampleManager exampleManager = ExampleManager();
+  //ExampleManager exampleManager = ExampleManager();
+
+  ModelAccessorAttr getAccessor() {
+    ModelSchema model = currentCompany.currentModel!;
+    var examplesNode = model.getExtendedNode("#examples");
+
+    var access = ModelAccessorAttr(
+      node: examplesNode,
+      schema: model,
+      propName: '#examples',
+    );
+    return access;
+  }
+
+  ValueNotifier<String> onChangeHeaderInfo = ValueNotifier('');
+  Function? onSelect;
+  var currentJsonFake = ValueNotifier<String?>(null);
+
+  Widget getExample() {
+    var access = getAccessor();
+    List? examples = access.get();
+
+    // String? nameExample;
+    // int? selectedIdx;
+    // Function? onBeforeSave;
+
+    return DraggableExampleList(
+      key: ObjectKey(currentCompany.currentModel),
+      json: () => currentJsonFake.value!,
+      initialItems: examples ?? [],
+      onItemChanged: (updatedList) {
+        //reorg
+        access.set(updatedList, force: true, withHistory: false);
+        //clearSelected();
+      },
+      onLoad: (List<Map<String, dynamic>> list, int idx) {
+        currentJsonFake.value = list[idx]['json'];
+        // nameExample = list[idx]['name'];
+        // selectedIdx = idx;
+        //textConfig?.repaintCode();
+        onSelect!();
+      },
+      onReplace: (List<Map<String, dynamic>> list, int idx) {
+        list[idx]['json'] = currentJsonFake.value;
+        access.set(list, force: true, withHistory: false);
+      },
+      onJsonChange: currentJsonFake,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     if (widget.idModel != currentCompany.currentModel?.id) {
       currentCompany.currentModel == null;
-      var model = GoTo().getModel(widget.idModel);
+      var model = ApiRequestNavigator().getModel(widget.idModel);
       model.then((model) {
         setState(() {
           currentCompany.currentModel = model;
-          exampleManager.jsonFake = null;
-          exampleManager.clearSelected();
+          currentJsonFake.value = null;
+          //exampleManager.clearSelected();
           textConfig?.repaintCode();
         });
       });
       return Center(child: CircularProgressIndicator());
     }
 
-    return Row(
+    return SplitView(
+      primaryWidth: -1,
+      flex1: 1,
+      flex2: 2,
       children: [
-        Flexible(child: getViewer()),
-        Flexible(
-          child: Column(
-            children: [
-              SizedBox(
-                height: 30,
-                child: Row(
-                  children: [
-                    TextButton.icon(
-                      icon: Icon(Icons.casino_outlined),
-                      onPressed: () {
-                        exampleManager.jsonFake = null;
-                        exampleManager.clearSelected();
-                        textConfig?.repaintCode();
-                      },
-                      label: Text('Generate fake'),
-                    ),
-                    FakeModeWidget(
-                      modePropertyRequiredEnum: modePropertyRequiredEnum,
-                      modeItemsArrayEnum: modeItemsArrayEnum,
-                      onSelected: () {
-                        exampleManager.jsonFake = null;
-                        exampleManager.clearSelected();
-                        textConfig?.repaintCode();
-                      },
-                    ),
-                    exampleManager,
-                  ],
-                ),
+        WidgetTab(
+          listTab: [Tab(text: "Manage examples"), Tab(text: "JSON Schema")],
+          listTabCont: [getExample(), getViewer()],
+          heightTab: 30,
+        ),
+        Column(
+          children: [
+            SizedBox(
+              height: 30,
+              child: Row(
+                children: [
+                  TextButton.icon(
+                    icon: Icon(Icons.casino_outlined),
+                    onPressed: () {
+                      currentJsonFake.value = null;
+                      //exampleManager.clearSelected();
+                      textConfig?.repaintCode();
+                    },
+                    label: Text('Generate fake'),
+                  ),
+                  FakeModeWidget(
+                    modePropertyRequiredEnum: modePropertyRequiredEnum,
+                    modeItemsArrayEnum: modeItemsArrayEnum,
+                    onSelected: () {
+                      currentJsonFake.value = null;
+                      //exampleManager.clearSelected();
+                      textConfig?.repaintCode();
+                    },
+                  ),
+                  //exampleManager,
+                ],
               ),
-              Expanded(child: getEditor()),
-            ],
-          ),
+            ),
+            Expanded(child: getEditor()),
+          ],
         ),
       ],
     );
@@ -94,18 +154,10 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     } catch (e) {
       errorParse.value = '$e';
     }
-    return TextEditor(
-      header: "JSON Schema",
-      config: CodeEditorConfig(
-        mode: json,
-        readOnly: true,
-        notifError: errorParse,
-        onChange: (String json, CodeEditorConfig config) {},
-        getText: () {
-          return export.prettyPrintJson(export.json);
-        },
-      ),
-    );
+
+    var prettyPrintJson = export.prettyPrintJson(jsonSchema);
+    //print('jsonSchema= $prettyPrintJson');
+    return LongJsonViewerSelectableColored(json: prettyPrintJson);
   }
 
   JsonSchema? jsonValidator;
@@ -124,27 +176,19 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       notifError: error,
       onChange: (String json, CodeEditorConfig config) {
         try {
+          currentJsonFake.value = json; // Notify that JSON has changed
           if (json != '' && jsonValidator != null) {
             var jsonMap = jsonDecode(removeComments(json));
             validateJsonSchemas(jsonValidator!, jsonMap, config.notifError);
-            exampleManager.jsonFake = json;
-            // ValidationResults r = jsonValidator!.validate(jsonMap);
-            // // print("r= $r");
-            // if (r.isValid) {
-            //   config.notifError.value = '_VALID_';
-            // } else {
-            //   config.notifError.value = r.toString();
-            // }
           } else {
             config.notifError.value = '';
-            exampleManager.jsonFake = json;
           }
         } catch (e) {
           config.notifError.value = '$e';
         }
       },
       getText: () {
-        if (exampleManager.jsonFake == null) {
+        if (currentJsonFake.value == null) {
           var export =
               Export2FakeJson(
                   modeArray: switch (modeItemsArrayEnum.value) {
@@ -158,22 +202,43 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                     'max' => PropertyRequiredEnum.all,
                     _ => PropertyRequiredEnum.all,
                   },
-                  config: BrowserConfig()
+                  config: BrowserConfig(),
                 )
                 ..maxArrayItems = 4
                 ..browse(currentCompany.currentModel!, false);
-          exampleManager.jsonFake = export.prettyPrintJson(export.json);
+
+          currentJsonFake.value = export.prettyPrintJson(export.json);
         }
 
-        return exampleManager.jsonFake;
+        var encode = utf8.encode(currentJsonFake.value ?? '');
+        var zip = GZipEncoder().encode(encode);
+        String size = getFileSizeString(bytes: encode.length, decimals: 2);
+        String sizezip = getFileSizeString(bytes: zip.length, decimals: 2);
+        onChangeHeaderInfo.value = ' ($size compressed $sizezip)';
+        return currentJsonFake.value ?? '';
       },
     );
 
-    exampleManager.onSelect = () {
+    onSelect = () {
       textConfig?.repaintCode();
     };
 
-    return TextEditor(header: "JSON example", config: textConfig!);
+    return TextEditor(
+      headerWidget: ValueListenableBuilder(
+        valueListenable: onChangeHeaderInfo,
+        builder: (context, value, child) {
+          return Text("JSON example $value");
+        },
+      ),
+      config: textConfig!,
+    );
+  }
+
+  String getFileSizeString({required int bytes, int decimals = 0}) {
+    const suffixes = ["b", "kb", "mb", "gb", "tb"];
+    if (bytes == 0) return '0 ${suffixes[0]}';
+    var i = (log(bytes) / log(1024)).floor();
+    return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
   }
 }
 

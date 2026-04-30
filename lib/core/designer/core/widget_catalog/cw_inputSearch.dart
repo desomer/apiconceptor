@@ -103,8 +103,9 @@ class _CwInputSearchState extends CwWidgetState<CwInputSearch>
         //debounce la recherche pour éviter de faire trop de requêtes
         debouncer.run(() {
           print('input search value=${ctrlInput?.text}');
-          if (listCell != null && arrayState != null) {
-            arrayState!.setFilterValue(ctrlInput?.text, listCell!);
+          listCell = arrayCtx?.getAllCellsCtx();
+          if (listCell != null && arrayCtx != null) {
+            (arrayCtx!.widgetState as CwWidgetStateBindJson).setFilterValue(ctrlInput?.text, listCell!);
           }
         });
       });
@@ -117,7 +118,7 @@ class _CwInputSearchState extends CwWidgetState<CwInputSearch>
 
   FormatterTextfield? formatter;
   List<CwWidgetCtx>? listCell;
-  CwWidgetStateBindJson? arrayState;
+  CwWidgetCtx? arrayCtx;
 
   @override
   Widget build(BuildContext context) {
@@ -138,10 +139,9 @@ class _CwInputSearchState extends CwWidgetState<CwInputSearch>
           enable: true,
         );
 
-        var arrayCtx = ctx.findParentArrayContainer();
+        arrayCtx = ctx.findParentArrayContainer();
         if (arrayCtx != null) {
-          listCell = arrayCtx.getAllCellsCtx();
-          arrayState = arrayCtx.widgetState as CwWidgetStateBindJson;
+          listCell = arrayCtx!.getAllCellsCtx();
         }
 
         formatter = FormatterTextfield(info);

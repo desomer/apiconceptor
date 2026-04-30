@@ -183,10 +183,12 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
             onTap: () {
               node.doTapHeader();
             },
-            child: Row(
+            child: NoOverflowErrorFlex(
+              direction: Axis.horizontal,
               children: [
-                Text(name),
-                Spacer(),
+                Expanded(
+                  child: Text(name, overflow: TextOverflow.fade, maxLines: 1),
+                ),
                 getWidgetType(node.data, isModel, isRoot, context),
               ],
             ),
@@ -283,10 +285,11 @@ class InfoManagerChangeStyle {
           nameChange = Colors.orangeAccent;
           tooltipMessage =
               'from "${exist.info.name}" to "${node.data.info.name}"';
-        } 
-        if (exist.info.getJsonPath(onlyPath: true) != node.data.info.getJsonPath(onlyPath: true)) {
+        }
+        if (exist.info.getJsonPath(onlyPath: true) !=
+            node.data.info.getJsonPath(onlyPath: true)) {
           pathChange = Colors.yellowAccent;
-          tooltipMessage = 
+          tooltipMessage =
               'from "${exist.info.getJsonPath(withRoot: false, sep: '.')}" to "${node.data.info.getJsonPath(withRoot: false, sep: '.')}"';
         }
       }
@@ -366,6 +369,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       'boolean',
       '\$ref',
       '\$anyof',
+      '\$inherit',
     ].contains(type);
     if (!valid) {
       return InvalidInfo(color: Colors.red);
@@ -383,13 +387,16 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     var isOneOf = node.data!.info.type == '\$anyOf';
     var isRef = node.data!.info.type == '\$ref';
     var isType = node.data!.info.name == constType;
+    var isInherit = node.data!.info.name == constInherit;
     var isArray =
         node.data!.info.type == 'Array' || node.data!.info.type.endsWith('[]');
     String name = node.data!.yamlNode.key.toString();
 
-    Widget icon = Container();
+    Widget icon = Container(width: 20);
     if (isRoot) {
       icon = Icon(Icons.business);
+    } else if (isInherit) {
+      icon = Icon(Icons.call_split);
     } else if (isFolder) {
       icon = Icon(Icons.lan_outlined);
     } else if (isModel) {
@@ -430,30 +437,33 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     var isRef = attr.type == '\$ref';
     var isType = attr.name == constType;
     var isArray = attr.type == 'Array' || attr.type.endsWith('[]');
+    var isInherit = attr.name == constInherit;
     String name = attr.name;
 
     Color? iconColor =
         attr.isRefAttr() ? Colors.grey.shade800 : Colors.blueGrey;
 
     if (isRoot) {
-      icon = Icon(Icons.business, color: iconColor);
+      icon = Icon(Icons.business, color: iconColor, size: 20);
+    } else if (isInherit) {
+      icon = Icon(Icons.call_split, color: iconColor, size: 20);
     } else if (isFolder) {
-      icon = Icon(Icons.folder, color: iconColor);
+      icon = Icon(Icons.folder, color: iconColor, size: 20);
     } else if (isModel) {
-      icon = Icon(Icons.data_object, color: iconColor);
+      icon = Icon(Icons.data_object, color: iconColor, size: 20);
     } else if (isObject) {
-      icon = Icon(Icons.data_object, color: iconColor);
+      icon = Icon(Icons.data_object, color: iconColor, size: 20);
     } else if (isRef) {
-      icon = Icon(Icons.link, color: iconColor);
+      icon = Icon(Icons.link, color: iconColor, size: 20);
       name = '\$${node.data.info.properties?[constRefOn] ?? '?'}';
     } else if (isOneOf) {
       name = '\$anyOf';
-      icon = Icon(Icons.looks_one_rounded, color: iconColor);
+      icon = Icon(Icons.looks_one_rounded, color: iconColor, size: 20);
     } else if (isArray) {
-      icon = Icon(Icons.data_array, color: iconColor);
+      icon = Icon(Icons.data_array, color: iconColor, size: 20);
     } else if (isType) {
       name = '\$type';
-      icon = Icon(Icons.type_specimen_outlined, color: iconColor);
+      icon = Icon(Icons.type_specimen_outlined, color: iconColor, size: 20);
     }
 
     var changeStyle = InfoManagerChangeStyle();
@@ -464,6 +474,8 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       colorText = changeStyle.nameChange!;
     }
 
+    bool isDeprecated = attr.properties?['deprecated'] == true;
+
     return NoOverflowErrorFlex(
       direction: Axis.horizontal,
       children: [
@@ -473,16 +485,19 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
               node.doToogleChild();
             },
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
+              padding: const EdgeInsets.fromLTRB(0, 0, 2, 0),
               child: icon,
             ),
           ),
+        if (icon == null) 
+          Container(width: 10), // to align with other rows with icon
         Expanded(
           child: InkWell(
             onTap: () {
               node.doTapHeader();
             },
-            child: Row(
+            child: NoOverflowErrorFlex(
+              direction: Axis.horizontal,
               children: [
                 if (changeStyle.addColor != null)
                   Padding(
@@ -500,23 +515,38 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
                       child: Container(width: 4, color: changeStyle.pathChange),
                     ),
                   ), // for error display   // for error display
-                getTooltipText(
-                  changeStyle,
-                  'Name ',
-                  Text(
-                    name,
-                    style:
-                        (isObject || isArray)
-                            ? TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: colorText,
-                            )
-                            : (colorText != null
-                                ? TextStyle(color: colorText)
-                                : null),
+                Expanded(
+                  child: getTooltipText(
+                    changeStyle,
+                    'Name ',
+                    getBorder(
+                      attr,
+                      Text(
+                        overflow: TextOverflow.fade,
+                        maxLines: 1,
+                        name,
+                        style:
+                            (isObject || isArray)
+                                ? TextStyle(
+                                  decoration:
+                                      isDeprecated
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorText,
+                                )
+                                : TextStyle(
+                                  color: colorText,
+                                  decoration:
+                                      isDeprecated
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                ),
+                      ),
+                    ),
                   ),
                 ),
-                Spacer(),
+                //Spacer(),
                 getWidgetType(node.data, isModel, isRoot, context),
               ],
             ),
@@ -524,6 +554,29 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
         ),
       ],
     );
+  }
+
+  Widget getBorder(AttributInfo attr, Widget child) {
+    if (attr.type == '\$ref') {
+      return NoOverflowErrorFlex(
+        direction: Axis.horizontal,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(5, 0, 5, 0),
+            decoration:  BoxDecoration(
+              color: Colors.grey.withAlpha(100),
+              borderRadius: BorderRadius.all(Radius.circular(5)),
+              border: Border.all(color: Colors.blueGrey, width: 1),
+            ),
+            child: child,
+          ),
+          Spacer(),
+        ],
+      );
+    }
+
+    return child;
   }
 
   Widget getTooltipText(
@@ -551,31 +604,35 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
     hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
-    //String msg = hasError ? 'error type' : '';
+
+    String type = attr.info.type;
+
+    if (type == '\$ref' ||
+        attr.info.name == constInherit ||
+        type == '\$anyOf') {
+      return SizedBox.shrink();
+    }
 
     var w = getChip(
       isModel
           ? Row(
             spacing: 5,
-            children: [
-              Text(attr.info.type),
-              Icon(Icons.arrow_forward_ios, size: 10),
-            ],
+            children: [Text(type), Icon(Icons.arrow_forward_ios, size: 10)],
           )
           : hasError
           ? Row(
             spacing: 5,
-            children: [
-              Text(attr.info.type),
-              Icon(Icons.arrow_drop_down, size: 15),
-            ],
+            children: [Text(type), Icon(Icons.arrow_drop_down, size: 15)],
           )
-          : Text(attr.info.type),
+          : Text(type),
       color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
     );
 
     bool canEditType =
-        !isRoot && !attr.info.isRefAttr() && !attr.info.type.startsWith(r'$');
+        modelSchema?.isReadOnlyModel == false &&
+        !isRoot &&
+        !attr.info.isRefAttr() &&
+        !attr.info.type.startsWith(r'$');
     if (canEditType) {
       return getEditorType(attr, context, w);
     }
@@ -670,12 +727,12 @@ class GetHeaderRowWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return IntrinsicWidth(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
         child: NoOverflowErrorFlex(
           direction: Axis.horizontal,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
+              padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
               child: icon,
             ),
             Text(

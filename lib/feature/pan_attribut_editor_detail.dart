@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:highlight/languages/tex.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
@@ -38,17 +37,17 @@ class _AttributPropertiesState extends State<AttributProperties> {
             listTab: [
               Tab(text: 'Info'),
               Tab(text: 'Validator'),
-              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Fake'),
               if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Source'),
               if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Tag'),
+              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Fake'),
             ],
             listTabCont: [
               SingleChildScrollView(child: getInfoForm(model)),
               SingleChildScrollView(child: getTypeValidator(model)),
-              if (widget.typeAttr == TypeAttr.detailmodel)
-                SingleChildScrollView(child: getTypeFake(model)),
               if (widget.typeAttr == TypeAttr.detailmodel) getSourceForm(model),
               if (widget.typeAttr == TypeAttr.detailmodel) Container(),
+              if (widget.typeAttr == TypeAttr.detailmodel)
+                SingleChildScrollView(child: getTypeFake(model)),
             ],
             heightTab: 30,
           ),
@@ -625,7 +624,10 @@ class _AttributPropertiesState extends State<AttributProperties> {
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
 
-          Row(spacing: 10, children: [Text('target'), getTargetWidget(typeModelAccessor)]),
+          Row(
+            spacing: 10,
+            children: [Text('target'), getTargetWidget(typeModelAccessor)],
+          ),
 
           TagSelector(
             key: ValueKey('tag#${info.hashCode}'),

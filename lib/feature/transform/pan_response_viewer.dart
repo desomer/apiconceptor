@@ -101,9 +101,7 @@ mixin UIMixin {
     ConfigBlock? config,
   ) async {
     if (aJson2ui.aExport == null) {
-      aJson2ui.aExport = Export2UI(
-        config: BrowserConfig(),
-      );
+      aJson2ui.aExport = Export2UI(config: BrowserConfig());
       await aJson2ui.aExport!.browseSync(modelLoaded!, false, 0);
     }
     Export2UI export = aJson2ui.aExport!;
@@ -246,12 +244,13 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
   }
 
   Future<Widget> getUIRequest() async {
-    apiCallInfo.currentAPIRequest ??= await GoTo().getApiRequestModel(
-      apiCallInfo,
-      apiCallInfo.namespace,
-      apiCallInfo.attrApi.masterID!,
-      withDelay: false,
-    );
+    apiCallInfo.currentAPIRequest ??= await ApiRequestNavigator()
+        .getApiRequestModel(
+          apiCallInfo,
+          apiCallInfo.namespace,
+          apiCallInfo.attrApi.masterID!,
+          withDelay: false,
+        );
 
     var modelLoaded = apiCallInfo.currentAPIRequest!;
 
@@ -270,12 +269,13 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
   }
 
   Future<Widget> getUIResponse() async {
-    apiCallInfo.currentAPIResponse ??= await GoTo().getApiResponseModel(
-      apiCallInfo,
-      apiCallInfo.namespace,
-      apiCallInfo.attrApi.masterID!,
-      withDelay: false,
-    );
+    apiCallInfo.currentAPIResponse ??= await ApiRequestNavigator()
+        .getApiResponseModel(
+          apiCallInfo,
+          apiCallInfo.namespace,
+          apiCallInfo.attrApi.masterID!,
+          withDelay: false,
+        );
 
     ModelSchema? modelLoaded = await apiCallInfo.currentAPIResponse!
         .getSubSchema(subNode: 200);

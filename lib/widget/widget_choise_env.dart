@@ -34,10 +34,10 @@ class _WidgetChoiseEnvState extends State<WidgetChoiseEnv> with WidgetHelper {
             dialogBuilderBelow(
               context,
               WidgetChoise(
-                model: currentCompany.listEnv,
+                model: currentCompany.listEnv!,
                 onSelected: (AttributInfo sel) {
                   prefs.setString("currentEnv", sel.masterID!);
-                  currentCompany.listEnv.setCurrentAttr(sel);
+                  currentCompany.listEnv!.setCurrentAttr(sel);
                   Navigator.of(aCtx!).pop();
                   change.value++;
 
@@ -78,7 +78,7 @@ class _WidgetChoiseEnvState extends State<WidgetChoiseEnv> with WidgetHelper {
                 Icon(Icons.dns_rounded),
                 SizedBox(width: 10),
                 Text(
-                  currentCompany.listEnv.selectedAttr?.info.name ?? 'No env',
+                  currentCompany.listEnv?.selectedAttr?.info.name ?? 'No env',
                   style: _textStyle,
                 ),
                 SizedBox(width: 10),

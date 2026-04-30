@@ -2,9 +2,13 @@ import 'dart:convert' show JsonEncoder;
 
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_highlight/themes/dark.dart';
 import 'package:highlight/languages/json.dart';
 import 'package:jmespath/jmespath.dart';
 import 'package:jsonschema/authorization_manager.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
@@ -15,6 +19,7 @@ import 'package:jsonschema/feature/api/html_swagger.dart';
 import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_mock.dart';
+import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -22,6 +27,7 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
+import 'package:jsonschema/widget/widget_glasspan.dart';
 import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
@@ -49,7 +55,7 @@ class PanApiEditor extends StatefulWidget {
   State<PanApiEditor> createState() => _PanApiEditorState();
 }
 
-class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
+class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper, GlassPaneMixin {
   String? url;
   late WidgetAPIHelper requestHelper;
   ValueNotifier<int> modelLoad = ValueNotifier<int>(0);
@@ -89,7 +95,12 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
 
             path.addAll(aPath);
 
-            yamlSwagger = getOpenApiSpec(servers, path, cmp);
+            yamlSwagger = getOpenApiSpec(
+              servers,
+              path,
+              cmp,
+              'apis/detail?id=${currentCompany.listAPI!.selectedAttr!.info.masterID!}&ns=${currentCompany.currentNameSpace}',
+            );
 
             modelSwagger.value = json2yaml(
               toStringKeyMap(yamlSwagger),
@@ -102,7 +113,8 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
         if (widget.typeTab == TypeAPITab.definition) Tab(text: 'Definition'),
         if (widget.typeTab == TypeAPITab.definition) Tab(text: 'Documentation'),
         Tab(text: 'Parameters book'),
-        if (widget.typeTab == TypeAPITab.definition) Tab(text: 'Swagger spec preview'),
+        if (widget.typeTab == TypeAPITab.definition)
+          Tab(text: 'Swagger spec preview'),
         if (widget.typeTab == TypeAPITab.test) Tab(text: 'Mock responses'),
         if (widget.typeTab == TypeAPITab.test)
           Tab(
@@ -149,24 +161,78 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ElevatedButton(
-                onPressed: () async {
-                  var html = HtmlSwagger().htmlSwagger(yamlSwagger);
-                  exportFile(html, fileName: "swagger.html");
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Swagger HTML exported')),
-                  );
-                },
-                child: Text('Download HTML Swagger'),
+              Row(
+                spacing: 20,
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      var html = HtmlSwagger().htmlSwagger(yamlSwagger);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Swagger HTML exported')),
+                      );
+                      var path = await exportFile(
+                        html,
+                        fileName: "swagger.html",
+                      );
+                      await openHtmlInChrome(path, html);
+                    },
+                    child: Text('Download HTML Swagger & Open in browser'),
+                  ),
+                  // ElevatedButton(
+                  //   onPressed: () async {
+                  //     var html = HtmlSwagger().htmlRedoc(yamlSwagger);
+                  //     ScaffoldMessenger.of(context).showSnackBar(
+                  //       SnackBar(content: Text('Redoc HTML exported')),
+                  //     );
+                  //     var path = await exportFile(
+                  //       html,
+                  //       fileName: "redoc.html",
+                  //     );
+                  //     await openHtmlInChrome(path, html);
+                  //   },
+                  //   child: Text('Download HTML Redoc'),
+                  // ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      Clipboard.setData(
+                        ClipboardData(
+                          text:
+                              modelSwagger.value.isEmpty
+                                  ? 'Generate swagger...'
+                                  : modelSwagger.value,
+                        ),
+                      );
+                      exportFile(modelSwagger.value, fileName: "swagger.yaml");
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Swagger YAML in clipboard')),
+                      );
+                    },
+                    child: Text('Download Swagger YAML & Copy to clipboard'),
+                  ),
+                ],
               ),
+
               Expanded(
                 child: WidgetScroller(
                   child: ValueListenableBuilder(
                     valueListenable: modelSwagger,
                     builder: (context, value, child) {
-                      return SelectableText(
-                        value.isEmpty ? 'Generate swagger...' : value,
+                      return SingleChildScrollView(
+                        child: HighlightView(
+                          value.isEmpty ? 'Generate swagger...' : value,
+                          language: 'yaml',
+                          theme: darkTheme,
+                          padding: const EdgeInsets.all(12),
+                          textStyle: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 14,
+                          ),
+                        ),
                       );
+
+                      // return SelectableText(
+                      //   value.isEmpty ? 'Generate swagger...' : value,
+                      // );
                     },
                   ),
                 ),
@@ -307,7 +373,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
       requestHelper: requestHelper,
       getSchemaFct: () async {
         if (requestHelper.apiCallInfo.currentAPIRequest == null) {
-          await GoTo().getApiRequestModel(
+          await ApiRequestNavigator().getApiRequestModel(
             requestHelper.apiCallInfo,
             currentCompany.listAPI!.namespace!,
             widget.idApi,
@@ -315,7 +381,7 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper {
           );
         }
         if (requestHelper.apiCallInfo.currentAPIResponse == null) {
-          await GoTo().getApiResponseModel(
+          await ApiRequestNavigator().getApiResponseModel(
             requestHelper.apiCallInfo,
             currentCompany.listAPI!.namespace!,
             widget.idApi,
@@ -361,12 +427,12 @@ YourExample : example
       listTab: [
         Tab(text: 'Request'),
         Tab(text: 'Responses'),
-        Tab(text: 'DTO Version'),
+        Tab(text: 'Version'),
       ],
       listTabCont: [
         PanRequestApi(
           getSchemaFct: () async {
-            var r = await GoTo().getApiRequestModel(
+            var r = await ApiRequestNavigator().getApiRequestModel(
               requestHelper.apiCallInfo,
               currentCompany.listAPI!.namespace!,
               widget.idApi,
@@ -379,7 +445,7 @@ YourExample : example
 
         PanRequestApi(
           getSchemaFct: () async {
-            return await GoTo().getApiResponseModel(
+            return await ApiRequestNavigator().getApiResponseModel(
               requestHelper.apiCallInfo,
               currentCompany.listAPI!.namespace!,
               widget.idApi,
@@ -387,10 +453,115 @@ YourExample : example
             );
           },
         ),
-
-        Container(),
+        getVersionTab(context),
       ],
       heightTab: 30,
+    );
+  }
+
+
+  Future<void> addVersion(BuildContext context, ModelSchema model) async {
+    showGlassPane(context);
+    tabEditor.animateTo(0);
+    await model.addVersion();
+    
+    // await bddStorage.prepareSaveModel(model);
+    // await bddStorage.doStoreSync();
+    // var versionNum = int.parse(model.versions!.first.version) + 1;
+    // ModelVersion version = ModelVersion(
+    //   id: model.id,
+    //   version: '$versionNum',
+    //   data: {
+    //     'state': 'D',
+    //     'by': currentCompany.shortUserId,
+    //     'versionTxt': '0.0.$versionNum',
+    //   },
+    // );
+    // model.versions!.insert(0, version);
+    // model.currentVersion = version;
+    // await bddStorage.storeVersion(model, version);
+    // String modelYaml = model.modelYaml;
+    // var modelProperties = [...model.useAttributInfo];
+    // var extend = {...model.modelPropExtended};
+    // model.clear();
+    // await bddStorage.duplicateVersion(
+    //   model,
+    //   version,
+    //   modelYaml,
+    //   modelProperties,
+    //   extend,
+    // );
+    await Future.delayed(Duration(seconds: 2));
+    await changeVersion(model);
+    // ignore: invalid_use_of_protected_member
+    keyVersion.currentState?.setState(() {});
+    hideGlassPane();
+  }
+
+  Future<void> changeVersion(ModelSchema model) async {
+    await model.loadYamlAndProperties(cache: false, withProperties: true);
+    // model.doChangeAndRepaintYaml(getYamlConfig(), false, 'event');
+    // BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.removeLast();
+    // BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
+    //   BreadNode(
+    //     settings: RouteSettings(name: model.getVersionText()),
+    //     type: BreadNodeType.widget,
+    //   ),
+    // );
+
+    // ignore: invalid_use_of_protected_member
+    //BreadCrumbNavigator.keyBreadcrumb.currentState?.setState(() {});
+  }
+
+  final GlobalKey keyVersion = GlobalKey();
+
+  Widget getVersionTab(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: modelLoad,
+      builder: (context, value, child) {
+        var modelRequest = requestHelper.apiCallInfo.currentAPIRequest;
+        if (modelRequest == null) {
+          return Center(child: CircularProgressIndicator());
+        }
+        return Row(
+          children: [
+            Flexible(
+              child: Column(
+                children: [
+                  // ElevatedButton.icon(
+                  //   onPressed: () async {
+                  //     await addVersion(context, modelRequest);
+                  //   },
+                  //   label: Text('add version'),
+                  //   icon: Icon(Icons.add_box_outlined),
+                  // ),
+                  Expanded(
+                    child: PanModelVersionList(
+                      key: keyVersion, 
+                      schema: modelRequest,
+                      modelParent: currentCompany.listAPI!,
+                      onTap: (ModelVersion version) async {
+                        showGlassPane(context);
+                        // tabEditor.animateTo(0);
+                        await bddStorage.prepareSaveModel(modelRequest);
+                        await bddStorage.doStoreSync();
+                        modelRequest.currentVersion = version;
+                        modelRequest.clear();
+                        await changeVersion(modelRequest);
+                        hideGlassPane();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            VerticalDivider(),
+            Flexible(
+              child: Center(child: Text('DTO version management to implement yet')),
+            ),
+          ],
+        );
+      },
     );
   }
 

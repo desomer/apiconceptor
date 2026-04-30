@@ -61,13 +61,15 @@ Future<bool> startCore(String usermail, String password) async {
         (element) => element.info.masterID == currentEnv,
       );
       if (cur != null) {
-        currentCompany.listEnv.setCurrentAttr(cur.info);
+        currentCompany.listEnv?.setCurrentAttr(cur.info);
       }
     }
   }
 
   UserAuthentication.stateConnection.value = 'Loading domain ...';
   var b = BrowseSingle(config: BrowserConfig());
+  var currentDomain = prefs.getString("currentDomain");
+
   currentCompany.listDomain = await loadSchema(
     TypeMD.domain,
     'domain',
@@ -78,22 +80,11 @@ Future<bool> startCore(String usermail, String password) async {
     browser: b,
     config: BrowserConfig(),
   );
-  if (b.root.isNotEmpty) {
-    var currentDomain = prefs.getString("currentDomain");
+  currentCompany.listDomain?.isReadOnlyModel =
+      currentCompany.userProfil?['data']?['rule']?.contains('admin') == false;
 
-    if (currentDomain == null) {
-      currentCompany.listDomain.setCurrentAttr(b.root.first.info);
-      prefs.setString("currentDomain", b.root.first.info.masterID!);
-    } else {
-      var cur = b.root.firstWhereOrNull(
-        (element) => element.info.masterID == currentDomain,
-      );
-      if (cur == null) {
-        currentCompany.listDomain.setCurrentAttr(b.root.first.info);
-      } else {
-        currentCompany.listDomain.setCurrentAttr(cur.info);
-      }
-    }
+  if (b.root.isNotEmpty) {
+    currentCompany.setDomainByMasterID(currentDomain, browser: b);
   }
 
   UserAuthentication.stateConnection.value = 'Loading glossary ...';
@@ -102,6 +93,16 @@ Future<bool> startCore(String usermail, String password) async {
     'glossarySufPre',
     'Suffix & Prefix',
   );
+
+  UserAuthentication.stateConnection.value = 'Loading authorization ...';
+  var userAuth = await bddStorage.getUserAuth(currentCompany.user!.id);
+
+  for (var auth in userAuth ?? []) {
+    currentCompany.userAuth[auth['category']] ??= {};
+    currentCompany.userAuth[auth['category']]![auth['auth_id']] = auth['rule'];
+  }
+
+  currentCompany.shortUserId = currentCompany.user!.email!.split('@').first;
 
   UserAuthentication.stateConnection.value = 'Connected...';
   currentCompany.isInit = true;
@@ -136,6 +137,7 @@ Future<ModelSchema> loadAllAPI({String? namespace}) async {
     refDomain: null,
   );
   allApi.namespace = namespace ?? currentCompany.currentNameSpace;
+  allApi.isReadOnlyModel = isDomainAllowed(allApi.namespace!) == false;
 
   if (withBdd) {
     try {
@@ -219,6 +221,8 @@ Future<ModelSchema> loadDataSource(String idDomain, bool cache) async {
   }
   schema.namespace = "default";
   currentCompany.listDataSrc = schema;
+  schema.isReadOnlyModel =
+      currentCompany.userProfil?['data']?['rule']?.contains('admin') == false;
   return schema;
 }
 
@@ -265,6 +269,8 @@ Future<ModelSchema> loadApps(String idDomain, bool cache) async {
   }
   schema.namespace = idDomain;
   currentCompany.currentApps = schema;
+  schema.isReadOnlyModel =
+      currentCompany.userProfil?['data']?['rule']?.contains('admin') == false;
   return schema;
 }
 
@@ -290,6 +296,7 @@ Future<ModelSchema> loadVarEnv(
       startError.add("$e");
     }
   }
+  schema.isReadOnlyModel = isDomainAllowed(idDomain) == false;
   return schema;
 }
 
@@ -305,7 +312,7 @@ Future<ModelSchema> loadSchema(
   ModelVersion? version,
   bool sync = false,
   ModelSchema? ref,
-  required BrowserConfig config
+  required BrowserConfig config,
 }) async {
   if (category == null && type == TypeMD.listmodel) {
     infoManager = InfoManagerListModel(typeMD: type);
@@ -325,11 +332,7 @@ Future<ModelSchema> loadSchema(
     try {
       await m.loadYamlAndProperties(cache: false, withProperties: true);
       if (sync) {
-        await (browser ?? BrowseModel(config: config)).browseSync(
-          m,
-          true,
-          0,
-        );
+        await (browser ?? BrowseModel(config: config)).browseSync(m, true, 0);
       } else {
         (browser ?? BrowseModel(config: config)).browse(m, true);
       }
@@ -363,7 +366,12 @@ int timezoom = 0;
 ValueNotifier<double> designZoomNotifier = ValueNotifier(100);
 ValueNotifier<String> modelAttributFilterNotifier = ValueNotifier('');
 
-//GlobalKey keyAPIEditor = GlobalKey();
+
+bool isDomainAllowed(String domain) {
+  print(' isDomainAllowed $domain allowed ');
+  Map? r = currentCompany.getRule("domain", domain);
+  return r != null;
+}
 
 // ignore: must_be_immutable
 class ApiArchitecEditor {

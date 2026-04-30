@@ -43,9 +43,10 @@ class CwWidgetCtxVirtual extends CwWidgetCtx {
 }
 
 class CwWidgetCtx {
+  static int globalChangeTime = 0;
+
   int buildSlotTime = 0;
   int changeTime = 0;
-  //Map<String, CwSlot> cacheWidgetSlots = {};
 
   final WidgetFactory aFactory;
   final String slotId;
@@ -272,7 +273,7 @@ class CwWidgetCtx {
       globalUndoManager.execute(
         UndoAction(
           doAction: () {
-            doChange(
+            doChangeProperties(
               properties: properties,
               repaint: repaint,
               repaintParent: repaintParent,
@@ -283,7 +284,7 @@ class CwWidgetCtx {
             );
           },
           undoAction: () {
-            doChange(
+            doChangeProperties(
               properties: properties,
               repaint: repaint,
               repaintParent: repaintParent,
@@ -298,7 +299,7 @@ class CwWidgetCtx {
     };
   }
 
-  void doChange({
+  void doChangeProperties({
     required CwWidgetProperties properties,
     required bool repaint,
     required bool repaintParent,
@@ -380,6 +381,10 @@ class CwWidgetCtx {
 
   bool hasChangedSince(int time) {
     if (!withWidgetCache) {
+      return true;
+    }
+    if (globalChangeTime > time) {
+      clearWidgetCache();
       return true;
     }
     return changeTime > time;
@@ -517,8 +522,13 @@ class CwWidgetCtx {
   }
 
   void repaint() {
+    print(
+      'repaint $aWidgetPath  widgetState=${widgetState?.hashCode} w=${widgetState?.widget.hashCode}',
+    );
     initChanged();
-    _selectorCtx?.slotState?.repaint();
+
+    _selectorCtx?.slotState?.repaintSlot();
+
     if (widgetState != null && widgetState!.mounted) {
       // ignore: invalid_use_of_protected_member
       widgetState!.setState(() {});
@@ -555,10 +565,9 @@ class CwWidgetCtx {
     Map bind = dataWidget?[cwProps]?['bind'];
     String repoId = bind['repository'];
     var repository = aFactory.mapRepositories[repoId];
-    var stateRepository = repository?.dataState;
 
     AttributBindInfo bindInfo = AttributBindInfo();
-    bindInfo.stateRepository = stateRepository;
+    bindInfo.isData = true;
     bindInfo.repository = repository;
     bindInfo.bindAttribut = AttributInfo();
     String path = jsonPath!.replaceAll(".", ">");
@@ -693,7 +702,7 @@ class AttributBindInfo {
   CoreExpression? eval;
 
   CwRepository? repository;
-  StateRepository? stateRepository;
+  //StateRepository? stateRepository;
   Map? computedInfo;
 
   String pathData = '?';
@@ -702,6 +711,11 @@ class AttributBindInfo {
 
   String? attrName;
   StateContainer? dataContainer;
+  bool isData = true;
+
+  StateRepository? get stateRepository {
+    return isData ? repository?.dataState : repository?.criteriaState;
+  }
 
   void initBind(CwWidgetCtx widgetCtx) {
     Map? bind = widgetCtx.dataWidget?[cwProps]?['bind'];
@@ -710,14 +724,14 @@ class AttributBindInfo {
       repository = widgetCtx.aFactory.mapRepositories[repoId];
       if (repository != null && bind['from'] == 'criteria') {
         String attrMasterPath = bind['attr'];
-        stateRepository = repository!.criteriaState;
+        isData = false;
         bindAttribut =
             repository!.ds.helper!.apiCallInfo.currentAPIRequest!
                 .getNodeByMasterIdPath(attrMasterPath)
                 ?.info;
       } else if (repository != null && bind['from'] == 'data') {
         String? attrMasterPath = bind['attr'];
-        stateRepository = repository!.dataState;
+        isData = true;
         if (attrMasterPath?.startsWith('self@') ?? false) {
           // bind sur un tableau de string ou nombre
           attrMasterPath = attrMasterPath!.substring(5);
@@ -728,7 +742,7 @@ class AttributBindInfo {
                 .getNodeByMasterIdPath(attrMasterPath)
                 ?.info;
       } else if (repository != null && bind['computedId'] != null) {
-        stateRepository = repository!.dataState;
+        isData = true;
         Map aComputedInfo =
             widgetCtx.aFactory.appData[cwRepos][repoId][cwComputed];
         String computedId = bind['computedId'];
@@ -851,7 +865,7 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
     CwWidgetStateBindJson? stateArray,
     String? pathWidgetRepos,
   }) {
-    var pathRow = getPathData(
+    var pathRow = getPathDataFromParent(
       context,
       bindInfo: bindInfo,
       stateArray: stateArray,
@@ -863,7 +877,7 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
     );
   }
 
-  String? getPathData(
+  String? getPathDataFromParent(
     BuildContext context, {
     CwWidgetStateBindJson? stateArray,
     required AttributBindInfo bindInfo,
@@ -896,7 +910,8 @@ class CwWidgetStateBindJson<T extends CwWidget> extends CwWidgetState<T> {
           'root${s.bindInfo.pathData.replaceAll('/', '>').replaceAll('[*]', '[]')}';
       pathJson = '$pathJson[]>*';
 
-      bindInfo.stateRepository = s.bindInfo.stateRepository;
+      bindInfo.isData = s.bindInfo.isData;
+      bindInfo.repository = s.bindInfo.repository;
       r = bindInfo.stateRepository!.getDataPath(
         // ignore: use_build_context_synchronously
         context,
@@ -1007,6 +1022,7 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
     CacheWidgetBuilder builder,
     BoxConstraints? constraints,
   ) {
+    widget.ctx.widgetState = this;
     bool hasChanged = widget.ctx.hasChangedSince(cacheWidget.buildtime);
     if (isWidgetCacheEnable(constraints) &&
         !hasChanged &&
@@ -1022,12 +1038,6 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
     styleFactory.config.height = h?.toDouble();
     styleFactory.config.width = w?.toDouble();
 
-    if (debugCreateSlotWidget) {
-      print(
-        ' build CwWidget ${widget.ctx.aWidgetPath} ${cacheWidget.buildtime}',
-      );
-    }
-
     cacheWidget.buildtime = DateTime.now().millisecondsSinceEpoch;
     cacheWidget.builtWidget = builder(widget.ctx, constraints, BuildInfo());
     widget.ctx.cleanWidgetData(cacheWidget.buildtime);
@@ -1038,6 +1048,12 @@ class CwWidgetState<T extends CwWidget> extends WidgetBindJsonState<T> {
       initBefore: false,
       useContainerWrapper: useContainerWrapper,
     );
+
+    if (debugCreateSlotWidget) {
+      print(
+        ' build CwWidget ${widget.ctx.aWidgetPath} time=${cacheWidget.buildtime} w=${widget.hashCode}',
+      );
+    }
 
     return cacheWidget.builtWidget!;
   }

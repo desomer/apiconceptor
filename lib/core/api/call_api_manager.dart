@@ -3,7 +3,7 @@ import 'dart:developer' as dev show log;
 import 'dart:math';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
-import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/api/session_storage.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -55,7 +55,7 @@ class APICallManager {
     List<dynamic> servers,
     Map<String, Map<dynamic, dynamic>> cmp,
   ) async {
-    currentAPIRequest ??= await GoTo().getApiRequestModel(
+    currentAPIRequest ??= await ApiRequestNavigator().getApiRequestModel(
       this,
       namespace,
       attrApi.masterID!,
@@ -97,7 +97,7 @@ class APICallManager {
       allparam.add(p);
     }
 
-    currentAPIResponse ??= await GoTo().getApiResponseModel(
+    currentAPIResponse ??= await ApiRequestNavigator().getApiResponseModel(
       this,
       namespace,
       attrApi.masterID!,
@@ -111,7 +111,6 @@ class APICallManager {
       if (element.key != null && element.value != null) {
         // valide key with regex for http status code
         if (RegExp(r'^[1-5][0-9]{2}$').hasMatch('${element.key}')) {
-             
           var sub = await currentAPIResponse!.getSubSchema(
             subNode: element.key,
           );
@@ -130,9 +129,9 @@ class APICallManager {
           d.json.remove("\$example");
 
           var aComp = d.json.remove("components");
-          
+
           var s = cmp['schemas'] as Map;
-           
+
           Map allCmp = aComp['schemas'] ?? {};
           for (var e in allCmp.entries) {
             (e.value as Map).remove('title');
@@ -259,7 +258,7 @@ body :
 
   Future<void> fillVar() async {
     //var idDomain = currentCompany.listDomain.selectedAttr!.info.masterID!;
-    var idEnv = currentCompany.listEnv.selectedAttr?.info.masterID!;
+    var idEnv = currentCompany.listEnv!.selectedAttr?.info.masterID!;
     if (idEnv == null) return;
     var envVar = await loadVarEnv(namespace, idEnv, "variables", true);
     var browseSingle = BrowseSingle(config: BrowserConfig());

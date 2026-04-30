@@ -40,7 +40,8 @@ class CwSlot extends StatefulWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize {
-    var h = config.ctx.dataWidget?[cwProps]?['#heightOfSlot'] ?? kToolbarHeight;
+    num? heightOfSlot = config.ctx.dataWidget?[cwProps]?['#heightOfSlot'];
+    double h = heightOfSlot?.toDouble() ?? kToolbarHeight;
     return Size.fromHeight(h);
   }
 }
@@ -48,21 +49,26 @@ class CwSlot extends StatefulWidget implements PreferredSizeWidget {
 bool debugCreateSlotWidget = false;
 
 class CwSlotState extends State<CwSlot> {
+  int idxRebuild = 0;
+
   @override
   Widget build(BuildContext context) {
     var ctx = widget.config.ctx;
 
     // pas posible si viewer car un ctx peut avoir plusieurs slots (si dans list)
     ctx.selectorCtxIfDesign?.slotState = this;
+    ctx.selectorCtx.slotState = this;
 
     if (ctx.getData()?[cwImplement] != null &&
         widget.config.innerWidget == null) {
       widget.config.innerWidget = ctx.aFactory.getWidget(ctx);
       if (debugCreateSlotWidget) {
-        print("create CwWidget in slot ${ctx.aWidgetPath}");
+        idxRebuild++;
+        print(
+          "create CwWidget in slot ${ctx.aWidgetPath} slot = ${widget.hashCode} idxrebuid = $idxRebuild",
+        );
       }
-    } 
-
+    }
 
     if (ctx.aFactory.isModeViewer()) {
       return _getDefaultLayout(widget.config.innerWidget ?? const SizedBox());
@@ -73,7 +79,7 @@ class CwSlotState extends State<CwSlot> {
     );
   }
 
-  void repaint() {
+  void repaintSlot() {
     widget.config.innerWidget = null;
     if (mounted) {
       // ignore: invalid_use_of_protected_member

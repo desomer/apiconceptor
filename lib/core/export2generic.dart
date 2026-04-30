@@ -87,10 +87,7 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
       if (name.toLowerCase() == constNameAllof) {
         toAdd = doAllOf(parentNode, parent, name, node);
       } else if (name.toLowerCase() == constInherit) {
-        toAdd =
-            doObjectWithAnyOf(name, node)
-              ..parentOfChild = parent
-              ..add = false;
+        toAdd = doRefInherit(name, node)..parentOfChild = parent;
       } else if (node.child.length == 1 &&
           node.child.first.info.name == constTypeAnyof) {
         toAdd = doObjectWithAnyOf(name, node);
@@ -101,6 +98,13 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
       }
     } else {
       toAdd = doAttr(name, type, node);
+      // if (parentNode.info.type == '\$ref') {
+      //   if (parentNode.parent?.info.type == 'array') {
+      //     //heritage d'un array d'object, on ajoute les attributs de l'object dans le tableau
+      //     print("object");
+      //     parentNode.addChildOn = "items";
+      //   }
+      // }
     }
 
     if (parent == null) return toAdd.value; // cas ramdom des enfants
@@ -154,13 +158,18 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
   NodeJson doRefOf(String name, NodeAttribut node);
 
   NodeJson doRef(String name, NodeAttribut node);
+  NodeJson doRefInherit(String name, NodeAttribut node);
 
   NodeJson doObject(String name, NodeAttribut node);
 
   NodeJson doAttr(String name, String type, NodeAttribut node);
 
   void doClean(NodeAttribut node) {
-    node.addChildOn = null;
+    if (node.addChildOn?.startsWith('#') ?? false) {
+      node.addChildOn = node.addChildOn?.substring(1);
+    } else {
+      node.addChildOn = null;
+    }
     if (node.addInAttr != '##__choised__##') {
       node.addInAttr = "";
     }

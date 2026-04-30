@@ -6,15 +6,19 @@ import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
-class DesignModelPage extends GenericPageStateless {
-  const DesignModelPage({super.key});
+class DesignListModelPage extends GenericPageStateless {
+  const DesignListModelPage({super.key, this.state});
+  final GoRouterState? state;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         const BackgroundScreen(num: 1),
-        Container(color: Colors.black87, child: WidgetModelMain()),
+        Container(
+          color: Colors.black87,
+          child: WidgetModelMain(key: ValueKey(state?.uri.toString() ?? '')),
+        ),
       ],
     );
   }

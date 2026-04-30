@@ -17,7 +17,9 @@ import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:yaml/yaml.dart';
 
 class DesignAPIPage extends GenericPageStateless {
-  const DesignAPIPage({super.key});
+  const DesignAPIPage({super.key, required this.state});
+
+  final GoRouterState state;
 
   @override
   Widget build(BuildContext context) {

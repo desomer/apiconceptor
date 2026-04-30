@@ -318,7 +318,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
 class InfoManagerTrashAPI extends InfoManager with WidgetHelper {
   @override
   Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    return getChip(Text(node.data!.info.name), color: null);
+    return getChip(SelectableText(node.data!.info.name), color: null);
   }
 
   @override

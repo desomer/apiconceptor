@@ -38,7 +38,7 @@ class Export2DtoMongooseNestjs {
     buffer.write(classBuffer.toString());
   }
 
-  String _buildPropOptions(Map<String, dynamic> value, bool isRequired) {
+  String _buildPropOptions(Map value, bool isRequired) {
     final options = <String>[];
 
     if (isRequired) options.add('required: true');

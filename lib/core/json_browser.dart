@@ -30,6 +30,7 @@ class JsonBrowser<T> {
   var uuid = Uuid();
 
   BrowserConfig config;
+  Map<String, ModelSchema> listRefModel = {};
 
   JsonBrowser({required this.config});
 
@@ -43,7 +44,7 @@ class JsonBrowser<T> {
     int antiloop,
   ) async {
     //config ??= BrowserConfig(isApi: model.readOnly != null, refTarget: '\$def');
-    config.isGet = model.readOnly;
+    config.isGet = model.readOnlyApi;
     var ret = browse(model, unknowedMode);
     if (ret.wait != null && antiloop < cstAntiloop) {
       //await Future.delayed(Duration(milliseconds: 300));
@@ -54,13 +55,12 @@ class JsonBrowser<T> {
   }
 
   NodeBrowser browse(ModelSchema model, bool unknowedMode) {
-    //config ??= ;
-    config.isGet = model.readOnly;
+    config.isGet = model.readOnlyApi;
     config.isApi = model.isApi ?? false;
 
     int time = DateTime.now().millisecondsSinceEpoch;
     NodeBrowser browser = NodeBrowser()..time = time;
-    browser.selectedPath = model.lastBrowser?.selectedPath;
+    //browser.selectedPath = model.lastBrowser?.selectedPath;
     browser.unknowedMode = unknowedMode;
 
     var rootNodeAttribut = NodeAttribut(
@@ -330,19 +330,19 @@ class JsonBrowser<T> {
         var refName = (mapChild.value as String).substring(1);
         if (refName != model.headerName) {
           // evite les ref circulaire sur lui même
-          _doRef(mapChild, browserAttrInfo, model, refName, false);
+          _doRef(mapChild, browserAttrInfo, model, refName /*, false*/);
         }
       } else {
         childNodeAttribut.info.isRef = null;
       }
 
-      if (attr.browser.selectedPath?.contains(aJsonPath) ?? false) {
-        if (mapChild.value == 'model') {
-          _doRef(mapChild, browserAttrInfo, model, mapChild.key, true);
-        }
-      } else {
-        browserAttrInfo.nodeAttribut.info.firstLoad = false;
-      }
+      // if (attr.browser.selectedPath?.contains(aJsonPath) ?? false) {
+      //   if (mapChild.value == 'model') {
+      //     _doRef(mapChild, browserAttrInfo, model, mapChild.key, true);
+      //   }
+      // } else {
+      browserAttrInfo.nodeAttribut.info.firstLoad = false;
+      //}
 
       if (mapChild.value is Map) {
         _recursiveBrowseNode(
@@ -386,7 +386,7 @@ class JsonBrowser<T> {
     BrowserAttrInfo browserAttrInfo,
     ModelSchema model,
     String refName,
-    bool selected,
+    // bool selected,
   ) {
     BrowserAttrInfo? p = browserAttrInfo;
     while (p != null) {
@@ -431,18 +431,19 @@ class JsonBrowser<T> {
         modelRef.loadYamlAndPropertiesSyncOrNot(cache: true);
         Map node = {constRefOn: modelRef.mapModelYaml};
 
-        if (selected) {
-          print("selected ref $refName id=$masterIdRef");
-          if (!browserAttrInfo.nodeAttribut.info.firstLoad) {
-            browserAttrInfo.nodeAttribut.addChildAsync = true;
-          }
-          browserAttrInfo.nodeAttribut.info.firstLoad = true;
-          node = modelRef.mapModelYaml;
-        }
+        // if (selected) {
+        //   print("selected ref $refName id=$masterIdRef");
+        //   if (!browserAttrInfo.nodeAttribut.info.firstLoad) {
+        //     browserAttrInfo.nodeAttribut.addChildAsync = true;
+        //   }
+        //   browserAttrInfo.nodeAttribut.info.firstLoad = true;
+        //   node = modelRef.mapModelYaml;
+        // }
 
         browserAttrInfo.aJsonPathRef = 'root';
         _recursiveBrowseNode(model, browserAttrInfo, node, onRef: modelRef);
         browserAttrInfo.nodeAttribut.info.error?.remove(EnumErrorType.errorRef);
+        listRefModel[refName] = modelRef;
       }
     } else {
       browserAttrInfo.nodeAttribut.info.isRefError = refName;
@@ -680,7 +681,7 @@ class NodeBrowser {
   List<BrowserAttrInfo> asyncRef = [];
   List<BrowserAttrInfo> asyncMaster = [];
 
-  Set<String>? selectedPath;
+  //Set<String>? selectedPath;
   Future? wait;
 }
 
@@ -694,15 +695,16 @@ class NodeAttribut {
   AttributInfo info;
   NodeAttribut? parent;
   List<NodeAttribut> child = [];
-  List<NodeAttribut>? childExtends;
+  List<NodeAttribut>? childExtends; // ajout des child d'un ref extends
   int level = 0;
   String? addChildOn;
   String addInAttr = "";
+  Color? bgcolor;
 
   State? widgetRowHoverState;
 
-  bool addChildAsync = false;
-  Color? bgcolor;
+  @Deprecated('plus utilisé')
+  bool addChildAsync = false; //chargement asynchrone du child pour les ref
 
   void repaint() {
     info.repaint();
@@ -741,6 +743,7 @@ class AttributInfo {
   Widget? cacheHeaderWidget;
   Widget? cacheIndicatorWidget;
   State? widgetRowState; // pour repaint
+  ValueNotifier<bool>? isHoover;
   double? cacheHeight;
 
   DateTime? timeLastUpdate; // update en base

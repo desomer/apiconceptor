@@ -438,13 +438,17 @@ class ModelAccessorAttr extends ValueAccessor {
   }
 
   @override
-  void set(dynamic value) {
+  void set(dynamic value, {bool force = false, bool withHistory = true}) {
     var aNode = getNode();
     var path = '${aNode.info.path}.prop.$propName';
-    if (aNode.info.properties?[propName] == value) return;
+    if (aNode.info.properties?[propName] == value && !force) return;
 
     var propChangeValue = aNode.info.properties?[propName];
-    schema.addHistory(aNode, path, ChangeOpe.change, propChangeValue, value);
+    if (withHistory) {
+      schema.addHistory(aNode, path, ChangeOpe.change, propChangeValue, value);
+    } else {
+      node.info.action = 'U';
+    }
     aNode.info.properties?[propName] = value;
     schema.saveProperties();
     aNode.repaint();
@@ -471,6 +475,7 @@ class ModelAccessorAttr extends ValueAccessor {
 
   @override
   bool isEditable() {
+    if (schema.isReadOnlyModel) return false;
     if (!editable || node.info.isInitByRef) return false;
     return true;
   }

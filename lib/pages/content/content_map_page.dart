@@ -51,7 +51,7 @@ class InfoManagerDataMap extends InfoManager with WidgetHelper {
           currentCompany.currentDataMap = schema;
           schema.selectedAttr = attr;
           currentCompany.currentDataMapSel = attr;
-          context.push(Pages.mapDataDetail.id(attr.info.masterID!));
+          RouteManager.goto(Pages.mapDataDetail.id(attr.info.masterID!), context);
         },
         child: Text('Configure data map'),
       ),
@@ -63,7 +63,7 @@ class InfoManagerDataMap extends InfoManager with WidgetHelper {
     //       cachePage.clear();
     //       sessionStorage.clear;
     //       clearRouteCache(Pages.appPage);
-    //       context.push(Pages.appPage.id(attr.info.masterID!));
+    //       RouteManager.goto(Pages.appPage.id(attr.info.masterID!), context);
     //     },
     //     child: Text('View data'),
     //   ),

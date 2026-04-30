@@ -105,7 +105,9 @@ class WidgetAPIHelper with WidgetHelper {
       nd = nd.parent;
     }
 
-    wpath.add(WidgetApiParam(apiCallInfo: apiCallInfo));
+    wpath.add(
+      Flexible(flex: 1, child: WidgetApiParam(apiCallInfo: apiCallInfo)),
+    );
 
     wpath.add(
       Padding(
@@ -130,10 +132,15 @@ class WidgetAPIHelper with WidgetHelper {
       elevation: 10,
       child: NoOverflowErrorFlex(
         direction: Axis.horizontal,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(Icons.api),
-          ...wpath,
-          Spacer(),
+          Expanded(
+            child: NoOverflowErrorFlex(
+              direction: Axis.horizontal,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [Icon(Icons.api), ...wpath],
+            ),
+          ),
           IntrinsicWidth(child: WidgetChoiseEnv(widgetRequestHelper: this)),
         ],
       ),

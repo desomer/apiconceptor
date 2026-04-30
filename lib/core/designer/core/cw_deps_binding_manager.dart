@@ -4,13 +4,11 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import '../../../feature/content/widget/widget_content_input.dart';
 
 class CwDepsBindingManager {
-
   // liste des input controleur actif
   final Map<String, List<WidgetBindJsonState>> listInputByPath = {};
   final Map<String, List<State>> listContainerByPath = {};
   final Map<String, Map<String, CwWidgetStateBindJson>>
   listDepsContainerByPath = {};
-
 
   void registerInput(String pathData, WidgetBindJsonState ctrl) {
     var list = listInputByPath[pathData];
@@ -21,6 +19,12 @@ class CwDepsBindingManager {
     if (!list.contains(ctrl)) {
       list.add(ctrl);
     }
+    // if (ctrl.widget is CwWidget) {
+    //   print(
+    //     "register input for ${(ctrl.widget as CwWidget).ctx.aWidgetPath} ctrl=${ctrl.hashCode} total=${list.length} w=${(ctrl.widget as CwWidget).hashCode}",
+    //   );
+    // }
+
     list.removeWhere((role) => role.mounted == false);
   }
 
@@ -53,7 +57,6 @@ class CwDepsBindingManager {
     }
   }
 
-
   void registerRepaintOnSelect(
     String pathWidget,
     String pathData,
@@ -61,11 +64,10 @@ class CwDepsBindingManager {
   ) {
     //remove all idx
     pathData = pathData.replaceAll(RegExp(r'\[\d+\]'), '[]');
-    var pathDeps = listDepsContainerByPath.putIfAbsent(
-      pathData,
-      () => {},
+    var pathDeps = listDepsContainerByPath.putIfAbsent(pathData, () => {});
+    print(
+      ' register repaint on select for $pathData on $state $pathWidget hash= ${state.hashCode} w=${state.widget.hashCode} ',
     );
-    //print(' register repaint on select for $pathData on $state $pathWidget id= ${stateRepository.hashCode}');
     pathDeps[pathWidget] = state;
   }
 

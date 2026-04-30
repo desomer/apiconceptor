@@ -130,7 +130,15 @@ class _PanApiSelectorTagState extends State<PanApiSelectorTag>
     );
 
     pathWidget.add(Spacer());
-    pathWidget.add(WidgetVersionState(margeVertical: 2, version: null));
+    pathWidget.add(
+      WidgetVersionState(
+        margeVertical: 2,
+        version: null,
+        model: _schema,
+        attr: tag.node,
+        modelParent: _schema,
+      ),
+    );
 
     return ListTile(
       title: Container(

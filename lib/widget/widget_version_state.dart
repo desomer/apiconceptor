@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 
@@ -14,11 +13,13 @@ class WidgetVersionState extends StatefulWidget {
     required this.version,
     this.model,
     this.attr,
+    required this.modelParent,
   });
   final double margeVertical;
   final ModelSchema? model;
   final NodeAttribut? attr;
   final ModelVersion? version;
+  final ModelSchema modelParent;
 
   @override
   State<WidgetVersionState> createState() => _WidgetVersionStateState();
@@ -225,11 +226,11 @@ class _WidgetVersionStateState extends State<WidgetVersionState>
 
       if (widget.version == widget.model!.versions!.first) {
         var accessor = ModelAccessorAttr(
-          node: currentCompany.listModel!.selectedAttr!,
-          schema: currentCompany.listModel!,
+          node: widget.modelParent!.selectedAttr!,
+          schema: widget.modelParent!,
           propName: '#versionState',
         );
-        accessor.set(state);
+        accessor.set(state, force: true);
       }
     });
   }

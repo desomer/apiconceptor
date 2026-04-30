@@ -49,7 +49,7 @@ class CallAPIPageDetailUI extends GenericPageStateless {
     PageInit? pageInit,
   ) {
     query = routerState.uri.queryParameters['id']!;
-    var goTo = GoTo();
+    var goTo = ApiRequestNavigator();
     // goTo.initApi(query);
 
     return NavigationInfo()

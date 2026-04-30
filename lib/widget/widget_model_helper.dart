@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/login/background_screen_login.dart';
@@ -10,7 +11,11 @@ import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'package:jsonschema/widget/widget_dialog_card.dart';
 
 mixin class WidgetHelper {
-  Future<bool> askUser(BuildContext context, String title, String message) async {
+  Future<bool> askUser(
+    BuildContext context,
+    String title,
+    String message,
+  ) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -112,6 +117,19 @@ mixin class WidgetHelper {
         bCtx = ctx;
       },
     );
+  }
+
+  Widget readOnlyCapable(bool isReadOnly, Widget child) {
+    if (isReadOnly) {
+      return Banner(
+        message: 'Read only',
+        location: BannerLocation.topEnd,
+        color: Colors.deepOrangeAccent,
+        child: child,
+      );
+    } else {
+      return child;
+    }
   }
 
   Future<void> dialogBuilderBelow(
@@ -279,7 +297,19 @@ mixin class WidgetHelper {
     return wpath;
   }
 
-  List<Widget> getTooltipFromAttr(AttributInfo? info) {
+  List<Widget> getTooltipFromAttr(AttributInfo? info, ModelSchema? schema) {
+    if (info?.treePosition == null &&
+        schema != null &&
+        schema.qualityInfo != null) {
+      List<Widget> reco = [];
+      for (var recommandation in schema.qualityInfo!.recommandation) {
+        reco.add(Text(recommandation, style: TextStyle(fontSize: 15)));
+      }
+
+      // cas de la root ligne
+      return reco;
+    }
+
     List<Widget> tooltip = [];
     if (info?.properties != null) {
       for (var element in info!.properties!.entries) {

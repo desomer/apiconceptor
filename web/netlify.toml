@@ -1,5 +1,7 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Cross-Origin-Embedder-Policy = "credentialless"
-    Cross-Origin-Opener-Policy = "same-origin"
+    Content-Security-Policy = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob: https:; script-src * 'unsafe-inline' 'unsafe-eval' https:; script-src-elem * 'unsafe-inline' 'unsafe-eval' https:; style-src * 'unsafe-inline' https:; img-src * data: blob:; connect-src *; frame-src *; object-src *;"
+
+#    Cross-Origin-Embedder-Policy = "credentialless"
+#    Cross-Origin-Opener-Policy = "same-origin"

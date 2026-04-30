@@ -88,10 +88,9 @@ class BrowseAPIPage extends GenericPageStateful {
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
           path: byTag ? Pages.apiBrowserTag.urlpath : Pages.apiBrowser.urlpath,
-        )
+        ),
       ]
-      ..actions = getDefaultActionModel()
-      ;
+      ..actions = getDefaultActionModel();
   }
 }
 
@@ -164,14 +163,14 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
         );
         await model.loadYamlAndProperties(cache: false, withProperties: true);
 
-        var request = await GoTo().getApiRequestModel(
+        var request = await ApiRequestNavigator().getApiRequestModel(
           requestHelper!.apiCallInfo,
           currentCompany.listAPI!.namespace!,
           idApi,
           withDelay: false,
         );
 
-        var resp = await GoTo().getApiResponseModel(
+        var resp = await ApiRequestNavigator().getApiResponseModel(
           requestHelper!.apiCallInfo,
           currentCompany.listAPI!.namespace!,
           idApi,

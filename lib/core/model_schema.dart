@@ -1,5 +1,6 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
@@ -11,6 +12,7 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
+import 'package:uuid/uuid.dart';
 import 'package:yaml/yaml.dart';
 
 //int nbtesterror = -37;
@@ -43,6 +45,89 @@ enum TypeModelBreadcrumb {
 }
 
 typedef OnChange = void Function(dynamic histo);
+
+class JsonComplexity {
+  final int totalKeys;
+  final int maxDepth;
+  final int totalNodes;
+  final int typeCount;
+
+  JsonComplexity({
+    required this.totalKeys,
+    required this.maxDepth,
+    required this.totalNodes,
+    required this.typeCount,
+  });
+
+  /**On peut mesurer :
+nombre de règles (type, format, pattern, enum)
+nombre de combinateurs (anyOf, oneOf, allOf)
+profondeur du schéma
+nombre de références $ref
+
+complexité = 
+  (nombre_de_clés) 
++ (profondeur_max * 2) 
++ (nombre_de_types_différents * 3)
++ (nombre_de_combinateurs_schema * 5)
+
+*/
+}
+
+class ModelSchemaQuality {
+  double completude;
+  double wordDuplicationNumber;
+  int wordDuplication;
+  double documentation;
+  double complexity;
+  List<String> recommandation = [];
+
+  ModelSchemaQuality({
+    required this.completude,
+    required this.wordDuplication,
+    required this.wordDuplicationNumber,
+    required this.documentation,
+    required this.complexity,
+  });
+
+  JsonComplexity computeJsonComplexity(Map<String, dynamic> json) {
+    int totalKeys = 0;
+    int maxDepth = 1;
+    int totalNodes = 0;
+    final Set<String> types = {};
+
+    void explore(dynamic value, int depth) {
+      maxDepth = depth > maxDepth ? depth : maxDepth;
+      totalNodes++;
+
+      if (value is Map) {
+        totalKeys += value.length;
+        types.add("object");
+
+        value.forEach((key, val) {
+          types.add(val.runtimeType.toString());
+          explore(val, depth + 1);
+        });
+      } else if (value is List) {
+        types.add("array");
+        for (var item in value) {
+          explore(item, depth + 1);
+        }
+      } else {
+        types.add(value.runtimeType.toString());
+      }
+    }
+
+    explore(json, 1);
+
+    return JsonComplexity(
+      totalKeys: totalKeys,
+      maxDepth: maxDepth,
+      totalNodes: totalNodes,
+      typeCount: types.length,
+    );
+  }
+}
 
 class ModelSchema {
   ModelSchema({
@@ -91,11 +176,28 @@ class ModelSchema {
   bool first = true;
   bool isEmpty = false;
   bool autoSaveProperties = true;
+  bool isReadOnlyModel = false;
 
   NodeAttribut? selectedAttr;
 
   AttributInfo? lastDeleteAttr;
   int lastDeleteEditorStartAt = 0;
+
+  OnChange? onChange; // sur un changement du schema
+
+  List<String> modelPath = [];
+  TypeModelBreadcrumb? typeBreabcrumb;
+
+  List<ModelVersion>? versions;
+  ModelVersion? currentVersion;
+  ModelVersion? olderVersion;
+
+  String? namespace;
+
+  bool? readOnlyApi;
+  bool? isApi;
+
+  ModelSchemaQuality? qualityInfo;
 
   /// #doc  ou #example
   NodeAttribut getExtendedNode(String id) {
@@ -116,6 +218,35 @@ class ModelSchema {
     return exampleExtended!;
   }
 
+  Future<void> addVersion() async {
+    await bddStorage.prepareSaveModel(this);
+    await bddStorage.doStoreSync();
+    var versionNum = int.parse(versions!.first.version) + 1;
+    ModelVersion version = ModelVersion(
+      id: id,
+      version: '$versionNum',
+      data: {
+        'state': 'D',
+        'by': currentCompany.shortUserId,
+        'versionTxt': '0.0.$versionNum',
+      },
+    );
+    versions!.insert(0, version);
+    currentVersion = version;
+    await bddStorage.storeVersion(this, version);
+    //String modelYaml = this.modelYaml;
+    var modelProperties = [...useAttributInfo];
+    var extend = {...modelPropExtended};
+    clear();
+    await bddStorage.duplicateVersion(
+      this,
+      version,
+      modelYaml,
+      modelProperties,
+      extend,
+    );
+  }
+
   void setCurrentAttr(AttributInfo? attr) {
     if (attr == null) {
       selectedAttr = null;
@@ -128,20 +259,6 @@ class ModelSchema {
       yamlNode: const MapEntry('', null),
     );
   }
-
-  OnChange? onChange; // sur un changement du schema
-
-  List<String> modelPath = [];
-  TypeModelBreadcrumb? typeBreabcrumb;
-
-  List<ModelVersion>? versions;
-  ModelVersion? currentVersion;
-  ModelVersion? olderVersion;
-
-  String? namespace;
-
-  bool? readOnly;
-  bool? isApi;
 
   List<AttributInfo>? getModelByRefName(String refName) {
     List<AttributInfo>? aModelByName;
@@ -226,16 +343,16 @@ class ModelSchema {
     );
   }
 
-  void changeSelected(NodeAttribut attr) {
-    var path = attr.info.path;
-    if (lastBrowser?.selectedPath == null ||
-        !lastBrowser!.selectedPath!.contains(path)) {
-      lastBrowser?.selectedPath ??= {};
-      lastBrowser?.selectedPath!.add(path);
-    } else if (lastBrowser?.selectedPath != null) {
-      lastBrowser?.selectedPath!.remove(path);
-    }
-  }
+  // void changeSelected(NodeAttribut attr) {
+  //   var path = attr.info.path;
+  //   if (lastBrowser?.selectedPath == null ||
+  //       !lastBrowser!.selectedPath!.contains(path)) {
+  //     lastBrowser?.selectedPath ??= {};
+  //     lastBrowser?.selectedPath!.add(path);
+  //   } else if (lastBrowser?.selectedPath != null) {
+  //     lastBrowser?.selectedPath!.remove(path);
+  //   }
+  // }
 
   bool onDeleteAttr(ModelSchema model, AttributInfo attr) {
     var sel = currentYamlTree?.getTextSelection();
@@ -256,12 +373,14 @@ class ModelSchema {
     String? master,
   }) {
     node.info.action = 'U';
+    String? uuid;
 
     if (histories.isNotEmpty) {
       var last = histories.last;
       if (last?['ope'] == ope.name && last?['path'] == path) {
         propChangeValue = last?['from'];
-        histories.removeLast();
+        var h = histories.removeLast();
+        uuid = h?['uuid'];
       }
       // if (ope==ChangeOpe.clear && last?['ope'] == ChangeOpe.set.name && last?['path'] == path) {
       //   propChangeValue = last?['from'];
@@ -269,18 +388,25 @@ class ModelSchema {
       // }
     }
 
+    var getMdValue = _getMdValue(value);
+
     var histo = {
-      'node': node,
+      'node': node, // pour le glossary
       'ope': ope.name,
       'path': path,
       'from': _getMdValue(propChangeValue),
-      'to': _getMdValue(value),
+      'to': getMdValue,
       'date': DateTime.now().toIso8601String(),
-      'by': 'my',
+      'by': currentCompany.shortUserId,
+      'uuid': uuid ?? Uuid().v4(),
       if (master != null) 'master': master,
     };
+    if (getMdValue is String && getMdValue.length > 100) {
+      histo['toReal'] = value;
+    }
 
     histories.add(histo);
+    bddStorage.saveHistory(this, histo);
 
     Future.delayed(Duration(milliseconds: 100)).then((value) {
       // attend que le browse soit terminer
@@ -291,16 +417,214 @@ class ModelSchema {
   }
 
   dynamic _getMdValue(dynamic v) {
-    if (v.toString().contains('\n')) {
-      return v.toString().replaceAll('\n', ';');
+    var string = v.toString();
+    if (string.contains('\n')) {
+      string = string.replaceAll('\n', ';');
+      if (string.length > 100) {
+        string = '${string.substring(0, 100)}...';
+      }
+      return string;
     }
     return v;
+  }
+
+  final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+
+  Widget getRowHistory(
+    Map ahistory,
+    bool path,
+    bool from,
+    bool to,
+    String? ope,
+  ) {
+    String strDateTimeISO = ahistory['date'];
+    DateTime dateTime = DateTime.parse(strDateTimeISO);
+
+    String formattedDate = dateFormat.format(
+      dateTime,
+    ); // You can format the date here if needed
+    return Row(
+      mainAxisSize: MainAxisSize.max,
+      spacing: 10,
+      children: [
+        SizedBox(width: 200, child: Text('at $formattedDate')),
+        if (path)
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+              child: Text('${ahistory['path']}'),
+            ),
+          ),
+        if (ope != null)
+          SizedBox(
+            width: 60,
+            child: Container(
+              decoration: BoxDecoration(
+                color:
+                    ope == 'SET'
+                        ? Colors.green
+                        : ope == 'REMOVE'
+                        ? Colors.red
+                        : ope == 'PATH' || ope == 'RENAME'
+                        ? Colors.orange
+                        : Colors.blueGrey,
+                //border: Border.all(color: Colors.blueGrey),
+              ),
+              child: Text(
+                ope,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+        // if (from && to)
+        //   SizedBox(
+        //     //decoration: BoxDecoration(color: Colors.grey),
+        //     width: 40,
+        //     child: Text('from'),
+        //   ),
+        if (from)
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+              child: Text('${ahistory['from']}'),
+            ),
+          ),
+        if (to && from)
+          Container(
+            decoration: BoxDecoration(color: Colors.grey),
+            width: 40,
+            child: Center(child: Text('TO')),
+          ),
+        if (to)
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
+              child: Text('${ahistory['to']}'),
+            ),
+          ),
+        SizedBox(width: 300, child: Text('by ${ahistory['by']}')),
+      ],
+    );
+  }
+
+  List<Widget> getHistoryInfo() {
+    List<Widget> ret = [];
+    int i = 0;
+    List removeHisto = [];
+    for (var h in histories) {
+      var ope = h['ope'];
+      dynamic from = h['from'];
+      if (ope == ChangeOpe.change.name) {
+        if (from == null || from.toString() == '') {
+          ret.add(getRowHistory(h, true, false, true, 'SET'));
+          // ret.add(
+          //   Text(
+          //     '* ${h['path']}   **SET**  ${h['to']}        *BY ${h['by']} **AT** ${h['date']}*',
+          //   ),
+          // );
+        } else {
+          bool add = true;
+          if (i > 0) {
+            var last = histories[i - 1];
+            if (last['path'] == h['path'] &&
+                last['ope'] == h['ope'] &&
+                last['from'] == h['to']) {
+              // revient à la meme valeur
+              add = false;
+            }
+          }
+          if (i < histories.length - 1) {
+            var next = histories[i + 1];
+            if (next['path'] == h['path'] &&
+                next['ope'] == h['ope'] &&
+                next['to'] == h['from'] &&
+                h['toReal'] == null) {
+              // revient à la meme valeur
+              add = false;
+            }
+          }
+
+          if (add && (from != h['to'] || h['toReal'] != null)) {
+            ret.add(
+              getRowHistory(h, true, true, true, "CHANGE"),
+              // Text(
+              //   '* ${h['path']}   **FROM**  $from  **TO**  ${h['to']}       *BY ${h['by']} **AT** ${h['date']}*',
+              // ),
+            );
+          } else {
+            removeHisto.add(h);
+          }
+        }
+      } else if (ope == ChangeOpe.clear.name) {
+        ret.add(
+          getRowHistory(h, true, true, false, 'CLEAR'),
+          // Text(
+          //   '* ${h['path']}   **CLEAR**  $from        *BY ${h['by']} **AT** ${h['date']}*',
+          // ),
+        );
+      } else if (ope == ChangeOpe.path.name || ope == ChangeOpe.rename.name) {
+        if (from != h['to']) {
+          ret.add(
+            getRowHistory(h, false, true, true, ope.toString().toUpperCase()),
+          );
+        } else {
+          removeHisto.add(h);
+        }
+      } else if (ope == ChangeOpe.move.name) {
+        if (from != h['to']) {
+          ret.add(
+            getRowHistory(h, true, true, true, ope.toString().toUpperCase()),
+          );
+        } else {
+          removeHisto.add(h);
+        }
+      } else {
+        // add et remove
+        bool add = true;
+        String masterID = h['path'].toString();
+        if (ope == ChangeOpe.remove.name) {
+          // recherche d'un move
+          for (var j = i; j < histories.length; j++) {
+            var o = histories[j];
+            var opeOlder = o['ope'];
+            if (opeOlder == ChangeOpe.move.name) {
+              String oldmasterID = o['master'].toString();
+              if (masterID == oldmasterID) {
+                add = false;
+                break;
+              }
+            }
+          }
+        }
+        if (add) {
+          ret.add(
+            getRowHistory(h, false, true, false, ope.toString().toUpperCase()),
+            // Text(
+            //   '* **${ope.toString().toUpperCase()}  ${h['from']}**     *BY ${h['by']} **AT** ${h['date']}*',
+            // ),
+          );
+        } else {
+          removeHisto.add(h);
+        }
+      }
+      i++;
+    }
+
+    if (removeHisto.isNotEmpty) {
+      for (var element in removeHisto) {
+        histories.remove(element);
+      }
+      return getHistoryInfo();
+    }
+
+    return ret;
   }
 
   String getHistory({required bool toMarkdown}) {
     StringBuffer ret = StringBuffer();
     if (toMarkdown) {
-      ret.writeln('## Change log\n version 0.0.1\n');
+      ret.writeln('## Change log\n version ${getVersionText()}\n');
     }
     int i = 0;
     List removeHisto = [];
@@ -329,13 +653,14 @@ class ModelSchema {
             var next = histories[i + 1];
             if (next['path'] == h['path'] &&
                 next['ope'] == h['ope'] &&
-                next['to'] == h['from']) {
+                next['to'] == h['from'] &&
+                h['toReal'] == null) {
               // revient à la meme valeur
               add = false;
             }
           }
 
-          if (add && from != h['to']) {
+          if (add && (from != h['to'] || h['toReal'] != null)) {
             if (toMarkdown) {
               ret.writeln(
                 '* ${h['path']}   **FROM**  $from  **TO**  ${h['to']}       *BY ${h['by']} **AT** ${h['date']}*',
@@ -523,7 +848,7 @@ class ModelSchema {
           version: '1',
           data: {
             'state': 'D',
-            'by': currentCompany.userId,
+            'by': currentCompany.shortUserId,
             'versionTxt': '0.0.1',
           },
         );
@@ -608,10 +933,12 @@ class ModelSchema {
         setcache: true,
       );
       if (l is! Future) {
-        if (l == null) {
+        if (l == null || (l is Map && l.isEmpty)) {
           modelProperties = {};
+          modelPropExtended.clear();
         } else {
-          modelProperties = l;
+          modelProperties = l['prop'];
+          modelPropExtended.addAll(l['extended']);
         }
         // print("load properties model = $id");
         isLoadProp = true;
@@ -781,7 +1108,7 @@ class ModelSchema {
             )..namespace = namespace;
             aSchema.autoSaveProperties = false;
             aSchema.isApi = isApi;
-            aSchema.readOnly = readOnly;
+            aSchema.readOnlyApi = readOnlyApi;
 
             await aSchema.loadYamlAndProperties(
               cache: false,
@@ -801,7 +1128,7 @@ class ModelSchema {
               ..namespace = namespace
               ..autoSaveProperties = false;
         aSchema.isApi = isApi;
-        aSchema.readOnly = readOnly;
+        aSchema.readOnlyApi = readOnlyApi;
         aSchema.loadSubSchema(subNode, this);
       }
     }
@@ -834,5 +1161,92 @@ class ModelSchema {
       }
     }
     return nodeByMasterId[key]?.firstOrNull;
+  }
+
+  ModelSchemaQuality getModelQualityInfo() {
+    double completude = 0;
+    int nbAttr = useAttributInfo.length * 3;
+    Map<String, int> wordCount = {};
+
+    if (nbAttr == 0) {
+      return ModelSchemaQuality(
+        wordDuplication: 0,
+        wordDuplicationNumber: 0,
+        completude: 100,
+        documentation: 100,
+        complexity: 0,
+      );
+    }
+    for (var element in useAttributInfo) {
+      if (!element.name.startsWith('\$')) {
+        wordCount[element.name] ??= 0;
+        int count = wordCount[element.name]!;
+        wordCount[element.name] = count + 1;
+      }
+
+      if (element.type.startsWith('\$')) {
+        completude += 3;
+      } else {
+        if (element.properties != null && element.properties!.isNotEmpty) {
+          if (element.properties!['description'] != null ||
+              element.properties!['example'] != null ||
+              element.properties!['const'] != null ||
+              element.properties!['default'] != null ||
+              element.properties!['enum'] != null) {
+            completude += 1;
+          } else {
+            if (element.properties!['format'] != null ||
+                element.properties!['pattern'] != null ||
+                element.properties!['required'] != null ||
+                element.properties!['dependentRequired'] != null) {
+              completude += 1;
+            }
+          }
+
+          if (element.properties!['title'] != null) {
+            completude += 2;
+          }
+        }
+      }
+    }
+
+    //wordCount sort
+    var sortedWordCount =
+        wordCount.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    //moyenne de duplication > 2 mots
+    double wordDuplication = 0;
+    int totalWords = 0;
+    for (var entry in sortedWordCount) {
+      if (entry.value > 1) {
+        wordDuplication += entry.value;
+        totalWords += 1;
+      }
+    }
+
+    // Implement the logic to calculate model completude
+    var ret = ModelSchemaQuality(
+      wordDuplication: totalWords,
+      wordDuplicationNumber: (wordDuplication / totalWords),
+      completude: (completude / nbAttr) * 100,
+      documentation: 0,
+      complexity: 0,
+    );
+
+    // recommendation of sortedWordCount
+    for (var entry in sortedWordCount) {
+      if (entry.value > 1) {
+        ret.recommandation.add(
+          'The word "${entry.key}" is duplicated ${entry.value} times.',
+        );
+      }
+      if (ret.recommandation.length >= 5 && entry.value < 3) {
+        ret.recommandation.add(
+          '... ${totalWords - ret.recommandation.length} more words are duplicated less than 3 times.',
+        );
+        break;
+      }
+    }
+
+    return ret;
   }
 }

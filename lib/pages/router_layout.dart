@@ -6,6 +6,7 @@ import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/back_action/universal_back_button.dart';
 import 'package:jsonschema/widget/login/login_screen.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
@@ -22,19 +23,23 @@ PanYamlTree? currentYamlTree;
 ValueNotifier<String> dataProviderMode = ValueNotifier<String>('mock');
 
 // ignore: must_be_immutable
-class Layout extends StatefulWidget {
-  const Layout({super.key, required this.navChild, required this.routerState});
+class PageLayout extends StatefulWidget {
+  const PageLayout({
+    super.key,
+    required this.navChild,
+    required this.routerState,
+  });
 
   final Widget navChild;
   final GoRouterState routerState;
 
   @override
-  State<Layout> createState() => _LayoutState();
+  State<PageLayout> createState() => PageLayoutState();
 }
 
-class _LayoutState extends State<Layout> with WidgetHelper {
+class PageLayoutState extends State<PageLayout> with WidgetHelper {
   @override
-   Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     final String location = widget.routerState.uri.toString();
 
     GenericPage page = (getPage(context, widget.routerState) as GenericPage);
@@ -50,148 +55,152 @@ class _LayoutState extends State<Layout> with WidgetHelper {
 
     if (showLoginDialog) {
       showLoginDialog = false;
-      Future.delayed(Duration(milliseconds: 200)).then((value) {
+      Future.delayed(Duration(milliseconds: 200)).then((value) async {
         // ignore: use_build_context_synchronously
-        _dialogBuilder(context);
+        await PageLayoutState.showLogin(context);
+        if (deepLinkPath != null) {
+          // ignore: use_build_context_synchronously
+          String p = deepLinkPath!;
+          deepLinkPath = null;
+          await prepareDeepLinking(Uri.parse(p));
+          navigatorKey.currentContext!.push(p);
+          //RouteManager.goto(p, navigatorKey.currentContext!);
+          print('end deepLinkPath $p');
+        }
       });
     }
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        navigatorKey.currentContext?.pop();
+    // le popscope pour gérer le retour arrière sur le BackButton
+    return
+    // PopScope(
+    //   // canPop: false,
+    //   onPopInvokedWithResult: (didPop, result) {
+    //     navigatorKey.currentContext?.pop();
+    //   },
+    //   child:
+    Shortcuts(
+      shortcuts: {
+        LogicalKeySet(LogicalKeyboardKey.alt, LogicalKeyboardKey.arrowLeft):
+            const BackIntent(),
       },
-      child: Shortcuts(
-        shortcuts: {
-          LogicalKeySet(LogicalKeyboardKey.alt, LogicalKeyboardKey.arrowLeft):
-              const BackIntent(),
+      child: Actions(
+        actions: {
+          BackIntent: CallbackAction<BackIntent>(
+            onInvoke: (intent) {
+              context.pop();
+              return null;
+            },
+          ),
         },
-        child: Actions(
-          actions: {
-            BackIntent: CallbackAction<BackIntent>(
-              onInvoke: (intent) {
-                context.pop();
-                return null;
-              },
-            ),
-          },
-          child: Scaffold(
-            resizeToAvoidBottomInset: true,
-            backgroundColor: Color.fromARGB(255, 5, 1, 0),
-            appBar: AppBar(
-              toolbarHeight: 40,
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(1.0),
-                child: Container(
-                  color: Colors.grey.shade300, // Couleur de la bordure
-                  height: 1.0, // Épaisseur de la bordure
-                ),
+        child: Scaffold(
+          resizeToAvoidBottomInset: true,
+          backgroundColor: Color.fromARGB(255, 5, 1, 0),
+          appBar: AppBar(
+            toolbarHeight: 40,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1.0),
+              child: Container(
+                color: Colors.grey.shade300, // Couleur de la bordure
+                height: 1.0, // Épaisseur de la bordure
               ),
+            ),
 
-              title: Row(
-                children: [BackButton(), getBreadcrumb(navigationInfo)],
-              ),
-              actions: navigationInfo.actions,
-            ),
-            body: GestureDetector(
-              onTap: () {
-                //FocusScope.of(context).unfocus();
-              },
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 100,
-                    child: getNavigationItem(navigationInfo, location, context),
-                  ),
-                  const VerticalDivider(thickness: 1, width: 1),
-                  Expanded(
-                    child: widget.navChild,
-                    //  IndexedStack(index: 0, children: pages),
-                    //child: widget.navChild,
-                  ),
-                ],
-              ),
-            ),
-            bottomNavigationBar: Row(
+            title: Row(
               children: [
-                WidgetShowError(),
-                SizedBox(width: 10),
-                // InkWell(child: Icon(Icons.undo)),
-                // SizedBox(width: 5),
-                // InkWell(child: Icon(Icons.redo)),
-                // SizedBox(width: 5),
-                SizedBox(height: 20, child: WidgetGlobalZoom()),
-//                 IconButton(
-//                   onPressed: () async {
-//                     bool result = await askUser(
-//                       context,
-//                       'Confirmation',
-//                       'Are you sure you want to clear the cache and reset the app?',
-//                     );
-//                     if (!result) return;
-
-// //                    prefs.remove("page_designer_data_${factory.id}");
-//                     String keyFactory = "query";
-//                     WidgetFactory? aFactory = cacheLinkPage.get(keyFactory);
-//                     if (aFactory != null) {
-//                       aFactory.getEmptyApp();
-//                       aFactory.pageDesignerKey.currentState?.setState(() {});
-//                       aFactory.rootCtx?.widgetState?.clearWidgetCache();
-//                       aFactory.rootCtx?.repaint();
-//                       aFactory.rootCtx?.selectOnDesigner();
-//                     }
-//                   },
-//                   icon: Icon(Icons.delete),
-//                 ),
+                UniversalBackButton(),
                 IconButton(
+                  // padding: EdgeInsets.zero,
+                  // constraints: const BoxConstraints(
+                  //   minWidth: 24,
+                  //   minHeight: 24,
+                  // ),
                   onPressed: () {
-                    globalUndoManager.undo();
+                    Pages.home.goto(context);
                   },
-                  icon: Icon(Icons.undo),
+                  icon: Icon(Icons.apps),
                 ),
-                IconButton(
-                  onPressed: () {
-                    globalUndoManager.redo();
-                  },
-                  icon: Icon(Icons.redo),
+                getBreadcrumb(navigationInfo),
+              ],
+            ),
+            actions: navigationInfo.actions,
+          ),
+          body: GestureDetector(
+            onTap: () {
+              //FocusScope.of(context).unfocus();
+            },
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 100,
+                  child: getNavigationItem(navigationInfo, location, context),
                 ),
-                ValueListenableBuilder(
-                  valueListenable: dataProviderMode,
-                  builder: (context, value, child) {
-                    return SizedBox(
-                      width: 400,
-                      child: Row(
-                        children: [
-                          Text('Data from mock  '),
-                          Padding(
-                            padding: const EdgeInsets.all(0),
-                            child: Checkbox(
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-
-                              visualDensity: const VisualDensity(
-                                horizontal: -4,
-                                vertical: -4,
-                              ),
-                              value: value == 'mock',
-                              onChanged: (bool? newValue) {
-                                dataProviderMode.value =
-                                    (newValue ?? false ? 'mock' : 'api');
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                const VerticalDivider(thickness: 1, width: 1),
+                Expanded(
+                  child: widget.navChild,
+                  //  IndexedStack(index: 0, children: pages),
+                  //child: widget.navChild,
                 ),
-                Spacer(),
-                Text('API Architect by Desomer G. V1.0.3.61'),
               ],
             ),
           ),
+          bottomNavigationBar: Row(
+            children: [
+              WidgetShowError(),
+              SizedBox(width: 10),
+              // InkWell(child: Icon(Icons.undo)),
+              // SizedBox(width: 5),
+              // InkWell(child: Icon(Icons.redo)),
+              // SizedBox(width: 5),
+              SizedBox(height: 20, child: WidgetGlobalZoom()),
+              IconButton(
+                onPressed: () {
+                  globalUndoManager.undo();
+                },
+                icon: Icon(Icons.undo),
+              ),
+              IconButton(
+                onPressed: () {
+                  globalUndoManager.redo();
+                },
+                icon: Icon(Icons.redo),
+              ),
+              ValueListenableBuilder(
+                valueListenable: dataProviderMode,
+                builder: (context, value, child) {
+                  return SizedBox(
+                    width: 400,
+                    child: Row(
+                      children: [
+                        Text('Data from mock  '),
+                        Padding(
+                          padding: const EdgeInsets.all(0),
+                          child: Checkbox(
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+
+                            visualDensity: const VisualDensity(
+                              horizontal: -4,
+                              vertical: -4,
+                            ),
+                            value: value == 'mock',
+                            onChanged: (bool? newValue) {
+                              dataProviderMode.value =
+                                  (newValue ?? false ? 'mock' : 'api');
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              Spacer(),
+              Text('API Architect by Desomer G. V1.0.4.8'),
+            ],
+          ),
         ),
       ),
+      // ),
     );
   }
 
@@ -229,11 +238,12 @@ class _LayoutState extends State<Layout> with WidgetHelper {
     if (loc.length == 2) {
       location = loc[0];
     }
+    int indexTop = 0;
     for (var element in navigationInfo.navLeft) {
       var p = element.path?.split('?');
-      var elementPath = p != null && p.length == 2 ? p[0] : element.path; 
+      var elementPath = p != null && p.length == 2 ? p[0] : element.path;
       if (elementPath == location) {
-        selectedIndex = navigationInfo.navLeft.indexOf(element) + 1;
+        selectedIndex = navigationInfo.navLeft.indexOf(element) + indexTop;
         break;
       }
     }
@@ -247,29 +257,36 @@ class _LayoutState extends State<Layout> with WidgetHelper {
           );
         }).toList();
 
+    if (contextMenu.isEmpty) {
+      return SizedBox.shrink();
+    }
+
     return NavigationRail(
       selectedIndex: selectedIndex,
       onDestinationSelected: (index) {
-        if (index == 0) {
-          context.push('/');
-        } else {
-          var r = navigationInfo.navLeft[index - 1];
-          if (r.path != null) {
-            if (location != r.path) {
-              context.pushReplacement(r.path!);
-            }
+        // if (index == 0) {
+        //   RouteManager.goto('/', context);
+        //   //context.go('/');
+        // } else {
+        var r = navigationInfo.navLeft[index - indexTop];
+        if (r.path != null) {
+          if (location != r.path) {
+            RouteManager.goto(r.path!, context);
+            //context.go(r.path!);
+            //context.pushReplacement(r.path!);
           }
         }
+        //}
       },
       labelType: NavigationRailLabelType.all,
       destinations: [
-        NavigationRailDestination(icon: Icon(Icons.apps), label: Text('Home')),
+        //NavigationRailDestination(icon: Icon(Icons.apps), label: Text('Home')),
         ...contextMenu,
       ],
     );
   }
 
-  Future<void> _dialogBuilder(BuildContext context) async {
+  static Future<void> showLogin(BuildContext context) async {
     var mail = prefs.getString("mail");
     var pwd = prefs.getString("pwd");
 
@@ -432,8 +449,10 @@ class UserAuthentication {
     await Future.delayed(Duration(milliseconds: 200));
 
     var ok = await startCore(email, password);
-    // ignore: use_build_context_synchronously
-    Navigator.of(ctx!).pop();
+    if (ctx != null) {
+      // ignore: use_build_context_synchronously
+      Navigator.of(ctx!).pop();
+    }
     if (ok) {
       await prefs.setString("mail", email);
       await prefs.setString("pwd", password);

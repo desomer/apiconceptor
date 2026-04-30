@@ -60,7 +60,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
       //   keyBtnSave.currentState?.setState(() {});
       // });
 
-      GoTo()
+      ApiRequestNavigator()
           .getApiRequestModel(
             widget.requestHelper.apiCallInfo,
             currentCompany.listAPI!.namespace!,
@@ -71,7 +71,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
             widget.requestHelper.apiCallInfo.currentAPIRequest = value;
           });
 
-      GoTo()
+      ApiRequestNavigator()
           .getApiResponseModel(
             widget.requestHelper.apiCallInfo,
             currentCompany.listAPI!.namespace!,
@@ -138,9 +138,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
                   modeArray: ModeArrayEnum.anyInstance,
                   mode: ModeEnum.fake,
                   propMode: PropertyRequiredEnum.all,
-                  config: BrowserConfig(
-                    isApi: true,
-                  ),
+                  config: BrowserConfig(isApi: true),
                 )..browse(aSchema, false);
                 widget.requestHelper.apiCallInfo.mock = export.json;
                 widget.requestHelper.apiCallInfo.mockStr = export

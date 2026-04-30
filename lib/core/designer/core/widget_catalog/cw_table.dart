@@ -111,13 +111,13 @@ class CwTableState extends CwWidgetStateBindJson<CwTable> with HelperEditor {
 
   @override
   bool clearWidgetCache({bool clearInnerWidget = false}) {
-    if (mounted) {
+    //if (mounted) {
       var state = tableKey.currentState;
       if (state is FrozenTableViewState) {
         state.clearWidgetCache();
         return true;
       }
-    }
+    //}
     return super.clearWidgetCache(clearInnerWidget: clearInnerWidget);
   }
 
@@ -435,8 +435,8 @@ void showCsvDialog(BuildContext context, List<Map<String, dynamic>> jsonl) {
                 ),
               );
               if (path != null) {
-                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(
+                  // ignore: use_build_context_synchronously
                   context,
                 ).showSnackBar(SnackBar(content: Text("File exported: $path")));
               }

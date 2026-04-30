@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:highlight/highlight_core.dart';
@@ -7,20 +8,23 @@ import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/widget/widget_error_banner.dart';
 // ignore: implementation_imports
 import 'package:flutter_code_editor/src/code_field/actions/tab.dart';
+import 'package:jsonschema/widget/widget_long_json_viewer.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
 class TextEditor extends StatefulWidget {
   const TextEditor({
     super.key,
     required this.config,
-    required this.header,
+    this.header,
     this.actions,
     this.onHelp,
     this.onSelection,
     this.onHistory,
+    this.headerWidget,
   });
   final CodeEditorConfig config;
-  final String header;
+  final String? header;
+  final Widget? headerWidget;
   final List<Widget>? actions;
   final Function? onHelp;
   final Function? onHistory;
@@ -38,6 +42,40 @@ class TabKeyAction2 extends Action<TabKeyIntent> {
   @override
   Object? invoke(TabKeyIntent intent) {
     controller.indentSelection();
+    return null;
+  }
+}
+
+class PasteKeyAction extends Action<PasteTextIntent> {
+  final CodeController controller;
+
+  PasteKeyAction({required this.controller});
+
+  @override
+  Object? invoke(PasteTextIntent intent) {
+    Clipboard.getData(Clipboard.kTextPlain).then((data) {
+      if (data?.text != null) {
+        final text = data!.text!;
+        final sel = controller.selection;
+        controller.value = controller.value.replaced(sel, text);
+      }
+    });
+    return null;
+  }
+}
+
+class CopyKeyAction extends Action<CopySelectionTextIntent> {
+  final CodeController controller;
+
+  CopyKeyAction({required this.controller});
+
+  @override
+  Object? invoke(CopySelectionTextIntent intent) {
+    final sel = controller.selection;
+    if (!sel.isCollapsed) {
+      final text = controller.fullText.substring(sel.start, sel.end);
+      Clipboard.setData(ClipboardData(text: text));
+    }
     return null;
   }
 }
@@ -75,19 +113,17 @@ class TextEditorState extends State<TextEditor> {
     controller = CodeController(language: widget.config.mode);
 
     controller.actions[TabKeyIntent] = TabKeyAction2(controller: controller);
+    // controller.actions[PasteTextIntent] = PasteKeyAction(
+    //   controller: controller,
+    // );
+    // controller.actions[CopySelectionTextIntent] = CopyKeyAction(
+    //   controller: controller,
+    // );
 
     controller.popupController.enabled = false;
     horizontalScroll = ScrollController();
     verticalScroll = ScrollController();
     controller.addListener(() {
-      // final current = controller.selection;
-      // var l = getCursorLine(controller);
-      // if (!current.isCollapsed && l != lastRow) {
-      //   lastRow = l;
-      //   if (widget.onSelection != null) {
-      //     onSelectedRow();
-      //   }
-      // }
       if (dispatch) {
         widget.config.onChange(controller.fullText, widget.config);
       }
@@ -171,8 +207,19 @@ class TextEditorState extends State<TextEditor> {
     if (aText == null) {
       return Text('select model first');
     }
+
     if (aText != controller.fullText) {
       controller.fullText = aText;
+    }
+
+    if (aText.length > 50000) {
+      return Column(
+        children: [
+          getHeaderEditor(context),
+          Expanded(child: LongJsonViewerSelectableColored(json: aText)),
+          WidgetErrorBanner(error: widget.config.notifError),
+        ],
+      );
     }
 
     Widget code = CodeField(
@@ -195,42 +242,7 @@ class TextEditorState extends State<TextEditor> {
     // dispatch = true;
     return Column(
       children: [
-        Container(
-          color: Colors.grey.shade800,
-          height: 25,
-          width: double.infinity,
-          child: NoOverflowErrorFlex(
-            direction: Axis.horizontal,
-            children: [
-              Expanded(child: Center(child: Text(widget.header))),
-              ...widget.actions ?? [],
-              if (widget.onHistory != null)
-                InkWell(
-                  onTap: () {
-                    widget.onHistory!(context);
-                  },
-                  child: const Icon(Icons.history, size: 20),
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-                child: InkWell(
-                  onTap: () {
-                    if (widget.onHelp != null) widget.onHelp!(context);
-                  },
-                  child: const Icon(Icons.help_outline, size: 20),
-                ),
-              ),
-              if (widget.onSelection != null)
-                InkWell(
-                  child: Icon(Icons.double_arrow_sharp),
-                  onTap: () {
-                    //print(controller.selection);
-                    onSelectedCode();
-                  },
-                ),
-            ],
-          ),
-        ),
+        getHeaderEditor(context),
         Expanded(
           child: CodeTheme(
             data: CodeThemeData(styles: monokaiSublimeTheme),
@@ -251,6 +263,49 @@ class TextEditorState extends State<TextEditor> {
         ),
         WidgetErrorBanner(error: widget.config.notifError),
       ],
+    );
+  }
+
+  Container getHeaderEditor(BuildContext context) {
+    return Container(
+      color: Colors.grey.shade800,
+      height: 25,
+      width: double.infinity,
+      child: NoOverflowErrorFlex(
+        direction: Axis.horizontal,
+        children: [
+          Expanded(
+            child: Center(
+              child: widget.headerWidget ?? Text(widget.header ?? ""),
+            ),
+          ),
+          ...widget.actions ?? [],
+          if (widget.onHistory != null)
+            InkWell(
+              onTap: () {
+                widget.onHistory!(context);
+              },
+              child: const Icon(Icons.history, size: 20),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+            child: InkWell(
+              onTap: () {
+                if (widget.onHelp != null) widget.onHelp!(context);
+              },
+              child: const Icon(Icons.help_outline, size: 20),
+            ),
+          ),
+          if (widget.onSelection != null)
+            InkWell(
+              child: Icon(Icons.double_arrow_sharp),
+              onTap: () {
+                //print(controller.selection);
+                onSelectedCode();
+              },
+            ),
+        ],
+      ),
     );
   }
 
@@ -278,6 +333,9 @@ class TextEditorState extends State<TextEditor> {
   }
 
   void onSelectedCode() {
+
+    if (widget.onSelection == null) return;
+
     var curPos = controller.selection.baseOffset;
     YamlDoc docYaml = YamlDoc();
     docYaml.load(controller.fullText);
@@ -288,7 +346,9 @@ class TextEditorState extends State<TextEditor> {
     for (var line in docYaml.listYamlLine) {
       if (curPos > line.idxCharStart && curPos < line.idxCharStop) {
         YamlLine? l = line;
-        while (l != null) {
+        int i = 0;
+        while (l != null && i < 20) {
+          i++;
           if (path.isNotEmpty) {
             path = '.$path';
           }

@@ -41,14 +41,14 @@ class _PanScrumModelState extends State<PanScrumModel> {
     info.showExampleDto = false;
     info.showExampleMongoose = false;
 
-    var future1 = GoTo().getApiRequestModel(
+    var future1 = ApiRequestNavigator().getApiRequestModel(
       apiCallInfo,
       currentCompany.listAPI!.namespace!,
       apiCallInfo.attrApi.masterID!,
       withDelay: false,
     );
 
-    var future2 = GoTo().getApiResponseModel(
+    var future2 = ApiRequestNavigator().getApiResponseModel(
       apiCallInfo,
       currentCompany.listAPI!.namespace!,
       apiCallInfo.attrApi.masterID!,
@@ -263,7 +263,7 @@ class DocumentationOptions {
     refDisplayed.clear();
     var exportSchema = Export2JsonSchema(
       config: BrowserConfig(
-        isApi: currentCompany.currentModel!.readOnly != null,
+        isApi: currentCompany.currentModel!.readOnlyApi != null,
       ),
     )..browse(currentCompany.currentModel!, false);
 

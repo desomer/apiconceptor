@@ -1,7 +1,7 @@
 import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jsonschema/core/api/sessionStorage.dart';
+import 'package:jsonschema/core/api/session_storage.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/pages/datasource/data_sources_link_viewer.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -50,10 +50,14 @@ class InfoManagerPages extends InfoManager with WidgetHelper {
     row.add(
       ElevatedButton(
         onPressed: () {
+          if (currentCompany.userProfil?['data']?['rule']?.contains('admin') ==
+              false) {
+            return;
+          }
           currentCompany.currentDataSource = schema;
           schema.selectedAttr = attr;
           // showConfigDialog(attr, schema, context);
-          context.push(Pages.dataSourceDetail.id(attr.info.masterID!));
+          RouteManager.goto(Pages.dataSourceDetail.id(attr.info.masterID!), context);
         },
         child: Text('Configure data source'),
       ),
@@ -65,7 +69,7 @@ class InfoManagerPages extends InfoManager with WidgetHelper {
           cachePage.clear();
           sessionStorage.clear;
           clearRouteCache(Pages.appPage);
-          context.push(Pages.appPage.id(attr.info.masterID!));
+          RouteManager.goto(Pages.appPage.id(attr.info.masterID!), context);
         },
         child: Text('View data'),
       ),
