@@ -25,10 +25,11 @@ class GlossaryPage extends GenericPageStateless {
             return currentCompany.listGlossary;
           },
         ),
-        WidgetGlossary(
-          schemaGlossary: currentCompany.listGlossarySuffixPrefix,
-          typeModel: 'Suffix & prefix',
-        ),
+        Container()
+        // WidgetGlossary(
+        //   schemaGlossary: currentCompany.listGlossarySuffixPrefix,
+        //   typeModel: 'Suffix & prefix',
+        // ),
       ],
       heightTab: 40,
     );

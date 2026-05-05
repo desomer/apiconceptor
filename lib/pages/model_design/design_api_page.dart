@@ -8,6 +8,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_action_hub.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
 import 'package:jsonschema/feature/api/pan_api_trashcan.dart';
+import 'package:jsonschema/feature/model/pan_model_trashcan.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
@@ -50,15 +51,17 @@ class DesignAPIPage extends GenericPageStateless {
               Expanded(child: panAPISelector),
             ],
           ),
-          PanAPITrashcan(
-            getModelFct: () async {
+          PanModelTrashcan(
+            getSchemaFct: () async {
               var trash = ModelSchema(
                 category: Category.allApi,
                 headerName: 'All trash',
                 id: 'api',
-                infoManager: InfoManagerTrashAPI(),
-                refDomain: null,
+                infoManager: InfoManagerTrash(),
+                refDomain: currentCompany.listAPI,
               );
+
+              trash.withHistory = false;
               trash.autoSaveProperties = false;
 
               await bddStorage.getTrashSupabase(trash, trash.id, 'trash');

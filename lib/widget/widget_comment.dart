@@ -204,8 +204,28 @@ class _CommentThreadPopupState extends State<CommentThreadPopup> {
   final newCommentCtrl = TextEditingController();
   String newCommentColor = 'none';
 
+  bool get _canPublish =>
+      newCommentCtrl.text.trim().isNotEmpty || newCommentColor != 'none';
+
+  @override
+  void initState() {
+    super.initState();
+    newCommentCtrl.addListener(_onDraftChanged);
+  }
+
+  @override
+  void dispose() {
+    newCommentCtrl.removeListener(_onDraftChanged);
+    newCommentCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _addComment() {
-    if (newCommentCtrl.text.trim().isEmpty) return;
+    if (!_canPublish) return;
 
     final newComment = Comment(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -230,6 +250,9 @@ class _CommentThreadPopupState extends State<CommentThreadPopup> {
       bddStorage.saveComment(widget.contextId, newComment);
     }
     newCommentCtrl.clear();
+    setState(() {
+      newCommentColor = 'none';
+    });
   }
 
   void _deleteComment(String id) {
@@ -239,6 +262,40 @@ class _CommentThreadPopupState extends State<CommentThreadPopup> {
     widget.onUpdate(widget.comments);
     if (widget.contextId.isNotEmpty) {
       bddStorage.deleteComment(widget.contextId, id);
+    }
+  }
+
+  Future<void> _handleClose() async {
+    if (!_canPublish) {
+      if (mounted) Navigator.pop(context);
+      return;
+    }
+
+    final shouldClose =
+        await showDialog<bool>(
+          context: context,
+          builder:
+              (_) => AlertDialog(
+                title: const Text("Discard draft?"),
+                content: const Text(
+                  "You have a draft comment or selected color. Close anyway?",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text("Cancel"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text("Close"),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+
+    if (shouldClose && mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -293,7 +350,7 @@ class _CommentThreadPopupState extends State<CommentThreadPopup> {
                       selectedColor:
                           name == 'none'
                               ? Colors.grey.shade700
-                              : color.withOpacity(0.35),
+                              : color.withValues(alpha: 0.35),
                       onSelected: (_) {
                         setState(() {
                           newCommentColor = name;
@@ -303,18 +360,15 @@ class _CommentThreadPopupState extends State<CommentThreadPopup> {
                   }).toList(),
             ),
             const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _addComment,
-              child: const Text("Publish"),
-            ),
           ],
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Close"),
+        ElevatedButton(
+          onPressed: _canPublish ? _addComment : null,
+          child: const Text("Publish"),
         ),
+        TextButton(onPressed: _handleClose, child: const Text("Close")),
       ],
     );
   }

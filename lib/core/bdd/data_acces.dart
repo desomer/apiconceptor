@@ -128,6 +128,7 @@ class DataAcces {
         .eq('company_id', currentCompany.companyId)
         .eq('state', 'D')
         .eq('schema_id', id)
+        .eq('namespace', model.namespace ?? currentCompany.currentNameSpace)
         .order('update_at', ascending: false);
     var ret2 = await queryattr;
     if (ret2.isNotEmpty) {
@@ -137,6 +138,8 @@ class DataAcces {
         info.masterID = element['attr_id'];
         info.path = element['path'];
         info.properties = element['prop'];
+        info.tooltipError = element['type'] ?? '?';
+        
         info.action = element['state'];
         info.timeLastUpdate = DateTime.tryParse(element['update_at'] ?? '');
         model.mapInfoByTreePath[info.masterID!] = info;
@@ -356,6 +359,7 @@ class DataAcces {
             'attr_id': attr.masterID,
             'path': attr.path,
             'prop': attr.properties,
+            'type' : attr.type,
             'state': attr.action ?? 'D',
             'update_at': DateTime.now().toIso8601String(),
           };
@@ -559,14 +563,15 @@ class DataAcces {
     await supabase.from(event.table).upsert([event.data]);
   }
 
-  Future<void> restore(ModelSchema model, NodeAttribut attr) async {
+  Future<void> restoreAttribut(ModelSchema model, NodeAttribut attr) async {
+    //passe de D a R
     await supabase
         .from('attributs')
         .update({'state': 'R'})
         .eq('attr_id', attr.info.getMasterID())
         .eq('company_id', currentCompany.companyId)
         .eq('version', model.currentVersion?.version ?? '1')
-        .eq('namespace', currentCompany.currentNameSpace)
+        .eq('namespace', model.namespace ?? currentCompany.currentNameSpace)
         .eq('schema_id', model.id);
   }
 
@@ -681,6 +686,10 @@ class DataAcces {
         .eq('company_id', currentCompany.companyId)
         .eq('version', modelSchema.getVersionId())
         .eq('model_id', modelSchema.id)
+        .eq(
+          'namespace',
+          modelSchema.namespace ?? currentCompany.currentNameSpace,
+        )
         .order('created_at', ascending: false)
         .limit(100);
 
@@ -706,6 +715,7 @@ class DataAcces {
         'company_id': currentCompany.companyId,
         'model_id': modelSchema.id,
         'version': modelSchema.getVersionId(),
+        'namespace': modelSchema.namespace ?? currentCompany.currentNameSpace,
         'user_id': currentCompany.user?.id,
         'uuid': histo['uuid'],
         'history': saveHisto,

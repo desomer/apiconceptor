@@ -45,10 +45,10 @@ packages:
     dependency: "direct main"
     description:
       name: assorted_layout_widgets
-      sha256: "140e62c70a0f1f38f630e76f41f6bd5078e81b69df7d7282375f8e527e91311f"
+      sha256: ba0acd6c6b0b5696bdf5afa002bf4ca90f917e3cf232a47cc4c4e1214217d7b8
       url: "https://pub.dev"
     source: hosted
-    version: "12.5.1"
+    version: "12.6.1"
   async:
     dependency: transitive
     description:
@@ -569,10 +569,10 @@ packages:
     dependency: "direct main"
     description:
       name: go_router
-      sha256: "08b742eef4f71c9df5af543751cd0b7f1c679c4088488f4223ecaddc1a813b79"
+      sha256: "92d8cee7c57dff0a6c409c05597b460002434eccf7424a712283225b3962d03f"
       url: "https://pub.dev"
     source: hosted
-    version: "17.2.2"
+    version: "17.2.3"
   gotrue:
     dependency: transitive
     description:

@@ -80,20 +80,22 @@ class _WidgetModelMainState extends State<WidgetModelMain> {
 
   Widget getTrashcan(BuildContext context) {
     return PanModelTrashcan(
-      getModelFct: () async {
+      getSchemaFct: () async {
+        //getModelFct: () async {
         var trash = ModelSchema(
           category: Category.allModel,
-          headerName: 'All models',
+          headerName: 'Trash models',
           id: 'model',
-          infoManager: InfoManagerTrashAPI(),
+          infoManager: InfoManagerTrash(),
           refDomain: currentCompany.listModel,
         );
+        trash.withHistory = false;
         trash.autoSaveProperties = false;
 
-        await bddStorage.getTrashSupabase(trash, 'model', 'trash model');
+        await bddStorage.getTrashSupabase(trash, trash.id, 'trash');
 
         StringBuffer yamlTrash = StringBuffer();
-        yamlTrash.writeln('trash model:');
+        yamlTrash.writeln('trash:');
         for (var trashElem in trash.mapInfoByTreePath.entries) {
           yamlTrash.writeln(
             ' ${trashElem.value.masterID} : ${trashElem.value.path}',

@@ -7,6 +7,7 @@ import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/model/pan_model_change_log.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
@@ -86,7 +87,10 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
             return _cacheContent!;
           } else if (snapshot.hasError) {
-            return Text('Error: ${snapshot.error}');
+            final error = snapshot.error;
+            final stack = snapshot.stackTrace;
+            saveError("[FutureBuilder] $error", stack);
+            return Text('Error: $error\n$stack');
           } else {
             return getLoader();
           }

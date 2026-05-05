@@ -55,7 +55,8 @@ class PanApiEditor extends StatefulWidget {
   State<PanApiEditor> createState() => _PanApiEditorState();
 }
 
-class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper, GlassPaneMixin {
+class _PanApiEditorState extends State<PanApiEditor>
+    with WidgetHelper, GlassPaneMixin {
   String? url;
   late WidgetAPIHelper requestHelper;
   ValueNotifier<int> modelLoad = ValueNotifier<int>(0);
@@ -153,7 +154,12 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper, GlassPan
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            requestHelper.getAPIWidgetPath(context, 'view'),
+            Row(
+              children: [
+                Expanded(child: requestHelper.getAPIWidgetPath(context, 'view')),
+                if (widget.typeTab == TypeAPITab.test) getSendBtn(),
+              ],
+            ),
             Expanded(child: _getExampleTab()),
           ],
         ),
@@ -272,6 +278,28 @@ class _PanApiEditorState extends State<PanApiEditor> with WidgetHelper, GlassPan
         if (widget.typeTab == TypeAPITab.test) _getBrowseResponse(),
       ],
       heightTab: 40,
+    );
+  }
+
+  Widget getSendBtn() {
+    return GlowingHalo(
+      child: TextButton.icon(
+        onPressed: () {
+          // disableExample.value = true;
+          // disableResponse.value = false;
+          tabSubApi?.animateTo(
+            2,
+            curve: Curves.easeInOut,
+            duration: Duration(milliseconds: 200),
+          );
+          // refreshResponse.value++;
+          Future.delayed(Duration(milliseconds: 500)).then((_) {
+            requestHelper.doSend();
+          });
+        },
+        icon: Icon(Icons.send),
+        label: Text("Send"),
+      ),
     );
   }
 
@@ -459,12 +487,11 @@ YourExample : example
     );
   }
 
-
   Future<void> addVersion(BuildContext context, ModelSchema model) async {
     showGlassPane(context);
     tabEditor.animateTo(0);
     await model.addVersion();
-    
+
     // await bddStorage.prepareSaveModel(model);
     // await bddStorage.doStoreSync();
     // var versionNum = int.parse(model.versions!.first.version) + 1;
@@ -537,7 +564,7 @@ YourExample : example
                   // ),
                   Expanded(
                     child: PanModelVersionList(
-                      key: keyVersion, 
+                      key: keyVersion,
                       schema: modelRequest,
                       modelParent: currentCompany.listAPI!,
                       onTap: (ModelVersion version) async {
@@ -557,7 +584,9 @@ YourExample : example
             ),
             VerticalDivider(),
             Flexible(
-              child: Center(child: Text('DTO version management to implement yet')),
+              child: Center(
+                child: Text('DTO version management to implement yet'),
+              ),
             ),
           ],
         );

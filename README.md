@@ -9,7 +9,6 @@ Roadmap Business Model
 - gestion des tag  (sensible; personal; restricted)
 - notion de propriétaire
 - gestion de glossary pour eviter de nommer x fois la même notion
-- améliorer les fakes
 - pouvoir choisir les bloc a faire apparaitre des exemple de json / API
 - faire un ticket de modification
 - Knowledge Center
@@ -26,3 +25,15 @@ API
 - mettre en internal
 
 https://github.com/google/diff-match-patch
+
+
+Topic: order.created
+  - subscription: billing-service
+  - subscription: analytics-pipeline
+  - subscription: fraud-detector
+attrubut : 
+    tenantId = "t123"
+    eventType = "order.created"
+    schemaVersion = "v2"
+    traceId = "abc-123"
+    orderingKey = "t123"

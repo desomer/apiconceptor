@@ -5,6 +5,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 
 class BrowseListAPI<T extends Map> extends JsonBrowser<T> {
   BrowseListAPI({required super.config});
@@ -315,7 +316,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
   }
 }
 
-class InfoManagerTrashAPI extends InfoManager with WidgetHelper {
+class InfoManagerTrash extends InfoManager with WidgetHelper {
   @override
   Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
     return getChip(SelectableText(node.data!.info.name), color: null);
@@ -345,9 +346,22 @@ class InfoManagerTrashAPI extends InfoManager with WidgetHelper {
     return null;
   }
 
+  Widget getWidgetType(NodeAttribut attr, bool isRoot) {
+    if (isRoot) return Container();
+
+    return getChip(Text(attr.info.type), color: null);
+  }
+
   @override
   Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
-    // TODO: implement getRowHeader
-    throw UnimplementedError();
+    return NoOverflowErrorFlex(
+      direction: Axis.horizontal,
+      children: [
+        SelectableText(node.data.info.name),
+        Spacer(),
+        getWidgetType(node.data, node.isRoot),
+        getChip(Text(node.data.info.tooltipError ?? '?'), color: Colors.blue),
+      ],
+    );
   }
 }

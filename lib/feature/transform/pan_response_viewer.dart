@@ -227,7 +227,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
 
   Future<Widget> getUI(dynamic data) async {
     json2ui.stateMgr.data = data;
-    currentCompany.log.add("getUI");
+    //currentCompany.log.add("getUI");
     var modelLoaded = apiCallInfo.responseSchema!;
 
     WidgetTyped ret = await getRootWidgetTyped(

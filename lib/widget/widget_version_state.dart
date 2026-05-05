@@ -226,8 +226,8 @@ class _WidgetVersionStateState extends State<WidgetVersionState>
 
       if (widget.version == widget.model!.versions!.first) {
         var accessor = ModelAccessorAttr(
-          node: widget.modelParent!.selectedAttr!,
-          schema: widget.modelParent!,
+          node: widget.modelParent.selectedAttr!,
+          schema: widget.modelParent,
           propName: '#versionState',
         );
         accessor.set(state, force: true);

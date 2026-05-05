@@ -11,7 +11,7 @@ import 'package:collection/collection.dart';
 
 class CompanyModelSchema {
   bool isInit = false;
-  List<String> log = [];
+  //List<String> log = [];
 
   ModelSchema? listEnv;
   ModelSchema? listDomain;
@@ -38,7 +38,7 @@ class CompanyModelSchema {
   GlossaryManager glossaryManager = GlossaryManager();
 
   String companyId = 'test2';
-  String shortUserId = 'gdesomer';
+  String shortUserId = '?';
 
   User? user;
   Map? userProfil;

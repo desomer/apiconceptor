@@ -422,14 +422,14 @@ class ModelAccessorAttr extends ValueAccessor {
   });
 
   final NodeAttribut node;
-  final ModelSchema schema;
+  final ModelSchema? schema;
   final String propName;
   final bool editable;
 
   NodeAttribut getNode() {
     var path = node.info.getMasterIDPath();
     if (path.isEmpty) path = node.info.masterID!;
-    return schema.getNodeByMasterIdPath(path) ?? node;
+    return schema?.getNodeByMasterIdPath(path) ?? node;
   }
 
   @override
@@ -445,12 +445,12 @@ class ModelAccessorAttr extends ValueAccessor {
 
     var propChangeValue = aNode.info.properties?[propName];
     if (withHistory) {
-      schema.addHistory(aNode, path, ChangeOpe.change, propChangeValue, value);
+      schema?.addHistory(aNode, path, ChangeOpe.change, propChangeValue, value);
     } else {
       node.info.action = 'U';
     }
     aNode.info.properties?[propName] = value;
-    schema.saveProperties();
+    schema?.saveProperties();
     aNode.repaint();
   }
 
@@ -459,11 +459,11 @@ class ModelAccessorAttr extends ValueAccessor {
     var aNode = getNode();
     var path = '${aNode.info.path}.prop.$propName';
     var propChangeValue = aNode.info.properties?[propName];
-    schema.addHistory(aNode, path, ChangeOpe.clear, propChangeValue, '');
+    schema?.addHistory(aNode, path, ChangeOpe.clear, propChangeValue, '');
 
     aNode.info.properties?.remove(propName);
 
-    schema.saveProperties();
+    schema?.saveProperties();
     // ignore: invalid_use_of_protected_member
     aNode.repaint();
   }
@@ -475,7 +475,7 @@ class ModelAccessorAttr extends ValueAccessor {
 
   @override
   bool isEditable() {
-    if (schema.isReadOnlyModel) return false;
+    if (schema?.isReadOnlyModel ?? true) return false;
     if (!editable || node.info.isInitByRef) return false;
     return true;
   }

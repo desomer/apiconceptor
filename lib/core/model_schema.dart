@@ -159,6 +159,7 @@ class ModelSchema {
   final List<ModelSchema> dependency = [];
 
   final List histories = [];
+  bool withHistory = true;
 
   final Map<String, AttributInfo> mapInfoByTreePath = {};
 
@@ -356,7 +357,7 @@ class ModelSchema {
 
   bool onDeleteAttr(ModelSchema model, AttributInfo attr) {
     var sel = currentYamlTree?.getTextSelection();
-    print(sel);
+    //print(sel);
     if (sel?.isCollapsed ?? false) {
       lastDeleteAttr = attr;
       lastDeleteEditorStartAt = sel!.start;
@@ -374,6 +375,7 @@ class ModelSchema {
   }) {
     node.info.action = 'U';
     String? uuid;
+    if (!withHistory || !autoSaveProperties) return;
 
     if (histories.isNotEmpty) {
       var last = histories.last;
