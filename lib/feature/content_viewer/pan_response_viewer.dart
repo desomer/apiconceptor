@@ -1,10 +1,10 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
-import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -16,8 +16,10 @@ import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/pages/router_config.dart';
-import 'package:jsonschema/start_core.dart';
 
+/// affiche la réponse d'une API en fonction d'un modelSchema de réponse
+/// avec ou sans critria de recherche
+///    getUI   ou   getUIPage avec les 2
 class PanResponseViewer extends StatefulWidget {
   const PanResponseViewer({
     super.key,
@@ -34,62 +36,6 @@ class PanResponseViewer extends StatefulWidget {
   State<PanResponseViewer> createState() => _PanResponseViewerState();
 }
 
-class ConfigDataSource {
-  String? name;
-  AttributInfo? paramToLoad;
-  ConfigBlock criteria = ConfigBlock();
-  ConfigBlock data = ConfigBlock();
-  WidgetFactory? aFactory;
-  String? repositoryId;
-  List<ComputedValue> computedProps = [];
-}
-
-class ComputedValue {
-  String id;
-  String name;
-  String expression;
-
-  ComputedValue({
-    required this.id,
-    required this.name,
-    required this.expression,
-  });
-
-  // dynamic eval(List<String> logs) async {
-  //   CoreExpression run = CoreExpression();
-  //   dynamic r;
-
-  //   try {
-  //     run.init(expression, logs: logs, isAsync: true);
-  //     r = await run.eval(logs: logs, variables: {});
-  //     print('script return =  $r');
-  //   } catch (e) {
-  //     print(e);
-  //   }
-
-  //   return r;
-  // }
-}
-
-class ConfigLink {
-  final String onPath;
-  final String title;
-  final String toDatasrc;
-
-  ConfigLink({
-    required this.onPath,
-    required this.title,
-    required this.toDatasrc,
-  });
-}
-
-class ConfigBlock {
-  List<String> dataDisplayPath = [];
-  String? paginationVariable;
-  int min = 0;
-  List<ConfigLink> links = [];
-}
-
 mixin UIMixin {
   Future<WidgetTyped> getRootWidgetTyped(
     ModelSchema? modelLoaded,
@@ -98,8 +44,9 @@ mixin UIMixin {
     GenericToUi aJson2ui,
     bool widgetModeLegacy,
     BuildContext? context,
-    ConfigBlock? config,
-  ) async {
+    ConfigBlock? config, {
+    required bool withData,
+  }) async {
     if (aJson2ui.aExport == null) {
       aJson2ui.aExport = Export2UI(config: BrowserConfig());
       await aJson2ui.aExport!.browseSync(modelLoaded!, false, 0);
@@ -123,14 +70,13 @@ mixin UIMixin {
       ui.stateMgr.jsonUI = export.json;
       stateManager = ui.stateMgr;
 
-      ret =
-          ui.browseJsonToWidget(
-            name,
-            export.json,
-            path: '',
-            pathData: '',
-            parentType: WidgetType.root,
-          )!;
+      ret = ui.browseJsonToWidget(
+        name,
+        export.json,
+        path: '',
+        pathData: '',
+        parentType: WidgetType.root,
+      )!;
     } else {
       var ui = aJson2ui as PanToUi;
       ui.stateMgr.jsonUI = export.json;
@@ -152,24 +98,25 @@ mixin UIMixin {
     }
 
     if (stateManager.dataEmpty == null) {
-      var dataEmpty = Export2FakeJson(
+      var fakeGenerator = Export2FakeJson(
         config: BrowserConfig(),
         modeArray: ModeArrayEnum.anyInstance,
         mode: ModeEnum.empty,
         propMode: PropertyRequiredEnum.all,
       );
-      await dataEmpty.browseSync(modelLoaded!, false, 0);
-      stateManager.dataEmpty = dataEmpty.json;
+      await fakeGenerator.browseSync(modelLoaded!, false, 0);
+      stateManager.dataEmpty = fakeGenerator.json;
 
-      if (stateManager.data == null) {
-        var data = Export2FakeJson(
+      if (stateManager.data == null && withData) {
+        // charge des datas vides pour les champs non obligatoire
+        var fakeGenerator = Export2FakeJson(
           config: BrowserConfig(),
           modeArray: ModeArrayEnum.anyInstance,
           mode: ModeEnum.empty,
           propMode: PropertyRequiredEnum.all,
         );
-        await data.browseSync(modelLoaded, false, 0);
-        stateManager.data = data.json;
+        await fakeGenerator.browseSync(modelLoaded, false, 0);
+        stateManager.data = fakeGenerator.json;
       }
     }
 
@@ -186,13 +133,12 @@ mixin UIMixin {
     } else {
       var ui = aJson2ui as PanToUi;
       ui.labelRoot = name;
-      ret =
-          ui.getWidgetTyped(
-            ui.stateMgr.browser.rootContext!.listPanOfJson.first,
-            WidgetType.root,
-            "",
-            [],
-          )!;
+      ret = ui.getWidgetTyped(
+        ui.stateMgr.browser.rootContext!.listPanOfJson.first,
+        WidgetType.root,
+        "",
+        [],
+      )!;
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
         var data = aJson2ui.stateMgr.data;
         if (data != null) {
@@ -213,12 +159,14 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
   @override
   void initState() {
     apiCallInfo = widget.requestHelper.apiCallInfo;
+    widget.requestHelper.callerDatasource = widget.callerDatasource;
 
     if (widget.modeLegacy) {
       json2ui = JsonToUi(state: this);
       json2uiCriteria = JsonToUi(state: this);
     } else {
       json2ui = PanToUi(state: this, withScroll: true);
+      (json2ui as PanToUi).requestHelper = widget.requestHelper;
       json2uiCriteria = PanToUi(state: this, withScroll: true);
     }
 
@@ -237,7 +185,8 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       json2ui,
       widget.modeLegacy,
       context,
-      widget.callerDatasource?.config.criteria,
+      widget.callerDatasource?.dsConfig.criteria,
+      withData: true,
     );
 
     return ret.widget;
@@ -262,7 +211,8 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       widget.modeLegacy,
       // ignore: use_build_context_synchronously
       context,
-      widget.callerDatasource?.config.criteria,
+      widget.callerDatasource?.dsConfig.criteria,
+      withData: true,
     );
 
     return ret.widget;
@@ -292,7 +242,8 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
       widget.modeLegacy,
       // ignore: use_build_context_synchronously
       context,
-      widget.callerDatasource?.config.data,
+      widget.callerDatasource?.dsConfig.data,
+      withData: false,
     );
 
     return ret.widget;
@@ -309,8 +260,73 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
     Widget data = await getUIResponse();
 
     var paginationVariable =
-        widget.callerDatasource?.config.criteria.paginationVariable;
-    var paginationMin = widget.callerDatasource?.config.criteria.min ?? 0;
+        widget.callerDatasource?.dsConfig.criteria.paginationVariable;
+    var paginationMin = widget.callerDatasource?.dsConfig.criteria.min ?? 0;
+
+    List<Widget> saveWidget = [];
+    if (widget.callerDatasource != null && widget.callerDatasource!.canSave()) {
+      saveWidget.add(Spacer());
+      saveWidget.add(
+        ElevatedButton.icon(
+          icon: Icon(Icons.add),
+          onPressed: () {
+            json2ui.stateMgr.data = jsonDecode(
+              jsonEncode(json2ui.stateMgr.dataEmpty),
+            );
+            json2ui.loadData(json2ui.stateMgr.data);
+          },
+          label: Text('Create'),
+        ),
+      );
+      saveWidget.add(
+        ElevatedButton.icon(
+          icon: Icon(Icons.save),
+          onPressed: () {
+            //startSearch(context);
+            if (widget.callerDatasource != null &&
+                widget.callerDatasource!.dsConfig.data.rowsVariable != null) {
+              var dataToSave = json2ui
+                  .stateMgr
+                  .data[widget.callerDatasource!.dsConfig.data.rowsVariable];
+              if (dataToSave is List) {
+                for (var e in dataToSave) {
+                  if (e is Map && e.containsKey(cstStorage)) {
+                    if (e[cstStorage][cstStorageChange] != null) {
+                      // update
+                      bddStorage.saveData(
+                        widget.callerDatasource!,
+                        apiCallInfo.currentAPIResponse,
+                        e,
+                      );
+                    } else {
+                      // create
+                      bddStorage.saveData(
+                        widget.callerDatasource!,
+                        apiCallInfo.currentAPIResponse,
+                        e,
+                      );
+                    }
+                    bddStorage.saveData(
+                      widget.callerDatasource!,
+                      apiCallInfo.currentAPIResponse,
+                      e,
+                    );
+                  }
+                }
+              }
+            } else {
+              bddStorage.saveData(
+                widget.callerDatasource,
+                apiCallInfo.currentAPIResponse,
+                json2ui.stateMgr.data,
+              );
+            }
+            json2ui.stateMgr.clearDisplayedData();
+          },
+          label: Text('Save'),
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       child: Column(
@@ -331,6 +347,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
                 },
                 label: Text('Search'),
               ),
+
               if (paginationVariable != null)
                 ElevatedButton.icon(
                   icon: Icon(Icons.navigate_before),
@@ -349,6 +366,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
                   },
                   label: Text('Next'),
                 ),
+              ...saveWidget,
             ],
           ),
           data,
@@ -457,15 +475,15 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
         future: getUIPage(),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
-            if (widget.callerDatasource?.config.paramToLoad != null &&
+            if (widget.callerDatasource?.dsConfig.paramToLoad != null &&
                 firstLoad) {
               firstLoad = false;
-              loadCriteria(widget.callerDatasource!.config.paramToLoad!).then((
-                value,
-              ) {
-                // ignore: use_build_context_synchronously
-                startSearch(context);
-              });
+              loadCriteria(widget.callerDatasource!.dsConfig.paramToLoad!).then(
+                (value) {
+                  // ignore: use_build_context_synchronously
+                  startSearch(context);
+                },
+              );
             }
 
             return snapshot.data!;
@@ -516,6 +534,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
   }
 
   void startSearch(BuildContext context) async {
+    json2ui.stateMgr.clearDisplayedData();
     widget.requestHelper.startCancellableSearch(
       context,
       json2uiCriteria.stateMgr.data,

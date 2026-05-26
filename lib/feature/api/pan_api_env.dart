@@ -1,4 +1,4 @@
-import 'package:animated_tree_view/tree_view/tree_node.dart';
+
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -41,10 +41,10 @@ class InfoManagerEnv extends InfoManager with WidgetHelper {
     );
   }
 
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    throw UnimplementedError();
-  }
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   throw UnimplementedError();
+  // }
 
   @override
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {

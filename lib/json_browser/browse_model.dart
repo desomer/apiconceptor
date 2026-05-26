@@ -1,4 +1,3 @@
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -146,10 +145,10 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
     return null;
   }
 
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    return Container();
-  }
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   return Container();
+  // }
 
   @override
   Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
@@ -161,8 +160,9 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
 
     String name = attr.name;
 
-    Color? iconColor =
-        attr.isRefAttr() ? Colors.grey.shade800 : Colors.blueGrey;
+    Color? iconColor = attr.isRefAttr()
+        ? Colors.grey.shade800
+        : Colors.blueGrey;
 
     if (isRoot) {
       icon = Icon(Icons.business, color: iconColor);
@@ -187,7 +187,12 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
               direction: Axis.horizontal,
               children: [
                 Expanded(
-                  child: Text(name, overflow: TextOverflow.fade, maxLines: 1),
+                  child: Text(
+                    name,
+                    overflow: TextOverflow.fade,
+                    maxLines: 1,
+                    style: TextStyle(fontSize: 14),
+                  ),
                 ),
                 getWidgetType(node.data, isModel, isRoot, context),
               ],
@@ -213,20 +218,20 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
     var w = getChip(
       isModel
           ? Row(
-            spacing: 5,
-            children: [
-              Text(attr.info.type),
-              Icon(Icons.arrow_forward_ios, size: 10),
-            ],
-          )
+              spacing: 5,
+              children: [
+                Text(attr.info.type),
+                Icon(Icons.arrow_forward_ios, size: 10),
+              ],
+            )
           : hasError
           ? Row(
-            spacing: 5,
-            children: [
-              Text(attr.info.type),
-              Icon(Icons.arrow_drop_down, size: 15),
-            ],
-          )
+              spacing: 5,
+              children: [
+                Text(attr.info.type),
+                Icon(Icons.arrow_drop_down, size: 15),
+              ],
+            )
           : Text(attr.info.type),
       color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
     );
@@ -377,52 +382,52 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     return null;
   }
 
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    var isRoot = node.isRoot;
-    var isFolder = node.data!.info.type == 'folder';
-    var isModel = node.data!.info.type == 'model';
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   var isRoot = node.isRoot;
+  //   var isFolder = node.data!.info.type == 'folder';
+  //   var isModel = node.data!.info.type == 'model';
 
-    var isObject = node.data!.info.type == 'Object';
-    var isOneOf = node.data!.info.type == '\$anyOf';
-    var isRef = node.data!.info.type == '\$ref';
-    var isType = node.data!.info.name == constType;
-    var isInherit = node.data!.info.name == constInherit;
-    var isArray =
-        node.data!.info.type == 'Array' || node.data!.info.type.endsWith('[]');
-    String name = node.data!.yamlNode.key.toString();
+  //   var isObject = node.data!.info.type == 'Object';
+  //   var isOneOf = node.data!.info.type == '\$anyOf';
+  //   var isRef = node.data!.info.type == '\$ref';
+  //   var isType = node.data!.info.name == constType;
+  //   var isInherit = node.data!.info.name == constInherit;
+  //   var isArray =
+  //       node.data!.info.type == 'Array' || node.data!.info.type.endsWith('[]');
+  //   String name = node.data!.yamlNode.key.toString();
 
-    Widget icon = Container(width: 20);
-    if (isRoot) {
-      icon = Icon(Icons.business);
-    } else if (isInherit) {
-      icon = Icon(Icons.call_split);
-    } else if (isFolder) {
-      icon = Icon(Icons.lan_outlined);
-    } else if (isModel) {
-      icon = Icon(Icons.data_object);
-    } else if (isObject) {
-      icon = Icon(Icons.data_object);
-    } else if (isRef) {
-      icon = Icon(Icons.link);
-      name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
-    } else if (isOneOf) {
-      name = '\$anyOf';
-      icon = Icon(Icons.looks_one_rounded);
-    } else if (isArray) {
-      icon = Icon(Icons.data_array);
-    } else if (isType) {
-      name = '\$type';
-      icon = Icon(Icons.type_specimen_outlined);
-    }
+  //   Widget icon = Container(width: 20);
+  //   if (isRoot) {
+  //     icon = Icon(Icons.business);
+  //   } else if (isInherit) {
+  //     icon = Icon(Icons.call_split);
+  //   } else if (isFolder) {
+  //     icon = Icon(Icons.lan_outlined);
+  //   } else if (isModel) {
+  //     icon = Icon(Icons.data_object);
+  //   } else if (isObject) {
+  //     icon = Icon(Icons.data_object);
+  //   } else if (isRef) {
+  //     icon = Icon(Icons.link);
+  //     name = '\$${node.data?.info.properties?[constRefOn] ?? '?'}';
+  //   } else if (isOneOf) {
+  //     name = '\$anyOf';
+  //     icon = Icon(Icons.looks_one_rounded);
+  //   } else if (isArray) {
+  //     icon = Icon(Icons.data_array);
+  //   } else if (isType) {
+  //     name = '\$type';
+  //     icon = Icon(Icons.type_specimen_outlined);
+  //   }
 
-    return GetHeaderRowWidget(
-      icon: icon,
-      name: name,
-      isObject: isObject,
-      isArray: isArray,
-    );
-  }
+  //   return GetHeaderRowWidget(
+  //     icon: icon,
+  //     name: name,
+  //     isObject: isObject,
+  //     isArray: isArray,
+  //   );
+  // }
 
   @override
   Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
@@ -440,8 +445,9 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     var isInherit = attr.name == constInherit;
     String name = attr.name;
 
-    Color? iconColor =
-        attr.isRefAttr() ? Colors.grey.shade800 : Colors.blueGrey;
+    Color? iconColor = attr.isRefAttr()
+        ? Colors.grey.shade800
+        : Colors.blueGrey;
 
     if (isRoot) {
       icon = Icon(Icons.business, color: iconColor, size: 20);
@@ -489,7 +495,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
               child: icon,
             ),
           ),
-        if (icon == null) 
+        if (icon == null)
           Container(width: 10), // to align with other rows with icon
         Expanded(
           child: InkWell(
@@ -525,23 +531,22 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
                         overflow: TextOverflow.fade,
                         maxLines: 1,
                         name,
-                        style:
-                            (isObject || isArray)
-                                ? TextStyle(
-                                  decoration:
-                                      isDeprecated
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                  fontWeight: FontWeight.bold,
-                                  color: colorText,
-                                )
-                                : TextStyle(
-                                  color: colorText,
-                                  decoration:
-                                      isDeprecated
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                ),
+                        style: (isObject || isArray)
+                            ? TextStyle(
+                                decoration: isDeprecated
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                fontWeight: FontWeight.bold,
+                                color: colorText,
+                                fontSize: 14,
+                              )
+                            : TextStyle(
+                                color: colorText,
+                                fontSize: 14,
+                                decoration: isDeprecated
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
                       ),
                     ),
                   ),
@@ -564,7 +569,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(5, 0, 5, 0),
-            decoration:  BoxDecoration(
+            decoration: BoxDecoration(
               color: Colors.grey.withAlpha(100),
               borderRadius: BorderRadius.all(Radius.circular(5)),
               border: Border.all(color: Colors.blueGrey, width: 1),
@@ -616,14 +621,14 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     var w = getChip(
       isModel
           ? Row(
-            spacing: 5,
-            children: [Text(type), Icon(Icons.arrow_forward_ios, size: 10)],
-          )
+              spacing: 5,
+              children: [Text(type), Icon(Icons.arrow_forward_ios, size: 10)],
+            )
           : hasError
           ? Row(
-            spacing: 5,
-            children: [Text(type), Icon(Icons.arrow_drop_down, size: 15)],
-          )
+              spacing: 5,
+              children: [Text(type), Icon(Icons.arrow_drop_down, size: 15)],
+            )
           : Text(type),
       color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
     );
@@ -737,10 +742,9 @@ class GetHeaderRowWidget extends StatelessWidget {
             ),
             Text(
               name,
-              style:
-                  (isObject || isArray)
-                      ? const TextStyle(fontWeight: FontWeight.bold)
-                      : null,
+              style: (isObject || isArray)
+                  ? const TextStyle(fontWeight: FontWeight.bold)
+                  : null,
             ),
           ],
         ),

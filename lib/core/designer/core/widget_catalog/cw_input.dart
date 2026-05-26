@@ -81,7 +81,7 @@ class CwInput extends CwWidget {
 
 class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
   @override
-  void setBindJsonValue(value) {
+  void setBindJsonValue(dynamic parent, dynamic value) {
     if (widget.ctx.aFactory.isModeViewer()) {
       if (formatter != null) {
         value = formatter!.aInfoMask!.getMaskedValue(formatter!, value);

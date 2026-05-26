@@ -1,10 +1,12 @@
 import 'dart:developer' as dev show log;
 
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
+import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
 
@@ -54,32 +56,28 @@ mixin NameMixin {
     return input
         .split(regex)
         .map(
-          (word) =>
-              word.length > 1 && word.toUpperCase() == word
-                  ? word // conserve les acronymes
-                  : word.toLowerCase(),
+          (word) => word.length > 1 && word.toUpperCase() == word
+              ? word // conserve les acronymes
+              : word.toLowerCase(),
         )
         .join(' ');
   }
 
   String camelCaseToWordsCapitalized(String input) {
     final parts = input.split('_'); // Sépare les blocs par underscore
-    final formattedParts =
-        parts.map((part) {
-          final regex = RegExp(r'(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])');
-          final words =
-              part
-                  .split(regex)
-                  .map(
-                    (word) =>
-                        word.length > 1 && word.toUpperCase() == word
-                            ? word // acronyme
-                            : word.toLowerCase(),
-                  )
-                  .toList();
+    final formattedParts = parts.map((part) {
+      final regex = RegExp(r'(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])');
+      final words = part
+          .split(regex)
+          .map(
+            (word) => word.length > 1 && word.toUpperCase() == word
+                ? word // acronyme
+                : word.toLowerCase(),
+          )
+          .toList();
 
-          return words.join(' ');
-        }).toList();
+      return words.join(' ');
+    }).toList();
 
     if (formattedParts.isEmpty) return '';
     formattedParts[0] =
@@ -177,12 +175,11 @@ mixin WidgetUIHelper {
       height: -1,
       widget: WidgetContentInput(
         key: ObjectKey(ctx.data), // obligatoire pour les onglets
-        info:
-            WidgetConfigInfo(json2ui: genui, name: ctx.attrName)
-              ..inArrayValue = (ctx.parentType == WidgetType.list)
-              ..setPathValue(ctx.path)
-              ..setPathData(ctx.pathData)
-              ..panInfo = panInfo,
+        info: WidgetConfigInfo(json2ui: genui, name: ctx.attrName)
+          ..inArrayValue = (ctx.parentType == WidgetType.list)
+          ..setPathValue(ctx.path)
+          ..setPathData(ctx.pathData)
+          ..panInfo = panInfo,
       ),
     );
   }
@@ -196,6 +193,7 @@ mixin WidgetUIHelper {
     int idx = -1;
     var pathData = pathDataContainer;
     if (pathData.endsWith(']')) {
+      // recherche de l'index
       pathData = pathData.substring(0, pathData.length - 1);
       int end = pathData.lastIndexOf('[');
       String idxTxt = pathData.substring(end + 1);
@@ -207,7 +205,7 @@ mixin WidgetUIHelper {
     if (dataContainer != null) {
       var data = dataContainer.jsonData;
       dynamic row;
-      dynamic val;
+      dynamic currentVal;
       if (data is List) {
         if (idx >= 0) {
           row = data[idx];
@@ -215,23 +213,53 @@ mixin WidgetUIHelper {
         if (row is Map) {
           idx = -1;
           data = row;
-          val = data[info.name];
+          currentVal = data[info.name];
         } else {
           // cas de liste de String, int
-          val = row;
+          currentVal = row;
         }
       } else {
-        val = data[info.name];
+        currentVal = data[info.name];
       }
 
-      if (value != val?.toString()) {
+      if (value != currentVal?.toString()) {
         if (idx >= 0) {
           data[idx] = getValue(type, value);
         } else {
+          if (info.json2ui is PanToUi) {
+            if ((info.json2ui as PanToUi).requestHelper?.callerDatasource
+                    ?.isStorable() ==
+                true) {
+              var rowsVariable = (info.json2ui as PanToUi)
+                  .requestHelper
+                  ?.callerDatasource!
+                  .getRowsVariable()!;
+              var idx = extractIndex(pathDataContainer);
+              var rootPathData = "/$rowsVariable[$idx]";
+              StateContainer? root = info.json2ui.getStateContainer(
+                rootPathData,
+              );
+              var changePath = info.pathValue!.substring(rootPathData.length+1);
+
+              root?.jsonData[cstStorage] ??= {};
+              root?.jsonData[cstStorage][cstStorageChange] ??= {};
+              root?.jsonData[cstStorage][cstStorageChange][changePath] ??= currentVal;
+            }
+          }
           data[info.name] = getValue(type, value);
         }
       }
     }
+  }
+
+  int? extractIndex(String path) {
+    final start = path.indexOf('[');
+    if (start == -1) return null; // pas d'index
+
+    final end = path.indexOf(']', start);
+    if (end == -1) return null;
+
+    return int.tryParse(path.substring(start + 1, end));
   }
 
   dynamic getValue(InputType type, String val) {
@@ -314,12 +342,11 @@ mixin WidgetUIHelper {
         }
         if (propAttribut.properties?['enum'] != null) {
           inputDesc.typeInput = InputType.choise;
-          inputDesc.choiseItem =
-              propAttribut.properties!['enum']
-                  .toString()
-                  .split('\n')
-                  .map((e) => e.trim())
-                  .toList();
+          inputDesc.choiseItem = propAttribut.properties!['enum']
+              .toString()
+              .split('\n')
+              .map((e) => e.trim())
+              .toList();
           if (!inputDesc.choiseItem!.contains('')) {
             inputDesc.choiseItem!.insert(0, '');
           }
@@ -332,7 +359,7 @@ mixin WidgetUIHelper {
           inputDesc.isRequired = true;
         }
       }
-    } else if (!info.json2ui.modeTemplate && info.panInfo==null) {
+    } else if (!info.json2ui.modeTemplate && info.panInfo == null) {
       dev.log("no found $pathData", level: 100);
       if (inputDesc.typeInput == InputType.choise) {
         inputDesc.typeInput = InputType.text;

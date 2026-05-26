@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
-import 'package:jsonschema/feature/transform/pan_model_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -14,7 +14,7 @@ class DesignModelUIPage extends GenericPageStateless {
 
   @override
   Widget build(BuildContext context) {
-    return PanContentViewer(masterIdModel: model, nameModel: nameModel);
+    return PanModelViewer(masterIdModel: model, nameModel: nameModel);
   }
 
   @override

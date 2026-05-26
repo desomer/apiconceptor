@@ -1,5 +1,22 @@
 import 'package:jsonschema/core/compute/core_data_eval.dart';
 
+class ResultCompil {
+  final String? error;
+  final int idx;
+  final String line;
+
+  ResultCompil({required this.idx, required this.line, this.error});
+}
+
+class ResultExec {
+  final String? error;
+  final int idx;
+  final String line;
+  final dynamic value;
+
+  ResultExec({required this.idx, required this.line, this.error, this.value});
+}
+
 class CoreExpression {
   static Map<String, CoreDataEval> cache = {};
 

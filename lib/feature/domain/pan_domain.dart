@@ -1,4 +1,3 @@
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -246,10 +245,10 @@ class InfoManagerDomain extends InfoManager with WidgetHelper {
     );
   }
 
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    throw UnimplementedError();
-  }
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   throw UnimplementedError();
+  // }
 
   @override
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
@@ -303,10 +302,10 @@ class InfoManagerDomainVariables extends InfoManager with WidgetHelper {
     );
   }
 
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    throw UnimplementedError();
-  }
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   throw UnimplementedError();
+  // }
 
   @override
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
@@ -325,7 +324,6 @@ class InfoManagerDomainVariables extends InfoManager with WidgetHelper {
 
   @override
   Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
-    // TODO: implement getRowHeader
     throw UnimplementedError();
   }
 }

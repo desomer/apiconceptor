@@ -53,31 +53,27 @@ class HomePage extends GenericPageStateless {
 
     return Expansible(
       controller: controller,
-      headerBuilder:
-          (_, animation) => GestureDetector(
-            onTap: () {
-              controller.isExpanded
-                  ? controller.collapse()
-                  : controller.expand();
-            },
-            child: Row(
-              spacing: 10,
-              children: [
-                SizedBox(width: 10),
-                Text(name, style: TextStyle(fontSize: 20)),
-                Icon(Icons.arrow_circle_down_sharp),
-                Spacer(),
-              ],
-            ),
-          ),
-      bodyBuilder:
-          (_, animation) => FadeTransition(opacity: animation, child: child),
-      expansibleBuilder:
-          (_, header, body, _) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [header, body],
-          ),
+      headerBuilder: (_, animation) => GestureDetector(
+        onTap: () {
+          controller.isExpanded ? controller.collapse() : controller.expand();
+        },
+        child: Row(
+          spacing: 10,
+          children: [
+            SizedBox(width: 10),
+            Text(name, style: TextStyle(fontSize: 20)),
+            Icon(Icons.arrow_circle_down_sharp),
+            Spacer(),
+          ],
+        ),
+      ),
+      bodyBuilder: (_, animation) =>
+          FadeTransition(opacity: animation, child: child),
+      expansibleBuilder: (_, header, body, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [header, body],
+      ),
     );
   }
 
@@ -124,12 +120,12 @@ class HomePage extends GenericPageStateless {
             route: Pages.models,
           ),
           WidgetMenuBtn(label: 'Design API', icon: Icons.api, route: Pages.api),
+          WidgetMenuBtn(label: 'Design Message', icon: Icons.message_outlined),
           WidgetMenuBtn(
             label: 'Data source',
             icon: Icons.dataset_linked,
             route: Pages.dataSource,
           ),
-          WidgetMenuBtn(label: 'Design Message', icon: Icons.message_outlined),
           WidgetMenuBtn(
             label: 'Validation Workflow',
             icon: Icons.wechat_rounded,
@@ -293,6 +289,7 @@ class HomePage extends GenericPageStateless {
         BreadNode(
           icon: const Icon(Icons.account_circle_outlined),
           settings: const RouteSettings(name: 'Profil'),
+          path: Pages.profile.urlpath,
           type: BreadNodeType.widget,
         ),
       ];

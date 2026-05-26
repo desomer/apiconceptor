@@ -135,6 +135,9 @@ class PanModelSelector extends PanYamlTree {
       getModel: () {
         return getSchema();
       },
+      onClose: () {
+        doShowAttrEditor(null);
+      },
     );
   }
 

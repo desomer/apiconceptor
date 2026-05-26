@@ -284,8 +284,8 @@ class WidgetFactory {
     }
     var child = <String, dynamic>{
       cwImplement: cmpType,
-      if (props != null) cwProps: props,
-      if (slotProps != null) cwPropsSlot: slotProps,
+      cwProps: ?props,
+      cwPropsSlot: ?slotProps,
     };
     child[cwSlotId] = id;
     slots[id] = child;

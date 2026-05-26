@@ -25,11 +25,13 @@ class PageDesigner extends StatefulWidget {
 
 class _PageDesignerState extends State<PageDesigner> {
   bool isInitialized = false;
+  bool mustDesignStarted = false;
 
   @override
   void initState() {
     Map app = widget.factory.appData[cwApp] ?? {};
     if (app.isEmpty) {
+      //chargement de la page en bdd
       var attr = currentCompany.currentApps!.selectedAttr!;
       var accessor = ModelAccessorAttr(
         node: attr,
@@ -46,17 +48,20 @@ class _PageDesignerState extends State<PageDesigner> {
               // affiche apres avoir tout charger les repositories
               widget.factory.appData = saveData;
               isInitialized = true;
+              mustDesignStarted = true;
               setState(() {});
             });
       } else {
         widget.factory.getEmptyApp();
         isInitialized = true;
+        mustDesignStarted = true;
         // Future.delayed(Duration(milliseconds: 500), () {
         //   widget.factory.rootCtx?.selectOnDesigner();
         // });
       }
     } else {
       isInitialized = true;
+      mustDesignStarted = true;
     }
     super.initState();
   }
@@ -65,8 +70,8 @@ class _PageDesignerState extends State<PageDesigner> {
   Widget build(BuildContext context) {
     widget.factory.mode = widget.mode;
 
-    if (isInitialized) {
-      isInitialized = false;
+    if (mustDesignStarted) {
+      mustDesignStarted = false;
       widget.factory.onStarted?.call(context);
     }
     Widget rootSlot = widget.factory.getRootSlot('/');
@@ -74,15 +79,7 @@ class _PageDesignerState extends State<PageDesigner> {
     if (widget.mode == DesignMode.viewer) {
       var j = jsonEncode(widget.factory.appData);
 
-      var attr = currentCompany.currentApps!.selectedAttr!;
-      var accessor = ModelAccessorAttr(
-        node: attr,
-        schema: currentCompany.currentApps!,
-        propName: 'appData',
-      );
-
-      accessor.set(j);
-      //prefs.setString("page_designer_data_${widget.factory.id}", j);
+      savePage(j);
 
       return PagesDesignerViewer(
         cWDesignerMode: false,
@@ -153,13 +150,35 @@ class _PageDesignerState extends State<PageDesigner> {
         ),
         widget.factory.largeDesigner
             ? SplitView(
-              secondaryWidth: 300,
-              primaryWidth: -1,
-              children: [getPageViewer(rootSlot), getTabComponent()],
-            )
+                secondaryWidth: 300,
+                primaryWidth: -1,
+                children: [getPageViewer(rootSlot), getTabComponent()],
+              )
             : getPageViewer(rootSlot),
       ],
     );
+  }
+
+  void savePage(String data) {
+    if (!isInitialized) {
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(
+      //     backgroundColor: Colors.red,
+      //     content: Text("savePage: not initialized"),
+      //   ),
+      // );
+      return;
+    }
+
+    var attr = currentCompany.currentApps!.selectedAttr!;
+    var accessor = ModelAccessorAttr(
+      node: attr,
+      schema: currentCompany.currentApps!,
+      propName: 'appData',
+    );
+
+    // save current app data to be able to restore it when go back to designer
+    accessor.set(data);
   }
 
   Widget getPageViewer(Widget rootSlot) {
@@ -175,7 +194,10 @@ class _PageDesignerState extends State<PageDesigner> {
 
   Widget getTabComponent() {
     return WidgetTab(
-      listTab: [Tab(text: 'Components'), Tab(text: 'Pages & dialogs')],
+      listTab: [
+        Tab(text: 'Components'),
+        Tab(text: 'Pages & dialogs'),
+      ],
       listTabCont: [
         WidgetChoiser(factory: widget.factory),
         WidgetPages(factory: widget.factory),

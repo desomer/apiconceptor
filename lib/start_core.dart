@@ -6,7 +6,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_env.dart';
-import 'package:jsonschema/feature/transform/pan_model_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
 import 'package:jsonschema/feature/domain/pan_domain.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
@@ -19,10 +19,16 @@ import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_zoom_selector.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
+import 'package:supabase/supabase.dart';
 
 bool withBdd = true;
 
-Future<bool> startCore(String usermail, String password) async {
+Future<bool> startCore(
+  String usermail,
+  String password, {
+  String? accessToken,
+  String? refreshToken,
+}) async {
   const isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
   print('isRunningWithWasm $isRunningWithWasm');
 
@@ -30,7 +36,12 @@ Future<bool> startCore(String usermail, String password) async {
     startError.add('no bdd');
   } else {
     try {
-      var ok = await bddStorage.connect(usermail, password);
+      var ok = await bddStorage.connect(
+        usermail,
+        password,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
       if (!ok) {
         return false;
       }
@@ -106,6 +117,28 @@ Future<bool> startCore(String usermail, String password) async {
 
   UserAuthentication.stateConnection.value = 'Connected...';
   currentCompany.isInit = true;
+
+  bddStorage.supabase.auth.onAuthStateChange.listen((data) async {
+    final session = data.session;
+
+    if (session != null) {
+      await prefs.setString('access_token', session.accessToken);
+      if (session.refreshToken != null) {
+        await prefs.setString('refresh_token', session.refreshToken!);
+      }
+      if (session.user.email != null) {
+        await prefs.setString('mail', session.user.email!);
+      }
+    } else if (data.event == AuthChangeEvent.signedOut) {
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+    }
+
+    if (data.event == AuthChangeEvent.tokenRefreshed) {
+      print("Token rafraîchi !");
+    }
+  });
+
   return true;
 }
 
@@ -365,7 +398,6 @@ final ValueNotifier<int> zoom = ValueNotifier(100);
 int timezoom = 0;
 ValueNotifier<double> designZoomNotifier = ValueNotifier(100);
 ValueNotifier<String> modelAttributFilterNotifier = ValueNotifier('');
-
 
 bool isDomainAllowed(String domain) {
   print(' isDomainAllowed $domain allowed ');

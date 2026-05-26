@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/designer/editor/engine/undo_manager.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_config.dart';
@@ -17,6 +18,7 @@ import 'package:jsonschema/widget/widget_show_error.dart';
 bool showLoginDialog = true;
 bool connectBdd = true;
 bool autoLoging = true;
+bool autoLogingWithToken = true;
 
 PanYamlTree? currentYamlTree;
 
@@ -42,10 +44,31 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
   Widget build(BuildContext context) {
     final String location = widget.routerState.uri.toString();
 
+    final token = widget.routerState.uri.queryParameters['access_token'];
+
+    if (token != null) {
+      final qp = Map<String, String>.from(
+        widget.routerState.uri.queryParameters,
+      );
+      qp.remove('access_token');
+      qp.remove('refresh_token');
+
+      final cleaned = widget.routerState.uri.replace(
+        queryParameters: qp.isEmpty ? null : qp,
+      );
+      Future.delayed(Duration(seconds: 1)).then((value) {
+        // ignore: use_build_context_synchronously
+        context.replace(cleaned.toString());
+      });
+    }
+
     GenericPage page = (getPage(context, widget.routerState) as GenericPage);
 
-    var navigationInfo =
-        page.initNavigation(widget.routerState, context, null)!;
+    var navigationInfo = page.initNavigation(
+      widget.routerState,
+      context,
+      null,
+    )!;
 
     BreadCrumbNavigator.currentNavigationInfo = navigationInfo;
 
@@ -184,8 +207,28 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
                             ),
                             value: value == 'mock',
                             onChanged: (bool? newValue) {
-                              dataProviderMode.value =
-                                  (newValue ?? false ? 'mock' : 'api');
+                              dataProviderMode.value = (newValue ?? false
+                                  ? 'mock'
+                                  : 'api');
+                            },
+                          ),
+                        ),
+                        Text('  Proxy  '),
+                        Padding(
+                          padding: const EdgeInsets.all(0),
+                          child: Checkbox(
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+
+                            visualDensity: const VisualDensity(
+                              horizontal: -4,
+                              vertical: -4,
+                            ),
+                            value: value == 'proxy',
+                            onChanged: (bool? newValue) {
+                              dataProviderMode.value = (newValue ?? false
+                                  ? 'proxy'
+                                  : 'api');
                             },
                           ),
                         ),
@@ -195,7 +238,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
                 },
               ),
               Spacer(),
-              Text('API Architect by Desomer G. V1.0.4.8'),
+              Text('API Architect by Desomer G. V1.0.4.13'),
             ],
           ),
         ),
@@ -248,14 +291,15 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
       }
     }
 
-    List<NavigationRailDestination> contextMenu =
-        navigationInfo.navLeft.map((item) {
-          return NavigationRailDestination(
-            disabled: item.path == null && item.onTap == null,
-            icon: item.icon != null ? item.icon! : Icon(Icons.question_mark),
-            label: Text(item.settings.name ?? "Unknown"),
-          );
-        }).toList();
+    List<NavigationRailDestination> contextMenu = navigationInfo.navLeft.map((
+      item,
+    ) {
+      return NavigationRailDestination(
+        disabled: item.path == null && item.onTap == null,
+        icon: item.icon != null ? item.icon! : Icon(Icons.question_mark),
+        label: Text(item.settings.name ?? "Unknown"),
+      );
+    }).toList();
 
     if (contextMenu.isEmpty) {
       return SizedBox.shrink();
@@ -289,6 +333,9 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
   static Future<void> showLogin(BuildContext context) async {
     var mail = prefs.getString("mail");
     var pwd = prefs.getString("pwd");
+    
+    await prefs.remove('pwd');
+    pwd = null; // for security, do not keep the password in memory
 
     return showDialog<void>(
       barrierDismissible: false,
@@ -299,7 +346,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
           contentPadding: EdgeInsets.all(5),
           content: SizedBox(
             width: 500,
-            height: 600,
+            height: 500,
             child: LoginScreen(email: mail ?? '', pwd: pwd ?? ''),
           ),
         );
@@ -417,7 +464,42 @@ class UserAuthentication {
     'Connecting...',
   );
 
-  void logIn(BuildContext context, String email, String password) async {
+  Future<void> sendPasswordReset(BuildContext context, String email) async {
+    final normalizedEmail = email.trim();
+    if (normalizedEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your email to receive a reset link.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final supabaseClient = bddStorage.getAuthClient();
+      await supabaseClient.auth.resetPasswordForEmail(normalizedEmail);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset email sent. Check your inbox.'),
+        ),
+      );
+    } on Exception {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to send reset email. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  void logIn(
+    BuildContext context,
+    String email,
+    String password,
+    bool loggingByToken,
+  ) async {
     BuildContext? ctx;
 
     showDialog(
@@ -447,15 +529,27 @@ class UserAuthentication {
     );
 
     await Future.delayed(Duration(milliseconds: 200));
+    var accessToken = prefs.getString("access_token");
+    var refreshToken = prefs.getString("refresh_token");
 
-    var ok = await startCore(email, password);
+    if (!loggingByToken || password.isNotEmpty) {
+      accessToken = null;
+      refreshToken = null;
+    }
+
+    var ok = await startCore(
+      email,
+      password,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
     if (ctx != null) {
       // ignore: use_build_context_synchronously
       Navigator.of(ctx!).pop();
     }
     if (ok) {
       await prefs.setString("mail", email);
-      await prefs.setString("pwd", password);
+      //await prefs.setString("pwd", password);
       // ignore: use_build_context_synchronously
       Navigator.of(context).pop();
     } else {
@@ -486,13 +580,12 @@ class _TextToggleState extends State<TextToggle> {
   @override
   Widget build(BuildContext context) {
     return TextButton(
-      onPressed:
-          () => setState(() {
-            isOn = !isOn;
-            if (currentYamlTree != null) {
-              currentYamlTree!.changeFilterTarget(isOn ? 'api' : 'all');
-            }
-          }),
+      onPressed: () => setState(() {
+        isOn = !isOn;
+        if (currentYamlTree != null) {
+          currentYamlTree!.changeFilterTarget(isOn ? 'api' : 'all');
+        }
+      }),
       child: Text(
         isOn ? "Only API target" : "API",
         style: TextStyle(

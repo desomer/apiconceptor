@@ -7,7 +7,6 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_action_hub.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
-import 'package:jsonschema/feature/api/pan_api_trashcan.dart';
 import 'package:jsonschema/feature/model/pan_model_trashcan.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/pages/router_config.dart';

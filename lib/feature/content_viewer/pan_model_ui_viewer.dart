@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
@@ -9,7 +8,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/model/widget_example_choiser.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_response_viewer.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
@@ -18,8 +17,9 @@ import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
-class PanContentViewer extends StatefulWidget {
-  const PanContentViewer({
+/// un viewer de modelSchema, avec un json de données fake pour afficher le rendu
+class PanModelViewer extends StatefulWidget {
+  const PanModelViewer({
     super.key,
     this.masterIdModel,
     required this.nameModel,
@@ -29,10 +29,10 @@ class PanContentViewer extends StatefulWidget {
   final String? nameModel;
 
   @override
-  State<PanContentViewer> createState() => _PanContentViewerState();
+  State<PanModelViewer> createState() => _PanModelViewerState();
 }
 
-class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
+class _PanModelViewerState extends State<PanModelViewer> with UIMixin {
   ModelSchema? modelLoaded;
 
   Future<ModelSchema?> getModelByMasterId(
@@ -97,6 +97,7 @@ class _PanContentViewerState extends State<PanContentViewer> with UIMixin {
         // ignore: use_build_context_synchronously
         context,
         null,
+        withData: true,
       );
 
       if (!modeLegacy) {
@@ -338,13 +339,12 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
               children: [
                 Text(
                   name,
-                  style:
-                      (isObject || isArray)
-                          ? const TextStyle(fontWeight: FontWeight.bold)
-                          : null,
+                  style: (isObject || isArray)
+                      ? const TextStyle(fontWeight: FontWeight.bold)
+                      : null,
                 ),
                 Spacer(),
-                getWidgetType(node.data, isModel, isRoot),
+                _getWidgetType(node.data, isModel, isRoot),
               ],
             ),
           ),
@@ -353,7 +353,7 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
     );
   }
 
-  Widget getWidgetType(NodeAttribut attr, bool isModel, bool isRoot) {
+  Widget _getWidgetType(NodeAttribut attr, bool isModel, bool isRoot) {
     if (isRoot) return Container();
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
@@ -365,21 +365,21 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
       child: getChip(
         isModel
             ? Row(
-              spacing: 5,
-              children: [
-                Text(attr.info.type),
-                Icon(Icons.arrow_forward_ios, size: 10),
-              ],
-            )
+                spacing: 5,
+                children: [
+                  Text(attr.info.type),
+                  Icon(Icons.arrow_forward_ios, size: 10),
+                ],
+              )
             : Text(attr.info.type),
         color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
       ),
     );
   }
 
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    // TODO: implement getAttributHeaderOLD
-    throw UnimplementedError();
-  }
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   // TODO: implement getAttributHeaderOLD
+  //   throw UnimplementedError();
+  // }
 }

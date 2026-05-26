@@ -6,7 +6,7 @@ import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
 import 'package:jsonschema/feature/api/pan_api_selector_tag.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_response_viewer.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -223,7 +223,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIUIPage> {
     Future.delayed(Duration(milliseconds: 10)).then((value) {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
         requestHelper = WidgetAPIHelper(
-          apiNode: attr,
+          apiNodeForCalculatePath: attr,
           apiCallInfo: getAPICall(
             currentCompany.currentNameSpace,
             currentCompany.listAPI!.selectedAttr!,

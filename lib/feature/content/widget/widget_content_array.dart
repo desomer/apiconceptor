@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/util.dart';
@@ -47,7 +49,10 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
 
   @override
   void dispose() {
-    widget.info.json2ui.stateMgr.depsBindingManager.disposeContainer(widget.info.pathValue!, this);
+    widget.info.json2ui.stateMgr.depsBindingManager.disposeContainer(
+      widget.info.pathValue!,
+      this,
+    );
     super.dispose();
   }
 
@@ -90,12 +95,17 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
             child: Row(
               spacing: 20,
               children: [
-                Text(camelCaseToWordsCapitalized(widget.info.name)),
+                Text(
+                  camelCaseToWordsCapitalized(widget.info.name),
+                  style: items == null
+                      ? const TextStyle(color: Colors.grey)
+                      : null,
+                ),
                 TagSelector(
                   key: ObjectKey(items),
                   availableTags: v.choiseItem!,
                   initialSelected: [],
-                  accessor: InfoAccess(initialSelected: items?? []),
+                  accessor: InfoAccess(initialSelected: items),
                 ),
                 Spacer(),
               ],
@@ -198,10 +208,13 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
                     newRow = '';
                   }
 
+                  newRow = jsonDecode(jsonEncode(newRow));
+
                   items.add(newRow);
                   final currentPath =
                       '${widget.info.pathValue}[${items.length - 1}]';
                   widget.info.json2ui.stateMgr.loadDataInContainer(
+                    items,
                     newRow,
                     pathData: currentPath,
                   );
@@ -250,7 +263,7 @@ class _WidgetContentArrayState extends State<WidgetContentArray>
 }
 
 class InfoAccess extends ValueAccessor {
-  final List initialSelected;
+  final List? initialSelected;
 
   InfoAccess({required this.initialSelected});
 
@@ -266,7 +279,7 @@ class InfoAccess extends ValueAccessor {
 
   @override
   bool isEditable() {
-    return true;
+    return initialSelected != null;
   }
 
   @override
@@ -274,7 +287,7 @@ class InfoAccess extends ValueAccessor {
 
   @override
   void set(value) {
-    initialSelected.clear();
-    initialSelected.addAll(value);
+    initialSelected?.clear();
+    initialSelected?.addAll(value);
   }
 }

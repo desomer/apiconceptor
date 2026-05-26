@@ -2,16 +2,19 @@ import 'dart:convert';
 import 'dart:developer' as dev show log;
 import 'dart:math';
 import 'package:jsonschema/authorization_manager.dart';
+import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/session_storage.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/feature/api/pan_api_example.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
+
+import '../../pages/browse_api/browse_api_page.dart';
 
 class APICallManager {
   APICallManager({
@@ -50,6 +53,54 @@ class APICallManager {
   APIResponse? aResponse;
 
   List<String> logs = [];
+
+  Future<NodeAttribut> initAPIDataSrc(
+    ConfigDataSource dsConfig,
+    AttributInfo selDomain,
+    ModelSchema allApi,
+    Map<dynamic, dynamic> config,
+  ) async {
+    var apiNode = allApi.getNodeByMasterIdPath(attrApi.masterID!)!;
+    String url = getURLfromNode(apiNode);
+    var def = await loadAPI(
+      id: attrApi.masterID!,
+      namespace: selDomain.masterID,
+    );
+    print("load api $url ${def.id} ");
+
+    var param = getValueFromPath(config, 'param');
+    if (param != null) {
+      print("load param $param");
+      var paramModel = ModelSchema(
+        category: Category.exampleApi,
+        headerName: 'example',
+        id: 'example/temp/${apiNode.info.masterID!}',
+        infoManager: InfoManagerApiExample(),
+        refDomain: null,
+      )..namespace = selDomain.masterID;
+      await paramModel.loadYamlAndProperties(
+        cache: false,
+        withProperties: true,
+      );
+
+      var a = BrowseSingle(config: BrowserConfig());
+      a.browse(paramModel, false);
+
+      var paramAttr = paramModel.mapInfoByName[param]?.firstOrNull;
+      dsConfig.paramToLoad = paramAttr;
+    }
+
+    var v = getValueFromPath(config, '/data/path');
+    if (v != null) {
+      dsConfig.data.dataDisplayPath = v.toString().split(';');
+    }
+    v = getValueFromPath(config, '/criteria/path');
+    if (v != null) {
+      dsConfig.criteria.dataDisplayPath = v.toString().split(';');
+    }
+
+    return apiNode;
+  }
 
   Future<Map> generateSwagger(
     List<dynamic> servers,
@@ -166,9 +217,9 @@ class APICallManager {
     var aPath = {
       url: {
         httpOpe: {
-          if (opertionId != null) 'operationId': opertionId,
+          'operationId': ?opertionId,
           'tags': [tag],
-          if (summary != null) 'summary': summary,
+          'summary': ?summary,
           if (description != null || doc != null)
             'description':
                 (description ?? '') + (doc != null ? '\n\n$doc' : ''),
@@ -221,7 +272,8 @@ class APICallManager {
         urlp.writeln('  $element : string');
       }
 
-      currentAPIResquest.modelYaml = '''
+      currentAPIResquest.modelYaml =
+          '''
 path:
 ${urlp}query:
 header:        
@@ -283,6 +335,14 @@ body :
       }
     }
     return i;
+  }
+
+  dynamic getParamValue(String type, String name) {
+    var p = params.firstWhere(
+      (p) => p.type == type && p.name == name,
+      orElse: () => APIParamInfo(type: type, name: name, info: null),
+    );
+    return p.value;
   }
 
   void _addParams(

@@ -198,6 +198,6 @@ class _WidgetPagesState extends State<WidgetPages> {
 
   TreeNodeData<Map<String, dynamic>> getEmptyRoute({String? dragType}) =>
       TreeNodeData<Map<String, dynamic>>(
-        data: {'status': 'C', if (dragType != null) 'dragType': dragType},
+        data: {'status': 'C', 'dragType': ?dragType},
       );
 }

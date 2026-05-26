@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 class LongJsonViewerSelectableColored extends StatelessWidget {
@@ -47,7 +48,7 @@ class LongJsonViewerSelectableColored extends StatelessWidget {
           // mode super optimisé pour les très gros json, sans selection de groupe ligne, avec un cache de 1000 lignes
           Expanded(
             child: ListView.builder(
-              cacheExtent: 1000,
+              scrollCacheExtent: ScrollCacheExtent.pixels(1000),
               prototypeItem: const SelectableText(
                 maxLines: 1,
                 "Prototype",
@@ -71,10 +72,9 @@ class LongJsonViewerSelectableColored extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: SelectableText.rich(
                 TextSpan(
-                  children:
-                      lines
-                          .map((line) => _colorizeJsonLine(line, true))
-                          .toList(),
+                  children: lines
+                      .map((line) => _colorizeJsonLine(line, true))
+                      .toList(),
                 ),
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
                 textAlign: TextAlign.left,
@@ -116,7 +116,12 @@ class LongJsonViewerSelectableColored extends StatelessWidget {
         color = Colors.purple;
       }
 
-      spans.add(TextSpan(text: text, style: TextStyle(color: color)));
+      spans.add(
+        TextSpan(
+          text: text,
+          style: TextStyle(color: color),
+        ),
+      );
       last = match.end;
     }
 

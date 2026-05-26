@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:yaml/yaml.dart';
 
 Map getOpenApiSpec(dynamic servers, dynamic path, dynamic cmp, String surl) {
   String title =
@@ -42,15 +43,14 @@ Map<String, dynamic> toStringKeyMap(Map<dynamic, dynamic> input) {
           ? toStringKeyMap(value)
           : value is List
           ? value
-              .map(
-                (item) =>
-                    item is Map
-                        ? toStringKeyMap(item)
-                        : item is String
-                        ? escapeYaml(item, true) //list de string
-                        : item,
-              )
-              .toList()
+                .map(
+                  (item) => item is Map
+                      ? toStringKeyMap(item)
+                      : item is String
+                      ? escapeYaml(item, true) //list de string
+                      : item,
+                )
+                .toList()
           : key == '\$ref'
           ? escapeYaml(value, true)
           : escapeYaml(value, false),
@@ -128,9 +128,8 @@ dynamic getValueFromPath(Map<dynamic, dynamic> json, String path) {
       if (current is Map) {
         current = current[key];
       } else if (current is List) {
-        current =
-            current
-                .firstOrNull; // cas de [] sans index, on prend le premier élément
+        current = current
+            .firstOrNull; // cas de [] sans index, on prend le premier élément
         current = current?[key];
       } else {
         return null;
@@ -176,6 +175,58 @@ dynamic findValueByKey(
     }
   }
   return null;
+}
+
+dynamic yamlToDart(dynamic value, {bool stringifyNonStringMapKeys = false}) {
+  if (value is YamlMap || value is Map) {
+    final result = <String, dynamic>{};
+    final entries = (value as Map).entries;
+
+    for (final entry in entries) {
+      final key = entry.key;
+      if (key is! String && !stringifyNonStringMapKeys) {
+        throw FormatException(
+          'YAML map key must be String, got ${key.runtimeType}: $key',
+        );
+      }
+      final stringKey = key is String ? key : key.toString();
+      result[stringKey] = yamlToDart(
+        entry.value,
+        stringifyNonStringMapKeys: stringifyNonStringMapKeys,
+      );
+    }
+
+    return result;
+  }
+
+  if (value is YamlList || value is List) {
+    return (value as List)
+        .map(
+          (item) => yamlToDart(
+            item,
+            stringifyNonStringMapKeys: stringifyNonStringMapKeys,
+          ),
+        )
+        .toList();
+  }
+
+  return value; // String, num, bool, null
+}
+
+Map<String, dynamic> yamlToDartMap(
+  dynamic value, {
+  bool stringifyNonStringMapKeys = false,
+}) {
+  final converted = yamlToDart(
+    value,
+    stringifyNonStringMapKeys: stringifyNonStringMapKeys,
+  );
+
+  if (converted is Map<String, dynamic>) {
+    return converted;
+  }
+
+  throw const FormatException('Expected YAML root to be a map/object.');
 }
 
 class UtilDart {
@@ -361,7 +412,10 @@ class UtilDart {
 class TextSize {
   double getTextWidth(String text, double fontSize) {
     final TextPainter textPainter = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontSize: fontSize)),
+      text: TextSpan(
+        text: text,
+        style: TextStyle(fontSize: fontSize),
+      ),
       textDirection: TextDirection.ltr,
     );
 

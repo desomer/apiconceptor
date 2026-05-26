@@ -37,8 +37,8 @@ class Export2FakeJson<T extends Map<String, dynamic>>
 
   @override
   NodeJson doArrayOfObject(String name, NodeAttribut node) {
-    var obj = {};
-    var child = [obj];
+    Map<String, dynamic> obj = <String, dynamic>{};
+    var child = <Map<String, dynamic>>[obj];
     int? loop;
     if (modeArray == ModeArrayEnum.randomInstance) {
       loop = faker.randomGenerator.integer(maxArrayItems);
@@ -69,13 +69,15 @@ class Export2FakeJson<T extends Map<String, dynamic>>
 
   @override
   NodeJson doArrayWithAnyOf(String name, NodeAttribut node) {
-    var child = [];
+    var child = <Map<String, dynamic>>[];
+    print(child.runtimeType);
     return NodeJson(name: name, value: child);
   }
 
   @override
   NodeJson doObjectWithAnyOf(String name, NodeAttribut node) {
-    Map<String, dynamic> child = {};
+    Map<String, dynamic> child = <String, dynamic>{};
+    print(child.runtimeType);
     return NodeJson(name: name, value: child);
   }
 
@@ -119,7 +121,8 @@ class Export2FakeJson<T extends Map<String, dynamic>>
       }
     }
 
-    Map<String, dynamic> child = {};
+    Map<String, dynamic> child = <String, dynamic>{};
+    print(child.runtimeType);
     bool addName = true;
     bool parentAnyOf = node.parent?.info.name == constTypeAnyof;
     if (parentAnyOf) {
@@ -265,8 +268,10 @@ class Export2FakeJson<T extends Map<String, dynamic>>
       // sera ajouter par le type
     } else if (node.child.firstOrNull?.info.name == constRefOn) {
       // type $ref
-      var obj = {};
+      Map<String, dynamic> obj = {};
       var child = [obj];
+      // print(obj.runtimeType);
+      // print(child.runtimeType);
       int? loop;
       if (modeArray == ModeArrayEnum.randomInstance) {
         loop = faker.randomGenerator.integer(maxArrayItems);

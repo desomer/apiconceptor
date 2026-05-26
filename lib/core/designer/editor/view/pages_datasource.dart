@@ -4,8 +4,7 @@ import 'package:jsonschema/core/compute/compute_manager.dart';
 import 'package:jsonschema/core/designer/editor/view/helper/widget_carousel_choice.dart';
 import 'package:jsonschema/core/designer/editor/view/bloc_drop_attr.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/feature/transform/pan_model_viewer.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 import 'package:shortid/shortid.dart' show shortid;
 
@@ -53,7 +52,7 @@ class PagesDatasource extends StatelessWidget {
                   ],
                   onSelected: (value) {
                     typeName.value = value;
-                    dsCaller.typeLayout = value;
+                    dsCaller.panBuilderLayout = value;
                   },
                 ),
               ),
@@ -81,7 +80,7 @@ class PagesDatasource extends StatelessWidget {
                     );
                   } else if (value == 'Computed') {
                     computeManager.computedProps =
-                        dsCaller.config.computedProps;
+                        dsCaller.dsConfig.computedProps;
 
                     var listComputeKey = GlobalKey(
                       debugLabel: 'ListComputeWidget',
@@ -92,7 +91,7 @@ class PagesDatasource extends StatelessWidget {
                         TextButton(
                           onPressed: () async {
                             computeManager.computedProps =
-                                dsCaller.config.computedProps;
+                                dsCaller.dsConfig.computedProps;
                             ComputedValue cv = ComputedValue(
                               id: shortid.generate(),
                               name:
@@ -212,7 +211,8 @@ class PagesDatasource extends StatelessWidget {
       getActionButton('nextPage', 'Next Page', Icon(Icons.navigate_next)),
     );
 
-    for (var element in dsCaller.exampleData ?? const <AttributInfo>[]) {
+    for (var element
+        in dsCaller.listExampleParameters ?? const <AttributInfo>[]) {
       buttons.add(getExampleButton(element, const Icon(Icons.search_rounded)));
     }
 
@@ -221,7 +221,7 @@ class PagesDatasource extends StatelessWidget {
   }
 
   List<Widget> getLinkActions() {
-    var link = dsCaller.config.data.links;
+    var link = dsCaller.dsConfig.data.links;
     List<Widget> buttons = [];
 
     for (var l in link) {

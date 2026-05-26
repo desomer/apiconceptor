@@ -7,6 +7,7 @@ import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_value_viewer.dart';
 
+/// affiche la réponse d'une API en arbre en fonction d'un modelSchema de réponse
 class PanResponseMapper extends StatefulWidget {
   const PanResponseMapper({super.key, required this.apiCallInfo});
   final APICallManager apiCallInfo;

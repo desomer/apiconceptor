@@ -19,7 +19,7 @@ class CwRepositoryAction {
 
   void doNextPage(Map info, int max) {
     var criteria = repo.criteriaState.data;
-    var paginationVariable = repo.ds.config.criteria.paginationVariable!;
+    var paginationVariable = repo.ds.dsConfig.criteria.paginationVariable!;
 
     var page = findValueByKey(criteria, paginationVariable);
     dynamic numpage = 0;
@@ -35,12 +35,12 @@ class CwRepositoryAction {
     }
 
     findValueByKey(criteria, paginationVariable, valueToSet: numpage);
-    repo.criteriaState.loadDataInContainer(criteria);
+    repo.criteriaState.loadDataInContainer(null, criteria);
   }
 
   void doPrevPage(Map info, int min) {
     var criteria = repo.criteriaState.data;
-    var paginationVariable = repo.ds.config.criteria.paginationVariable!;
+    var paginationVariable = repo.ds.dsConfig.criteria.paginationVariable!;
     var page = findValueByKey(criteria, paginationVariable);
     dynamic numpage = 0;
     if (page is String) {
@@ -55,12 +55,12 @@ class CwRepositoryAction {
     }
 
     findValueByKey(criteria, paginationVariable, valueToSet: numpage);
-    repo.criteriaState.loadDataInContainer(criteria);
+    repo.criteriaState.loadDataInContainer(null, criteria);
   }
 
   Future<void> loadCriteria(Map info) async {
     APICallManager apiCallInfo = repo.ds.helper!.apiCallInfo;
-    AttributInfo? element = repo.ds.exampleData?.firstWhere(
+    AttributInfo? element = repo.ds.listExampleParameters?.firstWhere(
       (e) => e.masterID == info['idParam'],
     );
     if (element == null) return;
@@ -86,7 +86,7 @@ class CwRepositoryAction {
       }
       if (data != null) {
         // recharge les bonnes datas
-        repo.criteriaState.loadDataInContainer(data);
+        repo.criteriaState.loadDataInContainer(null, data);
       }
     }
   }
@@ -117,7 +117,7 @@ class CwRepositoryAction {
       await browserEmpty.browseSync(repo.dataState.schema!, false, 0);
       var data = browserEmpty.json;
       repo.dataState.data = data;
-      repo.dataState.loadDataInContainer(data);
+      repo.dataState.loadDataInContainer(null, data);
       repo.dataState.maxPageNumer = 10;
       repo.pagerCtx?.repaint();
       return;
@@ -130,7 +130,7 @@ class CwRepositoryAction {
       () {
         var data = h.apiCallInfo.aResponse?.reponse?.data;
         repo.dataState.data = data;
-        repo.dataState.loadDataInContainer(data);
+        repo.dataState.loadDataInContainer(null, data);
         repo.dataState.maxPageNumer = _getMaxPage();
         repo.pagerCtx?.repaint();
       },
@@ -147,7 +147,7 @@ class CwRepositoryAction {
         await browserEmpty.browseSync(repo.dataState.schema!, false, 0);
         var data = browserEmpty.json;
         repo.dataState.data = data;
-        repo.dataState.loadDataInContainer(data);
+        repo.dataState.loadDataInContainer(null, data);
         repo.dataState.maxPageNumer = _getMaxPage();
         repo.pagerCtx?.repaint();
       },
@@ -187,20 +187,20 @@ class CwRepositoryAction {
 
   void goToPage(BuildContext context, int page) {
     var criteria = repo.criteriaState.data;
-    var paginationVariable = repo.ds.config.criteria.paginationVariable!;
+    var paginationVariable = repo.ds.dsConfig.criteria.paginationVariable!;
 
     findValueByKey(
       criteria,
       paginationVariable,
-      valueToSet: page + repo.ds.config.criteria.min,
+      valueToSet: page + repo.ds.dsConfig.criteria.min,
     );
-    repo.criteriaState.loadDataInContainer(criteria);
+    repo.criteriaState.loadDataInContainer(null, criteria);
     loadData(context);
   }
 
   int _getMaxPage() {
     var data = repo.dataState.data;
-    var paginationVariable = repo.ds.config.data.paginationVariable;
+    var paginationVariable = repo.ds.dsConfig.data.paginationVariable;
     if (paginationVariable == null) return 0;
     var page = findValueByKey(data, paginationVariable);
     if (page is String) {

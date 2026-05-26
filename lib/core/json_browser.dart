@@ -1,4 +1,3 @@
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
@@ -8,7 +7,6 @@ import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
-import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_row.dart';
 import 'package:uuid/uuid.dart';
 // import 'package:nanoid/async.dart';
 
@@ -766,9 +764,9 @@ class AttributInfo {
     timeLastChange = DateTime.now();
 
     if (widgetRowState?.mounted ?? false) {
-      if (widgetRowState is WidgetJsonRowState) {
-        (widgetRowState as WidgetJsonRowState).widget.cache = null;
-      }
+      // if (widgetRowState is WidgetJsonRowState) {
+      //   (widgetRowState as WidgetJsonRowState).widget.cache = null;
+      // }
       print("reload state $widgetRowState");
       // ignore: invalid_use_of_protected_member
       widgetRowState?.setState(() {});
@@ -907,8 +905,8 @@ abstract class InfoManager {
     BuildContext context,
   ) {}
 
-  /// permet de personnaliser l'affichage de l'entête d'un attribut (icon + text )
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node);
+  // /// permet de personnaliser l'affichage de l'entête d'un attribut (icon + text )
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node);
 
   /// permet de faire des actions sur le noeud
   /// par exemple pour les $ref, on affecte l'url sur le parent

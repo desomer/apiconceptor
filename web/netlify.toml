@@ -1,7 +1,8 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob: https:; script-src * 'unsafe-inline' 'unsafe-eval' https:; script-src-elem * 'unsafe-inline' 'unsafe-eval' https:; style-src * 'unsafe-inline' https:; img-src * data: blob:; connect-src *; frame-src *; object-src *;"
+   # Content-Security-Policy = "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;script-src-elem 'self' 'unsafe-inline';style-src 'self' 'unsafe-inline';img-src 'self' data:;connect-src 'self';frame-src 'self';object-src 'none';worker-src 'self' blob:;child-src 'self' blob:;"
+     Content-Security-Policy = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob: https:; script-src * 'unsafe-inline' 'unsafe-eval' https:; script-src-elem * 'unsafe-inline' 'unsafe-eval' https:; style-src * 'unsafe-inline' https:; img-src * data: blob:; connect-src *; frame-src *; object-src *;"
 
 #    Cross-Origin-Embedder-Policy = "credentialless"
 #    Cross-Origin-Opener-Policy = "same-origin"

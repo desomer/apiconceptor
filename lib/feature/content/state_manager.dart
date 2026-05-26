@@ -1,5 +1,6 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/designer/core/cw_deps_binding_manager.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
@@ -7,7 +8,6 @@ import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_input.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 
 class StateManagerUI extends StateManager {
@@ -119,24 +119,24 @@ class StateManager {
 
 
   /// pathData de type /objet/child1/child2 or /array[0]/child1/child2
-  void loadDataInContainer(dynamic json, {String pathData = ''}) {
+  void loadDataInContainer(dynamic parent, dynamic json, {String pathData = ''}) {
     if (json is Map) {
       _addStateTreeData(pathData, StateContainerObject()..jsonData = json);
       json.forEach((key, value) {
         final currentPath = '$pathData/$key';
-        loadDataInContainer(value, pathData: currentPath);
+        loadDataInContainer(json, value, pathData: currentPath);
       });
       _doReloadContainer(pathData);
     } else if (json is List) {
       _addStateTreeData(pathData, StateContainerArray()..jsonData = json);
       for (int i = 0; i < json.length; i++) {
         final currentPath = '$pathData[$i]';
-        loadDataInContainer(json[i], pathData: currentPath);
+        loadDataInContainer(json, json[i], pathData: currentPath);
       }
       _doReloadContainer(pathData);
     } else {
       // Valeur primitive
-      _initInputControleur(pathData, json, 0);
+      _initInputControleur(parent,pathData, json, 0);
     }
   }
 
@@ -167,7 +167,7 @@ class StateManager {
     }
   }
 
-  void _initInputControleur(String pathData, var json, int antiLoop) {
+  void _initInputControleur(dynamic parent, String pathData, var json, int antiLoop) {
     if (antiLoop > 3) {
       //print("********** no visible pathData: $pathData $antiLoop");
       return;
@@ -178,14 +178,14 @@ class StateManager {
         var stateInput = depsBindingManager.listInputByPath[pathData];
         for (WidgetBindJsonState state in stateInput ?? const []) {
           if (state.mounted) {
-            state.setBindJsonValue(json);
+            state.setBindJsonValue(parent, json);
             if (antiLoop > 0) {
               // print("load pathData: $pathData $antiLoop > $json");
             }
           } else {
             // print("no visible pathData: $pathData $antiLoop > $json");
             antiLoop++;
-            _initInputControleur(pathData, json, antiLoop);
+            _initInputControleur(parent, pathData, json, antiLoop);
           }
         }
       } catch (e) {
@@ -208,7 +208,7 @@ class StateManager {
     }
     for (var i in depsBindingManager.listInputByPath.entries) {
       for (var element in i.value) {
-        element.setBindJsonValue("");
+        element.setBindJsonValue(null, "");
       }
     }
   }

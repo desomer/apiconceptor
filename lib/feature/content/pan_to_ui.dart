@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -22,6 +23,7 @@ class PanToUi
     implements GenericToUi {
   PanToUi({required this.state, required this.withScroll});
 
+  WidgetAPIHelper? requestHelper;
   bool withScroll;
   String labelRoot = 'root';
 
@@ -39,7 +41,7 @@ class PanToUi
   void loadData(dynamic data) {
     stateMgr.data = data;
     stateMgr.statesTreeData.clear();
-    stateMgr.loadDataInContainer(data);
+    stateMgr.loadDataInContainer(null, data);
   }
 
   WidgetTyped? getWidgetTyped(
@@ -69,10 +71,10 @@ class PanToUi
             pathData: pathJson,
             path:
                 (panInfo.type != 'Row' &&
-                        panInfo.type != 'Bloc' &&
-                        parentType != WidgetType.list)
-                    ? '$pathJson/${panInfo.attrName}'
-                    : pathJson,
+                    panInfo.type != 'Bloc' &&
+                    parentType != WidgetType.list)
+                ? '$pathJson/${panInfo.attrName}'
+                : pathJson,
             attrName: panInfo.panName ?? panInfo.attrName,
             parentType: parentType,
             rowTab: rowTab,
@@ -106,17 +108,16 @@ class PanToUi
       name: ctx.attrName,
       content: ctx.data,
       type: WidgetType.form,
-      widget:
-          withBorder
-              ? Container(
-                //key: ObjectKey(data),
-                margin: EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade700, width: 1),
-                ),
-                child: wid,
-              )
-              : wid,
+      widget: withBorder
+          ? Container(
+              //key: ObjectKey(data),
+              margin: EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade700, width: 1),
+              ),
+              child: wid,
+            )
+          : wid,
     )..messageTooltip = getMessageTooltip(panInfo);
   }
 
@@ -146,16 +147,15 @@ class PanToUi
       name: ctx.attrName,
       content: ctx.data,
       type: WidgetType.list,
-      widget:
-          withBorder
-              ? Container(
-                margin: EdgeInsets.symmetric(horizontal: 5),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.blue, width: 1),
-                ),
-                child: wid,
-              )
-              : wid,
+      widget: withBorder
+          ? Container(
+              margin: EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blue, width: 1),
+              ),
+              child: wid,
+            )
+          : wid,
     );
   }
 
@@ -211,23 +211,22 @@ class PanToUi
 
     WidgetContentArray wid = WidgetContentArray(
       ctx: ctx,
-      info:
-          WidgetConfigInfo(name: ctx.attrName, json2ui: this)
-            ..setPathValue(ctx.path)
-            ..setPathData(ctx.pathData)
-            ..panInfo = panInfo
-            ..onTapSetting = () async {
-              if (await showSettingArrayDialog(
-                context!,
-                ctx.path,
-                ctx.layoutArray!,
-              )) {
-                // ignore: invalid_use_of_protected_member
-                state.setState(() {
-                  // change config
-                });
-              }
-            },
+      info: WidgetConfigInfo(name: ctx.attrName, json2ui: this)
+        ..setPathValue(ctx.path)
+        ..setPathData(ctx.pathData)
+        ..panInfo = panInfo
+        ..onTapSetting = () async {
+          if (await showSettingArrayDialog(
+            context!,
+            ctx.path,
+            ctx.layoutArray!,
+          )) {
+            // ignore: invalid_use_of_protected_member
+            state.setState(() {
+              // change config
+            });
+          }
+        },
       children: (pathData) {
         // mode template sans données
         listWidget.clear();
@@ -278,11 +277,10 @@ class PanToUi
           Widget wid = WidgetContentRow(
             ctxRow: ctxRow,
             rowIdx: i,
-            info:
-                WidgetConfigInfo(json2ui: this, name: ctx.attrName)
-                  ..setPathValue('$path[$i]')
-                  ..setPathData('$path[$i]')
-                  ..panInfo = panInfo,
+            info: WidgetConfigInfo(json2ui: this, name: ctx.attrName)
+              ..setPathValue('$path[$i]')
+              ..setPathData('$path[$i]')
+              ..panInfo = panInfo,
           );
 
           return getArrayItemAction(i, wid, rowData, k, onDelete);
@@ -377,8 +375,8 @@ class PanToUi
     var lwt = <WidgetTyped>[];
 
     if (modeTemplate) {
-      stateMgr.stateTemplate[ctx.path] ??=
-          StateContainerObject()..jsonTemplate = ctx.data;
+      stateMgr.stateTemplate[ctx.path] ??= StateContainerObject()
+        ..jsonTemplate = ctx.data;
     }
 
     for (var panInfoChild in panInfo.children) {
@@ -451,9 +449,9 @@ class PanToUi
         // les autres toujours en tabulation
         String layout =
             (((ctx.pathData == '' && i == 0) || !nextIsContainer) &&
-                    !prevIsContainerTab)
-                ? 'Flow'
-                : 'Tab';
+                !prevIsContainerTab)
+            ? 'Flow'
+            : 'Tab';
 
         if (confLayout != null) {
           layout = confLayout.layout;
@@ -581,12 +579,11 @@ class PanToUi
           var cloneCtx = ctx.clone(aPath: '$path[$i]', aPathData: pathDataRow);
           return getContentForm(panInfoChoised!, cloneCtx, listContentBloc);
         },
-        info:
-            WidgetConfigInfo(json2ui: this, name: "choise items")
-              ..inArrayValue = ctx.data
-              ..setPathValue('$path[$i]')
-              ..setPathData('$path[$i]')
-              ..panInfo = panInfo,
+        info: WidgetConfigInfo(json2ui: this, name: "choise items")
+          ..inArrayValue = ctx.data
+          ..setPathValue('$path[$i]')
+          ..setPathData('$path[$i]')
+          ..panInfo = panInfo,
       );
     } else {
       // ligne normale

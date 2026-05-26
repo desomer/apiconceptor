@@ -1,4 +1,3 @@
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -92,10 +91,10 @@ class InfoManagerDataMap extends InfoManager with WidgetHelper {
     return null;
   }
 
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    throw UnimplementedError();
-  }
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   throw UnimplementedError();
+  // }
 
   @override
   Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {

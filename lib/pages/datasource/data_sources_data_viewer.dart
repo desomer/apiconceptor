@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_response_viewer.dart';
 import 'package:jsonschema/core/designer/editor/view/pages_viewer.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 

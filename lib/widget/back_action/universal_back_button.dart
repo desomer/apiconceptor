@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 // Import conditionnel : version web OU version fallback
-import 'web_back.dart' if (dart.library.html) 'web_back_web.dart';
+import 'web_back_web.dart' if (dart.library.io) 'web_back.dart';
 
 class UniversalBackButton extends StatelessWidget {
   final IconData icon;

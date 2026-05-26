@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
-import 'package:jsonschema/feature/transform/pan_model_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
 import 'package:jsonschema/start_core.dart';
 
 enum InputType { text, num, bool, choise, date, link }
 
 abstract class WidgetBindJsonState<T extends StatefulWidget> extends State<T> {
-  void setBindJsonValue(dynamic value) {}
+  void setBindJsonValue(dynamic parent, dynamic value) {}
 }
 
 class WidgetContentInput extends StatefulWidget {
@@ -22,13 +22,20 @@ class WidgetContentInput extends StatefulWidget {
 
 class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
     with WidgetUIHelper, NameMixin {
+  dynamic rowDisplayed;
   dynamic dataDisplayed;
   String ctrlName = '';
   late TextEditingController ctrl;
   InputType typeInput = InputType.text;
 
   @override
-  void setBindJsonValue(dynamic value) {
+  void setBindJsonValue(dynamic parent, dynamic value) {
+    if ((rowDisplayed == null && parent != null) ||
+        (rowDisplayed != null && parent == null)) {
+      // changement de l'etat editable ou pas
+      setState(() {});
+    }
+    rowDisplayed = parent;
     ctrl.text = value.toString();
   }
 
@@ -46,7 +53,10 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
       print("init ctrl $ctrlName");
     }
 
-    widget.info.json2ui.stateMgr.depsBindingManager.registerInput(ctrlName, this);
+    widget.info.json2ui.stateMgr.depsBindingManager.registerInput(
+      ctrlName,
+      this,
+    );
 
     ctrl.addListener(() {
       setValue(widget.info, typeInput, pathDataContainer, ctrl.text);
@@ -77,9 +87,11 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
     dynamic val = '';
     if (dataContainer != null) {
       var data = dataContainer.jsonData;
+      rowDisplayed = data;
       if (data is Map || data is List) {
         if (idx >= 0) {
           data = data[idx];
+          rowDisplayed = data;
         }
         if (data is Map) {
           val = data[widget.info.name];
@@ -120,7 +132,10 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
       ctrlName = pathDataContainer;
     }
 
-    widget.info.json2ui.stateMgr.depsBindingManager.disposeInput(ctrlName, this);
+    widget.info.json2ui.stateMgr.depsBindingManager.disposeInput(
+      ctrlName,
+      this,
+    );
     ctrl.dispose();
     super.dispose();
   }
@@ -153,18 +168,16 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
               decoration: getInputDecorator(inputDesc.isRequired),
               isExpanded: true,
               initialValue: dataDisplayed == null ? '' : ctrl.text,
-              items:
-                  inputDesc.choiseItem!.map((value) {
-                    var trim = value;
-                    return DropdownMenuItem<String>(
-                      value: trim,
-                      child: Text(trim),
-                    );
-                  }).toList(),
-              onChanged: (newValue) {
-                dataDisplayed = newValue ?? '';
-                ctrl.text = dataDisplayed;
-              },
+              items: inputDesc.choiseItem!.map((value) {
+                var trim = value;
+                return DropdownMenuItem<String>(value: trim, child: Text(trim));
+              }).toList(),
+              onChanged: rowDisplayed != null
+                  ? (newValue) {
+                      dataDisplayed = newValue ?? '';
+                      ctrl.text = dataDisplayed;
+                    }
+                  : null,
             );
           },
         );
@@ -195,9 +208,11 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
               builder: (context, value, child) {
                 return Switch(
                   value: value.text == 'true',
-                  onChanged: (v) {
-                    ctrl.text = v ? 'true' : 'false';
-                  },
+                  onChanged: rowDisplayed != null
+                      ? (v) {
+                          ctrl.text = v ? 'true' : 'false';
+                        }
+                      : null,
                 );
               },
             ),
@@ -210,6 +225,7 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
         inputWidget = TextField(
           decoration: getInputDecorator(inputDesc.isRequired),
           controller: ctrl,
+          enabled: rowDisplayed != null,
         );
         break;
     }
@@ -278,7 +294,7 @@ class WidgetContentInputState extends WidgetBindJsonState<WidgetContentInput>
                 Expanded(
                   child: Container(
                     color: Colors.black,
-                    child: PanContentViewer(
+                    child: PanModelViewer(
                       masterIdModel: m.first.masterID,
                       nameModel: m.first.name,
                     ),

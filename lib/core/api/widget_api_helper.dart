@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
+import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
@@ -25,10 +26,14 @@ import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 class WidgetAPIHelper with WidgetHelper {
-  WidgetAPIHelper({required this.apiNode, required this.apiCallInfo});
+  WidgetAPIHelper({
+    required this.apiNodeForCalculatePath,
+    required this.apiCallInfo,
+  });
 
-  NodeAttribut apiNode;
+  NodeAttribut apiNodeForCalculatePath;
   final APICallManager apiCallInfo;
+  CallerDatasource? callerDatasource;
 
   String response = '';
   CodeEditorConfig? textConfigResponse;
@@ -36,6 +41,7 @@ class WidgetAPIHelper with WidgetHelper {
   dynamic validateSchemaJson;
 
   bool callInProgress = false;
+  CancelToken? _currentCancelToken;
   GlobalKey keyResponseStatus = GlobalKey(debugLabel: 'keyResponseStatus');
 
   ValueNotifier<String> errorParseResponse = ValueNotifier('');
@@ -55,7 +61,7 @@ class WidgetAPIHelper with WidgetHelper {
   }
 
   StatelessWidget initUrl(BuildContext context) {
-    var attr = apiNode; //currentCompany.listAPI!.selectedAttr;
+    var attr = apiNodeForCalculatePath; //currentCompany.listAPI!.selectedAttr;
 
     //String httpOpe = attr.info.name.toLowerCase();
     apiCallInfo.url = '';
@@ -246,8 +252,16 @@ class WidgetAPIHelper with WidgetHelper {
   }
 
   Future<void> doSend() async {
+    if (callInProgress) {
+      return;
+    }
+
+    final cancelToken = CancelToken();
+    _currentCancelToken = cancelToken;
+
     doClearResponse(inProgress: true); // vide la response
-    await doExecuteRequest(CancelToken());
+    await doExecuteRequest(cancelToken);
+    _currentCancelToken = null;
     doDisplayResponse();
 
     changeResponse.value++;
@@ -259,6 +273,13 @@ class WidgetAPIHelper with WidgetHelper {
     });
   }
 
+  void cancelCurrentRequest() {
+    final current = _currentCancelToken;
+    if (current != null && !current.isCancelled) {
+      current.cancel('Request cancelled by user');
+    }
+  }
+
   Future<void> doExecuteRequest(CancelToken cancelToken) async {
     //await CallerApi().callGraph();
     apiCallInfo.logs.add(
@@ -266,7 +287,15 @@ class WidgetAPIHelper with WidgetHelper {
     );
     await CallScript().callPreRequest(apiCallInfo);
 
-    apiCallInfo.aResponse = await CallerApi().call(apiCallInfo, cancelToken);
+    if (callerDatasource != null && callerDatasource!.type == 'internal') {
+      apiCallInfo.aResponse = await CallerApi().callInternal(
+        callerDatasource!,
+        apiCallInfo,
+        cancelToken,
+      );
+    } else {
+      apiCallInfo.aResponse = await CallerApi().call(apiCallInfo, cancelToken);
+    }
   }
 
   void doClearResponse({required bool inProgress}) {

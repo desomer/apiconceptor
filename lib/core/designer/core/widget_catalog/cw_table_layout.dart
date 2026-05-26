@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
 
@@ -239,14 +240,20 @@ class FrozenTableViewState extends State<FrozenTableView> {
         // ------------------ TOP FROZEN ROW ------------------
         Row(
           mainAxisSize: MainAxisSize.max,
-          children: [_topFrozenColumn(), Expanded(child: _topFrozenRow())],
+          children: [
+            _topFrozenColumn(),
+            Expanded(child: _topFrozenRow()),
+          ],
         ),
 
         // ------------------ BODY + LEFT FROZEN COLUMN ------------------
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [_leftFrozenColumn(), Expanded(child: _body())],
+            children: [
+              _leftFrozenColumn(),
+              Expanded(child: _body()),
+            ],
           ),
         ),
 
@@ -361,32 +368,27 @@ class FrozenTableViewState extends State<FrozenTableView> {
       },
       child: ValueListenableBuilder(
         valueListenable: isHover,
-        builder:
-            (context, value, child) => Visibility(
-              visible: isHover.value,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Material(
-                    elevation: 3,
-                    color: Colors.black12,
-                    shape: CircleBorder(),
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(),
-                      onPressed: () {},
-                      icon: Icon(
-                        Icons.expand_more,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
+        builder: (context, value, child) => Visibility(
+          visible: isHover.value,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Material(
+                elevation: 3,
+                color: Colors.black12,
+                shape: CircleBorder(),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(),
+                  onPressed: () {},
+                  icon: Icon(Icons.expand_more, size: 18, color: Colors.white),
+                ),
               ),
-            ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -445,17 +447,16 @@ class FrozenTableViewState extends State<FrozenTableView> {
           );
         }
       },
-      child:
-          enableScrollIndicator == true
-              ? Scrollbar(
-                scrollbarOrientation: orientation,
-                interactive: true,
-                controller: controller,
-                thumbVisibility: alwaysVisible, // toujours visible
-                trackVisibility: true, // optionnel
-                child: child,
-              )
-              : child,
+      child: enableScrollIndicator == true
+          ? Scrollbar(
+              scrollbarOrientation: orientation,
+              interactive: true,
+              controller: controller,
+              thumbVisibility: alwaysVisible, // toujours visible
+              trackVisibility: true, // optionnel
+              child: child,
+            )
+          : child,
     );
   }
 
@@ -534,37 +535,36 @@ class FrozenTableViewState extends State<FrozenTableView> {
             shrinkWrap: true,
             primary: false,
             itemCount: widget.rowCountBottom,
-            itemBuilder:
-                (_, row) => widget.buildRow(
-                  row + widget.rowCount - widget.rowCountBottom,
-                  true,
-                  SizedBox(
-                    // height: widget.getRowHeight(
-                    //   row + widget.rowCount - widget.rowCountBottom,
-                    // ),
-                    width: witdh, // <-- FIX
-                    child: Row(
-                      children: [
-                        for (
-                          int col = widget.colFreezeLeftCount;
-                          col < widget.colCount;
-                          col++
-                        )
-                          SizedBox(
-                            width: getColWidth(col),
-                            height: widget.getRowHeight(
-                              row + widget.rowCount - widget.rowCountBottom,
-                            ),
-                            child: widget.buildBottomCell(
-                              row + widget.rowCount - widget.rowCountBottom,
-                              col,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  this,
+            itemBuilder: (_, row) => widget.buildRow(
+              row + widget.rowCount - widget.rowCountBottom,
+              true,
+              SizedBox(
+                // height: widget.getRowHeight(
+                //   row + widget.rowCount - widget.rowCountBottom,
+                // ),
+                width: witdh, // <-- FIX
+                child: Row(
+                  children: [
+                    for (
+                      int col = widget.colFreezeLeftCount;
+                      col < widget.colCount;
+                      col++
+                    )
+                      SizedBox(
+                        width: getColWidth(col),
+                        height: widget.getRowHeight(
+                          row + widget.rowCount - widget.rowCountBottom,
+                        ),
+                        child: widget.buildBottomCell(
+                          row + widget.rowCount - widget.rowCountBottom,
+                          col,
+                        ),
+                      ),
+                  ],
                 ),
+              ),
+              this,
+            ),
           ),
         ),
       ),
@@ -590,30 +590,25 @@ class FrozenTableViewState extends State<FrozenTableView> {
         shrinkWrap: true,
         //controller: vertical,
         itemCount: widget.rowCountTop,
-        itemBuilder:
-            (_, row) => widget.buildRow(
-              row,
-              true,
-              SizedBox(
-                // height: widget.getRowHeight(row),
-                width: witdh,
-                child: Row(
-                  children: [
-                    for (int col = 0; col < widget.colFreezeLeftCount; col++)
-                      SizedBox(
-                        width: getColWidth(col),
-                        height: widget.getRowHeight(row),
-                        child: getHeader(
-                          widget.buildLeftCell(row, col),
-                          row,
-                          col,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              this,
+        itemBuilder: (_, row) => widget.buildRow(
+          row,
+          true,
+          SizedBox(
+            // height: widget.getRowHeight(row),
+            width: witdh,
+            child: Row(
+              children: [
+                for (int col = 0; col < widget.colFreezeLeftCount; col++)
+                  SizedBox(
+                    width: getColWidth(col),
+                    height: widget.getRowHeight(row),
+                    child: getHeader(widget.buildLeftCell(row, col), row, col),
+                  ),
+              ],
             ),
+          ),
+          this,
+        ),
       ),
     );
   }
@@ -633,33 +628,32 @@ class FrozenTableViewState extends State<FrozenTableView> {
         shrinkWrap: true,
         //controller: vertical,
         itemCount: widget.rowCountBottom,
-        itemBuilder:
-            (_, row) => widget.buildRow(
-              row + widget.rowCount - widget.rowCountBottom,
-              false,
-              SizedBox(
-                // height: widget.getRowHeight(
-                //   row + widget.rowCount - widget.rowCountBottom,
-                // ),
-                width: witdh,
-                child: Row(
-                  children: [
-                    for (int col = 0; col < widget.colFreezeLeftCount; col++)
-                      SizedBox(
-                        width: getColWidth(col),
-                        height: widget.getRowHeight(
-                          row + widget.rowCount - widget.rowCountBottom,
-                        ),
-                        child: widget.buildLeftCell(
-                          row + widget.rowCount - widget.rowCountBottom,
-                          col,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              this,
+        itemBuilder: (_, row) => widget.buildRow(
+          row + widget.rowCount - widget.rowCountBottom,
+          false,
+          SizedBox(
+            // height: widget.getRowHeight(
+            //   row + widget.rowCount - widget.rowCountBottom,
+            // ),
+            width: witdh,
+            child: Row(
+              children: [
+                for (int col = 0; col < widget.colFreezeLeftCount; col++)
+                  SizedBox(
+                    width: getColWidth(col),
+                    height: widget.getRowHeight(
+                      row + widget.rowCount - widget.rowCountBottom,
+                    ),
+                    child: widget.buildLeftCell(
+                      row + widget.rowCount - widget.rowCountBottom,
+                      col,
+                    ),
+                  ),
+              ],
             ),
+          ),
+          this,
+        ),
       ),
     );
   }
@@ -679,29 +673,25 @@ class FrozenTableViewState extends State<FrozenTableView> {
         primary: false,
         controller: vertical,
         itemCount: widget.rowCount - widget.rowCountTop - widget.rowCountBottom,
-        itemBuilder:
-            (_, row) => SizedBox(
-              //height: widget.getRowHeight(row + widget.rowCountTop),
-              width: witdh,
-              child: widget.buildRow(
-                row + widget.rowCountTop,
-                true,
-                Row(
-                  children: [
-                    for (int col = 0; col < widget.colFreezeLeftCount; col++)
-                      SizedBox(
-                        width: getColWidth(col),
-                        height: widget.getRowHeight(row + widget.rowCountTop),
-                        child: widget.buildLeftCell(
-                          row + widget.rowCountTop,
-                          col,
-                        ),
-                      ),
-                  ],
-                ),
-                this,
-              ),
+        itemBuilder: (_, row) => SizedBox(
+          //height: widget.getRowHeight(row + widget.rowCountTop),
+          width: witdh,
+          child: widget.buildRow(
+            row + widget.rowCountTop,
+            true,
+            Row(
+              children: [
+                for (int col = 0; col < widget.colFreezeLeftCount; col++)
+                  SizedBox(
+                    width: getColWidth(col),
+                    height: widget.getRowHeight(row + widget.rowCountTop),
+                    child: widget.buildLeftCell(row + widget.rowCountTop, col),
+                  ),
+              ],
             ),
+            this,
+          ),
+        ),
       ),
     );
   }
@@ -721,10 +711,10 @@ class FrozenTableViewState extends State<FrozenTableView> {
         width: witdhRow,
         //height: 200,
         child: ListView.builder(
+          scrollCacheExtent: ScrollCacheExtent.pixels(10),
           controller: vertical2,
           primary: false,
           shrinkWrap: true,
-          cacheExtent: 10,
           itemExtent: heightRowCache,
           itemCount:
               widget.rowCount - widget.rowCountTop - widget.rowCountBottom,

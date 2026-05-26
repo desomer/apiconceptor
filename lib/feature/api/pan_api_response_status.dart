@@ -12,6 +12,38 @@ class PanApiResponseStatus extends StatefulWidget {
 }
 
 class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
+  Widget _buildRefreshButton({required bool enabled}) {
+    return IconButton.filledTonal(
+      tooltip: 'Refresh response',
+      style: IconButton.styleFrom(
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      onPressed: enabled
+          ? () async {
+              await widget.requestHelper.doSend();
+            }
+          : null,
+      icon: const Icon(Icons.refresh),
+    );
+  }
+
+  Widget _buildCancelButton({required bool enabled}) {
+    return IconButton.filledTonal(
+      tooltip: 'Cancel request',
+      style: IconButton.styleFrom(
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      onPressed: enabled
+          ? () {
+              widget.requestHelper.cancelCurrentRequest();
+            }
+          : null,
+      icon: const Icon(Icons.close),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!widget.requestHelper.callInProgress &&
@@ -25,6 +57,7 @@ class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
         children: [
           Chip(label: Text('In progress')),
           SizedBox(width: 20, height: 20, child: CircularProgressIndicator()),
+          _buildCancelButton(enabled: true),
         ],
       );
     }
@@ -48,6 +81,7 @@ class _PanApiResponseStatusState extends State<PanApiResponseStatus> {
     return Row(
       spacing: 10,
       children: [
+        _buildRefreshButton(enabled: true),
         Chip(
           label: Text('$httpState ${aResponse?.reponse?.statusMessage ?? ''}'),
           color: WidgetStatePropertyAll(colorHttp),

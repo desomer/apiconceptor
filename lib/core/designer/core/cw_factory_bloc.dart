@@ -9,7 +9,6 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:shortid/shortid.dart';
 
@@ -35,9 +34,9 @@ class CwFactoryBloc with NameMixin {
 
         var h = repo.ds.helper!;
 
-        if (repo.ds.config.paramToLoad != null) {
+        if (repo.ds.dsConfig.paramToLoad != null) {
           await h.loadCriteriaFromParam(
-            repo.ds.config.paramToLoad!,
+            repo.ds.dsConfig.paramToLoad!,
             repo.viewerState.criteriaState.data,
             repo.viewerState.criteriaState.dataEmpty,
           );
@@ -55,12 +54,16 @@ class CwFactoryBloc with NameMixin {
 
   void loadAllData(CwRepository repo) {
     repo.designState.criteriaState.loadDataInContainer(
+      null,
       repo.designState.criteriaState.data,
     );
     repo.designState.dataState.loadDataInContainer(
+      null,
       repo.designState.dataState.data,
     );
+
     repo.viewerState.criteriaState.loadDataInContainer(
+      null,
       repo.viewerState.criteriaState.data,
     );
   }
@@ -148,7 +151,7 @@ class CwFactoryBloc with NameMixin {
 
     propContainer['nbchild'] = listAttrSelected.length /*+ actions.length*/;
 
-    if (ds.typeLayout == 'List') {
+    if (ds.panBuilderLayout == 'List') {
       // surround par un list widget
       var list = {
         cwImplement: 'list',
@@ -162,13 +165,13 @@ class CwFactoryBloc with NameMixin {
       };
       ctx.aFactory.addInSlot(list, 'item0', containerData);
       containerData = list;
-    } else if (ds.typeLayout == 'Table') {
+    } else if (ds.panBuilderLayout == 'Table') {
       propContainer['bind']['attr'] = listPathArray;
     }
 
     var repositoryData = ctx.aFactory.appData[cwRepos][repositoryId];
     repositoryData[cwComputed] = {};
-    for (var cv in ds.config.computedProps) {
+    for (var cv in ds.dsConfig.computedProps) {
       repositoryData[cwComputed][cv.id] = {
         "id": cv.id,
         "name": cv.name,
@@ -217,7 +220,7 @@ class CwFactoryBloc with NameMixin {
   ) {
     Map<String, dynamic>? containerData;
 
-    if (ds.typeLayout == 'Table') {
+    if (ds.panBuilderLayout == 'Table') {
       // add table container
       propContainer.addAll(<String, dynamic>{
         'bind': {'repository': repositoryId, 'from': 'data'},
@@ -310,7 +313,7 @@ class CwFactoryBloc with NameMixin {
       };
     }
 
-    var tableStyle = ds.typeLayout == 'Table';
+    var tableStyle = ds.panBuilderLayout == 'Table';
     if (ctx.hasParentOfType(['table'])) {
       tableStyle = true;
     }
@@ -370,7 +373,7 @@ class CwFactoryBloc with NameMixin {
       });
     }
 
-    if (ds.typeLayout == 'Table') {
+    if (ds.panBuilderLayout == 'Table') {
       // ajout des header
       ctx.aFactory.addInSlot(container, 'header_$i', {
         cwImplement: 'input',
@@ -479,7 +482,7 @@ class CwFactoryBloc with NameMixin {
             'repository': repositoryId,
           },
           // cwOnPressed: onPress,
-          if (ds.typeLayout == 'Table') "style": {"appearance": "custom"},
+          if (ds.panBuilderLayout == 'Table') "style": {"appearance": "custom"},
         },
       };
       BehaviorManager.addBehavior(data, type: 'repository', data: onPress);
@@ -493,7 +496,7 @@ class CwFactoryBloc with NameMixin {
       });
     }
 
-    if (ds.typeLayout == 'Table') {
+    if (ds.panBuilderLayout == 'Table') {
       // ajout des header
       ctx.aFactory.addInSlot(container, 'header_$i', {
         cwImplement: 'input',

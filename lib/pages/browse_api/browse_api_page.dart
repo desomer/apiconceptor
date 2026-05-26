@@ -17,16 +17,19 @@ import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
 import 'package:jsonschema/feature/api/pan_api_selector_tag.dart';
 import 'package:jsonschema/feature/documentation/pan_scrum.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
-import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
+import 'package:jsonschema/feature/content_viewer/pan_response_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_model_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
+import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_disable_overlay.dart';
 import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
@@ -393,7 +396,9 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
                 Icon(Icons.help),
               ],
             ),
-            Expanded(child: TextEditor(config: conf, header: 'search')),
+            Expanded(
+              child: TextEditor(config: conf, header: 'search'),
+            ),
           ],
         ),
       ],
@@ -418,7 +423,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
     Future.delayed(Duration(milliseconds: 10)).then((value) {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
         requestHelper = WidgetAPIHelper(
-          apiNode: attr,
+          apiNodeForCalculatePath: attr,
           apiCallInfo: getAPICall(
             currentCompany.currentNameSpace,
             currentCompany.listAPI!.selectedAttr!,
@@ -593,6 +598,104 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
           }
           return Container();
         },
+      ),
+    );
+  }
+}
+
+
+class InfoManagerApiExample extends InfoManager with WidgetHelper {
+  @override
+  Function? getValidateKey() {
+    return null;
+  }
+
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   return getChip(Text(node.data!.info.name), color: null);
+  // }
+
+  @override
+  String getTypeTitle(NodeAttribut node, String name, type) {
+    if (type is Map) {
+      return 'dir';
+    }
+    return '$type';
+  }
+
+  @override
+  InvalidInfo? isTypeValid(
+    NodeAttribut nodeAttribut,
+    String name,
+    type,
+    String typeTitle,
+  ) {
+    return null;
+  }
+
+  @override
+  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
+    Widget? icon;
+    var isRoot = node.isRoot;
+    var isFolder = node.data.info.type == 'folder';
+    var iExample = node.data.info.type == 'example';
+
+    String name = node.data.info.name;
+
+    if (isRoot) {
+      icon = Icon(Icons.business);
+      name = getKeyParamFromYaml(node.data.yamlNode.key);
+    } else if (isFolder) {
+      icon = Icon(Icons.folder);
+    } else if (iExample) {
+      icon = Icon(Icons.dataset_linked);
+    }
+
+    return NoOverflowErrorFlex(
+      direction: Axis.horizontal,
+      children: [
+        if (icon != null)
+          Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
+
+        Expanded(
+          child: InkWell(
+            onTap: () {
+              node.doTapHeader();
+            },
+            child: NoOverflowErrorFlex(
+              direction: Axis.horizontal,
+              children: [
+                Text(name),
+                Spacer(),
+                _getWidgetType(node.data, iExample, isRoot),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _getWidgetType(NodeAttribut attr, bool iExample, bool isRoot) {
+    if (isRoot) return Container();
+
+    bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
+    hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
+    String msg = hasError ? 'string\nnumber\nboolean\n\$type' : '';
+
+    return Tooltip(
+      message: msg,
+      child: getChip(
+        iExample
+            ? Row(
+              spacing: 5,
+              children: [
+                Text(attr.info.type),
+                Icon(Icons.arrow_forward_ios, size: 10),
+              ],
+            )
+            : Text(attr.info.type),
+        color: hasError ? Colors.redAccent : (iExample ? Colors.blue : null),
       ),
     );
   }

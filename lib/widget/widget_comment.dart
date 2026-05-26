@@ -493,7 +493,7 @@ class _CommentThreadItemState extends State<CommentThreadItem> {
     final hasColor = c.color != 'none';
     final commentColor = commentColorFromName(c.color);
     final commentBackground =
-        hasColor ? commentColor.withOpacity(0.12) : Colors.transparent;
+        hasColor ? commentColor.withValues(alpha: 0.12) : Colors.transparent;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -503,7 +503,7 @@ class _CommentThreadItemState extends State<CommentThreadItem> {
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color:
-              hasColor ? commentColor.withOpacity(0.7) : Colors.grey.shade700,
+              hasColor ? commentColor.withValues(alpha: 0.7) : Colors.grey.shade700,
         ),
       ),
       child: Column(
@@ -565,7 +565,7 @@ class _CommentThreadItemState extends State<CommentThreadItem> {
                     selectedColor:
                         name == 'none'
                             ? Colors.grey.shade700
-                            : color.withOpacity(0.35),
+                            : color.withValues(alpha: 0.35),
                     onSelected: (_) => _updateCommentColor(name),
                   );
                 }).toList(),

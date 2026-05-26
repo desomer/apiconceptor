@@ -1,4 +1,3 @@
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jsonschema/authorization_manager.dart';
@@ -320,7 +319,7 @@ class ModelSchema {
     bddStorage.doEventListner[idEvent] = OnEvent(
       id: idEvent,
       onPatch: (patch) {
-        print('receive on $id event $patch');
+        print('receive on $idEvent event $patch');
         if (patch['typeEvent'] == 'PROP') {
           bddStorage.dispatchChangeProperties(
             this,
@@ -401,7 +400,7 @@ class ModelSchema {
       'date': DateTime.now().toIso8601String(),
       'by': currentCompany.shortUserId,
       'uuid': uuid ?? Uuid().v4(),
-      if (master != null) 'master': master,
+      'master': ?master,
     };
     if (getMdValue is String && getMdValue.length > 100) {
       histo['toReal'] = value;
@@ -747,20 +746,20 @@ class ModelSchema {
     );
   }
 
-  void reorgModelPropertiesPath(List<TreeNode<NodeAttribut>> all) {
-    if (!first) {
-      //print("************* reorg & purge properties ****************");
-      modelProperties.clear();
-      for (var element in all) {
-        if (element.data!.info.isInitByRef == false) {
-          modelProperties[element.data!.info.path] =
-              element.data!.info.properties;
-        } else {
-          //print("is attr on ref ${element.data!.info.path}");
-        }
-      }
-    }
-  }
+  // void reorgModelPropertiesPath(List<TreeNode<NodeAttribut>> all) {
+  //   if (!first) {
+  //     //print("************* reorg & purge properties ****************");
+  //     modelProperties.clear();
+  //     for (var element in all) {
+  //       if (element.data!.info.isInitByRef == false) {
+  //         modelProperties[element.data!.info.path] =
+  //             element.data!.info.properties;
+  //       } else {
+  //         //print("is attr on ref ${element.data!.info.path}");
+  //       }
+  //     }
+  //   }
+  // }
 
   void loadSubSchema(dynamic path, ModelSchema source) {
     try {

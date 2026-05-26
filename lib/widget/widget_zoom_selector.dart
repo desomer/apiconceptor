@@ -1,10 +1,8 @@
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
-import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart' show stateOpenFactor;
-import 'package:jsonschema/widget/tree_editor/deprecated/widget_json_tree.dart';
+
 
 class WidgetZoomSelector extends StatefulWidget {
   const WidgetZoomSelector({super.key, required this.zoom});
@@ -31,27 +29,27 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
             value: widget.zoom.value,
             onChanged: (value) {
               setState(() {
-                bool open = value > widget.zoom.value;
+                //bool open = value > widget.zoom.value;
                 widget.zoom.value = value;
                 if (currentYamlTree != null) {
                   currentYamlTree!.setOpenFactor(value);
                 }
 
-                if (_stateList?.mounted ?? false) {
-                  var root =
-                      _stateList!.modelInfo.treeController?.tree
-                          as TreeNode<NodeAttribut>?;
-                  if (root != null) {
-                    var delay = _stateList!.doZoomNode(
-                      open,
-                      0,
-                      root,
-                      0,
-                      max: value.toInt(),
-                    );
-                    _stateList!.repaintListView(delay, 'zoom');
-                  }
-                }
+                // if (_stateList?.mounted ?? false) {
+                //   var root =
+                //       _stateList!.modelInfo.treeController?.tree
+                //           as TreeNode<NodeAttribut>?;
+                //   if (root != null) {
+                //     var delay = _stateList!.doZoomNode(
+                //       open,
+                //       0,
+                //       root,
+                //       0,
+                //       max: value.toInt(),
+                //     );
+                //     _stateList!.repaintListView(delay, 'zoom');
+                //   }
+                // }
               });
             },
           ),
@@ -70,11 +68,11 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
             bddStorage.localCache.clear();
             bddStorage.lastVersionByMaster.clear();
             currentYamlTree?.reload();
-            if (_stateList?.mounted ?? false) {
-              _stateList!.setState(() {});
-              _stateList!.keyTree.currentState!.setState(() {});
-              _stateList!.keyJsonList.currentState!.setState(() {});
-            }
+            // if (_stateList?.mounted ?? false) {
+            //   _stateList!.setState(() {});
+            //   _stateList!.keyTree.currentState!.setState(() {});
+            //   _stateList!.keyJsonList.currentState!.setState(() {});
+            // }
           },
           icon: Icon(Icons.replay_outlined),
         ),
@@ -82,11 +80,11 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
     );
   }
 
-  JsonListEditorState? _stateList;
+  // JsonListEditorState? _stateList;
 
-  void setList(JsonListEditorState? state) {
-    if (state != null) {
-      _stateList = state;
-    }
-  }
+  // void setList(JsonListEditorState? state) {
+  //   if (state != null) {
+  //     _stateList = state;
+  //   }
+  // }
 }

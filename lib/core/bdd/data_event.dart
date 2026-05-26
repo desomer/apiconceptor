@@ -12,14 +12,14 @@ class SaveEvent {
   SaveEvent({
     required this.model,
     required this.version,
-    required this.id,
+    required this.idIdempotence,
     required this.table,
     required this.data,
   });
   ModelSchema model;
   ModelVersion? version;
   String table;
-  String id;
+  String idIdempotence;
   dynamic data;
 }
 
@@ -40,6 +40,6 @@ Future<Map<String, dynamic>> computeSendYamlChangeEvent(
     'patch': textPatch,
     'old': old,
     'new': value,
-    'version' : version
+    'version': version,
   });
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
+import 'package:jsonschema/feature/content_viewer/pan_model_mapper.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 
 import '../../widget/tree_editor/pan_yaml_tree.dart';

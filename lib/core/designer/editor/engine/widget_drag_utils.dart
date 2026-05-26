@@ -251,9 +251,9 @@ class DragNewComponentCtx extends DragCtx with GlassPaneMixin {
 
     CallerDatasource ds = CallerDatasource();
     await ds.loadDs(dataSourceId, null);
-    ds.config.aFactory = ctx.aFactory;
+    ds.dsConfig.aFactory = ctx.aFactory;
     if (config['type'] == 'repository') {
-      ds.config.repositoryId = config['id'];
+      ds.dsConfig.repositoryId = config['id'];
       ds.initComputedProps();
     }
 

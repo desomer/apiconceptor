@@ -77,7 +77,7 @@ class CwInputSearch extends CwWidget {
 class _CwInputSearchState extends CwWidgetState<CwInputSearch>
     with HelperEditor {
   @override
-  void setBindJsonValue(value) {}
+  void setBindJsonValue(dynamic parent, dynamic value) {}
 
   TextEditingController? ctrlInput;
   FocusNode? focusNode;

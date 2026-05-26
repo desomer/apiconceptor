@@ -1,6 +1,5 @@
 import 'dart:convert' show JsonEncoder;
 
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
@@ -20,8 +19,8 @@ import 'package:jsonschema/feature/api/pan_api_call.dart';
 import 'package:jsonschema/feature/api/pan_api_example.dart';
 import 'package:jsonschema/feature/api/pan_api_mock.dart';
 import 'package:jsonschema/feature/model/pan_model_version_list.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
-import 'package:jsonschema/feature/transform/pan_response_mapper.dart';
+import 'package:jsonschema/feature/content_viewer/pan_response_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_model_mapper.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
@@ -33,10 +32,10 @@ import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_scroller.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 
 import '../../core/designer/core/widget_catalog/export/export_csv.dart';
+import '../../pages/browse_api/browse_api_page.dart';
 import '../../widget/editor/doc_editor.dart';
 import 'pan_api_request.dart';
 import 'package:json2yaml/json2yaml.dart';
@@ -68,7 +67,7 @@ class _PanApiEditorState extends State<PanApiEditor>
     var attr = currentCompany.listAPI!.getNodeByMasterIdPath(widget.idApi)!;
     currentCompany.listAPI!.selectedAttr = attr;
     requestHelper = WidgetAPIHelper(
-      apiNode: currentCompany.listAPI!.selectedAttr!,
+      apiNodeForCalculatePath: currentCompany.listAPI!.selectedAttr!,
       apiCallInfo: _getAPICall(
         currentCompany.currentNameSpace,
         currentCompany.listAPI!.selectedAttr!,
@@ -156,7 +155,9 @@ class _PanApiEditorState extends State<PanApiEditor>
           children: [
             Row(
               children: [
-                Expanded(child: requestHelper.getAPIWidgetPath(context, 'view')),
+                Expanded(
+                  child: requestHelper.getAPIWidgetPath(context, 'view'),
+                ),
                 if (widget.typeTab == TypeAPITab.test) getSendBtn(),
               ],
             ),
@@ -202,10 +203,9 @@ class _PanApiEditorState extends State<PanApiEditor>
                     onPressed: () async {
                       Clipboard.setData(
                         ClipboardData(
-                          text:
-                              modelSwagger.value.isEmpty
-                                  ? 'Generate swagger...'
-                                  : modelSwagger.value,
+                          text: modelSwagger.value.isEmpty
+                              ? 'Generate swagger...'
+                              : modelSwagger.value,
                         ),
                       );
                       exportFile(modelSwagger.value, fileName: "swagger.yaml");
@@ -374,7 +374,9 @@ class _PanApiEditorState extends State<PanApiEditor>
                 Icon(Icons.help),
               ],
             ),
-            Expanded(child: TextEditor(config: conf, header: 'search')),
+            Expanded(
+              child: TextEditor(config: conf, header: 'search'),
+            ),
           ],
         ),
       ],
@@ -648,39 +650,39 @@ class InfoManagerAPIParam extends InfoManagerModel with WidgetHelper {
     return super.isTypeValid(nodeAttribut, name, type, typeTitle);
   }
 
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    //var type = node.data!.info.type;
-    if (node.level == 1) {
-      var name = node.data!.yamlNode.key.toString();
-      List<Widget> w = [
-        Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ];
-      if (typeMD == TypeMD.apiresponse) {
-        int? v = int.tryParse(name);
-        if (v != null) {
-          w = [
-            getChip(
-              w.first,
-              color: v < 300 ? Colors.green : Colors.red.shade400,
-            ),
-          ];
-          w.add(Text(' ${interpretHttpStatusCode(v)}'));
-        }
-      }
-      return Row(
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(0, 0, 5, 0),
-            child: Icon(Icons.api),
-          ),
-          ...w,
-        ],
-      );
-    } else {
-      return super.getAttributHeaderOLD(node);
-    }
-  }
+  // @override
+  // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
+  //   //var type = node.data!.info.type;
+  //   if (node.level == 1) {
+  //     var name = node.data!.yamlNode.key.toString();
+  //     List<Widget> w = [
+  //       Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+  //     ];
+  //     if (typeMD == TypeMD.apiresponse) {
+  //       int? v = int.tryParse(name);
+  //       if (v != null) {
+  //         w = [
+  //           getChip(
+  //             w.first,
+  //             color: v < 300 ? Colors.green : Colors.red.shade400,
+  //           ),
+  //         ];
+  //         w.add(Text(' ${interpretHttpStatusCode(v)}'));
+  //       }
+  //     }
+  //     return Row(
+  //       children: [
+  //         Padding(
+  //           padding: EdgeInsets.fromLTRB(0, 0, 5, 0),
+  //           child: Icon(Icons.api),
+  //         ),
+  //         ...w,
+  //       ],
+  //     );
+  //   } else {
+  //     return super.getAttributHeaderOLD(node);
+  //   }
+  // }
 
   String interpretHttpStatusCode(int code) {
     const statusMessages = {

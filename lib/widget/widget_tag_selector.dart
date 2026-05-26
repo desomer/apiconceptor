@@ -66,64 +66,70 @@ class _TagSelectorState extends State<TagSelector> with WidgetHelper {
   Widget build(BuildContext context) {
     GlobalKey k = GlobalKey();
 
-    List<Widget> tagChips =
-        selectedTags.map<Widget>((tag) {
-          return Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey, width: 1),
+    List<Widget> tagChips = selectedTags.map<Widget>((tag) {
+      return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey, width: 1),
+        ),
+        padding: EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+        child: Row(
+          spacing: 4,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(tag),
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints(),
+              onPressed: () {
+                _removeTag(tag);
+              },
+              icon: Icon(Icons.close, size: 18),
             ),
-            padding: EdgeInsets.symmetric(vertical: 0, horizontal: 8),
-            child: Row(
-              spacing: 4,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(tag),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
-                  onPressed: () {
-                    _removeTag(tag);
-                  },
-                  icon: Icon(Icons.close, size: 18),
+          ],
+        ),
+      );
+    }).toList();
+
+    if ((widget.accessor?.isEditable() ?? true) == true) {
+      if (tagChips.isEmpty) {
+        tagChips.add(Text('Add tag '));
+      }
+
+      tagChips.add(
+        IconButton(
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints(),
+
+          onPressed: () {
+            //Size size = MediaQuery.of(context).size;
+            double width = 200;
+            double height = 450;
+
+            dialogBuilderBelow(
+              context,
+              SizedBox(
+                width: width,
+                height: height,
+                child: Column(
+                  children: [
+                    getTagSelector(),
+                    Expanded(child: Container()),
+                  ],
                 ),
-              ],
-            ),
-          );
-        }).toList();
-
-    if (tagChips.isEmpty) tagChips.add(Text('Add tag '));
-
-    tagChips.add(
-      IconButton(
-        padding: EdgeInsets.zero,
-        constraints: BoxConstraints(),
-
-        onPressed: () {
-          //Size size = MediaQuery.of(context).size;
-          double width = 200;
-          double height = 450;
-
-          dialogBuilderBelow(
-            context,
-            SizedBox(
-              width: width,
-              height: height,
-              child: Column(
-                children: [getTagSelector(), Expanded(child: Container())],
               ),
-            ),
-            k,
-            Offset(-100, 0),
-            (BuildContext ctx) {
-              aCtx = ctx;
-            },
-          );
-        },
+              k,
+              Offset(-100, 0),
+              (BuildContext ctx) {
+                aCtx = ctx;
+              },
+            );
+          },
 
-        icon: Icon(Icons.add, size: 20),
-      ),
-    );
+          icon: Icon(Icons.add, size: 20),
+        ),
+      );
+    }
 
     return Wrap(key: k, spacing: 4, runSpacing: 4, children: tagChips);
   }

@@ -4,9 +4,12 @@ import 'dart:core';
 import 'package:diff_match_patch/diff_match_patch.dart';
 import 'package:flutter/foundation.dart' show VoidCallback;
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
+import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
@@ -16,32 +19,93 @@ import 'package:supabase/supabase.dart';
 
 DataAcces bddStorage = DataAcces();
 
+const String cstStorage = '##_storage_##';
+const String cstStorageID = 'id';
+const String cstStorageChange = 'changed';
+
 class DataAcces {
+  static const String _supabaseUrl = 'https://oielmrsjyymltbkyeuec.supabase.co';
+  static const String _supabaseAnonKey =
+      'sb_publishable_e9UTDwq91xn659rSjkzhCw_Z-nO5k06';
+
   SupabaseClient? _sup;
   late SupabaseClient supabase;
   StoreManager storeManager = StoreManager();
 
-  Future<bool> connect(String usermail, String password) async {
+  SupabaseClient getAuthClient() {
+    _sup ??= SupabaseClient(
+      _supabaseUrl,
+      _supabaseAnonKey,
+      authOptions: const AuthClientOptions(
+        autoRefreshToken: true,
+        authFlowType: AuthFlowType.implicit,
+      ),
+      //authOptions: const AuthClientOptions(authFlowType: AuthFlowType.implicit),
+    );
+    return _sup!;
+  }
+
+  Future<void> ensureSessionValid() async {
+    final session = supabase.auth.currentSession;
+    if (session == null) return;
+
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final exp = session.expiresAt ?? 0;
+
+    // Si le token expire dans moins de 60 secondes → refresh
+    if (exp - now < 60) {
+      AuthResponse newSession = await supabase.auth.refreshSession(
+        session.refreshToken!,
+      );
+      supabase.auth.setSession(
+        newSession.session!.refreshToken!,
+        accessToken: newSession.session!.accessToken,
+      );
+    }
+  }
+
+  Future<bool> connect(
+    String usermail,
+    String password, {
+    String? accessToken,
+    String? refreshToken,
+  }) async {
     print("connect to supabase");
     try {
-      _sup ??= SupabaseClient(
-        'https://oielmrsjyymltbkyeuec.supabase.co',
-        'sb_publishable_e9UTDwq91xn659rSjkzhCw_Z-nO5k06',
-        authOptions: const AuthClientOptions(
-          authFlowType: AuthFlowType.implicit,
-        ),
-      );
-
-      supabase = _sup!;
+      supabase = getAuthClient();
 
       print("signInWithPassword to supabase");
-      AuthResponse res = await supabase.auth.signInWithPassword(
-        email: usermail,
-        password: password, //'test.archi',
-      );
+      AuthResponse res;
+      if (accessToken != null && refreshToken != null) {
+        res = await supabase.auth.setSession(
+          refreshToken,
+          accessToken: accessToken,
+        );
+        // await ensureSessionValid();
+      } else {
+        res = await supabase.auth.signInWithPassword(
+          email: usermail,
+          password: password, //'test.archi',
+        );
+      }
       // ignore: unused_local_variable
       final Session? session = res.session;
       currentCompany.user = res.user;
+
+      await prefs.setString("access_token", session!.accessToken);
+      await prefs.setString("refresh_token", session.refreshToken!);
+      await prefs.setString("mail", currentCompany.user!.email!);
+      await prefs.remove("pwd");
+
+      print("connect to supabase ok ${currentCompany.user!.email}");
+      Map<String, dynamic>? userMeta = session.user.userMetadata; 
+      // final Map<String, dynamic> appMeta = session.user.appMetadata;
+
+      var userCompagny = userMeta?['company_id'];
+      var userPlan = userMeta?['plan'];
+      
+      print('userCompagny $userCompagny plan $userPlan');
+
       UserAuthentication.stateConnection.value = 'Loading profile ...';
 
       var queryattr = supabase
@@ -65,7 +129,8 @@ class DataAcces {
       } else {
         UserAuthentication.stateConnection.value =
             'Create ${currentCompany.user!.email}';
-        currentCompany.userProfil = {
+
+        currentCompany.userProfil = <String, dynamic>{
           'uid': currentCompany.user!.id,
           'namedId': currentCompany.user!.email,
           'data': {
@@ -73,6 +138,7 @@ class DataAcces {
           },
           'company_id': currentCompany.companyId,
         };
+        print('user profil created ${currentCompany.userProfil}');
         await supabase.from('user_profil').upsert([currentCompany.userProfil]);
       }
 
@@ -122,6 +188,7 @@ class DataAcces {
     String id,
     String pathYaml,
   ) async {
+    await ensureSessionValid();
     var queryattr = supabase
         .from('attributs')
         .select('*')
@@ -139,7 +206,7 @@ class DataAcces {
         info.path = element['path'];
         info.properties = element['prop'];
         info.tooltipError = element['type'] ?? '?';
-        
+
         info.action = element['state'];
         info.timeLastUpdate = DateTime.tryParse(element['update_at'] ?? '');
         model.mapInfoByTreePath[info.masterID!] = info;
@@ -158,6 +225,8 @@ class DataAcces {
     String id,
     ModelVersion? version,
   ) async {
+    await ensureSessionValid();
+
     if (id.startsWith('json/')) {
       //print("load prop from bdd $id");
       var queryattr = supabase
@@ -359,7 +428,7 @@ class DataAcces {
             'attr_id': attr.masterID,
             'path': attr.path,
             'prop': attr.properties,
-            'type' : attr.type,
+            'type': attr.type,
             'state': attr.action ?? 'D',
             'update_at': DateTime.now().toIso8601String(),
           };
@@ -367,7 +436,7 @@ class DataAcces {
           var save = SaveEvent(
             model: model,
             version: model.currentVersion,
-            id: '${model.id};${attr.masterID}',
+            idIdempotence: '${model.id};${attr.masterID}',
             table: 'attributs',
             data: payload,
           );
@@ -419,7 +488,7 @@ class DataAcces {
         var save = SaveEvent(
           model: model,
           version: model.currentVersion,
-          id: '${model.id};${attr.masterID}',
+          idIdempotence: '${model.id};${attr.masterID}',
           table: 'attributs',
           data: payload,
         );
@@ -454,6 +523,10 @@ class DataAcces {
     }
   }
 
+  void store(SaveEvent event) {
+    _setSupabase(event);
+  }
+
   void doStore() {
     var store = {...storeManager.toStore};
     storeManager.toStore.clear();
@@ -473,6 +546,7 @@ class DataAcces {
   }
 
   Future<List<ModelVersion>> getAllVersion(ModelSchema model) async {
+    await ensureSessionValid();
     var id = model.id;
     var queryattr = supabase
         .from('versions')
@@ -503,7 +577,7 @@ class DataAcces {
     SaveEvent event = SaveEvent(
       version: version,
       model: model,
-      id: '',
+      idIdempotence: '',
       table: 'versions',
       data: {
         'company_id': currentCompany.companyId,
@@ -524,7 +598,7 @@ class DataAcces {
     SaveEvent event = SaveEvent(
       version: null,
       model: model,
-      id: '',
+      idIdempotence: '',
       table: 'api_params',
       data: {
         'id': id,
@@ -541,6 +615,7 @@ class DataAcces {
     ModelSchema model,
     String id,
   ) async {
+    await ensureSessionValid();
     var apiid = model.id;
     //print("load param api from bdd $apiid");
     var queryattr = supabase
@@ -560,10 +635,12 @@ class DataAcces {
   }
 
   Future<void> _setSupabase(SaveEvent event) async {
+    await ensureSessionValid();
     await supabase.from(event.table).upsert([event.data]);
   }
 
   Future<void> restoreAttribut(ModelSchema model, NodeAttribut attr) async {
+    await ensureSessionValid();
     //passe de D a R
     await supabase
         .from('attributs')
@@ -591,7 +668,7 @@ class DataAcces {
     var save = SaveEvent(
       model: model,
       version: version,
-      id: '${model.id};',
+      idIdempotence: '${model.id};',
       table: 'models',
       data: {
         'compagny_id': currentCompany.companyId,
@@ -619,10 +696,9 @@ class DataAcces {
       localCache[id]!.time = DateTime.now().millisecondsSinceEpoch;
       localCache[id]!.value = value;
     } else {
-      localCache[id] =
-          CacheValue()
-            ..time = DateTime.now().millisecondsSinceEpoch
-            ..value = value;
+      localCache[id] = CacheValue()
+        ..time = DateTime.now().millisecondsSinceEpoch
+        ..value = value;
     }
   }
 
@@ -653,6 +729,7 @@ class DataAcces {
     String category,
     String authId,
   ) async {
+    await ensureSessionValid();
     //print("load param api from bdd $apiid");
     var queryattr = supabase
         .from('user_auth')
@@ -667,6 +744,8 @@ class DataAcces {
 
   Future<List<Map<String, dynamic>>?> getUserAuth(String userId) async {
     //print("load param api from bdd $apiid");
+    await ensureSessionValid();
+
     var queryattr = supabase
         .from('user_auth')
         .select('*')
@@ -680,6 +759,8 @@ class DataAcces {
   Future<List<Map<String, dynamic>>?> getHistories(
     ModelSchema modelSchema,
   ) async {
+    await ensureSessionValid();
+
     var queryattr = supabase
         .from('histories')
         .select('*')
@@ -709,7 +790,7 @@ class DataAcces {
     var save = SaveEvent(
       model: modelSchema,
       version: modelSchema.currentVersion,
-      id: '',
+      idIdempotence: '',
       table: 'histories',
       data: {
         'company_id': currentCompany.companyId,
@@ -727,6 +808,8 @@ class DataAcces {
   // ---- Comments ----
 
   Future<List<Comment>> getComments(String contextId) async {
+    await ensureSessionValid();
+
     var ret = await supabase
         .from('comments')
         .select('*')
@@ -750,6 +833,7 @@ class DataAcces {
   }
 
   Future<void> saveComment(String contextId, Comment comment) async {
+    await ensureSessionValid();
     await supabase.from('comments').upsert([
       {
         'id': comment.id,
@@ -766,12 +850,245 @@ class DataAcces {
   }
 
   Future<void> deleteComment(String contextId, String commentId) async {
+    await ensureSessionValid();
     await supabase
         .from('comments')
         .delete()
         .eq('company_id', currentCompany.companyId)
         .eq('context_id', contextId)
         .eq('id', commentId);
+  }
+
+  void saveData(
+    CallerDatasource? callerDatasource,
+    ModelSchema? currentAPIResponse,
+    dynamic data,
+  ) {
+    if (currentAPIResponse != null) {
+      var facets = [];
+
+      for (var element in callerDatasource?.facets ?? []) {
+        var k = element.toString();
+        facets.add({'key': k, 'value': data[k]});
+      }
+
+      int? id = data[cstStorage]?[cstStorageID];
+      var updatedAt = data[cstStorage]?['updated_at'];
+      var backup1 = data.remove(cstStorage);
+
+      SaveEvent event = SaveEvent(
+        model: currentAPIResponse,
+        version: currentAPIResponse.currentVersion,
+        idIdempotence: '',
+        table: 'user_data',
+        data: {
+          'company_id': currentCompany.companyId,
+          'schema_id': callerDatasource?.modelShortName,
+          'version': currentAPIResponse.getVersionId(),
+          'json': data,
+          'facets': facets,
+          'id': ?id,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      store(event);
+      if (backup1 != null) {
+        data[cstStorage] = backup1;
+      }
+    }
+  }
+
+  // ignore: slash_for_doc_comments
+  /** 
+final page = 3;
+final pageSize = 20;
+
+final from = (page - 1) * pageSize;
+final to = from + pageSize - 1;
+
+data = await supabase
+    .from('products')
+    .select()
+    .select('*', const FetchOptions(count: CountOption.exact))
+    .order('id')
+    .range(from, to);
+
+print(res.count);
+ **/
+
+  Future<List<Map<String, dynamic>>> getInternalData(
+    CallerDatasource callerDatasource,
+    APICallManager apiCallInfo,
+  ) async {
+    await ensureSessionValid();
+    String escape(String s) => s.replaceAll('"', '\\"');
+
+    var q = supabase.from('user_data').select();
+
+    q = q.eq('company_id', currentCompany.companyId);
+    q = q.eq('schema_id', callerDatasource.modelShortName!);
+    q = q.eq('version', apiCallInfo.currentAPIResponse?.getVersionId() ?? '1');
+
+    dynamic resolveValue(dynamic value, bool withEscape) {
+      if (value is String) {
+        return value.replaceAllMapped(RegExp(r'{{(.*?)}}'), (match) {
+          var varName = match.group(1);
+          var varValue = apiCallInfo.getParamValue('query', varName ?? '');
+          if (withEscape && varValue is String) {
+            varValue = escape(varValue);
+          }
+          return varValue != null ? varValue.toString() : '';
+        });
+      }
+      return value;
+    }
+
+    String? normalizeLogicValue(dynamic value) {
+      if (value == null) return null;
+      if (value is num || value is bool) return value.toString();
+      if (value is String) {
+        final escaped = escape(value);
+        final requiresQuotes =
+            escaped.contains(',') ||
+            escaped.contains('(') ||
+            escaped.contains(')') ||
+            escaped.contains(' ');
+        return requiresQuotes ? '"$escaped"' : escaped;
+      }
+      return value.toString();
+    }
+
+    String? buildLogicClause(dynamic node) {
+      if (node is! Map) return null;
+
+      final hasField = node['field'] != null && node['ope'] != null;
+      final hasAnd = node['and'] is List;
+      final hasOr = node['or'] is List;
+
+      if (hasField && !hasAnd && !hasOr) {
+        final field = node['field'];
+        final op = node['ope'];
+        final value = normalizeLogicValue(resolveValue(node['value'], true));
+        if (value != null && value.toString().isNotEmpty) {
+          return 'json->>$field.$op.$value';
+        } else {
+          return 'id.gte.0'; // toujours true
+        }
+      }
+
+      String? buildGroup(String logic, List group) {
+        final clauses = <String>[];
+        for (final child in group) {
+          final childClause = buildLogicClause(child);
+          if (childClause != null && childClause.isNotEmpty) {
+            clauses.add(childClause);
+          }
+        }
+        if (clauses.isEmpty) return null;
+        if (clauses.length == 1) return clauses.first;
+        return '$logic(${clauses.join(',')})';
+      }
+
+      final allClauses = <String>[];
+
+      if (hasAnd) {
+        final andClause = buildGroup('and', node['and']);
+        if (andClause != null) allClauses.add(andClause);
+      }
+
+      if (hasOr) {
+        final orClause = buildGroup('or', node['or']);
+        if (orClause != null) allClauses.add(orClause);
+      }
+
+      if (allClauses.isEmpty) return null;
+      if (allClauses.length == 1) return allClauses.first;
+      return 'and(${allClauses.join(',')})';
+    }
+
+    void applyAndNode(dynamic node) {
+      if (node is! Map) return;
+
+      final hasField = node['field'] != null && node['ope'] != null;
+      final hasAnd = node['and'] is List;
+      final hasOr = node['or'] is List;
+
+      if (hasField && !hasAnd && !hasOr) {
+        final field = node['field'];
+        final op = node['ope'];
+        final value = resolveValue(node['value'], false);
+        if (value != null && value.toString().isNotEmpty) {
+          q = q.filter('json->>$field', op, value);
+        } else {
+          q = q.filter('id', 'gte', 0); // toujours true
+        }
+        return;
+      }
+
+      if (hasAnd) {
+        for (final child in node['and']) {
+          applyAndNode(child);
+        }
+      }
+
+      if (hasOr) {
+        final orClause = buildLogicClause({'or': node['or']});
+        if (orClause != null && orClause.isNotEmpty) {
+          if (orClause.startsWith('or(') && orClause.endsWith(')')) {
+            q = q.or(orClause.substring(3, orClause.length - 1));
+          } else {
+            q = q.or(orClause);
+          }
+        }
+      }
+    }
+
+    /**  
+    where :
+    - or :
+         - field : value
+           ope : eq              
+           value : "{{value}}"          
+         - and :                  
+          - field : test
+            ope : eq
+            value : toto          
+    */
+
+    for (final whereNode in callerDatasource.where ?? []) {
+      applyAndNode(whereNode);
+    }
+
+    PostgrestTransformBuilder? qs;
+    for (Map sortNode in callerDatasource.sort ?? []) {
+      var k = sortNode.keys.first;
+      var s = sortNode.values.first;
+      if (qs == null) {
+        qs = q.order('json->>$k', ascending: s == 'asc');
+      } else {
+        qs = qs.order('json->>$k', ascending: s == 'asc');
+      }
+    }
+
+    var ret = await (qs ?? q);
+
+    List<Map<String, dynamic>> result = ret.map<Map<String, dynamic>>((e) {
+      Map<String, dynamic> r = e['json'];
+      r[cstStorage] = {};
+      r[cstStorage]['id'] = e['id'];
+      r[cstStorage]['updated_at'] = e['updated_at'];
+      return r;
+    }).toList();
+
+    if (callerDatasource.dsConfig.data.rowsVariable != null) {
+      result = <Map<String, dynamic>>[
+        <String, dynamic>{
+          callerDatasource.dsConfig.data.rowsVariable!: result,
+          // wrap the list in a map with the specified variable name
+        },
+      ];
+    }
+    return result;
   }
 }
 
@@ -781,7 +1098,7 @@ class StoreManager {
   Debouncer debouncer = Debouncer(milliseconds: 3000);
   Map<String, SaveEvent> toStore = {};
   void add(SaveEvent event) {
-    toStore[event.id] = event;
+    toStore[event.idIdempotence] = event;
     debouncer.run(() {
       bddStorage.doStore();
     });

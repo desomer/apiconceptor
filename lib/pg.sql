@@ -20,3 +20,5 @@ create table public.models (
   json jsonb null,
   constraint models_pkey primary key (compagny_id, model_id)
 ) TABLESPACE pg_default;
+
+

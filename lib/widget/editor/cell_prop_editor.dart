@@ -148,7 +148,7 @@ class CellEditorState extends State<CellEditor> {
 
     if (hasValue) {
       return Container(
-        padding: const EdgeInsets.fromLTRB(4, 2, 5, 0),
+        padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
         width: (250 * (zoom.value / 100)),
         height: 30,
         decoration: deco,
@@ -166,7 +166,7 @@ class CellEditorState extends State<CellEditor> {
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(4, 2, 5, 0),
+      padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
       width: (250 * (zoom.value / 100)),
       height: 30,
       decoration: deco,

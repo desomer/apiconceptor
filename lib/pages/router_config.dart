@@ -13,6 +13,7 @@ import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/apps/apps_list_page.dart';
 import 'package:jsonschema/pages/content/content_map_engine_yaml.dart';
 import 'package:jsonschema/pages/content/content_map_page.dart';
@@ -40,6 +41,7 @@ import 'package:jsonschema/pages/model_design/design_model_ui_page.dart';
 import 'package:jsonschema/pages/config/domain_page.dart';
 import 'package:jsonschema/pages/config/env_page.dart';
 import 'package:jsonschema/pages/config/glossary_page.dart';
+import 'package:jsonschema/pages/config/profile_page.dart';
 import 'package:jsonschema/pages/log_page.dart';
 import 'package:jsonschema/pages/mock_api_page.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
@@ -78,6 +80,7 @@ enum Pages {
 
   env('/env'),
   log('/log'),
+  profile('/profile'),
   user("/user"),
 
   content("/content"),
@@ -113,10 +116,20 @@ enum Pages {
   }
 }
 
+//******************************************************/
+String? deepLinkPath;
+String? accessToken;
+String? refreshToken;
+
 final routeObserver = RouteObserver<PageRoute>();
 
 Map<String, RouteManager> cacheRoute = {};
 LruCache cachePage = LruCache(5);
+
+String? lastPagePath;
+int forceNewPage = 0;
+
+//******************************************************/
 
 GoRoute addRoute(
   GoRoute route,
@@ -143,9 +156,6 @@ GoRoute addRouteByIndexed(
   cacheRoute[route.path] = RouteManager(builder: builder);
   return route;
 }
-
-String? lastPagePath;
-int forceNewPage = 0;
 
 void noCacheOnNextLink(int nb) {
   forceNewPage = nb;
@@ -247,14 +257,6 @@ CustomTransitionPage getPageAnim(BuildContext context, GoRouterState state) {
   return buildPageWithSlide(context: context, state: state, child: page);
 }
 
-// List<Widget> getAllPages(BuildContext context) {
-//   return allroute.values.map((e) => e.cache!).toList();
-// }
-
-// int indexOfPage(String path) {
-//   return allroute.keys.toList().indexOf(path);
-// }
-
 CustomTransitionPage<T> buildPageWithSlide<T>({
   required BuildContext context,
   required GoRouterState state,
@@ -326,8 +328,6 @@ final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'globalNavigatorKey',
 );
 
-String? deepLinkPath;
-
 class Dialog with WidgetHelper {
   Future<void> doMustDomainFirst(BuildContext context) async {
     return messageBuilder(
@@ -346,10 +346,22 @@ final GoRouter router = GoRouter(
   redirect: (context, state) async {
     if (showLoginDialog) {
       deepLinkPath = state.uri.toString();
-      if (!deepLinkPath!.contains('?id=')) {
+
+      if (deepLinkPath!.contains("access_token=") &&
+          deepLinkPath!.contains("refresh_token=")) {
+        accessToken = state.uri.queryParameters['access_token'];
+        refreshToken = state.uri.queryParameters['refresh_token'];
+        prefs.setString("access_token", accessToken!);
+        prefs.setString("refresh_token", refreshToken!);
+        //Retire les tokens de l'url
+        return Pages.home.urlpath;
+      }
+
+      if (!deepLinkPath!.contains('id=') && !deepLinkPath!.contains('ns=')) {
         deepLinkPath = null;
         return Pages.home.urlpath;
       }
+
       print('deepLinkPath: $deepLinkPath');
       // return Pages.home.urlpath;
     }
@@ -430,7 +442,7 @@ final GoRouter router = GoRouter(
         addRoute(
           GoRoute(path: Pages.api.urlpath, pageBuilder: getPageAnim),
           (context, state) => DesignAPIPage(state: state),
-        ),        
+        ),
         addRouteBy(
           Pages.apiDetail,
           CallAPIPageDetail(typeTab: TypeAPITab.definition),
@@ -467,6 +479,7 @@ final GoRouter router = GoRouter(
         ),
 
         //----------------------------------------------------------------
+        addRouteBy(Pages.profile, const ProfilePage()),
         addRouteBy(Pages.user, const UserPage()),
 
         //----------------------------------------------------------------
@@ -589,7 +602,7 @@ class ApiRequestNavigator {
   }
 
   Future<ModelSchema> getModel(String idModel) async {
-    var attr = currentCompany.listModel!.getNodeByMasterIdPath(idModel)!;
+    var attr = currentCompany.listModel!.getNodeByMasterIdPath(idModel);
     currentCompany.listModel!.selectedAttr = attr;
 
     await Future.delayed(Duration(milliseconds: gotoDelay));
@@ -597,7 +610,7 @@ class ApiRequestNavigator {
     var model = ModelSchema(
       category: Category.model,
       infoManager: InfoManagerModel(typeMD: TypeMD.model),
-      headerName: attr.info.name,
+      headerName: attr?.info.name ?? '?',
       id: idModel,
       refDomain: currentCompany.listModel!,
     );

@@ -22,7 +22,7 @@ class DesignApiDetailScrumPage extends GenericPageStateless {
     currentCompany.listAPI!.selectedAttr = attr;
 
     requestHelper = WidgetAPIHelper(
-      apiNode: attr,
+      apiNodeForCalculatePath: attr,
       apiCallInfo: getAPICall(
         currentCompany.currentNameSpace,
         currentCompany.listAPI!.selectedAttr!,

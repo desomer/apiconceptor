@@ -33,6 +33,9 @@ class DebugEntry {
 final List<DebugEntry> debugEntries = [];
 
 void main() async {
+  const isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
+  print('isRunningWithWasm $isRunningWithWasm');
+
   prefs = await SharedPreferences.getInstance();
 
   debugPaintSizeEnabled = false;
@@ -116,16 +119,14 @@ class _DebugScreenState extends State<DebugScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final orderedEntries =
-        _newestFirst
-            ? debugEntries.reversed.toList(growable: false)
-            : debugEntries;
-    final displayedEntries =
-        _errorsOnly
-            ? orderedEntries
-                .where((entry) => entry.type == DebugEntryType.error)
-                .toList(growable: false)
-            : orderedEntries;
+    final orderedEntries = _newestFirst
+        ? debugEntries.reversed.toList(growable: false)
+        : debugEntries;
+    final displayedEntries = _errorsOnly
+        ? orderedEntries
+              .where((entry) => entry.type == DebugEntryType.error)
+              .toList(growable: false)
+        : orderedEntries;
 
     return Scaffold(
       appBar: AppBar(
@@ -256,8 +257,9 @@ class _TimelineMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lineColor = Theme.of(context).dividerColor.withValues(alpha: 0.45);
-    final dotColor =
-        isError ? Colors.red : Theme.of(context).colorScheme.primary;
+    final dotColor = isError
+        ? Colors.red
+        : Theme.of(context).colorScheme.primary;
 
     return SizedBox(
       width: 26,
@@ -306,6 +308,13 @@ class MyApp extends StatelessWidget {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorSchemeSeed: Colors.blueGrey,
+      textTheme: const TextTheme(
+        bodyMedium: TextStyle(fontSize: 16), // texte saisi
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        hintStyle: TextStyle(fontSize: 14),
+        labelStyle: TextStyle(fontSize: 14),
+      ),
     );
     ThemeHolder.theme = theme;
 
@@ -323,10 +332,11 @@ class MyApp extends StatelessWidget {
           //FlutterQuillLocalizations.delegate,
         ],
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorSchemeSeed: const Color.fromRGBO(86, 80, 14, 171),
-        ),
+
+        // theme: ThemeData(
+        //   useMaterial3: true,
+        //   colorSchemeSeed: const Color.fromRGBO(86, 80, 14, 171),
+        // ),
         darkTheme: theme,
         themeMode: ThemeMode.dark,
         routerConfig: router,

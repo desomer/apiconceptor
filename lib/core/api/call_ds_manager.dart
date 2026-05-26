@@ -1,5 +1,4 @@
 import 'package:collection/collection.dart';
-import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/session_storage.dart';
@@ -7,8 +6,6 @@ import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
-import 'package:jsonschema/feature/api/pan_api_example.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
@@ -16,16 +13,41 @@ import 'package:yaml/yaml.dart';
 
 class CallerDatasource {
   WidgetAPIHelper? helper;
-  ConfigDataSource config = ConfigDataSource();
+  ConfigDataSource dsConfig = ConfigDataSource();
+  String type = '';
   String domainDs = '';
   String dsId = '';
-  String apiShortName = '';
   String dsName = '';
-  ModelSchema? modelHttp200;
-  List<AttributInfo>? exampleData;
 
-  String typeLayout = 'Form';
+  String? apiShortName;
+
+  ModelSchema? modelHttp200; // pour les type des attributs dans les réponses
+  String panBuilderLayout = 'Form';
   List<Map<String, dynamic>> panBuilderConfig = [];
+  List<AttributInfo>? listExampleParameters; // pour les critéres de données
+
+  String? modelShortName = '';
+  List? facets;
+  List? where;
+  List? sort;
+
+  bool canSave() {
+    return type == 'internal';
+  }
+
+  bool isArray() {
+    if (dsConfig.criteria.paginationVariable != null) return true;
+    return false;
+  }
+
+  bool isStorable() {
+    if (dsConfig.data.rowsVariable != null) return true;
+    return false;
+  }
+
+  String? getRowsVariable() {
+    return dsConfig.data.rowsVariable;
+  }
 
   Future<void> loadDs(String dataSourceId, String? parentParamId) async {
     dsId = dataSourceId;
@@ -53,7 +75,7 @@ class CallerDatasource {
       subNode: 200,
     );
 
-    exampleData = await apiCallInfo.getExamples();
+    listExampleParameters = await apiCallInfo.getExamples();
   }
 
   Future<WidgetAPIHelper?> loadConfig(
@@ -76,30 +98,42 @@ class CallerDatasource {
     print('load ds $datasourceId name = ${app.name}');
 
     var configText = app.properties!['config'];
-    Map config = {};
+    Map configYaml = {};
     try {
-      config = loadYaml(configText, recover: true);
+      configYaml = loadYaml(configText, recover: true);
     } catch (e) {
       print(e);
     }
 
-    domainDs = getValueFromPath(config, 'domain');
-    apiShortName = getValueFromPath(config, 'api');
-    var param = getValueFromPath(config, 'param');
+    type = getValueFromPath(configYaml, 'type') ?? '';
+    domainDs = getValueFromPath(configYaml, 'domain');
+    apiShortName = getValueFromPath(configYaml, 'api');
+    if (type == '') type = 'api';
+    dsConfig.name = apiShortName ?? '';
 
-    var pagination = getValueFromPath(config, 'pagination');
-    List? links = getValueFromPath(config, 'links');
-
-    this.config.name = apiShortName;
+    var base = getValueFromPath(configYaml, 'base');
+    if (base != null) {
+      modelShortName = base['table']['model'];
+      facets = base['table']['facets'];
+      var whereConfig = base['find']['where'];
+      print('where = $whereConfig');
+      where = yamlToDart(whereConfig);
+      var sortConfig = base['find']['sort'];
+      print('sort = $sortConfig');
+      sort = yamlToDart(sortConfig);
+    }
+    var pagination = getValueFromPath(configYaml, 'pagination');
+    List? links = getValueFromPath(configYaml, 'links');
 
     if (pagination != null) {
-      this.config.criteria.paginationVariable = pagination['variable'];
-      this.config.criteria.min = pagination['min'] ?? 0;
-      this.config.data.paginationVariable = pagination['maxVariable'];
+      dsConfig.criteria.paginationVariable = pagination['variable'];
+      dsConfig.criteria.min = pagination['min'] ?? 0;
+      dsConfig.data.paginationVariable = pagination['maxVariable'];
+      dsConfig.data.rowsVariable = pagination['rows'];
     }
 
     for (var link in links ?? const []) {
-      this.config.data.links.add(
+      dsConfig.data.links.add(
         ConfigLink(
           onPath: link['link']['on'],
           title: link['link']['title'],
@@ -109,11 +143,12 @@ class CallerDatasource {
     }
 
     var v = currentCompany.listDomain!;
-    var r = v.allAttributInfo.values.firstWhereOrNull((element) {
+    var selDomain = v.allAttributInfo.values.firstWhereOrNull((element) {
       return element.name.toLowerCase() == domainDs;
     });
-    if (r != null) {
-      var allApi = await loadAllAPI(namespace: r.masterID);
+
+    if (apiShortName != null && selDomain != null) {
+      var allApi = await loadAllAPI(namespace: selDomain.masterID);
       var api = allApi.allAttributInfo.values.firstWhereOrNull((element) {
         return element.properties?['short name']?.toString().toLowerCase() ==
             apiShortName;
@@ -122,7 +157,7 @@ class CallerDatasource {
       if (api != null) {
         String httpOpe = api.name.toLowerCase();
         var apiCallInfo = APICallManager(
-          namespace: r.masterID!,
+          namespace: selDomain.masterID!,
           attrApi: api,
           httpOperation: httpOpe,
         );
@@ -130,42 +165,17 @@ class CallerDatasource {
           // affecte la session du parent
           apiCallInfo.parentData = sessionStorage.get(parentParamId);
         }
-        var apiNode = allApi.getNodeByMasterIdPath(api.masterID!)!;
-        String url = apiCallInfo.getURLfromNode(apiNode);
-        var def = await loadAPI(id: api.masterID!, namespace: r.masterID);
-        print("load api $url ${def.id} ");
+        var apiNode = await apiCallInfo.initAPIDataSrc(
+          dsConfig,
+          selDomain,
+          allApi,
+          configYaml,
+        );
 
-        if (param != null) {
-          print("load param $param");
-          var paramModel = ModelSchema(
-            category: Category.exampleApi,
-            headerName: 'example',
-            id: 'example/temp/${apiNode.info.masterID!}',
-            infoManager: InfoManagerApiExample(),
-            refDomain: null,
-          )..namespace = r.masterID;
-          await paramModel.loadYamlAndProperties(
-            cache: false,
-            withProperties: true,
-          );
-
-          var a = BrowseSingle(config: BrowserConfig());
-          a.browse(paramModel, false);
-
-          var paramAttr = paramModel.mapInfoByName[param]?.firstOrNull;
-          this.config.paramToLoad = paramAttr;
-        }
-
-        var v = getValueFromPath(config, '/data/path');
-        if (v != null) {
-          this.config.data.dataDisplayPath = v.toString().split(';');
-        }
-        v = getValueFromPath(config, '/criteria/path');
-        if (v != null) {
-          this.config.criteria.dataDisplayPath = v.toString().split(';');
-        }
-
-        helper = WidgetAPIHelper(apiNode: apiNode, apiCallInfo: apiCallInfo);
+        helper = WidgetAPIHelper(
+          apiNodeForCalculatePath: apiNode,
+          apiCallInfo: apiCallInfo,
+        );
       }
     }
     return helper;
@@ -179,13 +189,14 @@ class CallerDatasource {
   }
 
   void initComputedProps() {
-    if (config.aFactory == null || config.repositoryId == null) return;
-    var repositoryData = config.aFactory!.appData[cwRepos][config.repositoryId];
+    if (dsConfig.aFactory == null || dsConfig.repositoryId == null) return;
+    var repositoryData =
+        dsConfig.aFactory!.appData[cwRepos][dsConfig.repositoryId];
     Map computedProps = repositoryData[cwComputed] ?? {};
-    config.computedProps.clear();
+    dsConfig.computedProps.clear();
     for (var key in computedProps.keys) {
       var cpConfig = computedProps[key];
-      config.computedProps.add(
+      dsConfig.computedProps.add(
         ComputedValue(
           id: cpConfig['id'],
           name: cpConfig['name'],
@@ -194,4 +205,46 @@ class CallerDatasource {
       );
     }
   }
+}
+
+class ConfigDataSource {
+  String? name;
+  AttributInfo? paramToLoad;
+  ConfigBlock criteria = ConfigBlock();
+  ConfigBlock data = ConfigBlock();
+  WidgetFactory? aFactory;
+  String? repositoryId;
+  List<ComputedValue> computedProps = [];
+}
+
+class ComputedValue {
+  String id;
+  String name;
+  String expression;
+
+  ComputedValue({
+    required this.id,
+    required this.name,
+    required this.expression,
+  });
+}
+
+class ConfigLink {
+  final String onPath;
+  final String title;
+  final String toDatasrc;
+
+  ConfigLink({
+    required this.onPath,
+    required this.title,
+    required this.toDatasrc,
+  });
+}
+
+class ConfigBlock {
+  List<String> dataDisplayPath = [];
+  String? paginationVariable;
+  String? rowsVariable;
+  int min = 0;
+  List<ConfigLink> links = [];
 }

@@ -394,7 +394,6 @@ class TreeViewState<T> extends State<TreeView<T>> {
         if (info.type == '\$ref') {
           noTab = true;
           //noDisplayNodeButKeepChildren = true;
-
         }        
       }
 

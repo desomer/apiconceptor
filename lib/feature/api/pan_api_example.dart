@@ -1,4 +1,3 @@
-import 'package:animated_tree_view/tree_view/tree_node.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -9,9 +8,7 @@ import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
-import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/widget/widget_overflow.dart';
 
 enum ModeExample { design, browse }
 
@@ -150,102 +147,5 @@ class PanApiExample extends PanYamlTree {
 
     requestHelper.changeUrl.value++;
     requestHelper.changeScript.value++;
-  }
-}
-
-class InfoManagerApiExample extends InfoManager with WidgetHelper {
-  @override
-  Function? getValidateKey() {
-    return null;
-  }
-
-  @override
-  Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
-    return getChip(Text(node.data!.info.name), color: null);
-  }
-
-  @override
-  String getTypeTitle(NodeAttribut node, String name, type) {
-    if (type is Map) {
-      return 'dir';
-    }
-    return '$type';
-  }
-
-  @override
-  InvalidInfo? isTypeValid(
-    NodeAttribut nodeAttribut,
-    String name,
-    type,
-    String typeTitle,
-  ) {
-    return null;
-  }
-
-  @override
-  Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
-    Widget? icon;
-    var isRoot = node.isRoot;
-    var isFolder = node.data.info.type == 'folder';
-    var iExample = node.data.info.type == 'example';
-
-    String name = node.data.info.name;
-
-    if (isRoot) {
-      icon = Icon(Icons.business);
-      name = getKeyParamFromYaml(node.data.yamlNode.key);
-    } else if (isFolder) {
-      icon = Icon(Icons.folder);
-    } else if (iExample) {
-      icon = Icon(Icons.dataset_linked);
-    }
-
-    return NoOverflowErrorFlex(
-      direction: Axis.horizontal,
-      children: [
-        if (icon != null)
-          Padding(padding: const EdgeInsets.fromLTRB(0, 0, 5, 0), child: icon),
-
-        Expanded(
-          child: InkWell(
-            onTap: () {
-              node.doTapHeader();
-            },
-            child: NoOverflowErrorFlex(
-              direction: Axis.horizontal,
-              children: [
-                Text(name),
-                Spacer(),
-                getWidgetType(node.data, iExample, isRoot),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget getWidgetType(NodeAttribut attr, bool iExample, bool isRoot) {
-    if (isRoot) return Container();
-
-    bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
-    hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
-    String msg = hasError ? 'string\nnumber\nboolean\n\$type' : '';
-
-    return Tooltip(
-      message: msg,
-      child: getChip(
-        iExample
-            ? Row(
-              spacing: 5,
-              children: [
-                Text(attr.info.type),
-                Icon(Icons.arrow_forward_ios, size: 10),
-              ],
-            )
-            : Text(attr.info.type),
-        color: hasError ? Colors.redAccent : (iExample ? Colors.blue : null),
-      ),
-    );
   }
 }

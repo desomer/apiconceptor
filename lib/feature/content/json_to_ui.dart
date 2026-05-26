@@ -97,7 +97,7 @@ class JsonToUi with WidgetUIHelper, StateManagerMixin implements GenericToUi {
   void loadData(dynamic data) {
     stateMgr.data = data;
     stateMgr.statesTreeData.clear();
-    stateMgr.loadDataInContainer(data);
+    stateMgr.loadDataInContainer(null, data);
     print("data loaded");
   }
 

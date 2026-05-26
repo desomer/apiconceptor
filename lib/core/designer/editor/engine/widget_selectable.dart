@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:event_listener/exceptions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -73,8 +74,7 @@ class WidgetSelectorManager {
       if (ctx?.widgetState is CwWidgetStateBindJson) {
         CwWidgetStateBindJson s = ctx?.widgetState as CwWidgetStateBindJson;
         if (s.bindInfo.computedInfo != null) {
-          String name =
-              '${s.bindInfo.repository?.ds.dsName}';
+          String name = '${s.bindInfo.repository?.ds.dsName}';
           BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
             BreadNode(
               settings: RouteSettings(name: name),
@@ -97,7 +97,8 @@ class WidgetSelectorManager {
               },
           );
         } else {
-          String name = '${bind?['from']} of ${s.bindInfo.repository?.ds.dsName}';
+          String name =
+              '${bind?['from']} of ${s.bindInfo.repository?.ds.dsName}';
           BreadCrumbNavigator.currentNavigationInfo?.breadcrumbs.add(
             BreadNode(
               settings: RouteSettings(name: name),
@@ -289,7 +290,7 @@ class WidgetSelectableState extends State<WidgetSelectable> {
         if (widget.withAnimatedDropZone) getAnimatedZoneRow(eventWidget),
         if (!widget.withAnimatedDropZone) eventWidget,
 
-        if (dragZoneDetail != null) dragZoneDetail!,
+        ?dragZoneDetail,
         if (isViewHoverEnable || _isValidDrop)
           // style du hover ou du drop valide
           Positioned.fill(
@@ -320,10 +321,9 @@ class WidgetSelectableState extends State<WidgetSelectable> {
           child: Listener(
             behavior: HitTestBehavior.opaque,
             onPointerDown: onPointerDown,
-            child:
-                withDrag
-                    ? RepaintBoundary(key: captureKey, child: widget.child)
-                    : widget.child,
+            child: withDrag
+                ? RepaintBoundary(key: captureKey, child: widget.child)
+                : widget.child,
           ),
         ),
       ),
@@ -614,12 +614,17 @@ class WidgetSelectableState extends State<WidgetSelectable> {
           widget.slotConfig?.ctx.aWidgetPath ??
           widget.panInfo?.pathDataInTemplate ??
           "?";
-      emit(
-        CDDesignEvent.select,
-        CWEventCtx()
-          ..ctx = widget.slotConfig?.ctx
-          ..path = id,
-      );
+      try {
+        emit(
+          CDDesignEvent.select,
+          CWEventCtx()
+            ..ctx = widget.slotConfig?.ctx
+            ..path = id,
+        );
+      } on EventNotFound catch (e) {
+        print('error emit select event $id => $e');
+        // ignore sur event select vide
+      }
       if (widget.withDragAndDrop) {
         await capturePng();
       }
@@ -706,12 +711,18 @@ RenderBox? initRecWithKeyPosition(
 
   var designerKey = ctx.aFactory.designerKey;
 
-  Offset positionRefMin =
-      TKPosition.getPosition(ctx.aFactory.scaleKeyMin, designerKey)!;
-  Offset positionRef100 =
-      TKPosition.getPosition(ctx.aFactory.scaleKey100, designerKey)!;
-  Offset positionRefMax =
-      TKPosition.getPosition(ctx.aFactory.scaleKeyMax, designerKey)!;
+  Offset positionRefMin = TKPosition.getPosition(
+    ctx.aFactory.scaleKeyMin,
+    designerKey,
+  )!;
+  Offset positionRef100 = TKPosition.getPosition(
+    ctx.aFactory.scaleKey100,
+    designerKey,
+  )!;
+  Offset positionRefMax = TKPosition.getPosition(
+    ctx.aFactory.scaleKeyMax,
+    designerKey,
+  )!;
 
   double previewPixelRatioX = (positionRef100.dx - positionRefMin.dx) / 100;
   double previewPixelRatioY = (positionRef100.dy - positionRefMin.dy) / 100;

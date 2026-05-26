@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_tag_selector.dart';
 
 enum TypeAttr { detailmodel, detailapi }
+
+TabController? currentPropTabController;
 
 class AttributProperties extends StatefulWidget {
   const AttributProperties({
@@ -34,6 +37,16 @@ class _AttributPropertiesState extends State<AttributProperties> {
         getHeader(model),
         Expanded(
           child: WidgetTab(
+            onInitController: (TabController controller) {
+              currentPropTabController = controller;
+              currentPropTabController?.addListener(() {
+                if (controller.indexIsChanging) {
+                  if (currentYamlTree != null) {
+                    currentYamlTree?.reload();
+                  }
+                }
+              });
+            },
             listTab: [
               Tab(text: 'Info'),
               Tab(text: 'Validator'),
@@ -74,7 +87,13 @@ class _AttributPropertiesState extends State<AttributProperties> {
             ),
           ),
           Expanded(
-            child: Center(child: Text(model?.selectedAttr?.info.name ?? '')),
+            child: Center(
+              child: Text(
+                model?.selectedAttr?.info.name ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ),
         ],
       ),
@@ -484,8 +503,11 @@ class _AttributPropertiesState extends State<AttributProperties> {
     ModelSchema model,
     BuildContext ctx,
   ) async {
-    var str =
-        ModelAccessorAttr(node: info, schema: model, propName: 'enum').get();
+    var str = ModelAccessorAttr(
+      node: info,
+      schema: model,
+      propName: 'enum',
+    ).get();
 
     var label = ModelAccessorAttr(
       node: info,

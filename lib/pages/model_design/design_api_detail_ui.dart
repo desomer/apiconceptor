@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
-import 'package:jsonschema/feature/transform/pan_response_viewer.dart';
+import 'package:jsonschema/feature/content_viewer/pan_response_viewer.dart';
 import 'package:jsonschema/pages/model_design/design_api_detail_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
@@ -22,7 +22,7 @@ class CallAPIPageDetailUI extends GenericPageStateless {
     currentCompany.listAPI!.selectedAttr = attr;
 
     requestHelper = WidgetAPIHelper(
-      apiNode: attr,
+      apiNodeForCalculatePath: attr,
       apiCallInfo: getAPICall(
         currentCompany.currentNameSpace,
         currentCompany.listAPI!.selectedAttr!,

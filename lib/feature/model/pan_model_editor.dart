@@ -70,12 +70,12 @@ mixin PanModelEditorHelper {
             child: Row(
               children: [
                 ThreadCommentCell(
-                  contextId: '${attr.info.getMasterID()}@${schema.id}', // unique par attribut
+                  contextId:
+                      '${attr.info.getMasterID()}@${schema.id}', // unique par attribut
                   childIfComment: Icon(Icons.comment, color: Colors.white),
-                  childOver:
-                      isHovered
-                          ? Icon(Icons.add_comment_outlined, color: Colors.grey)
-                          : SizedBox.shrink(),
+                  childOver: isHovered
+                      ? Icon(Icons.add_comment_outlined, color: Colors.grey)
+                      : SizedBox.shrink(),
                 ),
                 // if (isHovered)
                 //   Icon(Icons.add_comment_outlined, color: Colors.grey),
@@ -104,25 +104,44 @@ mixin PanModelEditorHelper {
       );
     }
 
-    row.addAll(<Widget>[
-      //SizedBox(width: 10),
-      if (attr.info.properties?['required'] == true)
-        Icon(Icons.check_circle_outline),
-      if (attr.info.properties?['#nullable'] == true)
-        getChip(Text('nullable'), color: null),
-      if (attr.info.properties?['const'] != null)
-        getChip(Text('const'), color: null),
-      if (attr.info.properties?['enum'] != null) Icon(Icons.checklist),
-      if (attr.info.properties?['pattern'] != null)
-        getChip(Text('regex'), color: null),
-      if (attr.info.properties?['format'] != null)
-        getChip(Text(attr.info.properties?['format']), color: null),
-      if (minmax) Icon(Icons.tune),
-      if (attr.info.properties?['#enumLabel'] != null)
-        Icon(Icons.label_outline),
-      if (attr.info.properties?['#link'] != null)
-        getChip(Text('link'), color: Colors.blue),
-    ]);
+    if ((currentPropTabController?.index ?? 0) < 2) {
+      row.addAll(<Widget>[
+        //SizedBox(width: 10),
+        if (attr.info.properties?['required'] == true)
+          Icon(Icons.check_circle_outline),
+        if (attr.info.properties?['#nullable'] == true)
+          getChip(Text('nullable'), color: null),
+        if (attr.info.properties?['const'] != null)
+          getChip(Text('const'), color: null),
+        if (attr.info.properties?['enum'] != null) Icon(Icons.checklist),
+        if (attr.info.properties?['pattern'] != null)
+          getChip(Text('regex'), color: null),
+        if (attr.info.properties?['format'] != null)
+          getChip(Text(attr.info.properties?['format']), color: null),
+        if (minmax) Icon(Icons.tune),
+        if (attr.info.properties?['#enumLabel'] != null)
+          Icon(Icons.label_outline),
+        if (attr.info.properties?['#link'] != null)
+          getChip(Text('link'), color: Colors.blue),
+      ]);
+    } else {
+      if (attr.info.properties?['#source'] != null) {
+        String source = attr.info.properties?['#source'];
+        row.add(
+          Container(
+            width: 200,
+            padding: EdgeInsets.only(left: 5),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: getChip(
+                Text(source),
+                color: Colors.greenAccent.withAlpha(100),
+              ),
+            ),
+          ),
+        );
+      }
+    }
 
     if (attr.info.properties?['#tag'] != null) {
       List<dynamic> tags = attr.info.properties?['#tag'];
@@ -407,7 +426,7 @@ class PanModelEditor extends PanYamlTree
     showGlassPane(context);
     tabEditor.animateTo(0);
     await model.addVersion();
-    
+
     // await bddStorage.prepareSaveModel(model);
     // await bddStorage.doStoreSync();
     // var versionNum = int.parse(model.versions!.first.version) + 1;

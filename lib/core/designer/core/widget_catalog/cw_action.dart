@@ -143,7 +143,7 @@ class _CwInputState extends CwWidgetStateBindJson<CwAction> with HelperEditor {
             spacing: 5,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) icon,
+              ?icon,
               if (label != null) Text(style: styleText, label),
             ],
           );
