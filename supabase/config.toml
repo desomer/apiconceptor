@@ -1,0 +1,4 @@
+project_id = "apiconceptor"
+
+[functions.delete-user]
+verify_jwt = true

@@ -37,7 +37,7 @@ class CompanyModelSchema {
   MappingEngineConfig? currentMapEngine;
   GlossaryManager glossaryManager = GlossaryManager();
 
-  String companyId = 'test2';
+  String companyId = '?';
   String shortUserId = '?';
 
   User? user;

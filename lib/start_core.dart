@@ -91,8 +91,7 @@ Future<bool> startCore(
     browser: b,
     config: BrowserConfig(),
   );
-  currentCompany.listDomain?.isReadOnlyModel =
-      currentCompany.userProfil?['data']?['rule']?.contains('admin') == false;
+  currentCompany.listDomain?.isReadOnlyModel = isProfilAdmin() == false;
 
   if (b.root.isNotEmpty) {
     currentCompany.setDomainByMasterID(currentDomain, browser: b);
@@ -254,8 +253,7 @@ Future<ModelSchema> loadDataSource(String idDomain, bool cache) async {
   }
   schema.namespace = "default";
   currentCompany.listDataSrc = schema;
-  schema.isReadOnlyModel =
-      currentCompany.userProfil?['data']?['rule']?.contains('admin') == false;
+  schema.isReadOnlyModel = isProfilAdmin() == false;
   return schema;
 }
 
@@ -302,8 +300,7 @@ Future<ModelSchema> loadApps(String idDomain, bool cache) async {
   }
   schema.namespace = idDomain;
   currentCompany.currentApps = schema;
-  schema.isReadOnlyModel =
-      currentCompany.userProfil?['data']?['rule']?.contains('admin') == false;
+  schema.isReadOnlyModel = isProfilAdmin() == false;
   return schema;
 }
 
@@ -399,8 +396,15 @@ int timezoom = 0;
 ValueNotifier<double> designZoomNotifier = ValueNotifier(100);
 ValueNotifier<String> modelAttributFilterNotifier = ValueNotifier('');
 
+bool isProfilAdmin() {
+  return currentCompany.userProfil?['data']?['rule']?.contains('admin') == true;
+}
+
 bool isDomainAllowed(String domain) {
   print(' isDomainAllowed $domain allowed ');
+  if (isProfilAdmin()) {
+    return true;
+  }
   Map? r = currentCompany.getRule("domain", domain);
   return r != null;
 }

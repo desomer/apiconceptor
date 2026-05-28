@@ -37,3 +37,52 @@ attrubut :
     schemaVersion = "v2"
     traceId = "abc-123"
     orderingKey = "t123"
+
+## Supabase Edge Function (delete-user)
+
+Une fonction API minimaliste a ete ajoutee dans:
+- supabase/functions/delete-user/index.ts
+
+Configuration locale Supabase:
+- supabase/config.toml
+
+### Lancer en local
+
+```bash
+supabase start
+supabase functions serve delete-user
+```
+
+### Tester l'API
+
+```bash
+curl -i -X POST http://127.0.0.1:54321/functions/v1/delete-user \\
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"confirm":true}'
+```
+
+Suppression d'un autre utilisateur (admin uniquement):
+
+```bash
+curl -i -X POST http://127.0.0.1:54321/functions/v1/delete-user \\
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"confirm":true,"user_id":"<USER_ID>"}'
+```
+
+### Appel depuis Flutter
+
+La methode `callDeleteUserApi()` est disponible dans `lib/core/bdd/data_acces.dart`.
+
+### Deployer
+
+```bash
+supabase functions deploy delete-user
+```
+
+### Appel en production
+
+```bash
+curl -i https://<PROJECT-REF>.supabase.co/functions/v1/delete-user
+```

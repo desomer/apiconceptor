@@ -372,9 +372,10 @@ final GoRouter router = GoRouter(
         connectBdd &&
         path != Pages.home.urlpath &&
         path != Pages.domain.urlpath &&
+        path != Pages.profile.urlpath &&
         currentCompany.listDomain?.selectedAttr == null) {
       // ignore: use_build_context_synchronously
-      await Dialog().doMustDomainFirst(context);
+      await Dialog().doMustDomainFirst(navigatorKey.currentContext!);
       return Pages.domain.urlpath;
     }
 

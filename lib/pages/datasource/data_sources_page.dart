@@ -49,14 +49,16 @@ class InfoManagerPages extends InfoManager with WidgetHelper {
     row.add(
       ElevatedButton(
         onPressed: () {
-          if (currentCompany.userProfil?['data']?['rule']?.contains('admin') ==
-              false) {
+          if (isProfilAdmin() == false) {
             return;
           }
           currentCompany.currentDataSource = schema;
           schema.selectedAttr = attr;
           // showConfigDialog(attr, schema, context);
-          RouteManager.goto(Pages.dataSourceDetail.id(attr.info.masterID!), context);
+          RouteManager.goto(
+            Pages.dataSourceDetail.id(attr.info.masterID!),
+            context,
+          );
         },
         child: Text('Configure data source'),
       ),

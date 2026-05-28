@@ -98,13 +98,16 @@ class DataAcces {
       await prefs.remove("pwd");
 
       print("connect to supabase ok ${currentCompany.user!.email}");
-      Map<String, dynamic>? userMeta = session.user.userMetadata; 
+      Map<String, dynamic>? userMeta = session.user.userMetadata;
       // final Map<String, dynamic> appMeta = session.user.appMetadata;
 
       var userCompagny = userMeta?['company_id'];
       var userPlan = userMeta?['plan'];
-      
+
       print('userCompagny $userCompagny plan $userPlan');
+      if (userCompagny != null) {
+        currentCompany.companyId = userCompagny;
+      }
 
       UserAuthentication.stateConnection.value = 'Loading profile ...';
 
@@ -115,27 +118,51 @@ class DataAcces {
 
       var ret2 = await queryattr;
       if (ret2.isNotEmpty) {
-        for (var element in ret2) {
-          // liste des company
-          print('user profil $element >> ${currentCompany.user}');
-          currentCompany.userProfil = element;
-          if (element['namedId'] == null) {
-            currentCompany.userProfil!['namedId'] = currentCompany.user!.email;
-            await supabase.from('user_profil').upsert([
-              currentCompany.userProfil,
-            ]);
+        // profil trouver par uid, c'est un user qui se connecte en creation d'admin
+        await initProfilData(ret2);
+      } else {
+        var rule = userCompagny == null ? 'invit' : 'admin';
+        List<dynamic> rules = [rule];
+
+        var queryattr = supabase
+            .from('user_profil')
+            .select('*')
+            .eq('namedId', currentCompany.user!.email!);
+        ret2 = await queryattr;
+        if (ret2.isNotEmpty) {
+          print(
+            'profil inviter trouver par email ${currentCompany.user!.email} >> ${ret2.first}',
+          );
+          // profil trouver, c'est un user qui se connecte sans uid (ex: magic link)
+          // supprime l'ancien profil (affecter par l'admin) et en recréé un nouveau avec le uid
+          currentCompany.userProfil = ret2.first;
+          rules = currentCompany.userProfil!['data']['rule'];
+          currentCompany.companyId = currentCompany.userProfil!['company_id'];
+
+          await supabase
+              .from('user_profil')
+              .delete()
+              .eq('uid', currentCompany.user!.email!);
+        } else {
+          print(
+            'aucun profil trouver pour ${currentCompany.user!.email}, creation d\'un nouveau profil',
+          );
+          if (currentCompany.companyId == '?') {
+            print(
+              'aucune company id trouver pour ${currentCompany.user!.email}, creation d\'une nouvelle company',
+            );
+            currentCompany.companyId =
+                'company_${DateTime.now().millisecondsSinceEpoch}';
           }
         }
-      } else {
+
         UserAuthentication.stateConnection.value =
             'Create ${currentCompany.user!.email}';
 
         currentCompany.userProfil = <String, dynamic>{
           'uid': currentCompany.user!.id,
           'namedId': currentCompany.user!.email,
-          'data': {
-            'rule': ['invit'],
-          },
+          'data': {'rule': rules},
           'company_id': currentCompany.companyId,
         };
         print('user profil created ${currentCompany.userProfil}');
@@ -176,6 +203,19 @@ class DataAcces {
 
     print("end connect to supabase");
     return true;
+  }
+
+  Future<void> initProfilData(PostgrestList ret2) async {
+    for (var element in ret2) {
+      // liste des company
+      print('user profil $element >> ${currentCompany.user}');
+      currentCompany.userProfil = element;
+      currentCompany.companyId = element['company_id'];
+      if (element['namedId'] == null) {
+        currentCompany.userProfil!['namedId'] = currentCompany.user!.email;
+        await supabase.from('user_profil').upsert([currentCompany.userProfil]);
+      }
+    }
   }
 
   late RealtimeChannel myChannel;
@@ -1089,6 +1129,39 @@ print(res.count);
       ];
     }
     return result;
+  }
+
+  Future<Map<String, dynamic>> callDeleteUserApi({String? userId}) async {
+    await ensureSessionValid();
+
+    final session = supabase.auth.currentSession;
+    if (session == null) {
+      return <String, dynamic>{'message': 'No active session', 'status': 401};
+    }
+
+    final payload = <String, dynamic>{'confirm': true};
+    if (userId != null && userId.trim().isNotEmpty) {
+      payload['user_id'] = userId.trim();
+    }
+
+    final response = await supabase.functions.invoke(
+      'delete-user',
+      method: HttpMethod.post,
+      body: payload,
+      headers: <String, String>{
+        'Authorization': 'Bearer ${session.accessToken}',
+      },
+    );
+
+    final data = response.data;
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+
+    return <String, dynamic>{
+      'message': data?.toString() ?? 'No data',
+      'status': response.status,
+    };
   }
 }
 
