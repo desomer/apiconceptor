@@ -120,7 +120,13 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   Widget _getContent(BuildContext context) {
     getYaml() {
-      return _schema.modelYaml;
+      var txt = _schema.modelYaml;
+      // retire les espaces et tabulations en trop en fin de ligne pour éviter les changements de yaml à cause de ça
+      txt = txt
+          .split('\n')
+          .map((e) => e.replaceAll(RegExp(r'[ \t]+$'), ''))
+          .join('\n');
+      return txt;
     }
 
     if (withEditor()) {

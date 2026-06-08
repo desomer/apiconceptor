@@ -81,11 +81,17 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
       }
     } else if (type == '\$anyof') {
       toAdd = doAnyOf(name, node);
+    } else if (type == '\$oneof') {
+      toAdd = doOneOf(parentNode, parent, name, node);
     } else if (type == '\$ref') {
       toAdd = doRefOf(name, node);
+    } else if (name.startsWith(constTypeOf) || parentNode.info.name == constTypeOneof) {
+      toAdd = doChoiseNoName(name, node);
     } else if (type == 'object') {
       if (name.toLowerCase() == constNameAllof) {
         toAdd = doAllOf(parentNode, parent, name, node);
+      // } else if (name.toLowerCase() == constTypeOneof) {
+      //   toAdd = doOneOf(parentNode, parent, name, node);
       } else if (name.toLowerCase() == constInherit) {
         toAdd = doRefInherit(name, node)..parentOfChild = parent;
       } else if (node.child.length == 1 &&
@@ -154,6 +160,12 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
     String name,
     NodeAttribut node,
   );
+  NodeJson doOneOf(
+    NodeAttribut parent,
+    dynamic parentNodeJson,
+    String name,
+    NodeAttribut node,
+  );
 
   NodeJson doRefOf(String name, NodeAttribut node);
 
@@ -163,6 +175,7 @@ abstract class JsonBrowser2generic<T extends Map<String, dynamic>>
   NodeJson doObject(String name, NodeAttribut node);
 
   NodeJson doAttr(String name, String type, NodeAttribut node);
+  NodeJson doChoiseNoName(String name, NodeAttribut node);
 
   void doClean(NodeAttribut node) {
     if (node.addChildOn?.startsWith('#') ?? false) {

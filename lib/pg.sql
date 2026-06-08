@@ -22,3 +22,22 @@ create table public.models (
 ) TABLESPACE pg_default;
 
 
+create table public.customer_subscriptions (
+  id uuid not null default gen_random_uuid (),
+  email text not null,
+  plan text not null,
+  status text not null,
+  stripe_customer_id text null,
+  stripe_subscription_id text null,
+  updated_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  company_id text null,
+  company_name text null,
+  constraint customer_subscriptions_pkey primary key (id),
+  constraint customer_subscriptions_plan_check check (
+    (
+      plan = any (array['free'::text, 'starter'::text, 'pro'::text])
+    )
+  )
+) TABLESPACE pg_default;
+

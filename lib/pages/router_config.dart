@@ -41,6 +41,7 @@ import 'package:jsonschema/pages/model_design/design_model_ui_page.dart';
 import 'package:jsonschema/pages/config/domain_page.dart';
 import 'package:jsonschema/pages/config/env_page.dart';
 import 'package:jsonschema/pages/config/glossary_page.dart';
+import 'package:jsonschema/pages/config/organization_page.dart';
 import 'package:jsonschema/pages/config/profile_page.dart';
 import 'package:jsonschema/pages/log_page.dart';
 import 'package:jsonschema/pages/mock_api_page.dart';
@@ -80,6 +81,7 @@ enum Pages {
 
   env('/env'),
   log('/log'),
+  organization('/organization'),
   profile('/profile'),
   user("/user"),
 
@@ -372,6 +374,7 @@ final GoRouter router = GoRouter(
         connectBdd &&
         path != Pages.home.urlpath &&
         path != Pages.domain.urlpath &&
+        path != Pages.organization.urlpath &&
         path != Pages.profile.urlpath &&
         currentCompany.listDomain?.selectedAttr == null) {
       // ignore: use_build_context_synchronously
@@ -480,6 +483,7 @@ final GoRouter router = GoRouter(
         ),
 
         //----------------------------------------------------------------
+        addRouteBy(Pages.organization, const OrganizationPage()),
         addRouteBy(Pages.profile, const ProfilePage()),
         addRouteBy(Pages.user, const UserPage()),
 

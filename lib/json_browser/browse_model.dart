@@ -315,6 +315,9 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       } else if (name.startsWith(constTypeAnyof)) {
         typeStr = '\$anyOf';
         node.bgcolor = Colors.orange.withAlpha(100);
+      } else if (name.startsWith(constTypeOneof)) {
+        typeStr = '\$oneOf';
+        node.bgcolor = Colors.orange.withAlpha(100);
       } else if (name.endsWith('[]')) {
         node.bgcolor = Colors.blue.withAlpha(100);
         typeStr = 'Array';
@@ -374,6 +377,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       'boolean',
       '\$ref',
       '\$anyof',
+      '\$oneof',
       '\$inherit',
     ].contains(type);
     if (!valid) {
@@ -438,7 +442,8 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     var isModel = attr.type == 'model';
 
     var isObject = attr.type == 'Object';
-    var isOneOf = attr.type == '\$anyOf';
+    var isAnyOf = attr.type == '\$anyOf';
+    var isOneOf = attr.type == '\$oneOf';
     var isRef = attr.type == '\$ref';
     var isType = attr.name == constType;
     var isArray = attr.type == 'Array' || attr.type.endsWith('[]');
@@ -463,12 +468,20 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       icon = Icon(Icons.link, color: iconColor, size: 20);
       name = '\$${node.data.info.properties?[constRefOn] ?? '?'}';
     } else if (isOneOf) {
+      name = '\$oneOf';
+      icon = Icon(Icons.looks_one_rounded, color: iconColor, size: 20);
+    } else if (isAnyOf) {
       name = '\$anyOf';
       icon = Icon(Icons.looks_one_rounded, color: iconColor, size: 20);
     } else if (isArray) {
       icon = Icon(Icons.data_array, color: iconColor, size: 20);
     } else if (isType) {
       name = '\$type';
+      icon = Icon(Icons.type_specimen_outlined, color: iconColor, size: 20);
+    } 
+    
+    if (attr.name.startsWith(constTypeOf)) {
+      name = name.replaceFirst(constTypeOf, '');
       icon = Icon(Icons.type_specimen_outlined, color: iconColor, size: 20);
     }
 
@@ -614,7 +627,9 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
 
     if (type == '\$ref' ||
         attr.info.name == constInherit ||
-        type == '\$anyOf') {
+        attr.info.name.startsWith(constTypeOf) ||
+        type == '\$anyOf' ||
+        type == '\$oneOf') {
       return SizedBox.shrink();
     }
 

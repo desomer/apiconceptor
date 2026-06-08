@@ -376,11 +376,14 @@ Future<ModelSchema> loadSchema(
 
 const constMasterID = '\$\$__id__';
 const constTypeAnyof = '\$\$__anyof__';
+const constTypeOneof = '\$\$__oneof__';
+const constTypeOf = '\$\$__of__';
+
 const constNameAllof = '\$allof';
+const constNameOneof = '\$oneof';
 const constInherit = '\$inherit';
-//const constTypeOneof = '\$\$__oneOf__';
 const constRefOn = '\$\$__ref__';
-const constType = '\$\$__type__';
+const constType = '\$\$__type__';   // noeud de type simple avec type dans info
 
 final CompanyModelSchema currentCompany = CompanyModelSchema();
 

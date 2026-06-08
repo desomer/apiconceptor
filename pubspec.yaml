@@ -96,6 +96,7 @@ dependencies:
 
   flutter_localizations:
     sdk: flutter
+  archive: ^4.0.9
 
 
 dev_dependencies:
@@ -156,7 +157,7 @@ msix_config:
   display_name: Api Architect
   publisher_display_name: ApiArchitect
   identity_name: apiarchitect
-  msix_version: 1.0.4.13
+  msix_version: 1.0.4.14
   logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
   capabilities: internetClient
   sign_msix: true

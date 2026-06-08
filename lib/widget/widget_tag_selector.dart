@@ -93,7 +93,7 @@ class _TagSelectorState extends State<TagSelector> with WidgetHelper {
 
     if ((widget.accessor?.isEditable() ?? true) == true) {
       if (tagChips.isEmpty) {
-        tagChips.add(Text('Add tag '));
+        tagChips.add(Text('add tag '));
       }
 
       tagChips.add(

@@ -30,7 +30,14 @@ class WidgetJsonValidator extends StatefulWidget {
 class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   late dynamic jsonSchema;
   CodeEditorConfig? textConfig;
-  //ExampleManager exampleManager = ExampleManager();
+  ValueNotifier<String> onChangeHeaderInfo = ValueNotifier('');
+  Function? onSelect;
+  var currentJsonFake = ValueNotifier<String?>(null);
+  JsonSchema? jsonValidator;
+  ValueNotifier<String> error = ValueNotifier('');
+  ValueNotifier<String> errorParse = ValueNotifier('');
+  ValueNotifier<String> modePropertyRequiredEnum = ValueNotifier('max');
+  ValueNotifier<String> modeItemsArrayEnum = ValueNotifier('any');  
 
   ModelAccessorAttr getAccessor() {
     ModelSchema model = currentCompany.currentModel!;
@@ -44,11 +51,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     return access;
   }
 
-  ValueNotifier<String> onChangeHeaderInfo = ValueNotifier('');
-  Function? onSelect;
-  var currentJsonFake = ValueNotifier<String?>(null);
-
-  Widget getExample() {
+  Widget _getExample() {
     var access = getAccessor();
     List? examples = access.get();
 
@@ -102,8 +105,11 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       flex2: 2,
       children: [
         WidgetTab(
-          listTab: [Tab(text: "Manage examples"), Tab(text: "JSON Schema")],
-          listTabCont: [getExample(), getViewer()],
+          listTab: [
+            Tab(text: "Manage examples"),
+            Tab(text: "JSON Schema"),
+          ],
+          listTabCont: [_getExample(), _getJsonViewer()],
           heightTab: 30,
         ),
         Column(
@@ -134,24 +140,29 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                 ],
               ),
             ),
-            Expanded(child: getEditor()),
+            Expanded(child: _getEditor()),
           ],
         ),
       ],
     );
   }
 
-  Widget getViewer() {
+  Widget _getJsonViewer() {
     if (currentCompany.currentModel == null) {
       return Text('select model first');
     }
-    var export = Export2JsonSchema(config: BrowserConfig())
-      ..browse(currentCompany.currentModel!, false);
+    ValueNotifier<String> aErrorParse = ValueNotifier('');
+    var export = Export2JsonSchema(
+      config: BrowserConfig(),
+      errorParse: aErrorParse,
+    )..browse(currentCompany.currentModel!, false);
     jsonSchema = export.json;
     try {
       jsonValidator = JsonSchema.create(jsonSchema);
       errorParse.value = '';
     } catch (e) {
+      print(' error create json schema validator $e');
+      print(' json schema was $jsonSchema');
       errorParse.value = '$e';
     }
 
@@ -160,13 +171,9 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     return LongJsonViewerSelectableColored(json: prettyPrintJson);
   }
 
-  JsonSchema? jsonValidator;
-  ValueNotifier<String> error = ValueNotifier('');
-  ValueNotifier<String> errorParse = ValueNotifier('');
-  ValueNotifier<String> modePropertyRequiredEnum = ValueNotifier('max');
-  ValueNotifier<String> modeItemsArrayEnum = ValueNotifier('any');
 
-  Widget getEditor() {
+
+  Widget _getEditor() {
     if (currentCompany.currentModel == null) {
       return Text('select model first');
     }
@@ -281,7 +288,7 @@ class _FakeModeWidgetState extends State<FakeModeWidget> {
             });
           },
         ),
-        Text('Required'),
+        Text('Required only'),
         SegmentedButton<String>(
           showSelectedIcon: false,
           segments: const [

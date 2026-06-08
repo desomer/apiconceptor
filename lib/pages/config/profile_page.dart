@@ -5,6 +5,7 @@ import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends GenericPageStateless {
   const ProfilePage({super.key});
@@ -40,6 +41,12 @@ class ProfilePage extends GenericPageStateless {
                   _row('Company', companyId),
                   _row('Roles', rules),
                   const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: () => _openAccountSite(),
+                    icon: const Icon(Icons.manage_accounts),
+                    label: const Text('Gerer le compte'),
+                  ),
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
                     child: FilledButton.icon(
@@ -86,7 +93,6 @@ class ProfilePage extends GenericPageStateless {
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
 
-
     autoLoging = false;
     showLoginDialog = true;
     currentCompany.user = null;
@@ -94,6 +100,16 @@ class ProfilePage extends GenericPageStateless {
 
     if (!context.mounted) return;
     await PageLayoutState.showLogin(context);
+  }
+
+  Future<void> _openAccountSite() async {
+    final uri = Uri.parse('https://apiarchitec.com/en/account').replace(
+      queryParameters: {
+        'access_token': ?prefs.getString('access_token'),
+        'refresh_token': ?prefs.getString('refresh_token'),
+      },
+    );
+    await launchUrl(uri, mode: LaunchMode.platformDefault);
   }
 
   @override

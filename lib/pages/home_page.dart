@@ -284,6 +284,7 @@ class HomePage extends GenericPageStateless {
         BreadNode(
           icon: const Icon(Icons.domain),
           settings: const RouteSettings(name: 'Organization'),
+          path: Pages.organization.urlpath,
           type: BreadNodeType.widget,
         ),
         BreadNode(

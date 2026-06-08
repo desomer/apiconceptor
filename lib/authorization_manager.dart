@@ -44,6 +44,8 @@ class CompanyModelSchema {
   Map? userProfil;
   Map userAuth = {};
 
+  final Map<String, List<AttributInfo>> copiedMapInfoByName = {};
+
   Map? getRule(String category, String authId) {
     return userAuth[category]?[authId];
   }

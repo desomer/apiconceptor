@@ -70,14 +70,14 @@ class Export2FakeJson<T extends Map<String, dynamic>>
   @override
   NodeJson doArrayWithAnyOf(String name, NodeAttribut node) {
     var child = <Map<String, dynamic>>[];
-    print(child.runtimeType);
+    //print(child.runtimeType);
     return NodeJson(name: name, value: child);
   }
 
   @override
   NodeJson doObjectWithAnyOf(String name, NodeAttribut node) {
     Map<String, dynamic> child = <String, dynamic>{};
-    print(child.runtimeType);
+    //print(child.runtimeType);
     return NodeJson(name: name, value: child);
   }
 
@@ -108,7 +108,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
   @override
   NodeJson doRef(String name, NodeAttribut node) {
     return doObject(name, node);
-    // var child = {};  
+    // var child = {};
     // return NodeJson(name: name, value: child)..add = addName;
   }
 
@@ -122,10 +122,10 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     }
 
     Map<String, dynamic> child = <String, dynamic>{};
-    print(child.runtimeType);
+    //print(child.runtimeType);
     bool addName = true;
-    bool parentAnyOf = node.parent?.info.name == constTypeAnyof;
-    if (parentAnyOf) {
+    bool parentChoise = node.parent?.info.name == constTypeAnyof;
+    if (parentChoise) {
       bool mustChoise = node.parent?.parent?.info.type == 'Object';
       addName = !mustChoise;
       if (mustChoise && node.addInAttr != '##__choised__##') {
@@ -311,12 +311,40 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     String name,
     NodeAttribut node,
   ) {
-    // TODO: implement doAllOf
-    throw UnimplementedError();
+    return NodeJson(name: name, value: null)..add = false;
   }
-  
+
   @override
   NodeJson doRefInherit(String name, NodeAttribut node) {
-     return doRef(name, node)..add = false;
+    return doRef(name, node)..add = false;
+  }
+
+  @override
+  NodeJson doOneOf(
+    NodeAttribut parent,
+    parentNodeJson,
+    String name,
+    NodeAttribut node,
+  ) {
+    int i = faker.randomGenerator.integer(node.child.length);
+    node.child[i].addInAttr = '##__choised__##';
+    return NodeJson(name: name, value: null)..add = false;
+  }
+
+  @override
+  NodeJson doChoiseNoName(String name, NodeAttribut node) {
+    if (node.parent?.info.name == constTypeAnyof) {
+      return doRef(name, node);
+    } else if (node.parent?.info.name == constTypeOneof) {
+      bool mustChoise = node.parent?.parent?.info.type == 'Object';
+      //addName = !mustChoise;
+      if (mustChoise && node.addInAttr != '##__choised__##') {
+        // pas ajouter
+        name = '';
+      }
+      node.addInAttr = '';
+    }
+
+    return NodeJson(name: name, value: null)..add = false;
   }
 }

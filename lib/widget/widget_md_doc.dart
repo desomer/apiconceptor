@@ -59,16 +59,26 @@ items[] :
     activate : boolean
 ```
 
-Example 5 : Array of any type
+Example 5 : Array of any type (anyof)
 ```
-items :  # or items[] :
+items[] : 
     - a :
          val : string
     - b :
          num : number
 ```
 
-Example 5 : Inherit
+Example 6 : One of (oneof)
+```
+item : 
+    - a :
+         val : string
+    - b :
+         num : number
+```
+
+
+Example 7 : Inherit
 ```
 \$inherit : \$otherModel
 ```

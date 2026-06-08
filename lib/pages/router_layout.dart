@@ -40,6 +40,46 @@ class PageLayout extends StatefulWidget {
 }
 
 class PageLayoutState extends State<PageLayout> with WidgetHelper {
+  // void _handleGlobalCopy() {
+  //   final tree = currentYamlTree;
+  //   if (tree == null) return;
+
+  //   final selection = tree.getTextSelection();
+  //   final editorState = tree.getYamlConfig().codeEditorState;
+
+  //   if (selection != null && !selection.isCollapsed && editorState != null) {
+  //     final text = editorState.controller.fullText.substring(
+  //       selection.start,
+  //       selection.end,
+  //     );
+  //     Clipboard.setData(ClipboardData(text: text));
+  //     return;
+  //   }
+
+  //   final selectedAttr = tree.getSchema().selectedAttr;
+  //   if (selectedAttr != null) {
+  //     Clipboard.setData(
+  //       ClipboardData(text: selectedAttr.info.getJsonPath(withType: true)),
+  //     );
+  //   }
+  // }
+
+  // Future<void> _handleGlobalPaste() async {
+  //   final tree = currentYamlTree;
+  //   if (tree == null) return;
+
+  //   final editorState = tree.getYamlConfig().codeEditorState;
+  //   if (editorState == null) return;
+
+  //   final data = await Clipboard.getData(Clipboard.kTextPlain);
+  //   final text = data?.text;
+  //   if (text == null || text.isEmpty) return;
+
+  //   final controller = editorState.controller;
+  //   final selection = controller.selection;
+  //   controller.value = controller.value.replaced(selection, text);
+  // }
+
   @override
   Widget build(BuildContext context) {
     final String location = widget.routerState.uri.toString();
@@ -105,6 +145,14 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
       shortcuts: {
         LogicalKeySet(LogicalKeyboardKey.alt, LogicalKeyboardKey.arrowLeft):
             const BackIntent(),
+        // const SingleActivator(LogicalKeyboardKey.keyC, control: true):
+        //     CopySelectionTextIntent.copy,
+        // const SingleActivator(LogicalKeyboardKey.keyC, meta: true):
+        //     CopySelectionTextIntent.copy,
+        // const SingleActivator(LogicalKeyboardKey.keyV, control: true):
+        //     PasteTextIntent(SelectionChangedCause.keyboard),
+        // const SingleActivator(LogicalKeyboardKey.keyV, meta: true):
+        //     PasteTextIntent(SelectionChangedCause.keyboard),
       },
       child: Actions(
         actions: {
@@ -114,6 +162,18 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
               return null;
             },
           ),
+          // CopySelectionTextIntent: CallbackAction<CopySelectionTextIntent>(
+          //   onInvoke: (intent) {
+          //     _handleGlobalCopy();
+          //     return null;
+          //   },
+          // ),
+          // PasteTextIntent: CallbackAction<PasteTextIntent>(
+          //   onInvoke: (intent) {
+          //     _handleGlobalPaste();
+          //     return null;
+          //   },
+          // ),
         },
         child: Scaffold(
           resizeToAvoidBottomInset: true,
@@ -238,7 +298,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
                 },
               ),
               Spacer(),
-              Text('API Architect by Desomer G. V1.0.4.13'),
+              Text('API Architect by Desomer G. V1.0.4.14'),
             ],
           ),
         ),
@@ -333,7 +393,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
   static Future<void> showLogin(BuildContext context) async {
     var mail = prefs.getString("mail");
     var pwd = prefs.getString("pwd");
-    
+
     await prefs.remove('pwd');
     pwd = null; // for security, do not keep the password in memory
 

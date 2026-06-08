@@ -1,9 +1,11 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
+import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 
 class Export2JsonSchema<T extends Map<String, dynamic>>
@@ -11,7 +13,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   Map<String, dynamic> json = {};
   Map<String, NodeJson> ref = {};
 
-  Export2JsonSchema({required super.config});
+  Export2JsonSchema({required super.config, this.errorParse});
+  ValueNotifier<String>? errorParse;
 
   @override
   void onInit(ModelSchema model) {
@@ -21,9 +24,11 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       for (var element in ex) {
         if (element['json'] is String) {
           try {
-            example.add(jsonDecode(element['json']));
+            var ex = removeComments(element['json']);
+            example.add(jsonDecode(ex));
           } catch (e) {
-            print(' error decode example $e');
+            print(' error decode example $e $ex');
+            errorParse?.value = '$e';
           }
         }
       }
@@ -147,6 +152,17 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   }
 
   @override
+  NodeJson doChoiseNoName(String name, NodeAttribut node) {
+    if (node.parent?.info.name == constInherit) {
+      return doRefInherit(name, node);
+    } else if (node.info.isRef != null) {
+      return doRef(name, node);
+    } else {
+      return doObject(name, node);
+    }
+  }
+
+  @override
   NodeJson doObjectWithAnyOf(String name, NodeAttribut node) {
     node.addInAttr = ''; // ajoute le anyOf à la racine
     return NodeJson(name: name, value: {});
@@ -190,7 +206,9 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     if (node.info.properties?["title"] != null) {
       propObj['title'] = node.info.properties!["title"];
     }
-    addRequired(node.child.first, propObj);
+    if (node.child.isNotEmpty) {
+      addRequired(node.child.first, propObj);
+    }
     return NodeJson(name: name, value: child)..parentOfChild = propObj;
   }
 
@@ -220,6 +238,25 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     }
     if (aRequired.isNotEmpty) {
       prop['required'] = aRequired;
+    }
+
+    // gestion de dependentRequired
+    Map<String, List<String>> dependentRequired = {};
+    for (var child in node.child) {
+      var dr = child.info.properties?['dependentRequired'];
+      if (dr != null) {
+        var name2 = child.info.name;
+        if (name2.endsWith('[]')) name2 = name2.substring(0, name2.length - 2);
+        var r = dr.toString().trim().split('\n').map((e) => e.trim()).toList();
+        //remove les éléments vides
+        r.removeWhere((e) => e.isEmpty);
+        if (r.isNotEmpty) {
+          dependentRequired[name2] = r;
+        }
+      }
+    }
+    if (dependentRequired.isNotEmpty) {
+      prop['dependentRequired'] = dependentRequired;
     }
   }
 
@@ -295,10 +332,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
         // add more formats as needed
       }
     }
-    // {
-    //   prop['\$schema'] = 'https://json-schema.org/draft/2020-12/schema';
-    // }
 
+    prop.remove("dependentRequired");
     return prop;
   }
 
@@ -313,6 +348,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     var child = [];
     name = 'allOf';
     parentNodeJson as Map<String, dynamic>;
+    parentNodeJson.remove('type');
     parentNodeJson.remove('properties');
     parentNodeJson.remove('additionalProperties');
     return NodeJson(name: name, value: child);
@@ -327,6 +363,23 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     return doObject(name, node)..add = false;
 
     // return doObject(name, node);
+  }
+
+  @override
+  NodeJson doOneOf(
+    NodeAttribut parent,
+    parentNodeJson,
+    String name,
+    NodeAttribut node,
+  ) {
+    parent.addInAttr = "";
+    var child = [];
+    name = 'oneOf';
+    parentNodeJson as Map<String, dynamic>;
+    parentNodeJson.remove('type');
+    parentNodeJson.remove('properties');
+    parentNodeJson.remove('additionalProperties');
+    return NodeJson(name: name, value: child);
   }
 }
 

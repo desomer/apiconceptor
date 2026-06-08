@@ -105,10 +105,9 @@ class CellEditorState extends State<CellEditor> {
     var name = widget.acces.getName().replaceAll("#", "");
 
     return SizedBox(
-      width:
-          widget.inArray && !widget.widthInfinite
-              ? (250 * (zoom.value / 100))
-              : double.infinity,
+      width: widget.inArray && !widget.widthInfinite
+          ? (250 * (zoom.value / 100))
+          : double.infinity,
       height: widget.inArray ? 30 : null,
       child: TextField(
         focusNode: focus,
@@ -119,8 +118,9 @@ class CellEditorState extends State<CellEditor> {
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         decoration: InputDecoration(
-          contentPadding:
-              widget.inArray ? const EdgeInsets.fromLTRB(5, 0, 5, 0) : null,
+          contentPadding: widget.inArray
+              ? const EdgeInsets.fromLTRB(5, 0, 5, 0)
+              : null,
           border: const OutlineInputBorder(),
           labelText: !widget.inArray ? name : null,
           labelStyle: textStyleLabel,
@@ -295,31 +295,33 @@ class CellCheckEditorState extends State<CellCheckEditor> {
     return SizedBox(
       width: widget.inArray ? 50 : 400,
       height: widget.inArray ? 30 : 35,
-      child:
-          widget.inArray
-              ? FittedBox(fit: BoxFit.fill, child: getArraySwitch())
-              : getFormSwitch(),
+      child: widget.inArray
+          ? FittedBox(fit: BoxFit.fill, child: getArraySwitch())
+          : getFormSwitch(),
     );
   }
 
   Widget getFormSwitch() {
     var name = widget.acces.getName().replaceAll("#", "");
-    return SwitchListTile(
-      title: Text(name),
-      value: widget.acces.get() ?? false,
-      activeThumbColor: Colors.blue,
-      onChanged: (bool value) {
-        // This is called when the user toggles the switch.
-        if (widget.acces.isEditable()) {
-          setState(() {
-            widget.acces.set(value);
-          });
-        }
-      },
+    return Material(
+      color: Colors.black,
+      child: SwitchListTile(
+        title: Text(name),
+        value: widget.acces.get() ?? false,
+        activeThumbColor: Colors.blue,
+        onChanged: (bool value) {
+          // This is called when the user toggles the switch.
+          if (widget.acces.isEditable()) {
+            setState(() {
+              widget.acces.set(value);
+            });
+          }
+        },
+      ),
     );
   }
 
-  Switch getArraySwitch() {
+  Widget getArraySwitch() {
     return Switch(
       // This bool value toggles the switch.
       value: widget.acces.get() ?? false,
@@ -428,7 +430,7 @@ class ModelAccessorAttr extends ValueAccessor {
 
   NodeAttribut getNode() {
     var path = node.info.getMasterIDPath();
-    if (path.isEmpty) path = node.info.masterID!;
+    if (path.isEmpty) path = node.info.getMasterID();
     return schema?.getNodeByMasterIdPath(path) ?? node;
   }
 

@@ -64,10 +64,9 @@ class JsonBrowser<T> {
     var rootNodeAttribut = NodeAttribut(
       parent: null,
       yamlNode: MapEntry(model.headerName, 'root'),
-      info:
-          AttributInfo()
-            ..name = 'root'
-            ..type = 'root',
+      info: AttributInfo()
+        ..name = 'root'
+        ..type = 'root',
     );
 
     var browseAttrInfo = BrowserAttrInfo(
@@ -188,7 +187,8 @@ class JsonBrowser<T> {
 
   void _doSearchNode(ModelSchema model, BrowserAttrInfo element) {
     // recherche AttributInfo par mon si renommage
-    var listName = model.mapInfoByName[element.nodeAttribut.info.name];
+    List<AttributInfo>? listName =
+        model.mapInfoByName[element.nodeAttribut.info.name];
     var info = model.getNearestAttributNotUsed(listName, element, false);
     if (info == null) {
       for (var dep in model.dependency) {
@@ -199,6 +199,12 @@ class JsonBrowser<T> {
         }
       }
     }
+    if (info == null) {
+      var listName =
+          currentCompany.copiedMapInfoByName[element.nodeAttribut.info.name];
+      info = model.getNearestAttributNotUsed(listName, element, false);
+    }
+
     if (info == null && model.lastDeleteAttr != null) {
       // recherche AttributInfo par position si renommage
       // recherche si editor à la position de l'ancien noeud info supprimer
@@ -350,8 +356,9 @@ class JsonBrowser<T> {
           onRef: onRef,
         );
       } else if (mapChild.value is List) {
-        if ((mapChild.value as List).length == 1) {
-          var type = mapChild.value[0];
+        var aList = (mapChild.value as List);
+        if (aList.length == 1) {
+          var type = aList[0];
           if (type is Map) {
             _recursiveBrowseNode(model, browserAttrInfo, type, onRef: onRef);
           } else if (type is String) {
@@ -360,18 +367,36 @@ class JsonBrowser<T> {
             }, onRef: onRef);
           }
         } else {
-          Map oneOf = {};
+          Map arrayOf = {};
+          String attrName = yamlAttrName;
           // ajoute un
-          for (var type in mapChild.value) {
+          int i = 0;
+          for (var type in aList) {
             if (type is Map) {
-              oneOf.addAll(type);
+              arrayOf.addAll(type);
             } else if (type is String) {
-              oneOf.addAll({constType: type});
+              //if (attrName.startsWith("\$")) {
+              arrayOf.addAll({'$constTypeOf$i': type});
+              i++;
+              //}
+              // else {
+              //   arrayOf.addAll({constType: type});
+              // }
             }
           }
-          _recursiveBrowseNode(model, browserAttrInfo, {
-            constTypeAnyof: oneOf,
-          }, onRef: onRef);
+          //-----------------------------------
+          if (attrName.startsWith("\$")) {
+            _recursiveBrowseNode(model, browserAttrInfo, arrayOf, onRef: onRef);
+          } else if (attrName.endsWith('[]')) {
+            _recursiveBrowseNode(model, browserAttrInfo, {
+              constTypeAnyof: arrayOf,
+            }, onRef: onRef);
+          } else {
+            _recursiveBrowseNode(model, browserAttrInfo, {
+              constTypeOneof: arrayOf,
+            }, onRef: onRef);
+          }
+          //-----------------------------------
         }
       }
       i++;
@@ -412,9 +437,8 @@ class JsonBrowser<T> {
         refDomain: model.refDomain,
       );
       modelRef.namespace = model.namespace;
-      modelRef.currentVersion =
-          bddStorage
-              .lastVersionByMaster[masterIdRef]; // recupére la derniere version charger
+      modelRef.currentVersion = bddStorage
+          .lastVersionByMaster[masterIdRef]; // recupére la derniere version charger
       var ret = modelRef.getItemSync(-1);
       if (ret == null) {
         if (browserAttrInfo.ref == null ||
@@ -446,11 +470,11 @@ class JsonBrowser<T> {
     } else {
       browserAttrInfo.nodeAttribut.info.isRefError = refName;
       browserAttrInfo.nodeAttribut.info.error ??= {};
-      browserAttrInfo.nodeAttribut.info.error![EnumErrorType
-          .errorRef] = AttributError(
-        type: EnumErrorType.errorRef,
-        invalidInfo: InvalidInfo(color: Colors.red),
-      );
+      browserAttrInfo.nodeAttribut.info.error![EnumErrorType.errorRef] =
+          AttributError(
+            type: EnumErrorType.errorRef,
+            invalidInfo: InvalidInfo(color: Colors.red),
+          );
     }
   }
 
@@ -516,7 +540,7 @@ class JsonBrowser<T> {
 
     info.masterID = masterID;
 
-    if (info.path != '' && info.path != aJsonPath) {
+    if (info.path != '' && info.path != aJsonPath && info.masterID != null) {
       //print("path change ${nodeAttribut.info.path} => $aJsonPath");
       _doPathChangeHistory(nodeAttribut, aJsonPath, model);
       model.modelProperties[aJsonPath] = info.properties;
@@ -557,24 +581,24 @@ class JsonBrowser<T> {
       }
     }
 
-    var type = model.infoManager.getTypeTitle(
+    var typeTitle = model.infoManager.getTypeTitle(
       nodeAttribut,
       info.name,
       nodeAttribut.yamlNode.value,
     );
-    if (!model.first && info.type != type) {
+    if (!model.first && info.type != typeTitle) {
       model.addHistory(
         nodeAttribut,
         '${info.path}.type',
         ChangeOpe.change,
         info.type,
-        type,
+        typeTitle,
       );
     }
-    if (type != info.type) {
+    if (typeTitle != info.type) {
       onRowTypeChange(model, nodeAttribut);
     }
-    info.type = type;
+    info.type = typeTitle;
     if (bi.ref != null && info.type == '\$ref') {
       info.properties![constRefOn] = bi.ref!.headerName;
     }
@@ -771,6 +795,14 @@ class AttributInfo {
       // ignore: invalid_use_of_protected_member
       widgetRowState?.setState(() {});
     }
+  }
+
+  AttributInfo prepareNewSave() {
+    masterID = null;
+    masterIDPath.clear();
+    properties?.remove(constMasterID);
+    action = 'U';
+    return this;
   }
 
   AttributInfo clone() {

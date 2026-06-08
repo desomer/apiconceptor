@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_code_editor/flutter_code_editor.dart';
 import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:highlight/highlight_core.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_error_banner.dart';
 // ignore: implementation_imports
 import 'package:flutter_code_editor/src/code_field/actions/tab.dart';
@@ -66,15 +66,32 @@ class PasteKeyAction extends Action<PasteTextIntent> {
 
 class CopyKeyAction extends Action<CopySelectionTextIntent> {
   final CodeController controller;
+  final TextEditorState state;
 
-  CopyKeyAction({required this.controller});
+  CopyKeyAction({required this.controller, required this.state});
 
   @override
   Object? invoke(CopySelectionTextIntent intent) {
     final sel = controller.selection;
     if (!sel.isCollapsed) {
       final text = controller.fullText.substring(sel.start, sel.end);
+      var r = state.getSelectedListPath();
+      // print("selected paths: $r");
+      currentCompany.copiedMapInfoByName.clear();
+      for (var p in r) {
+        var info = currentCompany.currentModel!.mapInfoByJsonPath[p];
+        if (info != null) {
+          currentCompany.copiedMapInfoByName
+              .putIfAbsent(info.name, () => [])
+              .add(info.clone().prepareNewSave());
+        }
+      }
+
       Clipboard.setData(ClipboardData(text: text));
+      if (intent.collapseSelection) {
+        // gestion du couper
+        controller.value = controller.value.replaced(sel, '');
+      }
     }
     return null;
   }
@@ -82,47 +99,46 @@ class CopyKeyAction extends Action<CopySelectionTextIntent> {
 
 class TextEditorState extends State<TextEditor> {
   late CodeController controller;
-  late ScrollController verticalScroll;
-  late ScrollController horizontalScroll;
+  // late ScrollController verticalScroll;
+  // late ScrollController horizontalScroll;
   int lastRow = -1;
   final textStyle = const TextStyle(fontFamily: 'SourceCode', fontSize: 14);
-  late final double _lineHeight;
 
-  int getCursorLine(CodeController controller) {
-    final cursorIndex = controller.selection.start;
+  // int getCursorLine(CodeController controller) {
+  //   final cursorIndex = controller.selection.start;
 
-    // On prend tout le texte avant le curseur
-    final beforeCursor = controller.text.substring(0, cursorIndex);
+  //   // On prend tout le texte avant le curseur
+  //   final beforeCursor = controller.text.substring(0, cursorIndex);
 
-    // Le numéro de ligne = nombre de '\n' + 1
-    return '\n'.allMatches(beforeCursor).length + 1;
-  }
+  //   // Le numéro de ligne = nombre de '\n' + 1
+  //   return '\n'.allMatches(beforeCursor).length + 1;
+  // }
 
-  double computeLineHeight() {
-    final painter = TextPainter(
-      text: TextSpan(text: 'X', style: textStyle),
-      textDirection: TextDirection.ltr,
-    )..layout();
+  // double computeLineHeight() {
+  //   final painter = TextPainter(
+  //     text: TextSpan(text: 'X', style: textStyle),
+  //     textDirection: TextDirection.ltr,
+  //   )..layout();
 
-    return painter.height;
-  }
+  //   return painter.height;
+  // }
 
   @override
   void initState() {
-    _lineHeight = computeLineHeight();
     controller = CodeController(language: widget.config.mode);
 
     controller.actions[TabKeyIntent] = TabKeyAction2(controller: controller);
-    // controller.actions[PasteTextIntent] = PasteKeyAction(
-    //   controller: controller,
-    // );
-    // controller.actions[CopySelectionTextIntent] = CopyKeyAction(
-    //   controller: controller,
-    // );
+    controller.actions[PasteTextIntent] = PasteKeyAction(
+      controller: controller,
+    );
+    controller.actions[CopySelectionTextIntent] = CopyKeyAction(
+      controller: controller,
+      state: this,
+    );
 
     controller.popupController.enabled = false;
-    horizontalScroll = ScrollController();
-    verticalScroll = ScrollController();
+    // horizontalScroll = ScrollController();
+    //verticalScroll = ScrollController();
     controller.addListener(() {
       if (dispatch) {
         widget.config.onChange(controller.fullText, widget.config);
@@ -133,8 +149,8 @@ class TextEditorState extends State<TextEditor> {
 
   @override
   void dispose() {
-    verticalScroll.dispose();
-    horizontalScroll.dispose();
+    // verticalScroll.dispose();
+    // horizontalScroll.dispose();
     controller.dispose();
     super.dispose();
   }
@@ -157,43 +173,32 @@ class TextEditorState extends State<TextEditor> {
   }
 
   void scrollToLine(int lineNumber) {
+    lineNumber++;
     focusNode.requestFocus();
-    int delay = 0;
-    if (controller.selection.isValid == false) {
-      controller.setCursor(0);
-      delay = 300;
-    }
-
-    final targetOffset = (lineNumber - 1) * _lineHeight;
-
-    print('scroll to line $lineNumber $targetOffset');
-
     final text = controller.fullText;
-
-    // Séparer le texte en lignes
-    final lines = text.split('\n');
-    int charIndex = 0;
-    for (int i = 0; i < lineNumber; i++) {
-      charIndex += lines[i].length + 1; // +1 pour le '\n'
+    if (text.isEmpty) {
+      controller.setCursor(0);
+      return;
     }
-    // recherle le : dans la ligne
-    int idx = lines[lineNumber].indexOf(':');
+
+    final lines = text.split('\n');
+    final targetLine = lineNumber.clamp(1, lines.length);
+
+    int charIndex = 0;
+    for (int i = 0; i < targetLine - 1; i++) {
+      charIndex += lines[i].length + 1;
+    }
+
+    final idx = lines[targetLine - 1].indexOf(':');
     if (idx > 0) {
       charIndex += idx;
     }
 
-    Future.delayed(Duration(milliseconds: delay), () {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        controller.selection = TextSelection(
-          baseOffset: charIndex,
-          extentOffset: charIndex,
-        );
-        verticalScroll.animateTo(
-          targetOffset,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      });
+    charIndex = charIndex.clamp(0, controller.fullText.length);
+
+    controller.setCursor(charIndex);
+    Future.delayed(Duration(milliseconds: 100)).then((_) {
+      controller.setCursor(charIndex);
     });
   }
 
@@ -235,6 +240,8 @@ class TextEditorState extends State<TextEditor> {
       textStyle: textStyle,
       focusNode: focusNode,
       readOnly: widget.config.readOnly,
+      expands: true,
+      maxLines: null,
     );
 
     // dispatch = false;
@@ -246,21 +253,26 @@ class TextEditorState extends State<TextEditor> {
         Expanded(
           child: CodeTheme(
             data: CodeThemeData(styles: monokaiSublimeTheme),
-            child: Scrollbar(
-              controller: verticalScroll,
-              thumbVisibility: true,
-              trackVisibility: true,
-              child: SingleChildScrollView(
-                controller: verticalScroll,
-                child: Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (_) => _handleTap(),
-                  child: code,
-                ),
+            // child: Scrollbar(
+            //   controller: verticalScroll,
+            //   thumbVisibility: true,
+            //   trackVisibility: true,
+            //   child: SingleChildScrollView(
+            //     controller: verticalScroll,
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) => _handleTap(),
+              //child: code,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SizedBox(height: constraints.maxHeight, child: code);
+                },
               ),
             ),
           ),
         ),
+        //  ),
+        //),
         WidgetErrorBanner(error: widget.config.notifError),
       ],
     );
@@ -276,7 +288,7 @@ class TextEditorState extends State<TextEditor> {
         children: [
           Expanded(
             child: Center(
-              child: widget.headerWidget ?? Text(widget.header ?? ""),
+              child: widget.headerWidget ?? SelectableText(widget.header ?? ""),
             ),
           ),
           ...widget.actions ?? [],
@@ -333,7 +345,6 @@ class TextEditorState extends State<TextEditor> {
   }
 
   void onSelectedCode() {
-
     if (widget.onSelection == null) return;
 
     var curPos = controller.selection.baseOffset;
@@ -360,6 +371,37 @@ class TextEditorState extends State<TextEditor> {
         break;
       }
     }
+  }
+
+  List<String> getSelectedListPath() {
+    if (widget.onSelection == null) return [];
+
+    var curPosStart = controller.selection.start;
+    var curPosEnd = controller.selection.end + 1;
+    YamlDoc docYaml = YamlDoc();
+    docYaml.load(controller.fullText);
+    docYaml.doAnalyse();
+
+    List<String> listPath = [];
+
+    for (var line in docYaml.listYamlLine) {
+      if (line.idxCharStart >= curPosStart && line.idxCharStop <= curPosEnd) {
+        YamlLine? l = line;
+        int i = 0;
+        String path = '';
+        while (l != null && i < 20) {
+          i++;
+          if (path.isNotEmpty) {
+            path = '>$path';
+          }
+          path = '${l.name}$path';
+          l = l.parent;
+        }
+        path = 'root>$path';
+        listPath.add(path);
+      }
+    }
+    return listPath;
   }
 }
 

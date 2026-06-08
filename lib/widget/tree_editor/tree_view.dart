@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_hover.dart';
@@ -394,7 +395,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
         if (info.type == '\$ref') {
           noTab = true;
           //noDisplayNodeButKeepChildren = true;
-        }        
+        }
       }
 
       if (noDisplayNodeButKeepChildren) {
@@ -652,28 +653,28 @@ class TreeViewState<T> extends State<TreeView<T>> {
           ],
         ),
       ),
-      PopupMenuItem<String>(
-        enabled: _clipboardNodes.isNotEmpty,
-        value: 'paste',
-        child: Row(
-          children: [
-            Icon(
-              Icons.paste,
-              size: 18,
-              color: _clipboardNodes.isEmpty ? Colors.grey : null,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              _clipboardNodes.isEmpty
-                  ? 'Paste'
-                  : 'Paste (${_clipboardNodes.length})',
-              style: TextStyle(
-                color: _clipboardNodes.isEmpty ? Colors.grey : null,
-              ),
-            ),
-          ],
-        ),
-      ),
+      // PopupMenuItem<String>(
+      //   enabled: _clipboardNodes.isNotEmpty,
+      //   value: 'paste',
+      //   child: Row(
+      //     children: [
+      //       Icon(
+      //         Icons.paste,
+      //         size: 18,
+      //         color: _clipboardNodes.isEmpty ? Colors.grey : null,
+      //       ),
+      //       const SizedBox(width: 8),
+      //       Text(
+      //         _clipboardNodes.isEmpty
+      //             ? 'Paste'
+      //             : 'Paste (${_clipboardNodes.length})',
+      //         style: TextStyle(
+      //           color: _clipboardNodes.isEmpty ? Colors.grey : null,
+      //         ),
+      //       ),
+      //     ],
+      //   ),
+      // ),
       if (widget.contextMenuItems != null &&
           widget.contextMenuItems!.isNotEmpty) ...[
         const PopupMenuDivider(),
@@ -699,6 +700,12 @@ class TreeViewState<T> extends State<TreeView<T>> {
         Rect.fromLTWH(position.dx, position.dy, 0, 0),
         Offset.zero & overlay.size,
       ),
+      popUpAnimationStyle: const AnimationStyle(
+        duration: Duration(milliseconds: 80),
+        reverseDuration: Duration(milliseconds: 60),
+        curve: Curves.linear,
+        reverseCurve: Curves.linear,
+      ),
       items: items,
     );
 
@@ -707,6 +714,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
     switch (result) {
       case 'toggle_checkbox_mode':
         toggleCheckboxMode();
+        break;
       case 'toggle_select':
         setState(() {
           if (selectedNodes.contains(node)) {
@@ -717,6 +725,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
           node.numUpdate++;
         });
         widget.onSelectionChanged?.call(Set.unmodifiable(selectedNodes));
+        break;
       case 'select_all':
         setState(() {
           selectedNodes.addAll(list);
@@ -725,6 +734,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
           }
         });
         widget.onSelectionChanged?.call(Set.unmodifiable(selectedNodes));
+        break;
       case 'deselect_all':
         setState(() {
           for (var element in selectedNodes) {
@@ -733,28 +743,80 @@ class TreeViewState<T> extends State<TreeView<T>> {
           selectedNodes.clear();
         });
         widget.onSelectionChanged?.call(Set.unmodifiable(selectedNodes));
+        break;
       case 'copy':
-        setState(() {
-          _clipboardNodes.clear();
-          if (selectedNodes.isNotEmpty) {
-            _clipboardNodes.addAll(selectedNodes);
-          } else {
-            _clipboardNodes.add(node);
+        _clipboardNodes.clear();
+        String rootPath = '';
+        for (var element in selectedNodes) {
+          _clipboardNodes.add(element);
+          if (element.data is NodeAttribut) {
+            var path = (element.data as NodeAttribut).info.getJsonPath(
+              sep: '>',
+            );
+            if (rootPath.isEmpty) {
+              rootPath = path;
+            } else {
+              // on garde que la partie du path qui est commune à tous les éléments sélectionnés pour éviter d'avoir des chemins trop long lors du collage
+              while (!path.startsWith(rootPath)) {
+                int index = rootPath.lastIndexOf('>');
+                if (index == -1) {
+                  rootPath = '';
+                  break;
+                }
+                rootPath = rootPath.substring(0, index);
+              }
+            }
           }
-        });
-        widget.onCopy?.call(Set.unmodifiable(_clipboardNodes));
-      case 'paste':
-        if (_clipboardNodes.isNotEmpty) {
-          widget.onPaste?.call(Set.unmodifiable(_clipboardNodes), node);
         }
+        StringBuffer sb = StringBuffer();
+        currentCompany.copiedMapInfoByName.clear();
+        for (var element in _clipboardNodes) {
+          if (element.data is NodeAttribut) {
+            var attr = element.data as NodeAttribut;
+            var path = attr.info.getJsonPath(sep: '>');
+            var length = rootPath.length;
+            if (length > 0) {
+              length++; // pour enlever le séparateur ">" en début du path
+            }
+            path = path.substring(length);
+            // compte le nb de > dans le path pour ajouter une indentation dans la console et mieux visualiser la hiérarchie des éléments copiés
+            int indent = '>'.allMatches(path).length;
+            String indentation = '\t' * indent;
+            var type = attr.info.type;
+            if (type=='Object' || type=='Array') {
+              type = '';
+            }
+            sb.writeln("$indentation${attr.info.name} : $type");
+            currentCompany.copiedMapInfoByName
+                .putIfAbsent(attr.info.name, () => [])
+                .add(attr.info.clone().prepareNewSave());
+          }
+        }
+        print("Copied nodes:\n$sb");
+        Clipboard.setData(ClipboardData(text: sb.toString()));
+
+        widget.onCopy?.call(Set.unmodifiable(_clipboardNodes));
+
+        setState(() {
+          selectedNodes.clear();
+          _clipboardNodes.clear();
+        });
+        break;
+      // case 'paste':
+      //   if (_clipboardNodes.isNotEmpty) {
+      //     widget.onPaste?.call(Set.unmodifiable(_clipboardNodes), node);
+      //   }
+      //   break;
       case 'expand':
         setState(() {
           node.isExpanded = true;
         });
+        break;
       case 'collapse':
         setState(() {
           doToogle(node);
         });
+        break;
       default:
         // Delegate unknown values to the caller via a dedicated callback
         // (contextMenuItems entries are identified by their 'value' key).
@@ -788,10 +850,9 @@ class TreeViewState<T> extends State<TreeView<T>> {
     if (w < 20) {
       w = 20;
     }
-    final Color? effectiveColor =
-        selectedNodes.contains(node)
-            ? Colors.orange.withAlpha(100)
-            : node.bgColor;
+    final Color? effectiveColor = selectedNodes.contains(node)
+        ? Colors.orange.withAlpha(100)
+        : node.bgColor;
 
     return Container(
       color: effectiveColor,
@@ -891,12 +952,9 @@ class TreeViewState<T> extends State<TreeView<T>> {
       },
       child: SizedBox(
         width: 40,
-        child:
-            node.children?.isNotEmpty == true
-                ? Icon(
-                  expanded ? Icons.arrow_drop_down : Icons.arrow_right_sharp,
-                )
-                : const Text(''),
+        child: node.children?.isNotEmpty == true
+            ? Icon(expanded ? Icons.arrow_drop_down : Icons.arrow_right_sharp)
+            : const Text(''),
       ),
     );
   }
@@ -930,10 +988,9 @@ class TreeViewState<T> extends State<TreeView<T>> {
       return ClipRect(
         key: key,
         child: TweenAnimationBuilder<double>(
-          tween:
-              node.isInvisibleRequested
-                  ? Tween(begin: 1, end: 0)
-                  : Tween(begin: 0, end: 1),
+          tween: node.isInvisibleRequested
+              ? Tween(begin: 1, end: 0)
+              : Tween(begin: 0, end: 1),
           duration: Duration(milliseconds: animateDelay),
           builder: (context, value, child) {
             return Align(heightFactor: value, child: child);
@@ -1054,10 +1111,9 @@ class _TreeConnectorPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = indentInfo.color
-          ..strokeWidth = 1.5;
+    final paint = Paint()
+      ..color = indentInfo.color
+      ..strokeWidth = 1.5;
 
     var indentPix = indentInfo.indent * (node.depth - 1);
 

@@ -29,7 +29,7 @@ List<BreadNode> getLeftNavApi(String query) {
     ),
     BreadNode(
       icon: const Icon(Icons.airplane_ticket),
-      settings: const RouteSettings(name: 'Scrum'),
+      settings: const RouteSettings(name: 'Doc.'),
       type: BreadNodeType.widget,
       path: Pages.apiScrum.id(query),
     ),

@@ -39,7 +39,7 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
 
         BreadNode(
           icon: const Icon(Icons.verified),
-          settings: const RouteSettings(name: 'Json schema'),
+          settings: const RouteSettings(name: 'Examples'),
           type: BreadNodeType.widget,
           path: Pages.modelJsonSchema.urlpath,
         ),
@@ -59,7 +59,7 @@ class DesignModelJsonSchemaPage extends GenericPageStateless {
 
         BreadNode(
           icon: const Icon(Icons.airplane_ticket),
-          settings: const RouteSettings(name: 'Scrum'),
+          settings: const RouteSettings(name: 'Doc.'),
           type: BreadNodeType.widget,
           path: Pages.modelScrum.urlpath,
         ),

@@ -796,6 +796,45 @@ class DataAcces {
     return ret2;
   }
 
+  Future<Map<String, dynamic>?> getCurrentUserSubscription() async {
+    await ensureSessionValid();
+
+    final user = currentCompany.user;
+    if (user == null) {
+      return null;
+    }
+
+    final email = user.email;
+    if (email != null && email.isNotEmpty) {
+      final byEmail = await supabase
+          .from('customer_subscriptions')
+          .select('*')
+          .eq('email', email)
+          .order('updated_at', ascending: false)
+          .limit(1);
+
+      if (byEmail.isNotEmpty) {
+        return Map<String, dynamic>.from(byEmail.first as Map);
+      }
+    }
+
+    if (currentCompany.companyId.isNotEmpty &&
+        currentCompany.companyId != '?') {
+      final byCompany = await supabase
+          .from('customer_subscriptions')
+          .select('*')
+          .eq('company_id', currentCompany.companyId)
+          .order('updated_at', ascending: false)
+          .limit(1);
+
+      if (byCompany.isNotEmpty) {
+        return Map<String, dynamic>.from(byCompany.first as Map);
+      }
+    }
+
+    return null;
+  }
+
   Future<List<Map<String, dynamic>>?> getHistories(
     ModelSchema modelSchema,
   ) async {
