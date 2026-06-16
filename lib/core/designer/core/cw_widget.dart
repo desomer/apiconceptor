@@ -558,7 +558,7 @@ class CwWidgetCtx {
   dynamic getDataValueForEval({
     String? jsonPath,
     String? pathJson,
-    required Map<String, AttributBindInfo>? listBindInfo,
+    //required Map<String, AttributBindInfo>? listBindInfo,
     required CwWidgetStateBindJson? state,
     required BuildContext context,
   }) {

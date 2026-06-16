@@ -56,7 +56,7 @@ class PanModelSelector extends PanYamlTree {
 
     //addWidgetMasterId(attr, row);
 
-    if (attr.info.type == 'model' && type == TypeModelSelector.model) {
+    if (attr.info.type != 'folder' && type == TypeModelSelector.model) {
       row.add(SizedBox(width: 10));
       row.add(
         WidgetVersionState(
@@ -115,15 +115,28 @@ class PanModelSelector extends PanYamlTree {
     }
 
     var attr = node.data;
-    if (attr.info.type == 'model') {
+    if (attr.info.type != 'folder') {
+      //var key = attr.info.properties![constMasterID];
+
+      // ignore: use_build_context_synchronously
+      //RouteManager.goto(Pages.modelDetail.id(key), context);
+
+      //context.push(Pages.modelDetail.url);
+    } else {
+      node.doToogleChild();
+    }
+  }
+
+  @override
+  void doDoubleTapRow(NodeAttribut data, BuildContext context) {
+    var attr = data;
+    if (attr.info.type != 'folder') {
       var key = attr.info.properties![constMasterID];
 
       // ignore: use_build_context_synchronously
       RouteManager.goto(Pages.modelDetail.id(key), context);
 
       //context.push(Pages.modelDetail.url);
-    } else {
-      node.doToogleChild();
     }
   }
 

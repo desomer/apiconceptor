@@ -10,14 +10,16 @@ import 'package:lemmatizerx/lemmatizerx.dart';
 //import 'package:text_analysis/extensions.dart';
 
 List<String> autorizedGlossaryType = [
+  'master',
   'fact',
-  'dim',
-  'enum',
-  'value',
-  'bool',
+  'dimentional',
+  'analytical',
+  'metadata',
+  'sensitive',
+  'tool',
+  'naming',
   'prefix',
   'suffix',
-  'everywhere',
 ];
 
 class BrowseGlossary<T extends Map> extends JsonBrowser<T> {
@@ -239,8 +241,8 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
   String getTypeTitle(NodeAttribut node, String name, dynamic type) {
     String? typeStr;
     if (type is Map) {
-        node.bgcolor = Colors.blueGrey.withAlpha(50);
-        typeStr = 'Category';
+      node.bgcolor = Colors.blueGrey.withAlpha(50);
+      typeStr = 'Category';
     }
     typeStr ??= '$type';
     return typeStr;
@@ -254,10 +256,7 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
     String typeTitle,
   ) {
     var type = typeTitle.toLowerCase();
-    bool valid = [
-      'category',
-      ...autorizedGlossaryType,
-    ].contains(type);
+    bool valid = ['category', ...autorizedGlossaryType].contains(type);
     if (!valid) {
       return InvalidInfo(color: Colors.red);
     }
@@ -317,10 +316,11 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
   Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     Widget? icon;
     var isRoot = node.isRoot;
+    bool isCategory = node.data.info.type == 'Category';
 
     if (isRoot) {
       icon = Icon(Icons.business);
-    } else if (node.data.info.type == 'Category') {
+    } else if (isCategory) {
       icon = Icon(Icons.folder);
     } else {
       icon = Icon(Icons.label_outline);
@@ -330,6 +330,24 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
     hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
+
+    Widget w;
+
+    if (!isRoot && !isCategory) {
+      w = getChip(
+        Row(
+          spacing: 5,
+          children: [
+            Text(attr.info.type),
+            Icon(Icons.arrow_drop_down, size: 15),
+          ],
+        ),
+        color: hasError ? Colors.red : null,
+      );
+      w = getEditorType(attr, context, w);
+    } else {
+      w = SizedBox.shrink();
+    }
 
     return NoOverflowErrorFlex(
       direction: Axis.horizontal,
@@ -350,15 +368,37 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
                       : null,
                 ),
                 Spacer(),
-                getChip(
-                  Text(node.data.info.type),
-                  color: hasError ? Colors.red : null,
-                ),
+                w,
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
+    GlobalKey? k = GlobalKey();
+
+    return GestureDetector(
+      key: k,
+      onTap: () {
+        var listOptions = <OptionSelect>[];
+
+        for (var element in autorizedGlossaryType) {
+          listOptions.add(
+            OptionSelect(
+              label: element,
+              name: element,
+              icon: Icons.label_outline,
+              color: Colors.blueGrey,
+            ),
+          );
+        }
+
+        openTypeSelector(editor!, context, listOptions, attr, k);
+      },
+      child: child,
     );
   }
 }

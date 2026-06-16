@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:fuzzy/data/result.dart' show Result;
+import 'package:fuzzy/fuzzy.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_version_list.dart';
@@ -14,42 +17,210 @@ import 'package:jsonschema/widget/widget_comment.dart';
 import 'package:jsonschema/widget/widget_glasspan.dart';
 import 'package:jsonschema/widget/widget_glossary_indicator.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
+import 'package:jsonschema/widget/widget_tooltip.dart';
 
 import '../../widget/tree_editor/tree_view.dart';
 
 var withGlosarryIndicator = true;
 
 mixin PanModelEditorHelper {
-  Widget getChip(Widget content, {required Color? color, double? height}) {
+  Widget getChip(
+    Widget content, {
+    required Color? color,
+    double? height,
+    double? width,
+  }) {
     var w = Chip(
       labelPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 5),
       color: WidgetStatePropertyAll(color),
       padding: EdgeInsets.all(0),
       label: content, // SelectionArea(child: content),
     );
-    if (height != null) {
-      return SizedBox(height: height, child: w);
+    if (height != null || width != null) {
+      return SizedBox(height: height, width: width, child: w);
     }
     return w;
+  }
+
+  List<Widget> getTooltipFromProposal(ProposalInfo? info) {
+    List<Widget> tooltip = [];
+    if (info?.properties != null) {
+      for (var element in info!.properties!.entries) {
+        if (!element.key.startsWith('\$\$') && !element.key.startsWith('#')) {
+          tooltip.add(
+            Text(
+              '${element.key} = ${element.value}',
+              style: TextStyle(fontSize: 15),
+            ),
+          );
+        }
+      }
+    }
+
+    if (tooltip.isEmpty) {
+      tooltip.add(Text('No information'));
+    }
+    return tooltip;
+  }
+
+  void applyProposalToAttribut(
+    NodeAttribut attr,
+    ModelSchema schema,
+    ProposalInfo proposal,
+  ) {
+    final props = proposal.properties;
+    if (props == null) {
+      return;
+    }
+
+    attr.info.cacheRowWidget = null;
+    attr.info.numUpdateForKey++;
+    for (final entry in props.entries) {
+      ModelAccessorAttr(
+        node: attr,
+        schema: schema,
+        propName: entry.key,
+        editable: true,
+      ).set(entry.value);
+    }
   }
 
   void addAttributWidget(
     List<Widget> row,
     NodeAttribut attr,
     ModelSchema schema,
+    BuildContext context,
   ) {
+    var accessor = ModelAccessorAttr(
+      node: attr,
+      schema: schema,
+      propName: 'title',
+      editable: !attr.info.type.startsWith('\$'),
+    );
+
+    bool proposal = false;
+    if (accessor.isEditable() && (accessor.get()?.isEmpty ?? true) == true) {
+      proposal = true;
+      BuildContext? loadingContext;
+      row.add(
+        GestureDetector(
+          onTap: () async {
+            showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (dialogContext) {
+                loadingContext = dialogContext;
+                return PopScope(
+                  canPop: false,
+                  child: AlertDialog(
+                    content: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(width: 14),
+                        Text('Recherche en cours...'),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+
+            //pop le dialog de loading
+            List<Result<ProposalInfo>> result = await searchProposal(attr);
+
+            // ignore: use_build_context_synchronously
+            Navigator.of(loadingContext!).pop();
+            if (!context.mounted) return;
+
+            showDialog<void>(
+              context: context,
+              builder: (dialogContext) {
+                return AlertDialog(
+                  title: Text('Search results for "${attr.info.name}"'),
+                  content: SizedBox(
+                    width: 500,
+                    child: result.isEmpty
+                        ? Text('No result found for "${attr.info.name}"')
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: result.length,
+                            itemBuilder: (context, index) {
+                              final r = result[index];
+                              final scoreTxt = r.score.toStringAsFixed(3);
+                              return AnimatedTooltip(
+                                content: Column(
+                                  children: getTooltipFromProposal(r.item),
+                                ),
+                                child: Container(
+                                  margin: EdgeInsets.only(bottom: 6),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.blueGrey.withAlpha(130),
+                                    ),
+                                  ),
+                                  child: ListTile(
+                                    dense: true,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    onTap: () {
+                                      applyProposalToAttribut(
+                                        attr,
+                                        schema,
+                                        r.item,
+                                      );
+                                      Navigator.of(dialogContext).pop();
+                                    },
+                                    leading: getColorIndicatorFromScore(r.score),
+                                    title: Text(
+                                      '${index + 1}.) ${r.item.name} from ${r.item.domain}.${r.item.model} ',
+                                    ),
+                                    subtitle: Text('${r.item.path}  score: $scoreTxt'),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: Text('Close'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+          child: Container(
+            margin: EdgeInsets.all(5),
+            width: 50,
+            height: 30,
+            decoration: BoxDecoration(
+              color: Colors.blueGrey,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center(
+              child: Text(
+                'Proposal',
+                style: TextStyle(color: Colors.white, fontSize: 10),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     row.add(
       CellEditor(
+        width: proposal ? 190 : null,
         inArray: true,
         key: ValueKey(
           '${schema.getVersionId()}%${attr.info.name}%${attr.info.numUpdateForKey}',
         ),
-        acces: ModelAccessorAttr(
-          node: attr,
-          schema: schema,
-          propName: 'title',
-          editable: !attr.info.type.startsWith('\$'),
-        ),
+        acces: accessor,
       ),
     );
 
@@ -67,8 +238,8 @@ mixin PanModelEditorHelper {
             //         : null,
             //color: Colors.blueAccent,
             //margin: EdgeInsets.only(left: 10),
-            child: Row(
-              children: [
+            child: //Row(
+                //children: [
                 ThreadCommentCell(
                   contextId:
                       '${attr.info.getMasterID()}@${schema.id}', // unique par attribut
@@ -77,14 +248,14 @@ mixin PanModelEditorHelper {
                       ? Icon(Icons.add_comment_outlined, color: Colors.grey)
                       : SizedBox.shrink(),
                 ),
-                // if (isHovered)
-                //   Icon(Icons.add_comment_outlined, color: Colors.grey),
-                // Text(
-                //   'comment',
-                //   style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
-                // ),
-              ],
-            ),
+            // if (isHovered)
+            //   Icon(Icons.add_comment_outlined, color: Colors.grey),
+            // Text(
+            //   'comment',
+            //   style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+            // ),
+            //],
+            //),
           );
         },
       ),
@@ -161,6 +332,94 @@ mixin PanModelEditorHelper {
 
     if (attr.info.cacheIndicatorWidget != null) {
       row.addAll(<Widget>[Spacer(), attr.info.cacheIndicatorWidget!]);
+    }
+  }
+
+  Future<List<Result<ProposalInfo>>> searchProposal(NodeAttribut attr) async {
+    List<ProposalInfo> existingProposals = [];
+
+    final result = currentCompany.searchProposal(attr);
+
+    for (var r in result) {
+      existingProposals.add(r.item);
+    }
+
+    List? resultsbdd = await bddStorage.supabase.rpc(
+      'search_attributs',
+      params: {
+        'q': attr.info.name,
+        'lang': 'english',
+        'company_id': currentCompany.companyId,
+      },
+    );
+
+    if (resultsbdd != null) {
+      for (var element in resultsbdd) {
+        Map<String, dynamic> hasProp = {...element['prop'] ?? {}};
+        hasProp.removeWhere((key, value) {
+          return key.startsWith('\$') ||
+              key.startsWith('#') ||
+              value == null ||
+              (value is String && value.isEmpty);
+        });
+        if (hasProp.isNotEmpty) {
+          String schemaId = element['schema_id'];
+          String namespace = element['namespace'];
+          String companyId = element['company_id'];
+
+          if (schemaId == 'api') continue; // only api model for now
+          // recuperer le model name a partir des 3 infos                  String modelName = 'unknown';
+          var listModel = await bddStorage.supabase
+              .from('attributs')
+              .select('*')
+              .eq('schema_id', 'model')
+              .eq('category', 'allModel')
+              .eq('attr_id', schemaId)
+              .eq('namespace', namespace)
+              .eq('company_id', companyId);
+
+          if (listModel.isEmpty) continue;
+          //get Namespace name
+          var aDomain =
+              currentCompany.listDomain
+                  ?.getNodeByMasterIdPath(listModel.first['namespace'] ?? '')
+                  ?.info
+                  .name ??
+              '';
+          var modelName = listModel.first['path'].split('>').last ?? 'unknown';
+          var path = element['path'].replaceAll('>', '.');
+          if (path.startsWith('root.')) {
+            path = path.substring(5);
+          }
+
+          var proposalInfo = ProposalInfo(
+            name: path.split('.').last,
+            path: path,
+            properties: hasProp,
+            model: modelName,
+            domain: aDomain,
+          );
+          existingProposals.add(proposalInfo);
+        }
+      }
+    }
+
+    var fuse = Fuzzy<ProposalInfo>(
+      existingProposals,
+      options: currentCompany.getOptionFuse(),
+    );
+    final searchResult = fuse.search(attr.info.name, 20);
+
+    return searchResult;
+  }
+  
+  Widget? getColorIndicatorFromScore(double score) {
+    if (score < 0.01) {
+      return Icon(Icons.circle, color: Colors.green, size: 12);
+    } else if (score < 0.05) {
+      return Icon(Icons.circle, color: Colors.orange, size: 12);
+    } else {
+      return Icon(Icons.circle, color: Colors.red, size: 12);
     }
   }
 }
@@ -272,7 +531,7 @@ class PanModelEditor extends PanYamlTree
       return;
     }
 
-    addAttributWidget(row, attr, schema);
+    addAttributWidget(row, attr, schema, context);
   }
 
   bool toogleOnTap() {
@@ -280,7 +539,7 @@ class PanModelEditor extends PanYamlTree
   }
 
   @override
-  void doDoubleTapRow(NodeAttribut data) {
+  void doDoubleTapRow(NodeAttribut data, BuildContext context) {
     scrollCodeEditorTo(data);
   }
 

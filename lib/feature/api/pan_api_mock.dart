@@ -95,6 +95,7 @@ class WidgetApiMockState extends State<WidgetApiMock> {
     textConfigResponse = CodeEditorConfig(
       // mode: graphql,
       mode: json,
+      isModel: false,
       notifError: errorParseResponse,
       onChange: (String json, CodeEditorConfig config) {
         widget.requestHelper.apiCallInfo.mock = null;

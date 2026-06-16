@@ -72,9 +72,15 @@ class _PanModelVersionListState extends State<PanModelVersionList>
         child: Row(
           spacing: 5,
           children: [
-            Text('draft'),
+            //Text('draft'),
             getChip(Text(version.data['versionTxt']), color: null),
-            Text('by ${version.data['by']}'),
+            Expanded(
+              child: Text(
+                'by ${version.data['by']}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             MouseRegion(
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
@@ -90,7 +96,6 @@ class _PanModelVersionListState extends State<PanModelVersionList>
                 child: Icon(Icons.more_vert),
               ),
             ),
-            Spacer(),
             InkWell(
               child: WidgetVersionState(
                 margeVertical: 5,

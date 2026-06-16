@@ -41,3 +41,23 @@ create table public.customer_subscriptions (
   )
 ) TABLESPACE pg_default;
 
+
+
+create or replace function search_attributs(
+  q text,
+  lang regconfig,
+  company_id text
+)
+returns setof attributs
+language sql stable as $$
+  select *
+  from attributs
+  where attributs.company_id = company_id
+    and to_tsvector(
+      lang,
+      coalesce(prop->>'title', '') || ' ' ||
+      coalesce(prop->>'description', '') || ' ' ||
+      coalesce(path, '')
+    ) @@ websearch_to_tsquery(lang, q);
+$$;
+

@@ -86,6 +86,7 @@ class _PanSaveParamState extends State<PanSaveParam> {
         Flexible(
           child: TextEditor(
             config: CodeEditorConfig(
+              isModel: false,
               readOnly: true,
               mode: json,
               getText: () => text,

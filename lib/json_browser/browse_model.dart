@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
+import 'package:jsonschema/widget/widget_hover_underline_text.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
@@ -138,7 +141,19 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
   ) {
     var type = typeTitle.toLowerCase();
 
-    bool valid = ['folder', 'model'].contains(type);
+    bool valid = [
+      'folder',
+      'model',
+      'part',
+      'component',
+      'createxdto',
+      'updatexdto',
+      'xresponsedto',
+      'xlistitemdto',
+      'xquerydto',
+      'eventxpayloaddto',
+      'eventxenvelopedto',
+    ].contains(type);
     if (!valid) {
       return InvalidInfo(color: Colors.red);
     }
@@ -156,7 +171,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
     var isRoot = node.isRoot;
     var attr = node.data.info;
     var isFolder = attr.type == 'folder';
-    var isModel = attr.type == 'model';
+    var isModel = attr.type != 'folder';
 
     String name = attr.name;
 
@@ -164,12 +179,25 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
         ? Colors.grey.shade800
         : Colors.blueGrey;
 
+    var lowerCase = attr.type.toLowerCase();
     if (isRoot) {
       icon = Icon(Icons.business, color: iconColor);
     } else if (isFolder) {
       icon = Icon(Icons.folder, color: iconColor);
     } else if (isModel) {
       icon = Icon(Icons.data_object, color: iconColor);
+    } else if (['part', 'component'].contains(lowerCase)) {
+      icon = Icon(Icons.extension, color: iconColor);
+    } else if ([
+      'createxdto',
+      'updatexdto',
+      'xresponsedto',
+      'xlistitemdto',
+      'xquerydto',
+    ].contains(lowerCase)) {
+      icon = Icon(Icons.description, color: iconColor);
+    } else if (['eventxpayloaddto', 'eventxenvelopedto'].contains(lowerCase)) {
+      icon = Icon(Icons.event, color: iconColor);
     }
 
     return NoOverflowErrorFlex(
@@ -182,16 +210,27 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
           child: InkWell(
             onTap: () {
               node.doTapHeader();
+              currentYamlTree?.doShowAttrEditor(node.data);
+              // doShowAttrEditor(node.data);
             },
             child: NoOverflowErrorFlex(
               direction: Axis.horizontal,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Text(
-                    name,
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: HoverTextUnderline(
+                    text: name,
                     overflow: TextOverflow.fade,
                     maxLines: 1,
                     style: TextStyle(fontSize: 14),
+                    onTap: () {
+                      if (attr.type != 'folder') {
+                        var key = attr.properties![constMasterID];
+                        // ignore: use_build_context_synchronously
+                        RouteManager.goto(Pages.modelDetail.id(key), context);
+                      }
+                    },
                   ),
                 ),
                 getWidgetType(node.data, isModel, isRoot, context),
@@ -209,7 +248,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
     bool isRoot,
     BuildContext context,
   ) {
-    if (isRoot) return Container();
+    if (isRoot || attr.info.type == 'folder') return Container();
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
     hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
@@ -233,14 +272,44 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
               ],
             )
           : Text(attr.info.type),
-      color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
+      color: hasError ? Colors.redAccent : getColorOfType(attr.info.type),
     );
 
-    bool canEditType = !isRoot && attr.info.type != 'folder';
-    if (canEditType && hasError) {
+
+    bool canEditType = !isRoot;
+    if (canEditType /*&& hasError*/ ) {
       return getEditorType(attr, context, w);
     }
     return w;
+  }
+
+  Color? getColorOfType(String type) {
+    switch (type.toLowerCase()) {
+      case 'folder':
+        return null;
+      case 'model':
+        return Colors.blue;
+      case 'part':
+        return Colors.blueGrey;
+      case 'component':
+        return Colors.teal;
+      case 'createxdto':
+        return Colors.green;
+      case 'updatexdto':
+        return Colors.teal;
+      case 'xresponsedto':
+        return Colors.indigo;
+      case 'xlistitemdto':
+        return Colors.limeAccent;
+      case 'xquerydto':
+        return Colors.lime;
+      case 'eventxpayloaddto':
+        return Colors.indigo;
+      case 'eventxenvelopedto':
+        return Colors.indigoAccent;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
@@ -255,6 +324,60 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
             name: 'model',
             icon: Icons.data_object,
             color: Colors.blueGrey,
+          ),
+          OptionSelect(
+            label: 'part',
+            name: 'part',
+            icon: Icons.extension,
+            color: Colors.purple,
+          ),
+          OptionSelect(
+            label: 'component',
+            name: 'component',
+            icon: Icons.build,
+            color: Colors.brown,
+          ),
+          OptionSelect(
+            label: 'createXDto',
+            name: 'createXDto',
+            icon: Icons.create,
+            color: Colors.green,
+          ),
+          OptionSelect(
+            label: 'updateXDto',
+            name: 'updateXDto',
+            icon: Icons.update,
+            color: Colors.orange,
+          ),
+          OptionSelect(
+            label: 'XResponseDto',
+            name: 'XResponseDto',
+            icon: Icons.reply,
+            color: Colors.blue,
+          ),
+          OptionSelect(
+            label: 'XListItemDto',
+            name: 'XListItemDto',
+            icon: Icons.list,
+            color: Colors.purple,
+          ),
+          OptionSelect(
+            label: 'XQueryDto',
+            name: 'XQueryDto',
+            icon: Icons.search,
+            color: Colors.cyan,
+          ),
+          OptionSelect(
+            label: 'eventXPayloadDto',
+            name: 'eventXPayloadDto',
+            icon: Icons.event,
+            color: Colors.teal,
+          ),
+          OptionSelect(
+            label: 'eventXEnvelopeDto',
+            name: 'eventXEnvelopeDto',
+            icon: Icons.mark_email_read,
+            color: Colors.indigo,
           ),
         ];
 
@@ -367,8 +490,8 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     }
 
     bool valid = [
-      'folder',
-      'model',
+      // 'folder',
+      // 'model',
       'string',
       'integer',
       'number',
@@ -478,8 +601,8 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     } else if (isType) {
       name = '\$type';
       icon = Icon(Icons.type_specimen_outlined, color: iconColor, size: 20);
-    } 
-    
+    }
+
     if (attr.name.startsWith(constTypeOf)) {
       name = name.replaceFirst(constTypeOf, '');
       icon = Icon(Icons.type_specimen_outlined, color: iconColor, size: 20);

@@ -56,7 +56,8 @@ class TextfieldBuilderInfo {
     var asuffix = suffix ?? '';
     var aprefix = prefix ?? '';
 
-    if (v is String || v is bool) {
+    if (v is! num) {
+      v = v.toString();
       if (bindType == 'DATE' || bindType == 'DATETIME') {
         //final offset = DateTime.now().timeZoneOffset;
         // final locations = tz.timeZoneDatabase.locations;
@@ -65,18 +66,24 @@ class TextfieldBuilderInfo {
         //   (entry) => entry.value.currentTimeZone.offset.inSeconds == offset.inSeconds,
         //   orElse: () => MapEntry('UTC', tz.getLocation('UTC')),
         // );
-
+        
         var dateFormat = DateFormat(info.patternDate);
-
-        try {
-          final parsed = DateTime.parse(v); // converti en local (CET/CEST)
-          final tzDateTime = tz.TZDateTime.from(parsed, paris);
-          var date = dateFormat.format(tzDateTime);
-          v = date;
-        } on Exception catch (_) {
-          // TODO
+        if (v != '') {
+          try {
+            final parsed = DateTime.parse(
+              v.toString(),
+            ); // converti en local (CET/CEST)
+            final tzDateTime = tz.TZDateTime.from(parsed, paris);
+            var date = dateFormat.format(tzDateTime);
+            v = date;
+          } on Exception catch (_) {
+            v = '';
+          }
+        } else {
+          v = '';
         }
       }
+      // les enum sont remplacés par leur label
       if (bindInfo?.bindAttribut != null) {
         var enumLabel = bindInfo!.bindAttribut!.properties?['#enumLabel'];
         if (enumLabel != null) {
@@ -92,6 +99,7 @@ class TextfieldBuilderInfo {
 
       return '$aprefix$v$asuffix';
     } else {
+      // les numeriques sont formatés
       if (pattern == null) {
         return '$aprefix$v$asuffix';
       }
@@ -154,6 +162,7 @@ class TextfieldBuilderInfo {
           return df;
         } on Exception catch (_) {
           // TODO
+          return "";
         }
       }
 
@@ -519,13 +528,13 @@ class NumericInputFormatter extends TextInputFormatter {
     int idxdd = textNew.indexOf('$decimalSep$decimalSep');
     if (textNew == decimalSep || idxdd >= 0) {
       return TextEditingValue(
-        text:
-            textNew == decimalSep ? '${prefix}0$textNew$suffix' : oldValue.text,
+        text: textNew == decimalSep
+            ? '${prefix}0$textNew$suffix'
+            : oldValue.text,
         selection: TextSelection.collapsed(
-          offset:
-              idxdd >= 0
-                  ? prefix.length + idxdd + 1
-                  : newValue.selection.baseOffset + 1,
+          offset: idxdd >= 0
+              ? prefix.length + idxdd + 1
+              : newValue.selection.baseOffset + 1,
         ),
       );
     }

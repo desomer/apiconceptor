@@ -40,6 +40,7 @@ class PanAPIImport extends StatelessWidget {
 
     return TextEditor(
       config: CodeEditorConfig(
+        isModel: false,
         mode: cmake,
         getText: () {
           return import.raw;

@@ -211,6 +211,7 @@ class _PanApiParamState extends State<PanApiParam> {
     textConfigBody = CodeEditorConfig(
       // mode: graphql,
       mode: json,
+      isModel: false,
       notifError: errorParseBody,
       onChange: (String json, CodeEditorConfig config) {
         widget.requestHelper.apiCallInfo.body = null;

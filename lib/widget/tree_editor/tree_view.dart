@@ -238,6 +238,13 @@ class TreeViewState<T> extends State<TreeView<T>> {
     });
   }
 
+  void repaint() {
+    repaintInProgess =
+        DateTime.now().millisecondsSinceEpoch;
+    // ignore: invalid_use_of_protected_member
+    setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
@@ -640,6 +647,20 @@ class TreeViewState<T> extends State<TreeView<T>> {
       ],
       const PopupMenuDivider(),
       PopupMenuItem<String>(
+        value: 'copyPath',
+        child: Row(
+          children: [
+            const Icon(Icons.copy, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              selectedNodes.isEmpty
+                  ? 'Copy path'
+                  : 'Copy paths (${selectedNodes.length})',
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
         value: 'copy',
         child: Row(
           children: [
@@ -744,6 +765,25 @@ class TreeViewState<T> extends State<TreeView<T>> {
         });
         widget.onSelectionChanged?.call(Set.unmodifiable(selectedNodes));
         break;
+
+      case 'copyPath':
+        StringBuffer sb = StringBuffer();
+        for (var element in selectedNodes) {
+          _clipboardNodes.add(element);
+          if (element.data is NodeAttribut) {
+             var path = (element.data as NodeAttribut).info.getJsonPath(
+              sep: '.',withRoot: false
+            );
+            sb.writeln(path);
+          }
+        }
+        Clipboard.setData(ClipboardData(text: sb.toString()));
+        ScaffoldMessenger.of(
+          // ignore: use_build_context_synchronously
+          context,
+        ).showSnackBar(SnackBar(content: Text('copied to clipboard')));
+        break;
+
       case 'copy':
         _clipboardNodes.clear();
         String rootPath = '';
@@ -783,7 +823,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
             int indent = '>'.allMatches(path).length;
             String indentation = '\t' * indent;
             var type = attr.info.type;
-            if (type=='Object' || type=='Array') {
+            if (type == 'Object' || type == 'Array') {
               type = '';
             }
             sb.writeln("$indentation${attr.info.name} : $type");
@@ -801,6 +841,10 @@ class TreeViewState<T> extends State<TreeView<T>> {
           selectedNodes.clear();
           _clipboardNodes.clear();
         });
+        ScaffoldMessenger.of(
+          // ignore: use_build_context_synchronously
+          context,
+        ).showSnackBar(SnackBar(content: Text('copied to clipboard')));
         break;
       // case 'paste':
       //   if (_clipboardNodes.isNotEmpty) {

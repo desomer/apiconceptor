@@ -377,6 +377,7 @@ class WidgetAPIHelper with WidgetHelper {
   Widget _getResponseJson(BuildContext ctx) {
     textConfigResponse = CodeEditorConfig(
       mode: json,
+      isModel: false,
       notifError: errorParseResponse,
       readOnly: true,
       onChange: (String json, CodeEditorConfig config) {},

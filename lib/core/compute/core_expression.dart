@@ -59,9 +59,8 @@ class CoreExpression {
     if (self != null) {
       exp.self = double.tryParse(self);
     }
-    exp.variables = variables;
     if (variables == null) return false;
-    var ret = exp.execute(logs: logs).value;
+    var ret = exp.execute(logs: logs, variables: variables).value;
     return ret;
   }
 }

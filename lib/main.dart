@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/compute/core_data_eval.dart';
 import 'pages/router_config.dart';
 // import 'package:fleather/fleather.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -52,6 +53,7 @@ void main() async {
   runZonedGuarded(
     () {
       WidgetsFlutterBinding.ensureInitialized();
+      CoreDataEval().initializeJSEngine();
       tz.initializeTimeZones();
       runApp(const MyApp());
     },

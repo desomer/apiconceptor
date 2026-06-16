@@ -1,3 +1,4 @@
+import 'package:fuzzy/data/result.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/json_browser/browse_glossary.dart';
@@ -8,6 +9,23 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:supabase/supabase.dart';
 import 'package:collection/collection.dart';
+import 'package:fuzzy/fuzzy.dart';
+
+class ProposalInfo {
+  final String name;
+  final Map<String, dynamic>? properties;
+  final String model;
+  final String domain;
+  final String path;
+
+  ProposalInfo({
+    required this.name,
+    this.properties,
+    required this.model,
+    required this.domain,
+    required this.path,
+  });
+}
 
 class CompanyModelSchema {
   bool isInit = false;
@@ -44,10 +62,84 @@ class CompanyModelSchema {
   Map? userProfil;
   Map userAuth = {};
 
+  Set fuseSet = {};
+  Fuzzy<ProposalInfo>? fuse;
+
+  FuzzyOptions<ProposalInfo> getOptionFuse() {
+    return FuzzyOptions(
+      tokenize: true,
+      shouldSort: true,
+      shouldNormalize: true,
+      keys: [
+        WeightedKey(
+          name: "name",
+          getter: (ProposalInfo obj) {
+            return obj.name;
+          },
+          weight: 1.0,
+        ),
+        WeightedKey(
+          name: "title",
+          getter: (ProposalInfo obj) {
+            return obj.properties?['title'] ?? '';
+          },
+          weight: 0.8,
+        ),
+        WeightedKey(
+          name: "description",
+          getter: (ProposalInfo obj) {
+            return obj.properties?['description'] ?? '';
+          },
+          weight: 0.6,
+        ),
+      ],
+    );
+  }
+
+  bool isSearchFuse = false;
+
+  List<Result<ProposalInfo>> searchProposal(NodeAttribut attr) {
+    if (currentCompany.fuse == null) {
+      return [];
+    }
+    final result = currentCompany.fuse!.search(attr.info.name, 5);
+    isSearchFuse = true;
+    return result;
+  }
+
   final Map<String, List<AttributInfo>> copiedMapInfoByName = {};
 
   Map? getRule(String category, String authId) {
     return userAuth[category]?[authId];
+  }
+
+  void addProposal(ModelSchema model, AttributInfo attr) {
+    String key = attr.getMasterID();
+
+    Map<String, dynamic> hasProp = {...attr.properties ?? {}};
+    hasProp.removeWhere((key, value) {
+      return key.startsWith('\$') ||
+          key.startsWith('#') ||
+          value == null ||
+          (value is String && value.isEmpty);
+    });
+
+    if (!fuseSet.contains(key) && hasProp.isNotEmpty) {
+      if (isSearchFuse || fuse == null) {
+        isSearchFuse = false;
+        fuse = Fuzzy<ProposalInfo>(fuse?.list ?? [], options: getOptionFuse());
+      }
+
+      fuseSet.add(key);
+      var proposalInfo = ProposalInfo(
+        name: attr.name,
+        path: attr.getJsonPath(sep: '.', withRoot: false),
+        properties: hasProp,
+        model: model.headerName,
+        domain: currentCompany.listDomain?.selectedAttr?.info.name ?? '',
+      );
+      currentCompany.fuse!.list.add(proposalInfo);
+    }
   }
 
   String get currentNameSpace {

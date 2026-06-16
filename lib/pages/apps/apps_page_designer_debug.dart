@@ -31,6 +31,7 @@ class AppsPageDesignerDebug extends GenericPageStateless {
 
     return TextEditor(
       config: CodeEditorConfig(
+        isModel: false,
         readOnly: true,
         mode: json,
         getText: () => prettyPrintJson(f.appData),

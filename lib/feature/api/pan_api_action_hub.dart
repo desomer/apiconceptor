@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/widget_glowing_halo.dart';
 
 import 'pan_api_selector.dart';
 
@@ -23,16 +24,18 @@ class PanApiActionHub extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         spacing: 10,
         children: [
-          ElevatedButton.icon(
-            icon: Icon(Icons.add_box_outlined),
-            onPressed: () {
-              if (currentCompany.listAPI != null) {
-                selector.showImportDialog(context);
-              }
+          SizedBox(width: 1),
+          GlowingHalo(
+            child: ElevatedButton.icon(
+              icon: Icon(Icons.add_box_outlined),
+              onPressed: () {
+                if (currentCompany.listAPI != null) {
+                  selector.showImportDialog(context);
+                }
             },
             style: style,
             label: Text('New API'),
-          ),
+          )),
           ElevatedButton.icon(
             icon: Icon(Icons.create_new_folder_outlined),
             onPressed: () {

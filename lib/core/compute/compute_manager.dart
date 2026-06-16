@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:highlight/languages/dart.dart';
+import 'package:highlight/languages/javascript.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/compute/core_expression.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
@@ -50,7 +50,8 @@ class ComputeManager {
     //double height = mediaQueryData.size.height * 0.6;
 
     var codeEditorConfig = CodeEditorConfig(
-      mode: dart,
+      isModel: false,
+      mode: javascript,
       getText: () {
         return cv.expression;
       },

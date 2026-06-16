@@ -44,7 +44,7 @@ class PanModelImportDialog extends StatelessWidget {
                 children: [
                   Flexible(
                     child: CellEditor(
-                      acces: InfoAccess(map: info, name: 'domain'),
+                      acces: InfoAccess(map: info, name: 'subdomain'),
                       inArray: false,
                     ),
                   ),
@@ -82,12 +82,12 @@ class PanModelImportDialog extends StatelessWidget {
               YamlLine? domain;
               for (var element in docYaml.listRoot) {
                 if (element.name?.toLowerCase() ==
-                    info['domain']?.toLowerCase()) {
+                    info['subdomain']?.toLowerCase()) {
                   domain = element;
                   break;
                 }
               }
-              var domainKey = info['domain'] ?? 'new';
+              var domainKey = info['subdomain'] ?? 'new';
               var nameKey = info['model name'] ?? 'new';
               domain ??= docYaml.addAtEnd(domainKey, '');
               docYaml.addChild(domain, nameKey, 'model');
@@ -139,6 +139,7 @@ class PanModelImportDialog extends StatelessWidget {
   Widget _getJsonImport(JsonToSchemaYaml import) {
     return TextEditor(
       config: CodeEditorConfig(
+        isModel: false,
         mode: json,
         getText: () {
           return '';

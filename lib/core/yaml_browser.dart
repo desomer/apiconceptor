@@ -210,7 +210,7 @@ class YamlDoc {
   ) {
     var aPath = [...path];
 
-    int searchIndex = valYamlMap.span.start.line - 1;
+    int searchIndex = valYamlMap.span.start.line - 0;
     if (searchIndex < 0) searchIndex = 0;
     var allLine = listYamlLine;
     for (var e in valYamlMap.entries) {
@@ -298,7 +298,9 @@ class YamlDoc {
         }
 
         if (line > -1) {
-          allLine[i].parent = allLine[line];
+          if (i!=line) {
+            allLine[i].parent = allLine[line];
+          }
           allLine[line].child ??= [];
           allLine[line].child!.add(allLine[i]);
         } else {

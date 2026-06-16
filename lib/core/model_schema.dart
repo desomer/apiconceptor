@@ -461,14 +461,13 @@ class ModelSchema {
             width: 60,
             child: Container(
               decoration: BoxDecoration(
-                color:
-                    ope == 'SET'
-                        ? Colors.green
-                        : ope == 'REMOVE'
-                        ? Colors.red
-                        : ope == 'PATH' || ope == 'RENAME'
-                        ? Colors.orange
-                        : Colors.blueGrey,
+                color: ope == 'SET'
+                    ? Colors.green
+                    : ope == 'REMOVE'
+                    ? Colors.red
+                    : ope == 'PATH' || ope == 'RENAME'
+                    ? Colors.orange
+                    : Colors.blueGrey,
                 //border: Border.all(color: Colors.blueGrey),
               ),
               child: Text(
@@ -968,19 +967,15 @@ class ModelSchema {
       }
 
       if (action == 'event' || action == 'import') {
-        if (config?.codeEditorState?.mounted ?? false) {
-          // ignore: invalid_use_of_protected_member
-          config?.codeEditorState!.setState(() {});
-        }
-        if (config?.treeJsonState?.mounted ?? false) {
-          // ignore: invalid_use_of_protected_member
-          config?.treeJsonState?.setState(() {});
-        }
+        // if (config?.codeEditorState?.mounted ?? false) {
+        //   // ignore: invalid_use_of_protected_member
+        //   config?.codeEditorState!.setState(() {});
+
+        // }
+        config?.repaintCode();
+        config?.repaintTree();
       } else {
-        if (config?.treeJsonState?.mounted ?? false) {
-          // ignore: invalid_use_of_protected_member
-          config?.treeJsonState?.setState(() {});
-        }
+        config?.repaintTree();
       }
     }
 
@@ -1212,8 +1207,8 @@ class ModelSchema {
     }
 
     //wordCount sort
-    var sortedWordCount =
-        wordCount.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    var sortedWordCount = wordCount.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     //moyenne de duplication > 2 mots
     double wordDuplication = 0;
     int totalWords = 0;

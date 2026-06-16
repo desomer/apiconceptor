@@ -37,6 +37,11 @@ class PanGlossary extends PanYamlTree {
   }
 
   @override
+  void doDoubleTapRow(NodeAttribut data, BuildContext context) {
+    scrollCodeEditorTo(data);
+  }
+
+  @override
   void addRowWidget(
     TreeNodeData<NodeAttribut> node,
     ModelSchema schema,

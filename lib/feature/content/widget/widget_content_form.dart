@@ -117,6 +117,7 @@ class _WidgetContentFormState extends State<WidgetContentForm>
       if (widget.ctx.parentType == WidgetType.root) {
         if (jsonViewerConf == null) {
           jsonViewerConf = CodeEditorConfig(
+            isModel: false,
             mode: json,
             getText: () {
               var dataContainer = widget.info.json2ui.getStateContainer(

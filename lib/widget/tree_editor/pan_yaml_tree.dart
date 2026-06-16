@@ -137,6 +137,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         onChange: _getOnChange(),
         getText: getYaml,
         readOnly: isReadOnly(),
+        isModel: _schema.infoManager is InfoManagerModel,
       );
     }
 
@@ -311,7 +312,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         var millisecondsSinceEpoch2 = DateTime.now().millisecondsSinceEpoch;
         if (millisecondsSinceEpoch2 - tapSinceEpoch < 300) {
           // double tap
-          doDoubleTapRow(node.data);
+          doDoubleTapRow(node.data, ctx);
         } else {
           await onActionRow(node, ctx);
         }
@@ -583,7 +584,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     });
   }
 
-  void doDoubleTapRow(NodeAttribut data) {}
+  void doDoubleTapRow(NodeAttribut data, BuildContext context) {}
 }
 
 //-------------------------------------------------------------------------------

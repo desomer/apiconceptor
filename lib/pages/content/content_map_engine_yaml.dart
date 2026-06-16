@@ -46,6 +46,7 @@ class MappingEnginePage extends GenericPageStateless {
     return TextEditor(
       config: CodeEditorConfig(
         readOnly: true,
+        isModel: false,
         mode: yaml,
         getText: () => yamlString,
         onChange: (String json, CodeEditorConfig config) {

@@ -5,6 +5,7 @@ import 'package:flutter_highlight/themes/monokai-sublime.dart';
 import 'package:highlight/highlight_core.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_error_banner.dart';
 // ignore: implementation_imports
 import 'package:flutter_code_editor/src/code_field/actions/tab.dart';
@@ -48,8 +49,9 @@ class TabKeyAction2 extends Action<TabKeyIntent> {
 
 class PasteKeyAction extends Action<PasteTextIntent> {
   final CodeController controller;
+  bool isModel = false;
 
-  PasteKeyAction({required this.controller});
+  PasteKeyAction({required this.controller, required this.isModel});
 
   @override
   Object? invoke(PasteTextIntent intent) {
@@ -67,23 +69,33 @@ class PasteKeyAction extends Action<PasteTextIntent> {
 class CopyKeyAction extends Action<CopySelectionTextIntent> {
   final CodeController controller;
   final TextEditorState state;
+  bool isModel = false;
 
-  CopyKeyAction({required this.controller, required this.state});
+  CopyKeyAction({
+    required this.controller,
+    required this.state,
+    required this.isModel,
+  });
 
   @override
   Object? invoke(CopySelectionTextIntent intent) {
     final sel = controller.selection;
     if (!sel.isCollapsed) {
       final text = controller.fullText.substring(sel.start, sel.end);
-      var r = state.getSelectedListPath();
-      // print("selected paths: $r");
       currentCompany.copiedMapInfoByName.clear();
-      for (var p in r) {
-        var info = currentCompany.currentModel!.mapInfoByJsonPath[p];
-        if (info != null) {
-          currentCompany.copiedMapInfoByName
-              .putIfAbsent(info.name, () => [])
-              .add(info.clone().prepareNewSave());
+
+      if (isModel) {
+        // si c'est un model, on copie aussi les infos de chaque node sélectionné pour pouvoir les coller ensuite
+        var r = state.getSelectedListPath();
+        // print("selected paths: $r");
+
+        for (var p in r) {
+          var info = currentCompany.currentModel!.mapInfoByJsonPath[p];
+          if (info != null) {
+            currentCompany.copiedMapInfoByName
+                .putIfAbsent(info.name, () => [])
+                .add(info.clone().prepareNewSave());
+          }
         }
       }
 
@@ -130,10 +142,12 @@ class TextEditorState extends State<TextEditor> {
     controller.actions[TabKeyIntent] = TabKeyAction2(controller: controller);
     controller.actions[PasteTextIntent] = PasteKeyAction(
       controller: controller,
+      isModel: widget.config.isModel,
     );
     controller.actions[CopySelectionTextIntent] = CopyKeyAction(
       controller: controller,
       state: this,
+      isModel: widget.config.isModel,
     );
 
     controller.popupController.enabled = false;
@@ -188,6 +202,8 @@ class TextEditorState extends State<TextEditor> {
     for (int i = 0; i < targetLine - 1; i++) {
       charIndex += lines[i].length + 1;
     }
+    int startLine = charIndex;
+    int endLine = charIndex + lines[targetLine - 1].length;
 
     final idx = lines[targetLine - 1].indexOf(':');
     if (idx > 0) {
@@ -198,7 +214,10 @@ class TextEditorState extends State<TextEditor> {
 
     controller.setCursor(charIndex);
     Future.delayed(Duration(milliseconds: 100)).then((_) {
-      controller.setCursor(charIndex);
+      controller.selection = TextSelection(
+        baseOffset: startLine,
+        extentOffset: endLine,
+      );
     });
   }
 
@@ -413,6 +432,7 @@ class CodeEditorConfig {
     required this.notifError,
     this.readOnly = false,
     this.validateKey,
+    required this.isModel,
   });
   Mode mode;
   late Function onChange;
@@ -420,6 +440,7 @@ class CodeEditorConfig {
   Function? validateKey;
   late ValueNotifier<String> notifError;
   bool readOnly;
+  bool isModel = false;
 
   TextEditorState? codeEditorState;
   State? treeJsonState;
@@ -428,6 +449,17 @@ class CodeEditorConfig {
     if (codeEditorState?.mounted ?? false) {
       // ignore: invalid_use_of_protected_member
       codeEditorState?.setState(() {});
+    }
+  }
+
+  void repaintTree() {
+    if (treeJsonState?.mounted ?? false) {
+      // ignore: invalid_use_of_protected_member
+      if (treeJsonState is TreeViewState) {
+        (treeJsonState as TreeViewState).repaint();
+      } else {
+        treeJsonState?.setState(() {});
+      }
     }
   }
 }

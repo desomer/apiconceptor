@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
@@ -39,6 +40,16 @@ class _PanModelGraphState extends State<PanModelGraph> {
   final List<Node> nodes = [];
   final List<Edge> edges = [];
 
+  int _modelIndex = 0;
+  int _apiIndex = 0;
+  final Set<int> _pinnedNodeIndexes = {};
+  Timer? _layoutDebounce;
+  bool _userInteracted = false;
+  bool _initialFitDone = false;
+
+  final TransformationController _transformController =
+      TransformationController();
+
   PathNode? domainPath; // Tête de la liste chaînée des paths
 
   final double areaWidth = 5000;
@@ -62,26 +73,53 @@ class _PanModelGraphState extends State<PanModelGraph> {
   }
 
   void initGraph(ModelSchema model) {
-    model.mapInfoByTreePath.forEach((key, value) {
-      if (value.type == 'model') {
+    final entries = model.mapInfoByTreePath.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    for (final entry in entries) {
+      final value = entry.value;
+      if (value.type != 'folder') {
         _addModel(value);
       } else if (value.type == 'ope') {
         _addApi(value);
       }
-    });
+    }
 
     //print( pathHead);
   }
 
+  Offset _gridPosition({
+    required int index,
+    required double startX,
+    required double startY,
+    int columns = 7,
+    double xStep = 320,
+    double yStep = 220,
+  }) {
+    final col = index % columns;
+    final row = index ~/ columns;
+    return Offset(startX + col * xStep, startY + row * yStep);
+  }
+
   void _addModel(AttributInfo value) {
+    final defaultPos = _gridPosition(
+      index: _modelIndex++,
+      startX: 120,
+      startY: 120,
+    );
+    final hasSavedPosition =
+        value.properties?['#x'] != null && value.properties?['#y'] != null;
     var node = ModelNode(
-      value.properties!['#x'] ?? 100 + Random().nextDouble() * 800,
-      value.properties!['#y'] ?? 100 + Random().nextDouble() * 500,
+      value.properties?['#x'] ?? defaultPos.dx,
+      value.properties?['#y'] ?? defaultPos.dy,
       value.name,
       value,
     );
 
     nodes.add(node);
+    if (hasSavedPosition) {
+      _pinnedNodeIndexes.add(nodes.length - 1);
+    }
     initDomain(value, node);
     _initModelLink(value, node);
   }
@@ -116,14 +154,24 @@ class _PanModelGraphState extends State<PanModelGraph> {
       api.write(element);
     });
 
+    final defaultPos = _gridPosition(
+      index: _apiIndex++,
+      startX: 180,
+      startY: 2200,
+    );
+    final hasSavedPosition =
+        value.properties?['#x'] != null && value.properties?['#y'] != null;
     var node = ApiNode(
-      100 + Random().nextDouble() * 800,
-      100 + Random().nextDouble() * 500,
+      value.properties?['#x'] ?? defaultPos.dx,
+      value.properties?['#y'] ?? defaultPos.dy,
       api.toString(),
       value,
     );
 
     nodes.add(node);
+    if (hasSavedPosition) {
+      _pinnedNodeIndexes.add(nodes.length - 1);
+    }
     node.height = 1;
     node.width = node.name.length * 9;
 
@@ -161,6 +209,7 @@ class _PanModelGraphState extends State<PanModelGraph> {
         edges.add(Edge(nodes.indexOf(node), nodes.indexOf(refNode)));
       });
 
+      _scheduleConnectedLayout();
       if (mounted) setState(() {});
     });
   }
@@ -195,8 +244,164 @@ class _PanModelGraphState extends State<PanModelGraph> {
         }
       }
 
+      _scheduleConnectedLayout();
       if (mounted) setState(() {});
     });
+  }
+
+  void _scheduleConnectedLayout() {
+    if (_userInteracted) return;
+
+    _layoutDebounce?.cancel();
+    _layoutDebounce = Timer(const Duration(milliseconds: 50), () {
+      if (!mounted || _userInteracted) return;
+      _layoutConnectedNodesOnGrid();
+      if (!_initialFitDone) {
+        _initialFitDone = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _fitToScreen());
+      }
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _layoutConnectedNodesOnGrid() {
+    if (nodes.isEmpty) return;
+
+    final adjacency = List.generate(nodes.length, (_) => <int>{});
+    for (final edge in edges) {
+      if (edge.from < 0 ||
+          edge.from >= nodes.length ||
+          edge.to < 0 ||
+          edge.to >= nodes.length) {
+        continue;
+      }
+      adjacency[edge.from].add(edge.to);
+      adjacency[edge.to].add(edge.from);
+    }
+
+    final allMovable = List<int>.generate(nodes.length, (i) => i)
+      ..removeWhere(_pinnedNodeIndexes.contains);
+    if (allMovable.isEmpty) return;
+
+    final unvisitedMovable = allMovable.toSet();
+    final visitedAll = <int>{};
+    final components = <({List<int> movable, List<int> pinned})>[];
+
+    for (final start in allMovable) {
+      if (!unvisitedMovable.contains(start)) continue;
+
+      final queue = ListQueue<int>()..add(start);
+      final componentAll = <int>{};
+
+      while (queue.isNotEmpty) {
+        final current = queue.removeFirst();
+        if (visitedAll.contains(current)) continue;
+        visitedAll.add(current);
+        componentAll.add(current);
+
+        for (final next in adjacency[current].toList()..sort()) {
+          if (!visitedAll.contains(next)) queue.add(next);
+        }
+      }
+
+      final compMovable =
+          componentAll.where((i) => !_pinnedNodeIndexes.contains(i)).toList()
+            ..sort();
+      final compPinned =
+          componentAll.where((i) => _pinnedNodeIndexes.contains(i)).toList()
+            ..sort();
+
+      if (compMovable.isNotEmpty) {
+        unvisitedMovable.removeAll(compMovable);
+        components.add((movable: compMovable, pinned: compPinned));
+      }
+    }
+
+    var clusterRow = 0;
+    var clusterCol = 0;
+    const clustersPerRow = 4;
+    const clusterStepX = 950.0;
+    const clusterStepY = 700.0;
+    const localStepX = 260.0;
+    const localStepY = 180.0;
+
+    for (final component in components) {
+      final movable = component.movable;
+      final pinned = component.pinned;
+      final order = _buildComponentTraversalOrder(
+        movable: movable,
+        pinned: pinned,
+        adjacency: adjacency,
+      );
+
+      Offset anchor;
+      if (pinned.isNotEmpty) {
+        var sumX = 0.0;
+        var sumY = 0.0;
+        for (final i in pinned) {
+          sumX += nodes[i].x;
+          sumY += nodes[i].y;
+        }
+        anchor = Offset(sumX / pinned.length, sumY / pinned.length + 180);
+      } else {
+        anchor = Offset(
+          120 + clusterCol * clusterStepX,
+          120 + clusterRow * clusterStepY,
+        );
+        clusterCol++;
+        if (clusterCol >= clustersPerRow) {
+          clusterCol = 0;
+          clusterRow++;
+        }
+      }
+
+      final colCount = max(2, sqrt(order.length).ceil());
+      for (var i = 0; i < order.length; i++) {
+        final idx = order[i];
+        final col = i % colCount;
+        final row = i ~/ colCount;
+        final x = anchor.dx + (col - (colCount - 1) / 2) * localStepX;
+        final y = anchor.dy + row * localStepY;
+        nodes[idx].x = x.clamp(0.0, areaWidth);
+        nodes[idx].y = y.clamp(0.0, areaHeight);
+      }
+    }
+  }
+
+  List<int> _buildComponentTraversalOrder({
+    required List<int> movable,
+    required List<int> pinned,
+    required List<Set<int>> adjacency,
+  }) {
+    final componentSet = <int>{...movable, ...pinned};
+    final movableSet = movable.toSet();
+    final roots = pinned.isNotEmpty ? pinned.toList() : [movable.first];
+
+    final visited = <int>{};
+    final queue = ListQueue<int>();
+    for (final root in roots) {
+      if (componentSet.contains(root)) queue.add(root);
+    }
+
+    final ordered = <int>[];
+    while (queue.isNotEmpty) {
+      final current = queue.removeFirst();
+      if (!visited.add(current)) continue;
+      if (movableSet.contains(current)) {
+        ordered.add(current);
+      }
+
+      final nextNodes = adjacency[current].where(componentSet.contains).toList()
+        ..sort();
+      for (final next in nextNodes) {
+        if (!visited.contains(next)) queue.add(next);
+      }
+    }
+
+    for (final idx in movable) {
+      if (!ordered.contains(idx)) ordered.add(idx);
+    }
+    return ordered;
   }
 
   void initDomain(AttributInfo value, Node node) {
@@ -222,17 +427,61 @@ class _PanModelGraphState extends State<PanModelGraph> {
     }
   }
 
+  void _fitToScreen() {
+    if (!mounted || nodes.isEmpty) return;
+    final size = (context.findRenderObject() as RenderBox?)?.size;
+    if (size == null || size.isEmpty) return;
+
+    double minX = double.infinity;
+    double minY = double.infinity;
+    double maxX = double.negativeInfinity;
+    double maxY = double.negativeInfinity;
+
+    for (final node in nodes) {
+      if (node.x < minX) minX = node.x;
+      if (node.y < minY) minY = node.y;
+      final nx = node.x + node.width;
+      final ny = node.y + node.height;
+      if (nx > maxX) maxX = nx;
+      if (ny > maxY) maxY = ny;
+    }
+
+    const padding = 60.0;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    final contentW = maxX - minX;
+    final contentH = maxY - minY;
+    if (contentW <= 0 || contentH <= 0) return;
+
+    final scale = min(
+      size.width / contentW,
+      size.height / contentH,
+    ).clamp(0.1, 1.0);
+    final translateX = padding - minX * scale;
+    final translateY = padding - minY * scale;
+
+    _transformController.value = Matrix4.identity()
+      ..translate(translateX, translateY)
+      ..scale(scale);
+  }
+
   @override
   void dispose() {
+    _layoutDebounce?.cancel();
     timer.cancel();
+    _transformController.dispose();
     super.dispose();
   }
 
-  double k = 0; // Constante de force de répulsion
+  double k = 5000; // Constante de force de répulsion
 
   void _applyForces() {
     const double springLength = 300; // Longueur naturelle des ressorts
-    const double damping = 0.8; // Amortissement pour éviter les oscillations
+    const double damping =
+        0.6; // Amortissement réduit pour meilleure séparation
 
     for (var node in nodes) {
       node.dx = 0;
@@ -240,11 +489,9 @@ class _PanModelGraphState extends State<PanModelGraph> {
     }
 
     doReplusion(k);
-    k =
-        k -
-        100; // Diminue progressivement la force de répulsion pour stabiliser le graph
-    if (k < 0) {
-      k = 0; // Limite la force de répulsion minimale
+    k = k * 0.98; // Diminue plus lentement la force de répulsion
+    if (k < 100) {
+      k = 100; // Maintient une répulsion minimale constante
     }
 
     for (var edge in edges) {
@@ -269,8 +516,16 @@ class _PanModelGraphState extends State<PanModelGraph> {
             (nodes[j].y + (nodes[j].height / 2)) -
             (nodes[i].y + (nodes[i].height / 2));
 
-        var dist = max(1.0, sqrt(dx * dx + dy * dy));
-        var force = k / (dist * dist);
+        // Calcule la distance minimale basée sur les dimensions des nœuds
+        var minDist =
+            (nodes[i].width / 2) +
+            (nodes[j].width / 2) +
+            (nodes[i].height / 2) +
+            (nodes[j].height / 2);
+        var dist = max(minDist + 50, sqrt(dx * dx + dy * dy));
+
+        // Force plus importante si les nœuds sont trop proches
+        var force = k / max(1.0, dist * dist * 0.5);
         var fx = (force * dx) / dist;
         var fy = (force * dy) / dist;
 
@@ -382,6 +637,7 @@ class _PanModelGraphState extends State<PanModelGraph> {
               child: GestureDetector(
                 onPanUpdate: (details) {
                   setState(() {
+                    _userInteracted = true;
                     k = 10000; // Augmente la force de répulsion pendant le déplacement
                     node.x = (node.x + details.delta.dx).clamp(0.0, areaWidth);
                     node.y = (node.y + details.delta.dy).clamp(0.0, areaHeight);
@@ -399,10 +655,11 @@ class _PanModelGraphState extends State<PanModelGraph> {
       constrained: false,
       // reste dans le cadre
       // boundaryMargin: EdgeInsets.all(double.infinity),
-      minScale: 0.1,
+      minScale: 0.05,
       maxScale: 5.0,
       scaleFactor: 5000,
       scaleEnabled: scaleEnabled,
+      transformationController: _transformController,
       child: stack!,
     );
     return Stack(

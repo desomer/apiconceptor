@@ -70,9 +70,6 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       },
       onLoad: (List<Map<String, dynamic>> list, int idx) {
         currentJsonFake.value = list[idx]['json'];
-        // nameExample = list[idx]['name'];
-        // selectedIdx = idx;
-        //textConfig?.repaintCode();
         onSelect!();
       },
       onReplace: (List<Map<String, dynamic>> list, int idx) {
@@ -92,7 +89,6 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
         setState(() {
           currentCompany.currentModel = model;
           currentJsonFake.value = null;
-          //exampleManager.clearSelected();
           textConfig?.repaintCode();
         });
       });
@@ -179,6 +175,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     }
 
     textConfig = CodeEditorConfig(
+      isModel: false,
       mode: json,
       notifError: error,
       onChange: (String json, CodeEditorConfig config) {

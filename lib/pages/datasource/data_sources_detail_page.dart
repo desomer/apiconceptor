@@ -77,6 +77,7 @@ class DataSrcDetailPage extends GenericPageStateless {
 
     return TextEditor(
       config: CodeEditorConfig(
+        isModel: false,
         mode: yaml,
         getText: () {
           var config = accessor.get();

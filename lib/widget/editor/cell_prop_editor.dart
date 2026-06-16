@@ -13,12 +13,14 @@ class CellEditor extends StatefulWidget {
     this.line,
     this.isNumber = false,
     this.widthInfinite = false,
+    this.width
   });
   final int? line;
   final ValueAccessor acces;
   final bool inArray;
   final bool isNumber;
   final bool widthInfinite;
+  final double? width;
 
   @override
   State<CellEditor> createState() => CellEditorState();
@@ -106,7 +108,7 @@ class CellEditorState extends State<CellEditor> {
 
     return SizedBox(
       width: widget.inArray && !widget.widthInfinite
-          ? (250 * (zoom.value / 100))
+          ? ((widget.width ?? 250) * (zoom.value / 100))
           : double.infinity,
       height: widget.inArray ? 30 : null,
       child: TextField(
@@ -149,7 +151,7 @@ class CellEditorState extends State<CellEditor> {
     if (hasValue) {
       return Container(
         padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
-        width: (250 * (zoom.value / 100)),
+        width: ((widget.width ?? 250) * (zoom.value / 100)),
         height: 30,
         decoration: deco,
         child: Text(
@@ -167,7 +169,7 @@ class CellEditorState extends State<CellEditor> {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
-      width: (250 * (zoom.value / 100)),
+      width: ((widget.width ?? 250) * (zoom.value / 100)),
       height: 30,
       decoration: deco,
       child: Text(

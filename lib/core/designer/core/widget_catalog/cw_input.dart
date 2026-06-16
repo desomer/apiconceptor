@@ -80,15 +80,21 @@ class CwInput extends CwWidget {
 }
 
 class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
+  // changement par load d'un repository
   @override
   void setBindJsonValue(dynamic parent, dynamic value) {
     if (widget.ctx.aFactory.isModeViewer()) {
+      if (isCompute || hasNoControl) {
+        //print('update value for computed input ${widget.ctx.aWidgetPath} : $value  hash=$hashCode w=${widget.hashCode} ');
+        widget.ctx.repaint(); // pour les text widget
+        return;
+      }
       if (formatter != null) {
         value = formatter!.aInfoMask!.getMaskedValue(formatter!, value);
       }
-
+      // changement unioquement du controleur
       ctrlInput?.text = value;
-      widget.ctx.repaint(); // pour les text widget
+      //widget.ctx.repaint(); // pour les text widget
     } else {
       ctrlInput?.text = '{${bindInfo.bindAttribut?.name ?? bindInfo.pathData}}';
     }
@@ -105,6 +111,8 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
     );
     ctrlInput?.dispose();
     focusNode?.dispose();
+    ctrlInput = null;
+    focusNode = null;
     super.dispose();
   }
 
@@ -160,6 +168,8 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
   }
 
   FormatterTextfield? formatter;
+  bool isCompute = false;
+  bool hasNoControl = false;
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +209,7 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
         //   ' bind value for input ${ctx.aWidgetPath} : $v masked=${ctrlInput?.text}  hash=$hashCode w=${widget.hashCode} ',
         // );
       } else if (bindInfo.stateRepository != null && bindInfo.eval != null) {
+        isCompute = true;
         var r = bindInfo.eval!.eval(
           variables: {
             '\$\$__ctx__\$\$': ctx,
@@ -312,11 +323,12 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
           widgetInput = ValueListenableBuilder(
             valueListenable: ctrlInput!,
             builder: (context, value, child) {
-              return getWidgetText(widgetType, modeDesigner);
+              return getWidgetNoTextfield(widgetType, modeDesigner);
             },
           );
         } else {
-          widgetInput = getWidgetText(widgetType, modeDesigner);
+          hasNoControl = true;
+          widgetInput = getWidgetNoTextfield(widgetType, modeDesigner);
         }
       }
 
@@ -324,7 +336,7 @@ class _CwInputState extends CwWidgetStateBindJson<CwInput> with HelperEditor {
     });
   }
 
-  Widget getWidgetText(String widgetType, bool modeDesigner) {
+  Widget getWidgetNoTextfield(String widgetType, bool modeDesigner) {
     var data = ctrlInput?.text ?? getStringProp(widget.ctx, 'label') ?? '';
     // if (modeDesigner && bindInfo.computedInfo != null) {
     //   data = '#{${bindInfo.computedInfo!['name']}}';

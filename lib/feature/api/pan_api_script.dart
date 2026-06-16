@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:highlight/languages/dart.dart';
+import 'package:highlight/languages/javascript.dart';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 
@@ -23,7 +23,8 @@ class _PanApiScriptState extends State<PanApiScript> {
   Widget _getCode() {
     return TextEditor(
       config: CodeEditorConfig(
-        mode: dart,
+        isModel: false,
+        mode: javascript,
         getText: () {
           return widget.type == ScriptType.pre
               ? widget.api.preRequestStr

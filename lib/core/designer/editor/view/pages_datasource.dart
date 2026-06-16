@@ -294,6 +294,7 @@ class _ListComputeWidgetState extends State<ListComputeWidget> {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      shrinkWrap: true,
       itemCount: widget.computeManager.computedProps.length,
       itemBuilder: (context, index) {
         var prop = widget.computeManager.computedProps[index];

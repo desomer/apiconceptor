@@ -30,6 +30,7 @@ class _PanCodeGeneratorState extends State<PanCodeGenerator> {
   Widget _getCode(String code) {
     return TextEditor(
       config: CodeEditorConfig(
+        isModel: false,
         mode: typescript,
         getText: () {
           return code;

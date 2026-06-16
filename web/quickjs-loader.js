@@ -2,24 +2,24 @@
 let qjs = null;
 let qjsCtx = null;
 
-async function initModQJS() {
-    console.log("Module chargé !");
-    await initQJS();
-    setProp("globalThis", "x", 42);
-    let code = "'Hello from QuickJS!' + x";
+// async function initModQJS() {
+//     console.log("Module chargé !");
+//     await initQJS();
+//     setProp("globalThis", "x", 42);
+//     let code = "'Hello from QuickJS!' + x";
 
-    const add = qjsCtx.newFunction("add", (...args) => {
-        const nativeArgs = args.map(qjsCtx.dump)
-        const a = nativeArgs[0];
-        const b = nativeArgs[1];
-        return qjsCtx.newNumber(a + b);
-    });
+//     const add = qjsCtx.newFunction("add", (...args) => {
+//         const nativeArgs = args.map(qjsCtx.dump)
+//         const a = nativeArgs[0];
+//         const b = nativeArgs[1];
+//         return qjsCtx.newNumber(a + b);
+//     });
 
-    qjsCtx.setProp(qjsCtx.global, "add", add);
+//     qjsCtx.setProp(qjsCtx.global, "add", add);
 
-    evalInQJS(code);
-    evalInQJS('add(5, 7)');
-}
+//     evalInQJS(code);
+//     evalInQJS('add(5, 7)');
+// }
 
 async function initQJS() {
     if (!qjs) {
@@ -45,10 +45,10 @@ function evalInQJS(code) {
     const result = ctx.evalCode(code);
     let out = null;
     if (result.error) {
-        console.log("Execution failed:", ctx.dump(result.error))
+        console.log("Execution evalInQJS failed:", ctx.dump(result.error))
     } else {
         out = ctx.dump(result.value);
-        console.log("Success:", out)
+        // console.log("Success: evalInQJS", out)
     }
 
     result.dispose();

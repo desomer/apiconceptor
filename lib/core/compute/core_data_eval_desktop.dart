@@ -13,7 +13,7 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/start_core.dart';
 
-class CoreDataEval {
+class CoreDataEvalDart {
   dynamic self;
   Map<String, dynamic>? variables;
   Map<String, AttributBindInfo> listBindInfo = {};
@@ -63,7 +63,6 @@ class CoreDataEval {
         var ret = ctx.getDataValueForEval(
           jsonPath: attr,
           context: context,
-          listBindInfo: listBindInfo,
           state: state,
         );
         return _getEvalObj(ret);

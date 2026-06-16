@@ -350,6 +350,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
         return response;
       },
       mode: json,
+      isModel: false,
       onChange: (String json, CodeEditorConfig config) {},
       notifError: ValueNotifier<String>(''),
     );
