@@ -22,12 +22,12 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     var ex = model.getExtendedNode('#examples').info.properties?['#examples'];
     if (ex is List) {
       for (var element in ex) {
-        if (element['json'] is String) {
+        if (element['json'] is String && !model.isFile) {
           try {
             var ex = removeComments(element['json']);
             example.add(jsonDecode(ex));
           } catch (e) {
-            print(' error decode example $e $ex');
+            print('Error decode example $e $ex');
             errorParse?.value = '$e';
           }
         }

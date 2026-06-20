@@ -9,7 +9,7 @@ import 'package:jsonschema/core/designer/core/cw_factory_bloc.dart';
 import 'package:jsonschema/core/designer/editor/view/bloc_drag_pages.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
-import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/splitview/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 enum DesignMode { designer, viewer }

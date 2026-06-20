@@ -11,21 +11,27 @@ mixin GenericPage {
   NavigationInfo? initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   );
 
-  List<Widget> getDefaultActionModel() {
+  List<Widget> getDefaultActionModel(BuildContext context) {
     return [
       WidgetSearchText(),
       Text('   Open factor '),
       WidgetZoomSelector(zoom: openFactor),
-      // IconButton(
-      //   icon: const Icon(Icons.search),
-      //   tooltip: 'Rechercher',
-      //   onPressed: () {
-      //     // Action de recherche
-      //   },
-      // ),
+      IconButton(
+        icon: const Icon(Icons.help_outline),
+        tooltip: 'Start guide',
+        onPressed: () {
+          CWInheritedPage page = context
+              .getInheritedWidgetOfExactType<CWInheritedPage>()!;
+
+          //showCoach((page.key as GlobalKey).currentContext!);
+          page.doShowCase();
+        },
+      ),
+
       // IconButton(
       //   icon: const Icon(Icons.notifications),
       //   tooltip: 'Notifications',
@@ -60,7 +66,6 @@ abstract class GenericPageStateless extends StatelessWidget with GenericPage {
   bool isCacheValid(GoRouterState state, String uri, BuildContext context) {
     return true;
   }
-
 }
 
 // ignore: must_be_immutable

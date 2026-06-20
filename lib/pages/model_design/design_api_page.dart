@@ -93,6 +93,7 @@ class DesignAPIPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     return NavigationInfo()
@@ -127,7 +128,7 @@ class DesignAPIPage extends GenericPageStateless {
           type: BreadNodeType.widget,
         ),
       ]
-      ..actions = getDefaultActionModel();
+      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
   }
 }
 

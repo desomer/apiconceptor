@@ -8,6 +8,7 @@ import 'package:jsonschema/json_browser/browse_api.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/browse_api/browse_api_page.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
@@ -16,12 +17,18 @@ import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
-import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/splitview/widget_split.dart';
 import 'package:jsonschema/widget/widget_vertical_sep.dart';
 
 // ignore: must_be_immutable
 abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
-  PanYamlTree({super.key, required this.getSchemaFct, this.showable});
+  PanYamlTree({
+    super.key,
+    required this.getSchemaFct,
+    this.showable,
+    this.showCaseInfo,
+  });
+  ShowCaseInfo? showCaseInfo;
 
   final Function getSchemaFct;
   final Function? showable;
@@ -65,6 +72,12 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   @override
   Widget build(BuildContext context) {
+
+    showCaseInfo?.action['openProperties'] = () {
+      doShowAttrEditor(jsonBrowserWidget.getFirstAttr());
+    }; 
+
+
     onInit(context);
     currentYamlTree = this;
 
@@ -142,9 +155,16 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     }
 
     var attrViewer = getTree(context);
-    var attributProp = getAttributProperties(context);
+    Widget? attributProp = getAttributProperties(context);
 
     if (attributProp != null) {
+      // attributProp = Row(
+      //   children: [
+      //     VerticalSep(),
+      //     Expanded(child: attributProp),
+      //   ],
+      // );
+
       attrViewer = ValueListenableBuilder(
         valueListenable: _showAttrEditor,
         builder: (context, value, child) {
@@ -167,7 +187,10 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     if (withEditor()) {
       Widget split = SplitView(
         primaryWidth: 350,
-        children: [getLeftPan(true, context), getRightPan(attrViewer, context)],
+        children: [
+          getLeftPan(false, context),
+          getRightPan(attrViewer, context),
+        ],
       );
       return split;
     } else {
@@ -181,7 +204,12 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   Widget getLeftPan(bool withSep, BuildContext context) {
     if (withSep) {
-      return Row(children: [Expanded(child: getYamlEditor()), VerticalSep()]);
+      return Row(
+        children: [
+          Expanded(child: getYamlEditor()),
+          VerticalSep(),
+        ],
+      );
     } else {
       return getYamlEditor();
     }
@@ -238,7 +266,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   Widget getTree(BuildContext context) {
     return TreeView<NodeAttribut>(
-      key: keyTreeEditor,
+      key: showCaseInfo?.keys['structureCard'] = keyTreeEditor,
       isSelected: (node, cur, old) {
         if (node.data.info.masterID == _schema.selectedAttr?.info.masterID) {
           return node.data.info.getJsonPath() ==
@@ -335,6 +363,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   // }
 
   Widget getYamlEditor() {
+
     var doc = getDoc();
     final GlobalKey<TextEditorState> yamlEditor = GlobalKey(
       debugLabel: 'yamlEditor',
@@ -343,6 +372,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return readOnlyCapable(
       isReadOnly(),
       Container(
+        key: showCaseInfo?.keys['yamlCard'] = GlobalKey(debugLabel: 'yamlCard'),
         color: Colors.black,
         child: TextEditor(
           onHistory: (BuildContext ctx) {
@@ -380,18 +410,17 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
             }
           },
           header: getHeaderCode(),
-          onHelp:
-              doc != null
-                  ? (BuildContext ctx) {
-                    showDialog(
-                      context: ctx,
-                      barrierDismissible: true,
-                      builder: (BuildContext context) {
-                        return doc;
-                      },
-                    );
-                  }
-                  : null,
+          onHelp: doc != null
+              ? (BuildContext ctx) {
+                  showDialog(
+                    context: ctx,
+                    barrierDismissible: true,
+                    builder: (BuildContext context) {
+                      return doc;
+                    },
+                  );
+                }
+              : null,
           key: yamlEditor,
           config: _yamlConfig!,
         ),
@@ -420,11 +449,29 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     };
   }
 
+  int _showAttrEditorValue = 0;
+
   void doShowAttrEditor(NodeAttribut? attr) {
-    if (attr == null || (oldSelected == attr && _showAttrEditor.value == 300)) {
-      _showAttrEditor.value = 0;
+    if (attr == null || (oldSelected == attr && _showAttrEditorValue == 300)) {
+      if (_showAttrEditorValue == 300) {
+        for (int i = 300; i >= 0; i -= 2) {
+          Future.delayed(Duration(milliseconds: ((300 - i) / 4.0).toInt()), () {
+            _showAttrEditor.value = i.toDouble();
+          });
+        }
+      }
+      _showAttrEditorValue = 0;
     } else {
-      _showAttrEditor.value = 300;
+      // faire un boucle qui augument la valeur de _showAttrEditor.value jusqu'à 300 pour faire un effet d'animation
+      if (_showAttrEditorValue == 0) {
+        for (int i = 0; i <= 300; i += 2) {
+          Future.delayed(Duration(milliseconds: (i / 4.0).toInt()), () {
+            _showAttrEditor.value = i.toDouble();
+          });
+        }
+      }
+      _showAttrEditorValue = 300;
+      //_showAttrEditor.value = 300;
     }
 
     if (attr == null) oldSelected = null;
@@ -450,12 +497,11 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     }
 
     if (withNode) {
-      TreeNodeData? node =
-          keyTreeEditor.currentState?.list.where((element) {
-            NodeAttribut attrData = element.data;
-            return attrData.info.masterID == attr.info.masterID &&
-                attrData.info.getJsonPath() == attr.info.getJsonPath();
-          }).firstOrNull;
+      TreeNodeData? node = keyTreeEditor.currentState?.list.where((element) {
+        NodeAttribut attrData = element.data;
+        return attrData.info.masterID == attr.info.masterID &&
+            attrData.info.getJsonPath() == attr.info.getJsonPath();
+      }).firstOrNull;
       if (node != null) {
         // lance la selection des attributes
         onActionRow(
@@ -702,5 +748,15 @@ class TreeViewBrowserWidget extends JsonBrowser {
       (parent as TreeNodeData).add(newNode);
     }
     return newNode;
+  }
+  
+  NodeAttribut? getFirstAttr() {
+    if (rootTree == null) return null;
+    if (rootTree!.children?.isEmpty ?? true) return rootTree!.data;
+    TreeNodeData<NodeAttribut> node = rootTree!;
+    while (node.children?.isNotEmpty ?? false) {
+      node = node.children!.first;
+    }
+    return node.data;
   }
 }

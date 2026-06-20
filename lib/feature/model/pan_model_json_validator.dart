@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:highlight/highlight.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:json_schema/json_schema.dart';
+import 'package:jsonschema/core/export/export2file_fake.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -16,7 +18,7 @@ import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:archive/archive.dart';
 import 'package:jsonschema/widget/widget_long_json_viewer.dart';
-import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/splitview/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 class WidgetJsonValidator extends StatefulWidget {
@@ -32,12 +34,13 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
   CodeEditorConfig? textConfig;
   ValueNotifier<String> onChangeHeaderInfo = ValueNotifier('');
   Function? onSelect;
-  var currentJsonFake = ValueNotifier<String?>(null);
+  var currentFake = ValueNotifier<String?>(null);
   JsonSchema? jsonValidator;
   ValueNotifier<String> error = ValueNotifier('');
   ValueNotifier<String> errorParse = ValueNotifier('');
   ValueNotifier<String> modePropertyRequiredEnum = ValueNotifier('max');
-  ValueNotifier<String> modeItemsArrayEnum = ValueNotifier('any');  
+  ValueNotifier<String> modeItemsArrayEnum = ValueNotifier('any');
+  ValueNotifier<bool> modeSeparator = ValueNotifier(false);
 
   ModelAccessorAttr getAccessor() {
     ModelSchema model = currentCompany.currentModel!;
@@ -61,7 +64,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
 
     return DraggableExampleList(
       key: ObjectKey(currentCompany.currentModel),
-      json: () => currentJsonFake.value!,
+      json: () => currentFake.value!,
       initialItems: examples ?? [],
       onItemChanged: (updatedList) {
         //reorg
@@ -69,14 +72,14 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
         //clearSelected();
       },
       onLoad: (List<Map<String, dynamic>> list, int idx) {
-        currentJsonFake.value = list[idx]['json'];
+        currentFake.value = list[idx]['json'];
         onSelect!();
       },
       onReplace: (List<Map<String, dynamic>> list, int idx) {
-        list[idx]['json'] = currentJsonFake.value;
+        list[idx]['json'] = currentFake.value;
         access.set(list, force: true, withHistory: false);
       },
-      onJsonChange: currentJsonFake,
+      onJsonChange: currentFake,
     );
   }
 
@@ -88,7 +91,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
       model.then((model) {
         setState(() {
           currentCompany.currentModel = model;
-          currentJsonFake.value = null;
+          currentFake.value = null;
           textConfig?.repaintCode();
         });
       });
@@ -117,7 +120,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                   TextButton.icon(
                     icon: Icon(Icons.casino_outlined),
                     onPressed: () {
-                      currentJsonFake.value = null;
+                      currentFake.value = null;
                       //exampleManager.clearSelected();
                       textConfig?.repaintCode();
                     },
@@ -126,8 +129,10 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                   FakeModeWidget(
                     modePropertyRequiredEnum: modePropertyRequiredEnum,
                     modeItemsArrayEnum: modeItemsArrayEnum,
+                    modeSeparator: modeSeparator,
+                    model: currentCompany.currentModel!,
                     onSelected: () {
-                      currentJsonFake.value = null;
+                      currentFake.value = null;
                       //exampleManager.clearSelected();
                       textConfig?.repaintCode();
                     },
@@ -167,20 +172,27 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
     return LongJsonViewerSelectableColored(json: prettyPrintJson);
   }
 
-
-
   Widget _getEditor() {
     if (currentCompany.currentModel == null) {
       return Text('select model first');
     }
 
+    if (currentCompany.listModel?.selectedAttr?.info.type.toLowerCase() ==
+        'flatfile') {
+      return _getEditorFile();
+    } else {
+      return _getEditorJson();
+    }
+  }
+
+  Widget _getEditorJson() {
     textConfig = CodeEditorConfig(
       isModel: false,
       mode: json,
       notifError: error,
       onChange: (String json, CodeEditorConfig config) {
         try {
-          currentJsonFake.value = json; // Notify that JSON has changed
+          currentFake.value = json; // Notify that JSON has changed
           if (json != '' && jsonValidator != null) {
             var jsonMap = jsonDecode(removeComments(json));
             validateJsonSchemas(jsonValidator!, jsonMap, config.notifError);
@@ -192,7 +204,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
         }
       },
       getText: () {
-        if (currentJsonFake.value == null) {
+        if (currentFake.value == null) {
           var export =
               Export2FakeJson(
                   modeArray: switch (modeItemsArrayEnum.value) {
@@ -211,15 +223,15 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
                 ..maxArrayItems = 4
                 ..browse(currentCompany.currentModel!, false);
 
-          currentJsonFake.value = export.prettyPrintJson(export.json);
+          currentFake.value = export.prettyPrintJson(export.json);
         }
 
-        var encode = utf8.encode(currentJsonFake.value ?? '');
+        var encode = utf8.encode(currentFake.value ?? '');
         var zip = GZipEncoder().encode(encode);
         String size = getFileSizeString(bytes: encode.length, decimals: 2);
         String sizezip = getFileSizeString(bytes: zip.length, decimals: 2);
         onChangeHeaderInfo.value = ' ($size compressed $sizezip)';
-        return currentJsonFake.value ?? '';
+        return currentFake.value ?? '';
       },
     );
 
@@ -232,6 +244,85 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
         valueListenable: onChangeHeaderInfo,
         builder: (context, value, child) {
           return Text("JSON example $value");
+        },
+      ),
+      config: textConfig!,
+    );
+  }
+
+  Widget _getEditorFile() {
+    var infoFile = currentCompany.listModel!.selectedAttr!.info;
+
+    String separator = infoFile.properties?['separator'] ?? ';';
+
+    final plaintextSemicolon = Mode(
+      refs: {},
+      disableAutodetect: true,
+      contains: [Mode(className: 'symbol', begin: separator, relevance: 0)],
+    );
+
+    textConfig = CodeEditorConfig(
+      isModel: false,
+      mode: plaintextSemicolon,
+      notifError: error,
+      onChange: (String json, CodeEditorConfig config) {
+        //try {
+        currentFake.value = json; // Notify that JSON has changed
+        //   if (json != '' && jsonValidator != null) {
+        //     var jsonMap = jsonDecode(removeComments(json));
+        //     validateJsonSchemas(jsonValidator!, jsonMap, config.notifError);
+        //   } else {
+        //     config.notifError.value = '';
+        //   }
+        // } catch (e) {
+        //   config.notifError.value = '$e';
+        // }
+      },
+      getText: () {
+        if (currentFake.value == null) {
+          var export =
+              Export2FakeJson(
+                  modeArray: switch (modeItemsArrayEnum.value) {
+                    'any' => ModeArrayEnum.anyInstance,
+                    'random' => ModeArrayEnum.randomInstance,
+                    _ => ModeArrayEnum.anyInstance,
+                  },
+                  mode: ModeEnum.fake,
+                  propMode: switch (modePropertyRequiredEnum.value) {
+                    'min' => PropertyRequiredEnum.required,
+                    'max' => PropertyRequiredEnum.all,
+                    _ => PropertyRequiredEnum.all,
+                  },
+                  config: BrowserConfig(),
+                )
+                ..maxArrayItems = 4
+                ..browse(currentCompany.currentModel!, false);
+
+          Export2JsonToFlatFile export2file = Export2JsonToFlatFile(
+            export.json,
+          );
+
+          currentFake.value = export2file.toFlatFile(infoFile);
+        }
+
+        var encode = utf8.encode(currentFake.value ?? '');
+        var zip = GZipEncoder().encode(encode);
+        String size = getFileSizeString(bytes: encode.length, decimals: 2);
+        String sizezip = getFileSizeString(bytes: zip.length, decimals: 2);
+        onChangeHeaderInfo.value = ' ($size compressed $sizezip)';
+        return currentFake.value ?? '';
+      },
+    );
+
+    onSelect = () {
+      textConfig?.repaintCode();
+    };
+
+    return TextEditor(
+      headerWidget: ValueListenableBuilder(
+        valueListenable: onChangeHeaderInfo,
+        builder: (context, value, child) {
+          return Text("File example $value");
         },
       ),
       config: textConfig!,
@@ -252,10 +343,14 @@ class FakeModeWidget extends StatefulWidget {
     required this.modePropertyRequiredEnum,
     required this.onSelected,
     required this.modeItemsArrayEnum,
+    required this.modeSeparator,
+    required this.model,
   });
   final ValueNotifier<String> modePropertyRequiredEnum;
   final ValueNotifier<String> modeItemsArrayEnum;
+  final ValueNotifier<bool> modeSeparator;
   final Function onSelected;
+  final ModelSchema model;
 
   @override
   State<FakeModeWidget> createState() => _FakeModeWidgetState();
@@ -303,6 +398,23 @@ class _FakeModeWidgetState extends State<FakeModeWidget> {
             });
           },
         ),
+        // if (widget.model.isFile) const Text('Separator'),
+        // if (widget.model.isFile)
+        //   Transform.scale(
+        //     scale: 0.8,
+        //     alignment: Alignment.centerLeft,
+        //     child: Checkbox(
+        //       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        //       visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+        //       value: widget.modeSeparator.value,
+        //       onChanged: (value) {
+        //         setState(() {
+        //           widget.modeSeparator.value = value ?? false;
+        //           // widget.onSelected();
+        //         });
+        //       },
+        //     ),
+        //   ),
       ],
     );
   }

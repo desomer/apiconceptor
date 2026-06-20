@@ -38,6 +38,6 @@ class WidgetShowError extends StatelessWidget {
       });
     }
 
-    return SizedBox(key: keyError, width: 20, height: 20);
+    return SizedBox(key: keyError, width: 10, height: 20);
   }
 }

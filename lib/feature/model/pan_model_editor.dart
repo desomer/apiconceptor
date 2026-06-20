@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:fuzzy/data/result.dart' show Result;
 import 'package:fuzzy/fuzzy.dart';
 import 'package:jsonschema/authorization_manager.dart';
@@ -6,7 +7,9 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_detail.dart';
+import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -16,12 +19,13 @@ import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_comment.dart';
 import 'package:jsonschema/widget/widget_glasspan.dart';
 import 'package:jsonschema/widget/widget_glossary_indicator.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
 
 import '../../widget/tree_editor/tree_view.dart';
 
-var withGlosarryIndicator = true;
+var withGlossaryIndicator = true;
 
 mixin PanModelEditorHelper {
   Widget getChip(
@@ -83,6 +87,11 @@ mixin PanModelEditorHelper {
         editable: true,
       ).set(entry.value);
     }
+
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+      // ignore: invalid_use_of_protected_member
+      currentYamlTree?.keyAttrEditor.currentState?.setState(() {});
+    });
   }
 
   void addAttributWidget(
@@ -102,110 +111,114 @@ mixin PanModelEditorHelper {
     if (accessor.isEditable() && (accessor.get()?.isEmpty ?? true) == true) {
       proposal = true;
       BuildContext? loadingContext;
-      row.add(
-        GestureDetector(
-          onTap: () async {
-            showDialog<void>(
-              context: context,
-              barrierDismissible: false,
-              builder: (dialogContext) {
-                loadingContext = dialogContext;
-                return PopScope(
-                  canPop: false,
-                  child: AlertDialog(
-                    content: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(width: 14),
-                        Text('Recherche en cours...'),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
 
-            //pop le dialog de loading
-            List<Result<ProposalInfo>> result = await searchProposal(attr);
-
-            // ignore: use_build_context_synchronously
-            Navigator.of(loadingContext!).pop();
-            if (!context.mounted) return;
-
-            showDialog<void>(
-              context: context,
-              builder: (dialogContext) {
-                return AlertDialog(
-                  title: Text('Search results for "${attr.info.name}"'),
-                  content: SizedBox(
-                    width: 500,
-                    child: result.isEmpty
-                        ? Text('No result found for "${attr.info.name}"')
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: result.length,
-                            itemBuilder: (context, index) {
-                              final r = result[index];
-                              final scoreTxt = r.score.toStringAsFixed(3);
-                              return AnimatedTooltip(
-                                content: Column(
-                                  children: getTooltipFromProposal(r.item),
-                                ),
-                                child: Container(
-                                  margin: EdgeInsets.only(bottom: 6),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.blueGrey.withAlpha(130),
-                                    ),
-                                  ),
-                                  child: ListTile(
-                                    dense: true,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    onTap: () {
-                                      applyProposalToAttribut(
-                                        attr,
-                                        schema,
-                                        r.item,
-                                      );
-                                      Navigator.of(dialogContext).pop();
-                                    },
-                                    leading: getColorIndicatorFromScore(r.score),
-                                    title: Text(
-                                      '${index + 1}.) ${r.item.name} from ${r.item.domain}.${r.item.model} ',
-                                    ),
-                                    subtitle: Text('${r.item.path}  score: $scoreTxt'),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: Text('Close'),
-                    ),
+      Future<Null> onTapProposal() async {
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            loadingContext = dialogContext;
+            return PopScope(
+              canPop: false,
+              child: AlertDialog(
+                content: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(width: 14),
+                    Text('Recherche en cours...'),
                   ],
-                );
-              },
+                ),
+              ),
             );
           },
-          child: Container(
-            margin: EdgeInsets.all(5),
-            width: 50,
-            height: 30,
-            decoration: BoxDecoration(
-              color: Colors.blueGrey,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Center(
-              child: Text(
-                'Proposal',
-                style: TextStyle(color: Colors.white, fontSize: 10),
+        );
+
+        //pop le dialog de loading
+        List<Result<ProposalInfo>> result = await searchProposal(attr);
+
+        // ignore: use_build_context_synchronously
+        Navigator.of(loadingContext!).pop();
+        if (!context.mounted) return;
+
+        showDialog<void>(
+          context: context,
+          builder: (dialogContext) {
+            return AlertDialog(
+              title: Text('Search results for "${attr.info.name}"'),
+              content: SizedBox(
+                width: 500,
+                child: result.isEmpty
+                    ? Text('No result found for "${attr.info.name}"')
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: result.length,
+                        itemBuilder: (context, index) {
+                          final r = result[index];
+                          final scoreTxt = r.score.toStringAsFixed(3);
+                          return AnimatedTooltip(
+                            content: Column(
+                              children: getTooltipFromProposal(r.item),
+                            ),
+                            child: Container(
+                              margin: EdgeInsets.only(bottom: 6),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.blueGrey.withAlpha(130),
+                                ),
+                              ),
+                              child: ListTile(
+                                dense: true,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                onTap: () {
+                                  applyProposalToAttribut(attr, schema, r.item);
+                                  Navigator.of(dialogContext).pop();
+                                },
+                                leading: getColorIndicatorFromScore(r.score),
+                                title: Text(
+                                  '${index + 1}.) ${r.item.name} from ${r.item.domain}.${r.item.model} ',
+                                ),
+                                subtitle: Text(
+                                  '${r.item.path}  score: $scoreTxt',
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+
+      row.add(
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: onTapProposal,
+            child: Container(
+              margin: EdgeInsets.all(5),
+              width: 50,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.blueGrey,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Center(
+                child: Text(
+                  'Proposal',
+                  style: TextStyle(color: Colors.white, fontSize: 10),
+                ),
               ),
             ),
           ),
@@ -261,6 +274,8 @@ mixin PanModelEditorHelper {
       ),
     );
 
+    List<Widget> rowIndicator = [];
+
     bool minmax =
         (attr.info.properties?['minimum'] != null) ||
         (attr.info.properties?['maximun'] != null) ||
@@ -269,14 +284,8 @@ mixin PanModelEditorHelper {
         (attr.info.properties?['minItems'] != null) ||
         (attr.info.properties?['maxItems'] != null);
 
-    if (withGlosarryIndicator) {
-      attr.info.cacheIndicatorWidget ??= WidgetGlossaryIndicator(
-        attr: attr.info,
-      );
-    }
-
     if ((currentPropTabController?.index ?? 0) < 2) {
-      row.addAll(<Widget>[
+      rowIndicator.addAll(<Widget>[
         //SizedBox(width: 10),
         if (attr.info.properties?['required'] == true)
           Icon(Icons.check_circle_outline),
@@ -298,7 +307,7 @@ mixin PanModelEditorHelper {
     } else {
       if (attr.info.properties?['#source'] != null) {
         String source = attr.info.properties?['#source'];
-        row.add(
+        rowIndicator.add(
           Container(
             width: 200,
             padding: EdgeInsets.only(left: 5),
@@ -317,7 +326,7 @@ mixin PanModelEditorHelper {
     if (attr.info.properties?['#tag'] != null) {
       List<dynamic> tags = attr.info.properties?['#tag'];
       for (var element in tags) {
-        row.add(
+        rowIndicator.add(
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
@@ -330,8 +339,21 @@ mixin PanModelEditorHelper {
       }
     }
 
-    if (attr.info.cacheIndicatorWidget != null) {
-      row.addAll(<Widget>[Spacer(), attr.info.cacheIndicatorWidget!]);
+    row.add(
+      Expanded(
+        child: NoOverflowErrorFlex(
+          direction: Axis.horizontal,
+          mainAxisSize: MainAxisSize.max,
+          children: rowIndicator,
+        ),
+      ),
+    );
+
+    if (withGlossaryIndicator) {
+      attr.info.cacheIndicatorWidget ??= WidgetGlossaryIndicator(
+        attr: attr.info,
+      );
+      row.addAll(<Widget>[/*Spacer(),*/ attr.info.cacheIndicatorWidget!]);
     }
   }
 
@@ -412,7 +434,7 @@ mixin PanModelEditorHelper {
 
     return searchResult;
   }
-  
+
   Widget? getColorIndicatorFromScore(double score) {
     if (score < 0.01) {
       return Icon(Icons.circle, color: Colors.green, size: 12);
@@ -515,6 +537,17 @@ class PanModelEditor extends PanYamlTree
   ) {
     var attr = node.data;
     if (attr.info.type == 'root') {
+      InfoManagerListModel mm =
+          currentCompany.listModel!.infoManager as InfoManagerListModel;
+
+      var color = mm.getColorOfType(
+        currentCompany.currentModelSel!.info.type.toLowerCase(),
+      );
+      row.add(
+        getChip(Text(currentCompany.currentModelSel!.info.type), color: color),
+      );
+      row.add(SizedBox(width: 5));
+
       ModelSchemaQuality modelCompletude = schema.getModelQualityInfo();
       schema.qualityInfo = modelCompletude;
       row.add(buildStarsFromPercent(modelCompletude.completude));
@@ -641,7 +674,7 @@ class PanModelEditor extends PanYamlTree
       ],
       listTabCont: [
         super.getLeftPan(withSep, context),
-        getInfoForm(),
+        getInfoForm(currentCompany.currentModelSel!),
         getVersionTab(context),
         //Container(),
       ],
@@ -653,13 +686,14 @@ class PanModelEditor extends PanYamlTree
     var model = currentCompany.currentModel!;
     return Column(
       children: [
-        ElevatedButton.icon(
-          onPressed: () async {
-            await addVersion(context, model);
-          },
-          label: Text('add version'),
-          icon: Icon(Icons.add_box_outlined),
-        ),
+        if (!model.isReadOnlyModel)
+          ElevatedButton.icon(
+            onPressed: () async {
+              await addVersion(context, model);
+            },
+            label: Text('add version'),
+            icon: Icon(Icons.add_box_outlined),
+          ),
         Expanded(
           child: PanModelVersionList(
             key: keyVersion,
@@ -734,8 +768,12 @@ class PanModelEditor extends PanYamlTree
     BreadCrumbNavigator.keyBreadcrumb.currentState?.setState(() {});
   }
 
-  Widget getInfoForm() {
-    var info = currentCompany.listModel!.selectedAttr!;
+  Widget getInfoForm(NodeAttribut info) {
+    bool isFile =
+        info.info.type.toLowerCase() ==
+        'flatfile'; // force le type pour l'edition du form
+    currentCompany.currentModel!.isFile = isFile;
+
     return Padding(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -761,9 +799,74 @@ class PanModelEditor extends PanYamlTree
               schema: currentCompany.listModel!,
               propName: 'link',
             ),
-            line: 5,
+            line: 3,
             inArray: false,
           ),
+          if (isFile)
+            Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: Text(
+                'File properties',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          if (isFile)
+            CellEditor(
+              key: ValueKey('filename#${info.info.masterID}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: currentCompany.listModel!,
+                propName: 'filename',
+              ),
+              line: 1,
+              inArray: false,
+            ),
+          //   encoding: UTF-8
+          if (isFile)
+            CellEditor(
+              key: ValueKey('encoding#${info.info.masterID}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: currentCompany.listModel!,
+                propName: 'encoding',
+              ),
+              line: 1,
+              inArray: false,
+            ),
+          if (isFile)
+            CellEditor(
+              key: ValueKey('separator#${info.info.masterID}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: currentCompany.listModel!,
+                propName: 'separator',
+              ),
+              line: 1,
+              inArray: false,
+            ),
+          if (isFile)
+            CellEditor(
+              key: ValueKey('quote#${info.info.masterID}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: currentCompany.listModel!,
+                propName: 'quote',
+              ),
+              line: 1,
+              inArray: false,
+            ),
+          if (isFile)
+            CellEditor(
+              key: ValueKey('line_ending#${info.info.masterID}'),
+              acces: ModelAccessorAttr(
+                node: info,
+                schema: currentCompany.listModel!,
+                propName: 'line_ending',
+              ),
+              line: 1,
+              inArray: false,
+            ),
+          //line_ending: "\n"
         ],
       ),
     );

@@ -39,7 +39,6 @@ dependencies:
   faker: ^2.2.0
   markdown_widget: ^2.3.2+8
   #json_patch: ^3.0.0
-  multi_split_view: ^3.6.0
   diff_match_patch: ^0.4.1
   msix: ^3.16.9
   dio: ^5.8.0+1
@@ -66,7 +65,7 @@ dependencies:
   go_router: ^17.0.0
   #tabbed_view: ^2.0.0
   #flutter_js: ^0.8.5
-  dart_eval: ^0.8.1
+  #dart_eval: ^0.8.1
   jmespath: ^2.0.1
   event_listener: ^0.2.0
   dotted_border: ^3.1.0
@@ -160,7 +159,7 @@ msix_config:
   display_name: Api Architect
   publisher_display_name: ApiArchitect
   identity_name: apiarchitect
-  msix_version: 1.0.4.18
+  msix_version: 1.0.4.19
   logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
   capabilities: internetClient
   sign_msix: true

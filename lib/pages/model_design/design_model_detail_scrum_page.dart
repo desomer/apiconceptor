@@ -18,6 +18,7 @@ class DesignModelDetailScrumPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     return NavigationInfo()

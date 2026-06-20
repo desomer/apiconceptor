@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:multi_split_view/multi_split_view.dart';
+import 'package:jsonschema/widget/splitview/multi_split_view.dart';
 
 class SplitView extends StatefulWidget {
   const SplitView({
@@ -33,14 +33,14 @@ class SplitViewState extends State<SplitView> {
         Area(data: 0, flex: widget.flex1),
         Area(data: 1, flex: widget.flex2),
       ];
-    } else if (widget.secondaryWidth >=0) {
+    } else if (widget.secondaryWidth >= 0) {
       _controller.areas = [
         Area(data: 0, flex: 1),
         Area(data: 1, size: widget.secondaryWidth, min: 0, max: 1000),
       ];
     } else {
       _controller.areas = [
-        Area(data: 0, size: widget.primaryWidth, min: 50, max: 1000),
+        Area(data: 0, size: widget.primaryWidth, min: 1, max: 1000),
         Area(data: 1, flex: 1),
       ];
     }
@@ -54,6 +54,7 @@ class SplitViewState extends State<SplitView> {
   @override
   Widget build(BuildContext context) {
     MultiSplitView multiSplitView = MultiSplitView(
+      areaClipBehavior: Clip.none,
       axis: widget.axis,
       controller: _controller,
       builder: (BuildContext context, Area area) {

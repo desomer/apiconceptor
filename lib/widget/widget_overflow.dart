@@ -6,6 +6,7 @@ class NoOverflowErrorFlex extends MultiChildRenderObjectWidget {
   final MainAxisAlignment mainAxisAlignment;
   final CrossAxisAlignment crossAxisAlignment;
   final MainAxisSize mainAxisSize;
+  final Clip clipBehavior;
 
   const NoOverflowErrorFlex({
     super.key,
@@ -13,6 +14,7 @@ class NoOverflowErrorFlex extends MultiChildRenderObjectWidget {
     this.mainAxisAlignment = MainAxisAlignment.start,
     this.crossAxisAlignment = CrossAxisAlignment.center,
     this.mainAxisSize = MainAxisSize.max,
+    this.clipBehavior = Clip.hardEdge,
     required super.children,
   });
 
@@ -24,6 +26,7 @@ class NoOverflowErrorFlex extends MultiChildRenderObjectWidget {
       mainAxisAlignment: mainAxisAlignment,
       crossAxisAlignment: crossAxisAlignment,
       mainAxisSize: mainAxisSize,
+      clipBehavior: clipBehavior,
     );
   }
 
@@ -34,7 +37,8 @@ class NoOverflowErrorFlex extends MultiChildRenderObjectWidget {
       ..direction = direction
       ..mainAxisAlignment = mainAxisAlignment
       ..crossAxisAlignment = crossAxisAlignment
-      ..mainAxisSize = mainAxisSize;
+      ..mainAxisSize = mainAxisSize
+      ..clipBehavior = clipBehavior;
   }
 }
 
@@ -45,6 +49,7 @@ class RenderCustomFlex extends RenderFlex {
     super.mainAxisAlignment,
     super.crossAxisAlignment,
     super.mainAxisSize,
+    super.clipBehavior,
   });
 
   @override

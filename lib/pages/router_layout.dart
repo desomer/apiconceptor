@@ -80,6 +80,8 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
   //   controller.value = controller.value.replaced(selection, text);
   // }
 
+  var keyPage = GlobalKey();
+
   @override
   Widget build(BuildContext context) {
     final String location = widget.routerState.uri.toString();
@@ -107,6 +109,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
     var navigationInfo = page.initNavigation(
       widget.routerState,
       context,
+      keyPage,
       null,
     )!;
 
@@ -175,135 +178,165 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
           //   },
           // ),
         },
-        child: Scaffold(
-          resizeToAvoidBottomInset: true,
-          backgroundColor: Color.fromARGB(255, 5, 1, 0),
-          appBar: AppBar(
-            toolbarHeight: 40,
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(1.0),
-              child: Container(
-                color: Colors.grey.shade300, // Couleur de la bordure
-                height: 1.0, // Épaisseur de la bordure
+        child: CWInheritedPage(
+          key: keyPage,
+          child: Scaffold(
+            resizeToAvoidBottomInset: true,
+            backgroundColor: Color.fromARGB(255, 5, 1, 0),
+            appBar: AppBar(
+              toolbarHeight: 40,
+              // bottom: PreferredSize(
+              //   preferredSize: const Size.fromHeight(1.0),
+              //   child: Container(
+              //     color: Colors.grey.shade300, // Couleur de la bordure
+              //     height: 1.0, // Épaisseur de la bordure
+              //   ),
+              // ),
+
+              title: Row(
+                children: [
+                  UniversalBackButton(),
+                  IconButton(
+                    // padding: EdgeInsets.zero,
+                    // constraints: const BoxConstraints(
+                    //   minWidth: 24,
+                    //   minHeight: 24,
+                    // ),
+                    onPressed: () {
+                      Pages.home.goto(context);
+                    },
+                    icon: Icon(Icons.apps),
+                  ),
+                  getBreadcrumb(navigationInfo),
+                ],
+              ),
+              actions: navigationInfo.actions,
+            ),
+            body: GestureDetector(
+              onTap: () {
+                //FocusScope.of(context).unfocus();
+              },
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 100,
+                    child: getNavigationItem(navigationInfo, location, context),
+                  ),
+                  const VerticalDivider(thickness: 1, width: 1),
+                  Expanded(
+                    child: widget.navChild,
+                    //  IndexedStack(index: 0, children: pages),
+                    //child: widget.navChild,
+                  ),
+                ],
               ),
             ),
-
-            title: Row(
+            bottomNavigationBar: Row(
               children: [
-                UniversalBackButton(),
+                WidgetShowError(),
+                Text('Font size ', style: TextStyle(fontSize: 12)),
+                // InkWell(child: Icon(Icons.undo)),
+                // SizedBox(width: 5),
+                // InkWell(child: Icon(Icons.redo)),
+                // SizedBox(width: 5),
+                SizedBox(height: 20, child: WidgetGlobalZoom()),
+                SizedBox(width: 20),
                 IconButton(
-                  // padding: EdgeInsets.zero,
-                  // constraints: const BoxConstraints(
-                  //   minWidth: 24,
-                  //   minHeight: 24,
-                  // ),
                   onPressed: () {
-                    Pages.home.goto(context);
+                    globalUndoManager.undo();
                   },
-                  icon: Icon(Icons.apps),
+                  icon: Icon(Icons.undo, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 24,
+                    height: 24,
+                  ),
+                  visualDensity: const VisualDensity(
+                    horizontal: -4,
+                    vertical: -4,
+                  ),
                 ),
-                getBreadcrumb(navigationInfo),
+                IconButton(
+                  onPressed: () {
+                    globalUndoManager.redo();
+                  },
+                  icon: Icon(Icons.redo, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 24,
+                    height: 24,
+                  ),
+                  visualDensity: const VisualDensity(
+                    horizontal: -4,
+                    vertical: -4,
+                  ),
+                ),
+                SizedBox(width: 20),
+                ValueListenableBuilder(
+                  valueListenable: dataProviderMode,
+                  builder: (context, value, child) {
+                    return SizedBox(
+                      width: 400,
+                      child: Row(
+                        children: [
+                          Text(
+                            'Data from mock  ',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(0),
+                            child: Checkbox(
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+
+                              visualDensity: const VisualDensity(
+                                horizontal: -4,
+                                vertical: -4,
+                              ),
+                              value: value == 'mock',
+                              onChanged: (bool? newValue) {
+                                dataProviderMode.value = (newValue ?? false
+                                    ? 'mock'
+                                    : 'api');
+                              },
+                            ),
+                          ),
+                          Text('  or Proxy  ', style: TextStyle(fontSize: 12)),
+                          Padding(
+                            padding: const EdgeInsets.all(0),
+                            child: Checkbox(
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+
+                              visualDensity: const VisualDensity(
+                                horizontal: -4,
+                                vertical: -4,
+                              ),
+                              value: value == 'proxy',
+                              onChanged: (bool? newValue) {
+                                dataProviderMode.value = (newValue ?? false
+                                    ? 'proxy'
+                                    : 'api');
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                Spacer(),
+                Text(
+                  'API Architect by Desomer G. V1.0.4.19',
+                  style: TextStyle(fontSize: 12),
+                ),
+                SizedBox(width: 20),
               ],
             ),
-            actions: navigationInfo.actions,
-          ),
-          body: GestureDetector(
-            onTap: () {
-              //FocusScope.of(context).unfocus();
-            },
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 100,
-                  child: getNavigationItem(navigationInfo, location, context),
-                ),
-                const VerticalDivider(thickness: 1, width: 1),
-                Expanded(
-                  child: widget.navChild,
-                  //  IndexedStack(index: 0, children: pages),
-                  //child: widget.navChild,
-                ),
-              ],
-            ),
-          ),
-          bottomNavigationBar: Row(
-            children: [
-              WidgetShowError(),
-              SizedBox(width: 10),
-              // InkWell(child: Icon(Icons.undo)),
-              // SizedBox(width: 5),
-              // InkWell(child: Icon(Icons.redo)),
-              // SizedBox(width: 5),
-              SizedBox(height: 20, child: WidgetGlobalZoom()),
-              IconButton(
-                onPressed: () {
-                  globalUndoManager.undo();
-                },
-                icon: Icon(Icons.undo),
-              ),
-              IconButton(
-                onPressed: () {
-                  globalUndoManager.redo();
-                },
-                icon: Icon(Icons.redo),
-              ),
-              ValueListenableBuilder(
-                valueListenable: dataProviderMode,
-                builder: (context, value, child) {
-                  return SizedBox(
-                    width: 400,
-                    child: Row(
-                      children: [
-                        Text('Data from mock  '),
-                        Padding(
-                          padding: const EdgeInsets.all(0),
-                          child: Checkbox(
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-
-                            visualDensity: const VisualDensity(
-                              horizontal: -4,
-                              vertical: -4,
-                            ),
-                            value: value == 'mock',
-                            onChanged: (bool? newValue) {
-                              dataProviderMode.value = (newValue ?? false
-                                  ? 'mock'
-                                  : 'api');
-                            },
-                          ),
-                        ),
-                        Text('  Proxy  '),
-                        Padding(
-                          padding: const EdgeInsets.all(0),
-                          child: Checkbox(
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-
-                            visualDensity: const VisualDensity(
-                              horizontal: -4,
-                              vertical: -4,
-                            ),
-                            value: value == 'proxy',
-                            onChanged: (bool? newValue) {
-                              dataProviderMode.value = (newValue ?? false
-                                  ? 'proxy'
-                                  : 'api');
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              Spacer(),
-              Text('API Architect by Desomer G. V1.0.4.18'),
-              SizedBox(width: 20),
-            ],
           ),
         ),
       ),
+
       // ),
     );
   }
@@ -655,5 +688,23 @@ class _TextToggleState extends State<TextToggle> {
         ),
       ),
     );
+  }
+}
+
+// ignore: must_be_immutable
+class CWInheritedPage extends InheritedWidget {
+  void Function(BuildContext aContext)? showCase;
+
+  CWInheritedPage({super.key, required super.child});
+
+  void doShowCase() {
+    if (showCase != null) {
+      showCase!((key as GlobalKey).currentContext!);
+    }
+  }
+
+  @override
+  bool updateShouldNotify(covariant InheritedWidget oldWidget) {
+    return false;
   }
 }

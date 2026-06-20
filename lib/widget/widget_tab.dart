@@ -87,11 +87,11 @@ class _WidgetTabState extends State<WidgetTab>
               getTabActionLayout(context, widget.listTab, heightTab),
               Container(
                 padding: const EdgeInsets.all(0.0),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).secondaryHeaderColor,
-                  ),
-                ),
+                // decoration: BoxDecoration(
+                //   border: Border.all(
+                //     color: Theme.of(context).secondaryHeaderColor,
+                //   ),
+                // ),
                 height: heightContent,
                 child: TabBarView(
                   controller: controllerTab,
@@ -158,6 +158,9 @@ class _WidgetTabState extends State<WidgetTab>
                       });
                     }
                   },
+                  dividerColor: Colors.transparent,
+                  dividerHeight: 0,
+
                   // indicatorSize: TabBarIndicatorSize.label,
                   controller: controllerTab,
                   indicator: UnderlineTabIndicator(

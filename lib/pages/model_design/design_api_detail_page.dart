@@ -51,6 +51,7 @@ class CallAPIPageDetail extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     query = routerState.uri.queryParameters['id']!;
@@ -75,7 +76,7 @@ class CallAPIPageDetail extends GenericPageStateless {
         ),
         ...goTo.getBreadcrumbApi(query),
       ]
-      ..actions = getDefaultActionModel();
+      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
   }
 }
 

@@ -7,6 +7,7 @@ import 'package:jsonschema/feature/model/pan_model_action_hub.dart';
 import 'package:jsonschema/feature/model/pan_model_selector.dart';
 import 'package:jsonschema/feature/model/pan_model_trashcan.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
@@ -14,14 +15,18 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:yaml/yaml.dart';
 
+bool mustShowCoach = true;
+
 class WidgetModelMain extends StatefulWidget with WidgetHelper {
-  const WidgetModelMain({super.key});
+  const WidgetModelMain({super.key, required this.showCaseInfo});
+  final ShowCaseInfo showCaseInfo;
 
   @override
   State<WidgetModelMain> createState() => _WidgetModelMainState();
 }
 
 class _WidgetModelMainState extends State<WidgetModelMain> {
+
   @override
   Widget build(BuildContext context) {
     return getBrowser(context);
@@ -29,6 +34,7 @@ class _WidgetModelMainState extends State<WidgetModelMain> {
 
   Widget getBrowser(BuildContext context) {
     PanModelSelector panModelSelector = PanModelSelector(
+      showCaseInfo: widget.showCaseInfo,
       type: TypeModelSelector.model,
       getSchemaFct: () async {
         await Future.delayed(Duration(milliseconds: gotoDelay));
@@ -61,7 +67,9 @@ class _WidgetModelMainState extends State<WidgetModelMain> {
               });
             },
             listTab: [
-              Tab(text: 'Business models'),
+              Tab(
+                text: 'Business models',
+              ),
               //  Tab(text: 'ORM Entities'),
               Tab(text: 'Trashcan'),
             ],

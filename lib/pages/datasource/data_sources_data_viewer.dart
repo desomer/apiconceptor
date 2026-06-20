@@ -76,6 +76,7 @@ class DataViewerPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     queryId = routerState.uri.queryParameters['id']!;

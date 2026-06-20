@@ -153,6 +153,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
       'xquerydto',
       'eventxpayloaddto',
       'eventxenvelopedto',
+      'flatfile'
     ].contains(type);
     if (!valid) {
       return InvalidInfo(color: Colors.red);
@@ -198,6 +199,8 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
       icon = Icon(Icons.description, color: iconColor);
     } else if (['eventxpayloaddto', 'eventxenvelopedto'].contains(lowerCase)) {
       icon = Icon(Icons.event, color: iconColor);
+    } else if (lowerCase == 'flatfile') {
+      icon = Icon(Icons.insert_drive_file, color: iconColor);
     }
 
     return NoOverflowErrorFlex(
@@ -217,8 +220,9 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
               direction: Axis.horizontal,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Flexible(
-                  fit: FlexFit.loose,
+                // Flexible(
+                //   fit: FlexFit.loose,
+                Expanded(
                   child: HoverTextUnderline(
                     text: name,
                     overflow: TextOverflow.fade,
@@ -260,7 +264,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
               spacing: 5,
               children: [
                 Text(attr.info.type),
-                Icon(Icons.arrow_forward_ios, size: 10),
+                Icon(Icons.arrow_drop_down, size: 15),
               ],
             )
           : hasError
@@ -275,10 +279,9 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
       color: hasError ? Colors.redAccent : getColorOfType(attr.info.type),
     );
 
-
     bool canEditType = !isRoot;
     if (canEditType /*&& hasError*/ ) {
-      return getEditorType(attr, context, w);
+      return _getEditorType(attr, context, w);
     }
     return w;
   }
@@ -307,12 +310,14 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
         return Colors.indigo;
       case 'eventxenvelopedto':
         return Colors.indigoAccent;
+      case 'flatfile':
+        return Colors.indigoAccent;        
       default:
         return Colors.grey;
     }
   }
 
-  Widget getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
+  Widget _getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
     GlobalKey? k = GlobalKey();
 
     return GestureDetector(
@@ -378,6 +383,12 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
             name: 'eventXEnvelopeDto',
             icon: Icons.mark_email_read,
             color: Colors.indigo,
+          ),
+          OptionSelect(
+            label: 'flatFile',
+            name: 'flatFile',
+            icon: Icons.insert_drive_file,
+            color: Colors.indigoAccent,
           ),
         ];
 
@@ -561,8 +572,8 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     Widget? icon;
     var isRoot = node.isRoot;
     var attr = node.data.info;
-    var isFolder = attr.type == 'folder';
-    var isModel = attr.type == 'model';
+    // var isFolder = attr.type == 'folder';
+    // var isModel = attr.type == 'model';
 
     var isObject = attr.type == 'Object';
     var isAnyOf = attr.type == '\$anyOf';
@@ -581,10 +592,10 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       icon = Icon(Icons.business, color: iconColor, size: 20);
     } else if (isInherit) {
       icon = Icon(Icons.call_split, color: iconColor, size: 20);
-    } else if (isFolder) {
-      icon = Icon(Icons.folder, color: iconColor, size: 20);
-    } else if (isModel) {
-      icon = Icon(Icons.data_object, color: iconColor, size: 20);
+      // } else if (isFolder) {
+      //   icon = Icon(Icons.folder, color: iconColor, size: 20);
+      // } else if (isModel) {
+      //   icon = Icon(Icons.data_object, color: iconColor, size: 20);
     } else if (isObject) {
       icon = Icon(Icons.data_object, color: iconColor, size: 20);
     } else if (isRef) {
@@ -658,10 +669,10 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
                     ),
                   ), // for error display   // for error display
                 Expanded(
-                  child: getTooltipText(
+                  child: _getTooltipText(
                     changeStyle,
                     'Name ',
-                    getBorder(
+                    _getBorder(
                       attr,
                       Text(
                         overflow: TextOverflow.fade,
@@ -688,7 +699,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
                   ),
                 ),
                 //Spacer(),
-                getWidgetType(node.data, isModel, isRoot, context),
+                _getWidgetType(node.data, isRoot, context),
               ],
             ),
           ),
@@ -697,7 +708,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     );
   }
 
-  Widget getBorder(AttributInfo attr, Widget child) {
+  Widget _getBorder(AttributInfo attr, Widget child) {
     if (attr.type == '\$ref') {
       return NoOverflowErrorFlex(
         direction: Axis.horizontal,
@@ -720,7 +731,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     return child;
   }
 
-  Widget getTooltipText(
+  Widget _getTooltipText(
     InfoManagerChangeStyle changeStyle,
     String message,
     Widget child,
@@ -733,12 +744,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     );
   }
 
-  Widget getWidgetType(
-    NodeAttribut attr,
-    bool isModel,
-    bool isRoot,
-    BuildContext context,
-  ) {
+  Widget _getWidgetType(NodeAttribut attr, bool isRoot, BuildContext context) {
     if (isRoot) {
       return Text('${modelSchema?.useAttributInfo.length} properties');
     }
@@ -757,18 +763,11 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     }
 
     var w = getChip(
-      isModel
-          ? Row(
-              spacing: 5,
-              children: [Text(type), Icon(Icons.arrow_forward_ios, size: 10)],
-            )
-          : hasError
-          ? Row(
-              spacing: 5,
-              children: [Text(type), Icon(Icons.arrow_drop_down, size: 15)],
-            )
-          : Text(type),
-      color: hasError ? Colors.redAccent : (isModel ? Colors.blue : null),
+      Row(
+        spacing: 5,
+        children: [Text(type), Icon(Icons.arrow_drop_down, size: 15)],
+      ),
+      color: hasError ? Colors.redAccent : null,
     );
 
     bool canEditType =
@@ -777,12 +776,12 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
         !attr.info.isRefAttr() &&
         !attr.info.type.startsWith(r'$');
     if (canEditType) {
-      return getEditorType(attr, context, w);
+      return _getEditorType(attr, context, w);
     }
     return w;
   }
 
-  Widget getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
+  Widget _getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
     GlobalKey? k = GlobalKey();
 
     return GestureDetector(

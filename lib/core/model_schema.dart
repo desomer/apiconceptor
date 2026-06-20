@@ -196,6 +196,7 @@ class ModelSchema {
 
   bool? readOnlyApi;
   bool? isApi;
+  bool isFile = false;
 
   ModelSchemaQuality? qualityInfo;
 

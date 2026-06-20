@@ -114,7 +114,7 @@ class TextEditorState extends State<TextEditor> {
   // late ScrollController verticalScroll;
   // late ScrollController horizontalScroll;
   int lastRow = -1;
-  final textStyle = const TextStyle(fontFamily: 'SourceCode', fontSize: 14);
+  final textStyle = const TextStyle(height: 1.5, fontFamily: 'SourceCode', fontSize: 14);
 
   // int getCursorLine(CodeController controller) {
   //   final cursorIndex = controller.selection.start;
@@ -248,9 +248,9 @@ class TextEditorState extends State<TextEditor> {
 
     Widget code = CodeField(
       gutterStyle: const GutterStyle(
-        //textStyle: TextStyle(height: 1.5),
+        textStyle: TextStyle(height: 1.5, fontFamily: 'SourceCode', fontSize: 14),
         margin: 0,
-        width: 80,
+        width: 60,
         showErrors: true,
         showFoldingHandles: true,
         showLineNumbers: true,
@@ -284,7 +284,11 @@ class TextEditorState extends State<TextEditor> {
               //child: code,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  return SizedBox(height: constraints.maxHeight, child: code);
+                  return SizedBox(
+                    height: constraints.maxHeight,
+                    width: constraints.maxWidth,
+                    child: code,
+                  );
                 },
               ),
             ),
@@ -458,6 +462,7 @@ class CodeEditorConfig {
       if (treeJsonState is TreeViewState) {
         (treeJsonState as TreeViewState).repaint();
       } else {
+        // ignore: invalid_use_of_protected_member
         treeJsonState?.setState(() {});
       }
     }

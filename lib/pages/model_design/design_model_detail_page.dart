@@ -26,6 +26,7 @@ class DesignModelDetailPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     query =
@@ -94,6 +95,6 @@ class DesignModelDetailPage extends GenericPageStateless {
           type: BreadNodeType.widget,
         ),
       ]
-      ..actions = getDefaultActionModel();
+      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
   }
 }

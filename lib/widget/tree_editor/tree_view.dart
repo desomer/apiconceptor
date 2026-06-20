@@ -239,8 +239,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
   }
 
   void repaint() {
-    repaintInProgess =
-        DateTime.now().millisecondsSinceEpoch;
+    repaintInProgess = DateTime.now().millisecondsSinceEpoch;
     // ignore: invalid_use_of_protected_member
     setState(() {});
   }
@@ -768,13 +767,23 @@ class TreeViewState<T> extends State<TreeView<T>> {
 
       case 'copyPath':
         StringBuffer sb = StringBuffer();
-        for (var element in selectedNodes) {
-          _clipboardNodes.add(element);
-          if (element.data is NodeAttribut) {
-             var path = (element.data as NodeAttribut).info.getJsonPath(
-              sep: '.',withRoot: false
-            );
-            sb.writeln(path);
+        if (selectedNodes.isEmpty) {
+          sb.writeln(
+            (node.data as NodeAttribut).info.getJsonPath(
+              sep: '.',
+              withRoot: false,
+            ),
+          );
+        } else {
+          for (var element in selectedNodes) {
+            _clipboardNodes.add(element);
+            if (element.data is NodeAttribut) {
+              var path = (element.data as NodeAttribut).info.getJsonPath(
+                sep: '.',
+                withRoot: false,
+              );
+              sb.writeln(path);
+            }
           }
         }
         Clipboard.setData(ClipboardData(text: sb.toString()));

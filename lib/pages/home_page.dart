@@ -22,7 +22,7 @@ class HomePage extends GenericPageStateless {
             valueListenable: zoom,
             builder: (context, value, child) {
               return Column(
-                spacing: 40,
+                spacing: 20,
                 children: [
                   // getExpansible("Get started", getMenuStarted(context)),
                   // SizedBox(height: 30),
@@ -120,11 +120,10 @@ class HomePage extends GenericPageStateless {
             route: Pages.models,
           ),
           WidgetMenuBtn(label: 'Design API', icon: Icons.api, route: Pages.api),
-          WidgetMenuBtn(label: 'Design Message', icon: Icons.message_outlined),
           WidgetMenuBtn(
-            label: 'Data source',
-            icon: Icons.dataset_linked,
-            route: Pages.dataSource,
+            label: 'Design Message',
+            icon: Icons.message_outlined,
+            route: Pages.asyncApi,
           ),
           WidgetMenuBtn(
             label: 'Validation Workflow',
@@ -181,6 +180,11 @@ class HomePage extends GenericPageStateless {
         runSpacing: 5, // espace vertical entre les lignes
         alignment: WrapAlignment.start,
         children: [
+          WidgetMenuBtn(
+            label: 'Data source',
+            icon: Icons.dataset_linked,
+            route: Pages.dataSource,
+          ),
           WidgetMenuBtn(
             label: 'Create content',
             icon: Icons.content_paste_rounded,
@@ -277,6 +281,7 @@ class HomePage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     return NavigationInfo()

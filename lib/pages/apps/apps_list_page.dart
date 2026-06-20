@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -31,6 +30,7 @@ class AppsListPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     return NavigationInfo();
@@ -50,7 +50,10 @@ class InfoManagerApps extends InfoManager with WidgetHelper {
         onPressed: () {
           currentCompany.currentApps = schema;
           schema.selectedAttr = attr;
-          RouteManager.goto(Pages.pageDesigner.id(attr.info.masterID!), context);
+          RouteManager.goto(
+            Pages.pageDesigner.id(attr.info.masterID!),
+            context,
+          );
         },
         child: Text('Edit app'),
       ),
@@ -64,7 +67,7 @@ class InfoManagerApps extends InfoManager with WidgetHelper {
         },
         child: Text('Open app'),
       ),
-    );    
+    );
   }
 
   @override

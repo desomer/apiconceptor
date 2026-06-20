@@ -5,7 +5,7 @@ import 'package:jsonschema/core/designer/editor/view/helper/widget_carousel_choi
 import 'package:jsonschema/core/designer/editor/view/bloc_drop_attr.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
-import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/splitview/widget_split.dart';
 import 'package:shortid/shortid.dart' show shortid;
 
 import '../../../../widget/tree_editor/tree_view.dart';

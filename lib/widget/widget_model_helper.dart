@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -63,52 +64,57 @@ mixin class WidgetHelper {
         width: 110,
         height: 220,
         child: ListView(
-          children:
-              listOptions.map<Widget>((option) {
-                return ListTile(
-                  dense: true,
-                  leading: Icon(option.icon, color: option.color),
-                  title: Text(option.label),
-                  onTap: () {
-                    var path2 = attr.info.path;
-                    path2 = path2.replaceAll("$constTypeAnyof>", "");
+          children: listOptions.map<Widget>((option) {
+            return ListTile(
+              dense: true,
+              leading: Icon(option.icon, color: option.color),
+              title: Text(option.label),
+              onTap: () {
+                var path2 = attr.info.path;
+                path2 = path2.replaceAll("$constTypeAnyof>", "");
 
-                    var aYaml = editor.getSchema().modelYaml;
+                var aYaml = editor.getSchema().modelYaml;
 
-                    YamlDoc docYaml = YamlDoc();
-                    docYaml.load(aYaml);
-                    docYaml.doAnalyse();
+                YamlDoc docYaml = YamlDoc();
+                docYaml.load(aYaml);
+                docYaml.doAnalyse();
 
-                    for (var line in docYaml.listYamlLine) {
-                      YamlLine? l = line;
-                      String path = '';
-                      while (l != null) {
-                        if (path.isNotEmpty) {
-                          path = '>$path';
-                        }
-                        path = '${l.name}$path';
-                        l = l.parent;
-                      }
-                      path = 'root>$path';
-                      if (path2 == path) {
-                        var from = RegExp(
-                          attr.info.getRefName() != null
-                              ? '\\\$${attr.info.getRefName()}'
-                              : attr.info.type,
-                        );
-                        aYaml = aYaml.replaceFirst(
-                          from,
-                          option.label,
-                          aYaml.indexOf(":", line.idxCharStart),
-                        );
-                        editor.updateYaml(aYaml);
-                        break;
-                      }
+                for (var line in docYaml.listYamlLine) {
+                  YamlLine? l = line;
+                  String path = '';
+                  while (l != null) {
+                    if (path.isNotEmpty) {
+                      path = '>$path';
                     }
-                    bCtx?.pop();
-                  },
-                );
-              }).toList(),
+                    path = '${l.name}$path';
+                    l = l.parent;
+                  }
+                  path = 'root>$path';
+                  if (path2 == path) {
+                    var from = RegExp(
+                      attr.info.getRefName() != null
+                          ? '\\\$${attr.info.getRefName()}'
+                          : attr.info.type,
+                    );
+                    aYaml = aYaml.replaceFirst(
+                      from,
+                      option.label,
+                      aYaml.indexOf(":", line.idxCharStart),
+                    );
+                    editor.updateYaml(aYaml);
+                    break;
+                  }
+                }
+                bCtx?.pop();
+
+                // raffraichir l'éditeur d'attribut
+                SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+                  // ignore: invalid_use_of_protected_member
+                  editor.keyAttrEditor.currentState?.setState(() {});
+                });
+              },
+            );
+          }).toList(),
         ),
       ),
       k,

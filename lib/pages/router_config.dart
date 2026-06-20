@@ -32,6 +32,7 @@ import 'package:jsonschema/pages/model_design/design_api_detail_page.dart';
 import 'package:jsonschema/pages/model_design/design_api_detail_scrum_page.dart';
 import 'package:jsonschema/pages/model_design/design_api_detail_ui.dart';
 import 'package:jsonschema/pages/model_design/design_api_page.dart';
+import 'package:jsonschema/pages/model_design/design_async.dart';
 import 'package:jsonschema/pages/model_design/design_model_jsonschema_page.dart';
 import 'package:jsonschema/pages/model_design/design_model_detail_page.dart';
 import 'package:jsonschema/pages/model_design/design_model_detail_scrum_page.dart';
@@ -78,6 +79,8 @@ enum Pages {
   apiUI("/apis/ui"),
   apiScrum("/apis/scrum"),
   mock("/apis/mock"),
+
+  asyncApi("/async"),
 
   env('/env'),
   log('/log'),
@@ -179,6 +182,7 @@ class TempPage extends GenericPageStateless {
   NavigationInfo? initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     return NavigationInfo();
@@ -288,7 +292,7 @@ class RouteManager {
   static void goto(String location, BuildContext ctx) {
     int d = DateTime.now().millisecondsSinceEpoch;
     int v = d - last;
-    if (v < 1000) return;
+    if (v < 500) return;
 
     location = prepareLinkParam(location);
 
@@ -456,6 +460,11 @@ final GoRouter router = GoRouter(
         addRouteBy(Pages.apiUI, CallAPIPageDetailUI()),
         addRouteBy(Pages.apiScrum, DesignApiDetailScrumPage()),
         //----------------------------------------------------------------
+        addRoute(
+          GoRoute(path: Pages.asyncApi.urlpath, pageBuilder: getPageAnim),
+          (context, state) => DesignAsyncPage(state: state),
+        ),
+        //------------------------------------
         addRouteBy(Pages.env, const EnvPage()),
         addRoute(
           GoRoute(path: Pages.appPage.urlpath, pageBuilder: getPageNoAnim),
@@ -609,7 +618,7 @@ class ApiRequestNavigator {
   Future<ModelSchema> getModel(String idModel) async {
     var attr = currentCompany.listModel!.getNodeByMasterIdPath(idModel);
     currentCompany.listModel!.selectedAttr = attr;
-
+    currentCompany.currentModelSel = attr;
     await Future.delayed(Duration(milliseconds: gotoDelay));
 
     var model = ModelSchema(
@@ -629,7 +638,7 @@ class ApiRequestNavigator {
       );
 
       var accessor = ModelAccessorAttr(
-        node: currentCompany.listModel!.selectedAttr!,
+        node: attr!,
         schema: currentCompany.listModel!,
         propName: '#version',
       );

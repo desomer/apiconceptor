@@ -41,8 +41,14 @@ class _EditorPropertiesState extends State<EditorProperties> {
 
   Container getHeader(ModelSchema? model) {
     return Container(
-      padding: EdgeInsets.all(3),
-      color: Colors.blue,
+      decoration: BoxDecoration(
+        //arrondi les coins
+        color: Colors.blue.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        //color: Colors.grey.shade300,
+      ),
+      padding: EdgeInsets.fromLTRB(10, 3, 3, 3),
+
       child: Row(
         children: [
           MouseRegion(
@@ -57,7 +63,9 @@ class _EditorPropertiesState extends State<EditorProperties> {
             ),
           ),
           Expanded(
-            child: Center(child: Text(model?.selectedAttr?.info.name ?? '')),
+            child: Center(
+              child: SelectableText(model?.selectedAttr?.info.name ?? ''),
+            ),
           ),
         ],
       ),

@@ -5,6 +5,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
+import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_tag_selector.dart';
 
@@ -42,7 +43,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
               currentPropTabController?.addListener(() {
                 if (controller.indexIsChanging) {
                   if (currentYamlTree != null) {
-                    currentYamlTree?.reload();
+                    //currentYamlTree?.reload();
                   }
                 }
               });
@@ -71,8 +72,14 @@ class _AttributPropertiesState extends State<AttributProperties> {
 
   Container getHeader(ModelSchema? model) {
     return Container(
-      padding: EdgeInsets.all(3),
-      color: Colors.blue,
+      decoration: BoxDecoration(
+        //arrondi les coins
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.blue.withValues(alpha: 0.6),
+        //color: Colors.grey.shade300,
+      ),
+      padding: EdgeInsets.fromLTRB(10, 3, 3, 3),
+
       child: Row(
         children: [
           MouseRegion(
@@ -88,10 +95,10 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
           Expanded(
             child: Center(
-              child: Text(
+              child: SelectableText(
                 model?.selectedAttr?.info.name ?? '',
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                //overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -117,7 +124,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
     if (type == 'array') {
       ret.add(
         CellEditor(
-          key: ValueKey('#minItems#${model.selectedAttr!.hashCode}'),
+          key: ValueKey(
+            '#minItems#${model.selectedAttr!.hashCode}@${model.selectedAttr!.info.numUpdateForKey}',
+          ),
           acces: ModelAccessorAttr(
             node: model.selectedAttr!,
             schema: model,
@@ -128,7 +137,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
       );
       ret.add(
         CellEditor(
-          key: ValueKey('#maxItems#${model.selectedAttr!.hashCode}'),
+          key: ValueKey(
+            '#maxItems#${model.selectedAttr!.hashCode}@${model.selectedAttr!.info.numUpdateForKey}',
+          ),
           acces: ModelAccessorAttr(
             node: model.selectedAttr!,
             schema: model,
@@ -185,7 +196,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
           CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
+            key: ValueKey(
+              'required#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -194,7 +207,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
+            key: ValueKey(
+              'dependentRequired#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -205,7 +220,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('minItems#${info.hashCode}'),
+            key: ValueKey(
+              'minItems#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -216,7 +233,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('maxItems#${info.hashCode}'),
+            key: ValueKey(
+              'maxItems#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -227,7 +246,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellCheckEditor(
-            key: ValueKey('uniqueItems#${info.hashCode}'),
+            key: ValueKey(
+              'uniqueItems#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -253,7 +274,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             TextButton(onPressed: () {}, child: Text("Go to definition")),
           if (withRequired)
             CellCheckEditor(
-              key: ValueKey('required#${info.hashCode}'),
+              key: ValueKey(
+                'required#${info.hashCode}@${info.info.numUpdateForKey}',
+              ),
               acces: ModelAccessorAttr(
                 node: info,
                 schema: model,
@@ -263,7 +286,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             ),
           if (withRequired)
             CellEditor(
-              key: ValueKey('dependentRequired#${info.hashCode}'),
+              key: ValueKey(
+                'dependentRequired#${info.hashCode}@${info.info.numUpdateForKey}',
+              ),
               acces: ModelAccessorAttr(
                 node: info,
                 schema: model,
@@ -274,7 +299,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             ),
 
           CellEditor(
-            key: ValueKey('pattern#${info.hashCode}'),
+            key: ValueKey(
+              'pattern#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -284,7 +311,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('format#${info.hashCode}'),
+            key: ValueKey(
+              'format#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -294,7 +323,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('enum#${info.hashCode}'),
+            key: ValueKey('enum#${info.hashCode}@${info.info.numUpdateForKey}'),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -305,7 +334,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('multipleOf#${info.hashCode}'),
+            key: ValueKey(
+              'multipleOf#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -315,7 +346,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             isNumber: true,
           ),
           CellEditor(
-            key: ValueKey('minimum#${info.hashCode}'),
+            key: ValueKey(
+              'minimum#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -325,7 +358,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             isNumber: true,
           ),
           CellCheckEditor(
-            key: ValueKey('exclusiveMinimum#${info.hashCode}'),
+            key: ValueKey(
+              'exclusiveMinimum#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -335,7 +370,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('maximum#${info.hashCode}'),
+            key: ValueKey(
+              'maximum#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -345,7 +382,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             isNumber: true,
           ),
           CellCheckEditor(
-            key: ValueKey('exclusiveMaximum#${info.hashCode}'),
+            key: ValueKey(
+              'exclusiveMaximum#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -371,7 +410,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             TextButton(onPressed: () {}, child: Text("Go to definition")),
           if (withRequired)
             CellCheckEditor(
-              key: ValueKey('required#${info.hashCode}'),
+              key: ValueKey(
+                'required#${info.hashCode}@${info.info.numUpdateForKey}',
+              ),
               acces: ModelAccessorAttr(
                 node: info,
                 schema: model,
@@ -381,7 +422,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             ),
           if (withRequired)
             CellEditor(
-              key: ValueKey('dependentRequired#${info.hashCode}'),
+              key: ValueKey(
+                'dependentRequired#${info.hashCode}@${info.info.numUpdateForKey}',
+              ),
               acces: ModelAccessorAttr(
                 node: info,
                 schema: model,
@@ -392,7 +435,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             ),
 
           CellEditor(
-            key: ValueKey('pattern#${info.hashCode}'),
+            key: ValueKey(
+              'pattern#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -402,7 +447,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellDropMenuEditor(
-            key: ValueKey('format#${info.hashCode}'),
+            key: ValueKey(
+              'format#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -417,7 +464,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             children: [
               Expanded(
                 child: CellEditor(
-                  key: ValueKey('enum#${info.hashCode}'),
+                  key: ValueKey(
+                    'enum#${info.hashCode}@${info.info.numUpdateForKey}',
+                  ),
                   acces: ModelAccessorAttr(
                     node: info,
                     schema: model,
@@ -440,7 +489,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('minLength#${info.hashCode}'),
+            key: ValueKey(
+              'minLength#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -450,7 +501,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             isNumber: true,
           ),
           CellEditor(
-            key: ValueKey('maxLength#${info.hashCode}'),
+            key: ValueKey(
+              'maxLength#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -461,7 +514,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('contentEncoding#${info.hashCode}'),
+            key: ValueKey(
+              'contentEncoding#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -471,7 +526,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('contentMediaType#${info.hashCode}'),
+            key: ValueKey(
+              'contentMediaType#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -481,7 +538,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('link#${info.hashCode}'),
+            key: ValueKey('link#${info.hashCode}@${info.info.numUpdateForKey}'),
             line: 3,
             acces: ModelAccessorAttr(
               node: info,
@@ -596,7 +653,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             TextButton(onPressed: () {}, child: Text("Go to definition")),
           if (withRequired)
             CellCheckEditor(
-              key: ValueKey('required#${info.hashCode}'),
+              key: ValueKey(
+                'required#${info.hashCode}@${info.info.numUpdateForKey}',
+              ),
               acces: ModelAccessorAttr(
                 node: info,
                 schema: model,
@@ -606,7 +665,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             ),
           if (withRequired)
             CellEditor(
-              key: ValueKey('dependentRequired#${info.hashCode}'),
+              key: ValueKey(
+                'dependentRequired#${info.hashCode}@${info.info.numUpdateForKey}',
+              ),
               acces: ModelAccessorAttr(
                 node: info,
                 schema: model,
@@ -646,13 +707,13 @@ class _AttributPropertiesState extends State<AttributProperties> {
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
 
-          Row(
-            spacing: 10,
-            children: [Text('target'), getTargetWidget(typeModelAccessor)],
+          NoOverflowErrorFlex(
+            direction: Axis.horizontal,
+            children: [Text('target'), SizedBox(width: 10), getTargetWidget(typeModelAccessor)],
           ),
 
           TagSelector(
-            key: ValueKey('tag#${info.hashCode}'),
+            key: ValueKey('tag#${info.hashCode}@${info.info.numUpdateForKey}'),
             availableTags: ['In future', 'Technical debt', 'Computed'],
             initialSelected: [],
             accessor: ModelAccessorAttr(
@@ -663,7 +724,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           ),
 
           CellEditor(
-            key: ValueKey('description#${info.hashCode}'),
+            key: ValueKey(
+              'description#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -673,7 +736,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellEditor(
-            key: ValueKey('example#${info.hashCode}'),
+            key: ValueKey(
+              'example#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -683,7 +748,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellEditor(
-            key: ValueKey('const#${info.hashCode}'),
+            key: ValueKey(
+              'const#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -692,7 +759,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellEditor(
-            key: ValueKey('default#${info.hashCode}'),
+            key: ValueKey(
+              'default#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -701,7 +770,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellCheckEditor(
-            key: ValueKey('nullable#${info.hashCode}'),
+            key: ValueKey(
+              'nullable#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -710,7 +781,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellCheckEditor(
-            key: ValueKey('readOnly#${info.hashCode}'),
+            key: ValueKey(
+              'readOnly#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -719,7 +792,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellCheckEditor(
-            key: ValueKey('writeOnly#${info.hashCode}'),
+            key: ValueKey(
+              'writeOnly#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -728,7 +803,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellCheckEditor(
-            key: ValueKey('deprecated#${info.hashCode}'),
+            key: ValueKey(
+              'deprecated#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -737,7 +814,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellEditor(
-            key: ValueKey('comment#${info.hashCode}'),
+            key: ValueKey(
+              'comment#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -766,7 +845,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CellEditor(
-            key: ValueKey('source#${info.hashCode}'),
+            key: ValueKey(
+              'source#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -792,7 +873,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
           CellCheckEditor(
-            key: ValueKey('required#${info.hashCode}'),
+            key: ValueKey(
+              'required#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,
@@ -801,7 +884,9 @@ class _AttributPropertiesState extends State<AttributProperties> {
             inArray: false,
           ),
           CellEditor(
-            key: ValueKey('dependentRequired#${info.hashCode}'),
+            key: ValueKey(
+              'dependentRequired#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
             acces: ModelAccessorAttr(
               node: info,
               schema: model,

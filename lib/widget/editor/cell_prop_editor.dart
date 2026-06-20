@@ -13,7 +13,7 @@ class CellEditor extends StatefulWidget {
     this.line,
     this.isNumber = false,
     this.widthInfinite = false,
-    this.width
+    this.width,
   });
   final int? line;
   final ValueAccessor acces;
@@ -83,7 +83,12 @@ class CellEditorState extends State<CellEditor> {
     super.dispose();
   }
 
-  var textStyleLabel = TextStyle(color: Colors.grey.shade600, fontSize: 16);
+  final double fontSize = 14.0;
+  late final TextStyle textStyleLabel = TextStyle(
+    color: Colors.grey.shade600,
+    fontSize: fontSize,
+  );
+  late final TextStyle textStyleInput = TextStyle(fontSize: fontSize);
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +120,7 @@ class CellEditorState extends State<CellEditor> {
         focusNode: focus,
         enabled: widget.acces.isEditable(),
         controller: _controller,
+        style: textStyleInput,
         autocorrect: true,
         maxLines: widget.line ?? 1,
         keyboardType: keyboardType,
@@ -159,8 +165,7 @@ class CellEditorState extends State<CellEditor> {
           overflow: TextOverflow.clip,
           softWrap: false,
           maxLines: 1,
-          style: TextStyle(
-            fontSize: 16,
+          style: textStyleInput.copyWith(
             color: !isEditable ? Colors.grey : null,
           ),
         ),
@@ -296,7 +301,7 @@ class CellCheckEditorState extends State<CellCheckEditor> {
   Widget build(BuildContext context) {
     return SizedBox(
       width: widget.inArray ? 50 : 400,
-      height: widget.inArray ? 30 : 35,
+      height: widget.inArray ? 30 : 30,
       child: widget.inArray
           ? FittedBox(fit: BoxFit.fill, child: getArraySwitch())
           : getFormSwitch(),
@@ -305,20 +310,35 @@ class CellCheckEditorState extends State<CellCheckEditor> {
 
   Widget getFormSwitch() {
     var name = widget.acces.getName().replaceAll("#", "");
+    final currentValue = widget.acces.get() ?? false;
+
+    void onToggle(bool value) {
+      if (widget.acces.isEditable()) {
+        setState(() {
+          widget.acces.set(value);
+        });
+      }
+    }
+
     return Material(
       color: Colors.black,
-      child: SwitchListTile(
-        title: Text(name),
-        value: widget.acces.get() ?? false,
-        activeThumbColor: Colors.blue,
-        onChanged: (bool value) {
-          // This is called when the user toggles the switch.
-          if (widget.acces.isEditable()) {
-            setState(() {
-              widget.acces.set(value);
-            });
-          }
-        },
+      child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+        minTileHeight: 30,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+        title: Text(name, style: const TextStyle(fontSize: 15)),
+        onTap: widget.acces.isEditable() ? () => onToggle(!currentValue) : null,
+        trailing: Transform.scale(
+          scale: 0.7,
+          alignment: Alignment.topRight,
+          child: Switch(
+            value: currentValue,
+            activeThumbColor: Colors.blue,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            onChanged: widget.acces.isEditable() ? onToggle : null,
+          ),
+        ),
       ),
     );
   }

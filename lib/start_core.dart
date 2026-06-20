@@ -6,6 +6,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_env.dart';
+import 'package:jsonschema/feature/async_api/pan_async_selector.dart';
 import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
 import 'package:jsonschema/feature/domain/pan_domain.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
@@ -304,6 +305,32 @@ Future<ModelSchema> loadApps(String idDomain, bool cache) async {
   return schema;
 }
 
+
+Future<ModelSchema> loadAsync(String idDomain, bool cache) async {
+  var schema = ModelSchema(
+    category: Category.asyncApi,
+    headerName: "async Api",
+    id: 'async/$idDomain',
+    infoManager: InfoManagerAsync(),
+    refDomain: null,
+  );
+  schema.namespace = idDomain;
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  schema.namespace = idDomain;
+  currentCompany.listAsync = schema;
+  schema.isReadOnlyModel = isDomainAllowed(idDomain) == false;
+  return schema;
+}
+
+
 Future<ModelSchema> loadVarEnv(
   String idDomain,
   String idEnv,
@@ -404,7 +431,7 @@ bool isProfilAdmin() {
 }
 
 bool isDomainAllowed(String domain) {
-  print(' isDomainAllowed $domain allowed ');
+  //print(' isDomainAllowed $domain allowed ');
   if (isProfilAdmin()) {
     return true;
   }

@@ -47,7 +47,7 @@ class _WidgetMenuBtnState extends State<WidgetMenuBtn> {
       },
       child: Container(
         width: 230,
-        height: 70 * scale,
+        height: 60 * scale,
         margin: EdgeInsets.all(5),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
@@ -55,7 +55,7 @@ class _WidgetMenuBtnState extends State<WidgetMenuBtn> {
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: AnimatedContainer(
               duration: Duration(milliseconds: 150),
-              padding: EdgeInsets.all(12),
+              padding: EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: showHoverStyle
                     ? Colors.orange.withValues(alpha: 0.2)

@@ -4,11 +4,14 @@ import 'package:jsonschema/feature/home/background_screen.dart';
 import 'package:jsonschema/feature/model/pan_model_main.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/pages/router_layout.dart';
+import 'package:jsonschema/widget/show_case/showcase.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
 class DesignListModelPage extends GenericPageStateless {
-  const DesignListModelPage({super.key, this.state});
+  DesignListModelPage({super.key, this.state});
   final GoRouterState? state;
+  final ShowCaseInfo showCaseInfo = ShowCaseInfo();
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +20,10 @@ class DesignListModelPage extends GenericPageStateless {
         const BackgroundScreen(num: 1),
         Container(
           color: Colors.black87,
-          child: WidgetModelMain(key: ValueKey(state?.uri.toString() ?? '')),
+          child: WidgetModelMain(
+            key: ValueKey(state?.uri.toString() ?? ''),
+            showCaseInfo: showCaseInfo,
+          ),
         ),
       ],
     );
@@ -60,13 +66,70 @@ class DesignListModelPage extends GenericPageStateless {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     String query = routerState.uri.queryParameters['id'] ?? '? ';
     print("query model: $query");
-    //var goTo = GoTo();
-    // goTo.initApi(query);
-    // goTo.getBreadcrumbApi(query);
+
+    void showCoach(BuildContext aContext) async {
+      var keys = showCaseInfo.keys;
+      await ShowcaseCoach.show(
+        config: ShowcaseCoachConfig(
+          primaryColor: Colors.blue,
+          tooltipPosition: ShowcaseTooltipPosition.right,
+        ),
+        aContext,
+        steps: [
+          CoachStep(
+            targetKey: keys['button']!,
+            title: 'Welcome!',
+            description: [
+              "Ajout d'un nouveau modèle",
+              "différents modèles possibles",
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['yamlCard']!,
+            title: 'Yaml simple structure',
+            description: [
+              'YAML utilisé pour définir la structure du modèle',
+              'Juste le nom et le type de chaque attribut',
+            ],
+            onNext: () {
+              showCaseInfo.action['openProperties']!();
+            },
+          ),
+          CoachStep(
+            targetKey: keys['structureCard']!,
+            title: 'Card with model attributes',
+            description: [
+              'Détail de chaque attribut du modèle',
+              'Possibilité de modifier le type, le libellé, la description, etc.',
+            ],
+          ),
+           CoachStep(
+            targetKey: keys['PropCard']!,
+            title: 'Card with attribut properties',
+            description: [
+              'Détail de chaque propriété du modèle',
+              'Respecte le standard JSON schema',
+            ],
+          ),
+        ],
+      );
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      CWInheritedPage page = keyPage.currentContext!
+          .getInheritedWidgetOfExactType<CWInheritedPage>()!;
+
+      page.showCase = showCoach;
+
+      if (mustShowCoach) {
+        mustShowCoach = false;
+      }
+    });
 
     return NavigationInfo()
       ..navLeft = [
@@ -101,6 +164,12 @@ class DesignListModelPage extends GenericPageStateless {
           type: BreadNodeType.widget,
         ),
       ]
-      ..actions = getDefaultActionModel();
+      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
   }
+}
+
+class ShowCaseInfo {
+  final Map<String, GlobalKey> keys = {};
+  final Map<String, Function> action = {};
+  ShowCaseInfo();
 }

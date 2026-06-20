@@ -7,7 +7,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/api/html_swagger.dart';
 import 'package:jsonschema/feature/api/pan_api_import.dart';
-import 'package:jsonschema/feature/pan_attribut_editor.dart';
+import 'package:jsonschema/feature/pan_attribut_editor_model.dart';
 import 'package:jsonschema/pages/model_design/design_api_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';

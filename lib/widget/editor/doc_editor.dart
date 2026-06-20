@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // import 'package:flutter_quill/flutter_quill.dart';
 // import 'package:flutter_quill_extensions/flutter_quill_extensions.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
-import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/splitview/widget_split.dart';
 import 'package:markdown_toolbar/markdown_toolbar.dart';
 import 'package:markdown_widget/config/configs.dart';
 import 'package:markdown_widget/widget/markdown.dart';

@@ -36,6 +36,7 @@ class CompanyModelSchema {
   ModelSchema? listDataSrc;
 
   ModelSchema? listModel;
+  ModelSchema? listAsync;
   ModelSchema? currentModel;
   NodeAttribut? currentModelSel;
   String? currentType;
@@ -249,4 +250,5 @@ enum Category {
   variable,
   dataMap,
   apps,
+  asyncApi,
 }

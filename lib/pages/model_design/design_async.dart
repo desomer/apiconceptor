@@ -1,16 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
-import 'package:jsonschema/feature/graph/pan_spring_graph.dart';
+import 'package:jsonschema/feature/async_api/pan_async_selector.dart';
+import 'package:jsonschema/feature/home/background_screen.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
-class DesignModelGraphPage extends GenericPageStateless {
-  const DesignModelGraphPage({super.key});
+class DesignAsyncPage extends GenericPageStateless {
+  const DesignAsyncPage({super.key, this.state});
+  final GoRouterState? state;
 
   @override
   Widget build(BuildContext context) {
-    return PanModelGraph();
+    return Stack(
+      children: [
+        const BackgroundScreen(num: 1),
+        Container(
+          color: Colors.black87,
+          child: PanAsyncSelector(
+            key: ValueKey(state?.uri.toString() ?? ''),
+            getSchemaFct: () async {
+              await Future.delayed(Duration(milliseconds: gotoDelay));
+              await loadAsync(currentCompany.currentNameSpace, false);
+              return currentCompany.listAsync!;
+            },
+            type: TypeAsyncSelector.model,
+          ),
+        ),
+      ],
+    );
   }
 
   // Widget build2(BuildContext context) {
@@ -63,34 +82,36 @@ class DesignModelGraphPage extends GenericPageStateless {
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.data_object),
-          settings: const RouteSettings(name: 'List model'),
+          settings: const RouteSettings(name: 'async events'),
           type: BreadNodeType.widget,
           path: Pages.models.urlpath,
         ),
 
-        BreadNode(
-          icon: const Icon(Icons.dataset_rounded),
-          settings: const RouteSettings(name: 'List ORM'),
-          type: BreadNodeType.widget,
-        ),
+        // BreadNode(
+        //   icon: const Icon(Icons.dataset_rounded),
+        //   settings: const RouteSettings(name: 'List ORM'),
+        //   type: BreadNodeType.widget,
+        // ),
 
-        BreadNode(
-          icon: const Icon(Icons.bubble_chart),
-          settings: const RouteSettings(name: 'Graph view'),
-          type: BreadNodeType.widget,
-          path: Pages.modelGraph.urlpath,
-        ),
+        // BreadNode(
+        //   icon: const Icon(Icons.bubble_chart),
+        //   settings: const RouteSettings(name: 'Graph view'),
+        //   type: BreadNodeType.widget,
+        //   path: Pages.modelGraph.urlpath,
+        // ),
       ]
       ..breadcrumbs = [
         BreadNode(
           settings: const RouteSettings(name: 'Domain'),
           type: BreadNodeType.domain,
-          path: Pages.models.urlpath,
+          path: Pages.asyncApi.urlpath,
         ),
-        BreadNode(
-          settings: const RouteSettings(name: 'List model'),
-          type: BreadNodeType.widget,
-        ),
-      ];
+        // BreadNode(
+        //   settings: const RouteSettings(name: 'List model'),
+        //   type: BreadNodeType.widget,
+        // ),
+      ]
+    //..actions = getDefaultActionModel()
+    ;
   }
 }

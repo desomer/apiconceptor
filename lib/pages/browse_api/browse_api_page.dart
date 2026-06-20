@@ -30,7 +30,7 @@ import 'package:jsonschema/widget/widget_glowing_halo.dart';
 import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
-import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/splitview/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 class BrowseAPIPage extends GenericPageStateful {
@@ -51,6 +51,7 @@ class BrowseAPIPage extends GenericPageStateful {
   NavigationInfo initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     return NavigationInfo()
@@ -93,7 +94,7 @@ class BrowseAPIPage extends GenericPageStateful {
           path: byTag ? Pages.apiBrowserTag.urlpath : Pages.apiBrowser.urlpath,
         ),
       ]
-      ..actions = getDefaultActionModel();
+      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
   }
 }
 

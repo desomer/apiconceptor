@@ -37,8 +37,6 @@ void main() async {
   const isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
   print('isRunningWithWasm $isRunningWithWasm');
 
-  prefs = await SharedPreferences.getInstance();
-
   debugPaintSizeEnabled = false;
   debugPaintBaselinesEnabled = false;
   debugPaintPointersEnabled = false;
@@ -51,8 +49,14 @@ void main() async {
   };
 
   runZonedGuarded(
-    () {
+    () async {
       WidgetsFlutterBinding.ensureInitialized();
+      try {
+        prefs = await SharedPreferences.getInstance();
+      } catch (e) {
+        print('Error initializing SharedPreferences: $e');
+      }
+
       CoreDataEval().initializeJSEngine();
       tz.initializeTimeZones();
       runApp(const MyApp());

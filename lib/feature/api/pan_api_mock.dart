@@ -14,7 +14,7 @@ import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/splitview/widget_split.dart';
 
 class WidgetApiMock extends StatefulWidget {
   const WidgetApiMock({

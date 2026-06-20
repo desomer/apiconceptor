@@ -4,7 +4,7 @@ import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/feature/api/pan_api_param.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
-import 'package:jsonschema/widget/widget_split.dart';
+import 'package:jsonschema/widget/splitview/widget_split.dart';
 
 class WidgetApiCall extends StatefulWidget {
   const WidgetApiCall({

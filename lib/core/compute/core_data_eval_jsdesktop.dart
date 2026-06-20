@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_js/flutter_js.dart';
 import 'package:jsonschema/core/compute/core_data_eval.dart';
-import 'package:jsonschema/core/compute/core_data_eval_desktop.dart';
+// import 'package:jsonschema/core/compute/core_data_eval_desktop.dart';
 import 'package:jsonschema/core/compute/core_expression.dart';
 import 'package:jsonschema/core/compute/helper_eval.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
@@ -11,7 +11,7 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 class CoreDataEval with HelperCoreExpression {
   List<String> logger = [];
 
-  CoreDataEvalDart? coreDataEvalDart;
+  //CoreDataEvalDart? coreDataEvalDart;
 
   dynamic self;
   // Map<String, dynamic>? variables;

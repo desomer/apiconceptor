@@ -57,6 +57,7 @@ class AppsPageDesignerDebug extends GenericPageStateless {
   NavigationInfo? initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     query = routerState.uri.queryParameters['id'] ?? "";

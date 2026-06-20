@@ -69,6 +69,7 @@ class AppsPageDesigner extends GenericPageStateless with GlassPaneMixin {
   NavigationInfo? initNavigation(
     GoRouterState routerState,
     BuildContext context,
+    GlobalKey keyPage,
     PageInit? pageInit,
   ) {
     query = routerState.uri.queryParameters['id'] ?? "";
