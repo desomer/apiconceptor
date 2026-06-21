@@ -30,7 +30,7 @@ class _EditorPropertiesState extends State<EditorProperties> {
         getHeader(model),
         Expanded(
           child: WidgetTab(
-            listTab: [Tab(text: 'Info')],
+            listTab: [const Tab(text: 'Info')],
             listTabCont: [SingleChildScrollView(child: getInfoForm(model))],
             heightTab: 30,
           ),
@@ -47,7 +47,7 @@ class _EditorPropertiesState extends State<EditorProperties> {
         borderRadius: BorderRadius.circular(20),
         //color: Colors.grey.shade300,
       ),
-      padding: EdgeInsets.fromLTRB(10, 3, 3, 3),
+      padding: const EdgeInsets.fromLTRB(10, 3, 3, 3),
 
       child: Row(
         children: [
@@ -59,7 +59,7 @@ class _EditorPropertiesState extends State<EditorProperties> {
                   widget.onClose!();
                 }
               },
-              child: Icon(Icons.close),
+              child: const Icon(Icons.close),
             ),
           ),
           Expanded(
@@ -74,12 +74,12 @@ class _EditorPropertiesState extends State<EditorProperties> {
 
   Widget getInfoForm(ModelSchema? model) {
     if (model?.selectedAttr == null) {
-      return Container();
+      return const SizedBox.shrink();
     }
 
     var info = model!.selectedAttr!;
     return Padding(
-      padding: EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       child: Column(
         spacing: 10,
         mainAxisAlignment: MainAxisAlignment.start,

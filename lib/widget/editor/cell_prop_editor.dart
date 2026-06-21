@@ -5,6 +5,8 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';
 
+const double fontSize = 14.0;
+
 class CellEditor extends StatefulWidget {
   const CellEditor({
     super.key,
@@ -57,7 +59,7 @@ class CellEditorState extends State<CellEditor> {
     });
 
     if (widget.isNumber) {
-      keyboardType = TextInputType.numberWithOptions(
+      keyboardType = const TextInputType.numberWithOptions(
         decimal: true,
         signed: true,
       );
@@ -83,7 +85,6 @@ class CellEditorState extends State<CellEditor> {
     super.dispose();
   }
 
-  final double fontSize = 14.0;
   late final TextStyle textStyleLabel = TextStyle(
     color: Colors.grey.shade600,
     fontSize: fontSize,
@@ -129,7 +130,9 @@ class CellEditorState extends State<CellEditor> {
           contentPadding: widget.inArray
               ? const EdgeInsets.fromLTRB(5, 0, 5, 0)
               : null,
-          border: const OutlineInputBorder(),
+          border: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
           labelText: !widget.inArray ? name : null,
           labelStyle: textStyleLabel,
           hintText: widget.inArray ? name : null,
@@ -147,7 +150,7 @@ class CellEditorState extends State<CellEditor> {
       border: Border.fromBorderSide(
         BorderSide(color: isEditable ? Colors.grey.shade600 : Colors.grey),
       ),
-      borderRadius: const BorderRadius.all(Radius.circular(4.0)),
+      borderRadius: const BorderRadius.all(Radius.circular(12.0)),
     );
 
     if (!isEditable) {
@@ -252,7 +255,7 @@ class _CellDropMenuEditorState extends State<CellDropMenuEditor> {
       label: Text(widget.acces.getName()),
       initialSelection: widget.acces.get(),
       enabled: widget.acces.isEditable(),
-      dropdownMenuEntries: [
+      dropdownMenuEntries: const [
         DropdownMenuEntry(value: '', label: '-'),
         DropdownMenuEntry(value: 'email', label: 'Email'),
         DropdownMenuEntry(value: 'date-time', label: 'Date-time'),
@@ -327,7 +330,7 @@ class CellCheckEditorState extends State<CellCheckEditor> {
         visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
         minTileHeight: 30,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-        title: Text(name, style: const TextStyle(fontSize: 15)),
+        title: Text(name, style: const TextStyle(fontSize: fontSize)),
         onTap: widget.acces.isEditable() ? () => onToggle(!currentValue) : null,
         trailing: Transform.scale(
           scale: 0.7,

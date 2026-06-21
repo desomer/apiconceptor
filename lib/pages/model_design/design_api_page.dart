@@ -9,6 +9,7 @@ import 'package:jsonschema/feature/api/pan_api_action_hub.dart';
 import 'package:jsonschema/feature/api/pan_api_selector.dart';
 import 'package:jsonschema/feature/model/pan_model_trashcan.dart';
 import 'package:jsonschema/json_browser/browse_api.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -17,9 +18,10 @@ import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:yaml/yaml.dart';
 
 class DesignAPIPage extends GenericPageStateless {
-  const DesignAPIPage({super.key, required this.state});
+  DesignAPIPage({super.key, required this.state});
 
   final GoRouterState state;
+  final ShowCaseInfo showCaseInfo = ShowCaseInfo();
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +44,10 @@ class DesignAPIPage extends GenericPageStateless {
             if (tab.index == 1 && tab.indexIsChanging) {}
           });
         },
-        listTab: [Tab(text: 'API Browser'), Tab(text: 'Trashcan')],
+        listTab: [
+          Tab(text: 'API Browser'),
+          Tab(text: 'Trashcan'),
+        ],
         listTabCont: [
           Column(
             children: [
@@ -128,7 +133,10 @@ class DesignAPIPage extends GenericPageStateless {
           type: BreadNodeType.widget,
         ),
       ]
-      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
+      ..actions = getDefaultActionModel(
+        keyPage.currentContext ?? context,
+        showCaseInfo,
+      );
   }
 }
 

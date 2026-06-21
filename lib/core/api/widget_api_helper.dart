@@ -177,7 +177,7 @@ class WidgetAPIHelper with WidgetHelper {
           wpath.add(
             Text(
               element + (!isLast ? '/' : ''),
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           );
           urlStr.write(element + (!isLast ? '/' : ''));

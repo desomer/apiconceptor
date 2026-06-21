@@ -49,17 +49,21 @@ class _AttributPropertiesState extends State<AttributProperties> {
               });
             },
             listTab: [
-              Tab(text: 'Info'),
-              Tab(text: 'Validator'),
-              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Source'),
-              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Tag'),
-              if (widget.typeAttr == TypeAttr.detailmodel) Tab(text: 'Fake'),
+              const Tab(text: 'Info'),
+              const Tab(text: 'Validator'),
+              if (widget.typeAttr == TypeAttr.detailmodel)
+                const Tab(text: 'Source'),
+              if (widget.typeAttr == TypeAttr.detailmodel)
+                const Tab(text: 'Tag'),
+              if (widget.typeAttr == TypeAttr.detailmodel)
+                const Tab(text: 'Fake'),
             ],
             listTabCont: [
               SingleChildScrollView(child: getInfoForm(model)),
               SingleChildScrollView(child: getTypeValidator(model)),
               if (widget.typeAttr == TypeAttr.detailmodel) getSourceForm(model),
-              if (widget.typeAttr == TypeAttr.detailmodel) Container(),
+              if (widget.typeAttr == TypeAttr.detailmodel)
+                const SizedBox.shrink(),
               if (widget.typeAttr == TypeAttr.detailmodel)
                 SingleChildScrollView(child: getTypeFake(model)),
             ],
@@ -78,7 +82,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
         color: Colors.blue.withValues(alpha: 0.6),
         //color: Colors.grey.shade300,
       ),
-      padding: EdgeInsets.fromLTRB(10, 3, 3, 3),
+      padding: const EdgeInsets.fromLTRB(10, 3, 3, 3),
 
       child: Row(
         children: [
@@ -90,7 +94,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
                   widget.onClose!();
                 }
               },
-              child: Icon(Icons.close),
+              child: const Icon(Icons.close),
             ),
           ),
           Expanded(
@@ -109,13 +113,16 @@ class _AttributPropertiesState extends State<AttributProperties> {
 
   Widget getTypeFake(ModelSchema? model) {
     if (model?.selectedAttr == null) {
-      return Container();
+      return const SizedBox.shrink();
     }
     if (model!.selectedAttr!.info.isInitByRef) {
-      return TextButton(onPressed: () {}, child: Text("Go to definition"));
+      return TextButton(
+        onPressed: () {},
+        child: const Text('Go to definition'),
+      );
     }
 
-    var ret = <Widget>[SizedBox(height: 10)];
+    var ret = <Widget>[const SizedBox(height: 10)];
     String type = model.selectedAttr!.info.type.toLowerCase();
     if (type.endsWith('[]')) {
       type = 'array';
@@ -155,7 +162,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
 
   Widget getTypeValidator(ModelSchema? model) {
     if (model?.selectedAttr == null) {
-      return Container();
+      return const SizedBox.shrink();
     }
 
     String type = model!.selectedAttr!.info.type.toLowerCase();
@@ -177,7 +184,7 @@ class _AttributPropertiesState extends State<AttributProperties> {
     } else if (type == 'object') {
       ret = getValidatorObjectForm(model);
     }
-    if (ret == null) return Container();
+    if (ret == null) return const SizedBox.shrink();
     if (listProp != null) {
       return Column(children: [...listProp, ret]);
     }
@@ -187,14 +194,14 @@ class _AttributPropertiesState extends State<AttributProperties> {
   Widget getValidatorArrayForm(ModelSchema model) {
     var info = model.selectedAttr!;
     return Padding(
-      padding: EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       child: Column(
         spacing: 10,
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (info.info.isInitByRef)
-            TextButton(onPressed: () {}, child: Text("Go to definition")),
+            TextButton(onPressed: () {}, child: const Text('Go to definition')),
           CellCheckEditor(
             key: ValueKey(
               'required#${info.hashCode}@${info.info.numUpdateForKey}',
@@ -709,7 +716,11 @@ class _AttributPropertiesState extends State<AttributProperties> {
 
           NoOverflowErrorFlex(
             direction: Axis.horizontal,
-            children: [Text('target'), SizedBox(width: 10), getTargetWidget(typeModelAccessor)],
+            children: [
+              Text('target'),
+              SizedBox(width: 10),
+              getTargetWidget(typeModelAccessor),
+            ],
           ),
 
           TagSelector(

@@ -55,7 +55,7 @@ class PanGlossary extends PanYamlTree {
       return;
     }
 
-    row.add(SizedBox(width: 10));
+    row.add(const SizedBox(width: 10));
     row.add(
       CellEditor(
         inArray: true,

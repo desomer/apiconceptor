@@ -24,6 +24,11 @@ class _EditorPropertiesState extends State<EditorProperties> {
   @override
   Widget build(BuildContext context) {
     ModelSchema? model = widget.getModel();
+
+    if (model?.selectedAttr == null) {
+      return SizedBox.shrink();
+    }
+
     var info = model!.selectedAttr!;
 
     Widget infoForm = switch (info.info.type) {

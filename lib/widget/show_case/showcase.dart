@@ -31,6 +31,7 @@ class CoachStep {
     required this.targetKey,
     required this.title,
     required this.description,
+    this.tooltipPosition,
     this.showIf = true,
     this.onNext,
     this.onSkip,
@@ -42,6 +43,7 @@ class CoachStep {
   final GlobalKey targetKey;
   final String title;
   final List<String> description;
+  final ShowcaseTooltipPosition? tooltipPosition;
   final bool showIf;
   final VoidCallback? onNext;
   final VoidCallback? onSkip;
@@ -209,8 +211,10 @@ class _ShowcaseOverlayState extends State<_ShowcaseOverlay> {
     final spaceRight = rect == null
         ? 0.0
         : size.width - rect.right - safe.right - spacing;
+    final tooltipPosition =
+        _step.tooltipPosition ?? widget.config.tooltipPosition;
 
-    final placeAbove = switch (widget.config.tooltipPosition) {
+    final placeAbove = switch (tooltipPosition) {
       ShowcaseTooltipPosition.above => true,
       ShowcaseTooltipPosition.below => false,
       ShowcaseTooltipPosition.left => false,
@@ -218,10 +222,8 @@ class _ShowcaseOverlayState extends State<_ShowcaseOverlay> {
       ShowcaseTooltipPosition.auto => spaceAbove >= spaceBelow,
     };
 
-    final requestedLeft =
-        widget.config.tooltipPosition == ShowcaseTooltipPosition.left;
-    final requestedRight =
-        widget.config.tooltipPosition == ShowcaseTooltipPosition.right;
+    final requestedLeft = tooltipPosition == ShowcaseTooltipPosition.left;
+    final requestedRight = tooltipPosition == ShowcaseTooltipPosition.right;
 
     final placeLeft = requestedLeft
         ? (spaceLeft >= 140 || spaceLeft >= spaceRight)
@@ -471,9 +473,7 @@ class _CoachCard extends StatelessWidget {
             children: [
               if (step.showSkipButton)
                 TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: buttonColor,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: buttonColor),
                   onPressed: onSkip,
                   child: Text(step.skipButtonText ?? 'Skip'),
                 ),

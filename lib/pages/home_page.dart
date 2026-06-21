@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/feature/home/background_screen.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/show_case/showcase.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_menu_btn.dart';
 
 class HomePage extends GenericPageStateless {
-  const HomePage({super.key});
+  HomePage({super.key});
+  final ShowCaseInfo showCaseInfo = ShowCaseInfo();
 
   @override
   Widget build(BuildContext context) {
@@ -110,17 +114,25 @@ class HomePage extends GenericPageStateless {
         alignment: WrapAlignment.start,
         children: [
           WidgetMenuBtn(
+            key: showCaseInfo.keys['glossary'] = GlobalKey(),
             label: 'Company Glossary',
             icon: Icons.language,
             route: Pages.glossary,
           ),
           WidgetMenuBtn(
+            key: showCaseInfo.keys['model'] = GlobalKey(),
             label: 'Design Model',
             icon: Icons.data_object,
             route: Pages.models,
           ),
-          WidgetMenuBtn(label: 'Design API', icon: Icons.api, route: Pages.api),
           WidgetMenuBtn(
+            key: showCaseInfo.keys['api'] = GlobalKey(),
+            label: 'Design API',
+            icon: Icons.api,
+            route: Pages.api,
+          ),
+          WidgetMenuBtn(
+            key: showCaseInfo.keys['message'] = GlobalKey(),
             label: 'Design Message',
             icon: Icons.message_outlined,
             route: Pages.asyncApi,
@@ -284,6 +296,62 @@ class HomePage extends GenericPageStateless {
     GlobalKey keyPage,
     PageInit? pageInit,
   ) {
+    void showCoach(BuildContext aContext) async {
+      var keys = showCaseInfo.keys;
+      await ShowcaseCoach.show(
+        config: ShowcaseCoachConfig(
+          primaryColor: Colors.blue,
+          tooltipPosition: ShowcaseTooltipPosition.right,
+        ),
+        aContext,
+        steps: [
+          CoachStep(
+            targetKey: keys['glossary']!,
+            title: 'glossary',
+            description: [
+              "Glossaire des termes utilisés dans l'entreprise",
+              "Permet de définir les mots autorisés pour les modèles, les API et les messages",
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['model']!,
+            title: 'New modeling',
+            description: [
+              "Ajout d'un nouveau modèle",
+              "différents modèles possibles",
+            ],
+          ),
+          CoachStep(
+            targetKey: keys["api"]!,
+            title: 'Modeling new API',
+            description: [
+              "Ajout d'une nouvelle API",
+              "basées sur les modèles définis précédemment",
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['message']!,
+            title: 'Modeling new message',
+            description: [
+              'ajout d\'un nouveau message',
+              "basées sur les modèles définis précédemment",
+            ],
+          ),
+        ],
+      );
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      CWInheritedPage page = keyPage.currentContext!
+          .getInheritedWidgetOfExactType<CWInheritedPage>()!;
+
+      page.showCase = showCoach;
+
+      if (mustShowCoach) {
+        mustShowCoach = false;
+      }
+    });
+
     return NavigationInfo()
       ..navLeft = [
         BreadNode(
@@ -297,6 +365,19 @@ class HomePage extends GenericPageStateless {
           settings: const RouteSettings(name: 'Profil'),
           path: Pages.profile.urlpath,
           type: BreadNodeType.widget,
+        ),
+      ]
+      ..actions = [
+        IconButton(
+          icon: const Icon(Icons.help_outline),
+          tooltip: 'Start guide',
+          onPressed: () {
+            CWInheritedPage page = keyPage.currentContext!
+                .getInheritedWidgetOfExactType<CWInheritedPage>()!;
+
+            //showCoach((page.key as GlobalKey).currentContext!);
+            page.doShowCase();
+          },
         ),
       ];
   }

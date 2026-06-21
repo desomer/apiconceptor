@@ -48,14 +48,14 @@ class _WidgetMenuBtnState extends State<WidgetMenuBtn> {
       child: Container(
         width: 230,
         height: 60 * scale,
-        margin: EdgeInsets.all(5),
+        margin: const EdgeInsets.all(5),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: AnimatedContainer(
-              duration: Duration(milliseconds: 150),
-              padding: EdgeInsets.all(5),
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: showHoverStyle
                     ? Colors.orange.withValues(alpha: 0.2)
@@ -83,7 +83,7 @@ class _WidgetMenuBtnState extends State<WidgetMenuBtn> {
                     size: 32,
                     color: widget.route != null ? Colors.white : Colors.grey,
                   ),
-                  SizedBox(width: 16),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Text(
                       widget.label,
@@ -97,7 +97,7 @@ class _WidgetMenuBtnState extends State<WidgetMenuBtn> {
                       ),
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios, color: Colors.white),
+                  const Icon(Icons.arrow_forward_ios, color: Colors.white),
                 ],
               ),
             ),

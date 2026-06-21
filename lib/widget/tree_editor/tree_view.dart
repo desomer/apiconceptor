@@ -211,7 +211,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
     start: 10,
     end: 0,
     height: 30.0,
-    color: Color.fromARGB(255, 73, 77, 79),
+    color: const Color.fromARGB(255, 73, 77, 79),
   );
 
   int timeBuild = 0;
@@ -1006,7 +1006,9 @@ class TreeViewState<T> extends State<TreeView<T>> {
       child: SizedBox(
         width: 40,
         child: node.children?.isNotEmpty == true
-            ? Icon(expanded ? Icons.arrow_drop_down : Icons.arrow_right_sharp)
+            ? (expanded
+                  ? const Icon(Icons.arrow_drop_down)
+                  : const Icon(Icons.arrow_right_sharp))
             : const Text(''),
       ),
     );
@@ -1105,7 +1107,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
     if (idx != null) {
       _scrollController.animateTo(
         rowHeight * idx,
-        duration: Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
     }

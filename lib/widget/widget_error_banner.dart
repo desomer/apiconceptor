@@ -24,37 +24,37 @@ class _WidgetErrorBannerState extends State<WidgetErrorBanner> {
             child: Card(
               color: Colors.green,
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 15),
-                child: Text('COMPLIANT MODEL'),
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+                child: const Text('COMPLIANT MODEL'),
               ),
             ),
           );
         }
         return isError
             ? SizedBox(
-              width: double.infinity,
-              child: Card(
-                color: Colors.red,
-                child: getDoubleScroll(
-                  IntrinsicWidth(
-                    child: IntrinsicHeight(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 15),
-                        child: SelectableText(value),
+                width: double.infinity,
+                child: Card(
+                  color: Colors.red,
+                  child: getDoubleScroll(
+                    IntrinsicWidth(
+                      child: IntrinsicHeight(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 15),
+                          child: SelectableText(value),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            )
-            : Container();
+              )
+            : const SizedBox.shrink();
       },
     );
   }
 
   Widget getDoubleScroll(Widget child) {
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: 200, minHeight: 100),
+      constraints: const BoxConstraints(maxHeight: 200, minHeight: 100),
       child: WidgetScroller(child: child),
     );
   }

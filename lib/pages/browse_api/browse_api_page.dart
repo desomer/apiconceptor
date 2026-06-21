@@ -19,6 +19,7 @@ import 'package:jsonschema/feature/api/pan_api_selector_tag.dart';
 import 'package:jsonschema/feature/documentation/pan_scrum.dart';
 import 'package:jsonschema/feature/content_viewer/pan_response_viewer.dart';
 import 'package:jsonschema/feature/content_viewer/pan_model_mapper.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -34,13 +35,14 @@ import 'package:jsonschema/widget/splitview/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 class BrowseAPIPage extends GenericPageStateful {
-  const BrowseAPIPage({
+  BrowseAPIPage({
     required this.namespace,
     required this.byTag,
     super.key,
   });
   final String namespace;
   final bool byTag;
+  final ShowCaseInfo showCaseInfo = ShowCaseInfo();
 
   @override
   State<StatefulWidget> createState() {
@@ -94,7 +96,10 @@ class BrowseAPIPage extends GenericPageStateful {
           path: byTag ? Pages.apiBrowserTag.urlpath : Pages.apiBrowser.urlpath,
         ),
       ]
-      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
+      ..actions = getDefaultActionModel(
+        keyPage.currentContext ?? context,
+        showCaseInfo,
+      );
   }
 }
 
@@ -605,7 +610,6 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
   }
 }
 
-
 class InfoManagerApiExample extends InfoManager with WidgetHelper {
   @override
   Function? getValidateKey() {
@@ -690,12 +694,12 @@ class InfoManagerApiExample extends InfoManager with WidgetHelper {
       child: getChip(
         iExample
             ? Row(
-              spacing: 5,
-              children: [
-                Text(attr.info.type),
-                Icon(Icons.arrow_forward_ios, size: 10),
-              ],
-            )
+                spacing: 5,
+                children: [
+                  Text(attr.info.type),
+                  Icon(Icons.arrow_forward_ios, size: 10),
+                ],
+              )
             : Text(attr.info.type),
         color: hasError ? Colors.redAccent : (iExample ? Colors.blue : null),
       ),

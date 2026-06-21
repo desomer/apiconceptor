@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_import_dialog.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_model.dart';
-import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
@@ -20,7 +19,7 @@ class PanModelSelector extends PanYamlTree {
     required super.getSchemaFct,
     required this.type,
     this.onSelectModel,
-    super.showCaseInfo,
+    required super.showCaseInfo,
   });
 
   final TypeModelSelector type;
@@ -73,7 +72,10 @@ class PanModelSelector extends PanYamlTree {
         Padding(
           padding: EdgeInsetsGeometry.fromLTRB(5, 0, 0, 0),
           child: getChip(
-            Text(attr.info.properties?['#version'] ?? ''),
+            Text(
+              attr.info.properties?['#version'] ?? '',
+              style: const TextStyle(fontSize: 14),
+            ),
             color: null,
           ),
         ),
@@ -146,7 +148,7 @@ class PanModelSelector extends PanYamlTree {
   Widget? getAttributProperties(BuildContext context) {
     return EditorProperties(
       typeAttr: TypeAttr.model,
-      key: showCaseInfo?.keys['PropCard'] =  keyAttrEditor,
+      key: showCaseInfo.keys['PropCard'] = keyAttrEditor,
       getModel: () {
         return getSchema();
       },

@@ -2,22 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
 import 'package:jsonschema/feature/home/background_screen.dart';
 import 'package:jsonschema/feature/model/pan_model_editor.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/show_case/showcase.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
+
+bool mustShowCoach = true;
 
 // ignore: must_be_immutable
 class DesignModelDetailPage extends GenericPageStateless {
   DesignModelDetailPage({super.key});
   String query = '';
+  final ShowCaseInfo showCaseInfo = ShowCaseInfo();
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         const BackgroundScreen(num: 1),
-        PanModelEditorMain(idModel: query),
+        PanModelEditorMain(idModel: query, showCaseInfo: showCaseInfo),
       ],
     );
   }
@@ -39,7 +45,97 @@ class DesignModelDetailPage extends GenericPageStateless {
       version = currentCompany.currentModel!.getVersionText();
     }
 
+    void showCoach(BuildContext aContext) async {
+      var keys = showCaseInfo.keys;
+      await ShowcaseCoach.show(
+        config: ShowcaseCoachConfig(
+          primaryColor: Colors.blue,
+          tooltipPosition: ShowcaseTooltipPosition.right,
+        ),
+        aContext,
+        steps: [
+          CoachStep(
+            targetKey: keys['domain']!,
+            title: 'Domain selection',
+            description: ["Sélection du domaine de modélisation"],
+          ),
+          // CoachStep(
+          //   targetKey: keys['button']!,
+          //   title: 'Create new modeling',
+          //   description: [
+          //     "Ajout d'un nouveau modèle",
+          //     "différents modèles possibles",
+          //   ],
+          // ),
+          CoachStep(
+            targetKey: keys['yamlCard']!,
+            title: 'Yaml simple structure',
+            description: [
+              'YAML utilisé pour définir la structure du modèle',
+              'Juste le nom et le type de chaque attribut',
+            ],
+            onNext: () {
+              showCaseInfo.action['openProperties']!();
+            },
+          ),
+          CoachStep(
+            targetKey: keys['structureCard']!,
+            title: 'Card with model attributes',
+            description: [
+              'Détail de chaque attribut du modèle',
+              'Possibilité de modifier le type, le libellé, la description, etc.',
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['PropCard']!,
+            title: 'Card with attribut properties',
+            description: [
+              'Détail de chaque propriété du modèle',
+              'Respecte le standard JSON schema',
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['search']!,
+            title: 'Search attributes',
+            tooltipPosition: ShowcaseTooltipPosition.below,
+            description: [
+              'Permet de rechercher un attribut par son nom',
+              'Filtre par target',
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['zoom']!,
+            title: 'Zoom control',
+            description: [
+              'Permet de contrôler le facteur de zoom',
+              'Affecte l\'affichage des modèles',
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['replay']!,
+            title: 'Replay guide',
+            description: [
+              'Permet de relancer le guide',
+              'Affiche à nouveau les étapes du guide',
+            ],
+          ),
+        ],
+      );
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      CWInheritedPage page = keyPage.currentContext!
+          .getInheritedWidgetOfExactType<CWInheritedPage>()!;
+
+      page.showCase = showCoach;
+
+      if (mustShowCoach) {
+        mustShowCoach = false;
+      }
+    });
+
     return NavigationInfo()
+      ..showCaseInfo = showCaseInfo
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.data_object),
@@ -95,6 +191,9 @@ class DesignModelDetailPage extends GenericPageStateless {
           type: BreadNodeType.widget,
         ),
       ]
-      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
+      ..actions = getDefaultActionModel(
+        keyPage.currentContext ?? context,
+        showCaseInfo,
+      );
   }
 }

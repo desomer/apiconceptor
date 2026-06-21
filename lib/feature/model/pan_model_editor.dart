@@ -8,6 +8,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_detail.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
@@ -35,9 +36,9 @@ mixin PanModelEditorHelper {
     double? width,
   }) {
     var w = Chip(
-      labelPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 5),
+      labelPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 5),
       color: WidgetStatePropertyAll(color),
-      padding: EdgeInsets.all(0),
+      padding: const EdgeInsets.all(0),
       label: content, // SelectionArea(child: content),
     );
     if (height != null || width != null) {
@@ -54,7 +55,7 @@ mixin PanModelEditorHelper {
           tooltip.add(
             Text(
               '${element.key} = ${element.value}',
-              style: TextStyle(fontSize: 15),
+              style: const TextStyle(fontSize: 15),
             ),
           );
         }
@@ -62,7 +63,7 @@ mixin PanModelEditorHelper {
     }
 
     if (tooltip.isEmpty) {
-      tooltip.add(Text('No information'));
+      tooltip.add(const Text('No information'));
     }
     return tooltip;
   }
@@ -124,9 +125,9 @@ mixin PanModelEditorHelper {
                 content: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(width: 14),
-                    Text('Recherche en cours...'),
+                    const CircularProgressIndicator(),
+                    const SizedBox(width: 14),
+                    const Text('Recherche en cours...'),
                   ],
                 ),
               ),
@@ -161,7 +162,7 @@ mixin PanModelEditorHelper {
                               children: getTooltipFromProposal(r.item),
                             ),
                             child: Container(
-                              margin: EdgeInsets.only(bottom: 6),
+                              margin: const EdgeInsets.only(bottom: 6),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
@@ -193,7 +194,7 @@ mixin PanModelEditorHelper {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text('Close'),
+                  child: const Text('Close'),
                 ),
               ],
             );
@@ -207,7 +208,7 @@ mixin PanModelEditorHelper {
           child: GestureDetector(
             onTap: onTapProposal,
             child: Container(
-              margin: EdgeInsets.all(5),
+              margin: const EdgeInsets.all(5),
               width: 50,
               height: 30,
               decoration: BoxDecoration(
@@ -217,7 +218,7 @@ mixin PanModelEditorHelper {
               child: Center(
                 child: Text(
                   'Proposal',
-                  style: TextStyle(color: Colors.white, fontSize: 10),
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
                 ),
               ),
             ),
@@ -256,10 +257,16 @@ mixin PanModelEditorHelper {
                 ThreadCommentCell(
                   contextId:
                       '${attr.info.getMasterID()}@${schema.id}', // unique par attribut
-                  childIfComment: Icon(Icons.comment, color: Colors.white),
+                  childIfComment: const Icon(
+                    Icons.comment,
+                    color: Colors.white,
+                  ),
                   childOver: isHovered
-                      ? Icon(Icons.add_comment_outlined, color: Colors.grey)
-                      : SizedBox.shrink(),
+                      ? const Icon(
+                          Icons.add_comment_outlined,
+                          color: Colors.grey,
+                        )
+                      : const SizedBox.shrink(),
                 ),
             // if (isHovered)
             //   Icon(Icons.add_comment_outlined, color: Colors.grey),
@@ -288,21 +295,21 @@ mixin PanModelEditorHelper {
       rowIndicator.addAll(<Widget>[
         //SizedBox(width: 10),
         if (attr.info.properties?['required'] == true)
-          Icon(Icons.check_circle_outline),
+          const Icon(Icons.check_circle_outline),
         if (attr.info.properties?['#nullable'] == true)
-          getChip(Text('nullable'), color: null),
+          getChip(const Text('nullable'), color: null),
         if (attr.info.properties?['const'] != null)
-          getChip(Text('const'), color: null),
-        if (attr.info.properties?['enum'] != null) Icon(Icons.checklist),
+          getChip(const Text('const'), color: null),
+        if (attr.info.properties?['enum'] != null) const Icon(Icons.checklist),
         if (attr.info.properties?['pattern'] != null)
-          getChip(Text('regex'), color: null),
+          getChip(const Text('regex'), color: null),
         if (attr.info.properties?['format'] != null)
           getChip(Text(attr.info.properties?['format']), color: null),
-        if (minmax) Icon(Icons.tune),
+        if (minmax) const Icon(Icons.tune),
         if (attr.info.properties?['#enumLabel'] != null)
-          Icon(Icons.label_outline),
+          const Icon(Icons.label_outline),
         if (attr.info.properties?['#link'] != null)
-          getChip(Text('link'), color: Colors.blue),
+          getChip(const Text('link'), color: Colors.blue),
       ]);
     } else {
       if (attr.info.properties?['#source'] != null) {
@@ -310,7 +317,7 @@ mixin PanModelEditorHelper {
         rowIndicator.add(
           Container(
             width: 200,
-            padding: EdgeInsets.only(left: 5),
+            padding: const EdgeInsets.only(left: 5),
             child: Align(
               alignment: Alignment.centerLeft,
               child: getChip(
@@ -332,8 +339,8 @@ mixin PanModelEditorHelper {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.grey, width: 1),
             ),
-            padding: EdgeInsets.symmetric(vertical: 1, horizontal: 8),
-            child: Text(element),
+            padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 8),
+            child: Text(element, style: const TextStyle(fontSize: 14)),
           ),
         );
       }
@@ -437,18 +444,23 @@ mixin PanModelEditorHelper {
 
   Widget? getColorIndicatorFromScore(double score) {
     if (score < 0.01) {
-      return Icon(Icons.circle, color: Colors.green, size: 12);
+      return const Icon(Icons.circle, color: Colors.green, size: 12);
     } else if (score < 0.05) {
-      return Icon(Icons.circle, color: Colors.orange, size: 12);
+      return const Icon(Icons.circle, color: Colors.orange, size: 12);
     } else {
-      return Icon(Icons.circle, color: Colors.red, size: 12);
+      return const Icon(Icons.circle, color: Colors.red, size: 12);
     }
   }
 }
 
 class PanModelEditorMain extends StatefulWidget {
-  const PanModelEditorMain({super.key, required this.idModel});
+  const PanModelEditorMain({
+    super.key,
+    required this.idModel,
+    required this.showCaseInfo,
+  });
   final String idModel;
+  final ShowCaseInfo showCaseInfo;
 
   @override
   State<PanModelEditorMain> createState() => _PanModelEditorMainState();
@@ -463,6 +475,7 @@ class _PanModelEditorMainState extends State<PanModelEditorMain> {
         getSchemaFct: () async {
           return ApiRequestNavigator().getModel(widget.idModel);
         },
+        showCaseInfo: widget.showCaseInfo,
       ),
     );
   }
@@ -471,7 +484,11 @@ class _PanModelEditorMainState extends State<PanModelEditorMain> {
 // ignore: must_be_immutable
 class PanModelEditor extends PanYamlTree
     with PanModelEditorHelper, GlassPaneMixin {
-  PanModelEditor({super.key, required super.getSchemaFct});
+  PanModelEditor({
+    super.key,
+    required super.getSchemaFct,
+    required super.showCaseInfo,
+  });
 
   final GlobalKey keyVersion = GlobalKey();
   late TabController tabEditor;
@@ -484,15 +501,15 @@ class PanModelEditor extends PanYamlTree
           width: 350,
           child: WidgetTab(
             listTab: [
-              Tab(text: 'Structure'),
-              Tab(text: 'Info'),
-              Tab(text: 'Version'),
+              const Tab(text: 'Structure'),
+              const Tab(text: 'Info'),
+              const Tab(text: 'Version'),
               //Tab(text: 'Restore point'),
             ],
             listTabCont: [
               super.getLoader(),
-              Container(),
-              Container(),
+              const SizedBox.shrink(),
+              const SizedBox.shrink(),
               //Container(),
             ],
             heightTab: 30,
@@ -546,16 +563,16 @@ class PanModelEditor extends PanYamlTree
       row.add(
         getChip(Text(currentCompany.currentModelSel!.info.type), color: color),
       );
-      row.add(SizedBox(width: 5));
+      row.add(const SizedBox(width: 5));
 
       ModelSchemaQuality modelCompletude = schema.getModelQualityInfo();
       schema.qualityInfo = modelCompletude;
       row.add(buildStarsFromPercent(modelCompletude.completude));
-      row.add(SizedBox(width: 10));
+      row.add(const SizedBox(width: 10));
       row.add(
         Text('Completude ${modelCompletude.completude.toStringAsFixed(2)}%'),
       );
-      row.add(SizedBox(width: 10));
+      row.add(const SizedBox(width: 10));
       row.add(
         Text(
           'Duplicate ${modelCompletude.wordDuplication.toString()} (${modelCompletude.wordDuplicationNumber.toStringAsFixed(2)})',
@@ -604,8 +621,8 @@ class PanModelEditor extends PanYamlTree
         });
       },
       listTab: [
-        Tab(text: 'Schema detail'),
-        Tab(text: 'Documentation'),
+        const Tab(text: 'Schema detail'),
+        const Tab(text: 'Documentation'),
         // Tab(text: 'Change log'),
         // Tab(text: 'Life cycle method'),
         // Tab(text: 'Mapping rules'),
@@ -652,11 +669,15 @@ class PanModelEditor extends PanYamlTree
     return WidgetTab(
       onInitController: (TabController tab) {},
       listTab: [
-        Tab(text: 'Create use cases'),
-        Tab(text: 'Enhancement use cases'),
-        Tab(text: 'Delete use cases'),
+        const Tab(text: 'Create use cases'),
+        const Tab(text: 'Enhancement use cases'),
+        const Tab(text: 'Delete use cases'),
       ],
-      listTabCont: [Container(), Container(), Container()],
+      listTabCont: const [
+        SizedBox.shrink(),
+        SizedBox.shrink(),
+        SizedBox.shrink(),
+      ],
       heightTab: 30,
     );
   }
@@ -667,9 +688,9 @@ class PanModelEditor extends PanYamlTree
   Widget getLeftPan(bool withSep, BuildContext context) {
     return WidgetTab(
       listTab: [
-        Tab(text: 'Structure'),
-        Tab(text: 'Info'),
-        Tab(text: 'Version'),
+        const Tab(text: 'Structure'),
+        const Tab(text: 'Info'),
+        const Tab(text: 'Version'),
         //Tab(text: 'Restore point'),
       ],
       listTabCont: [
@@ -691,8 +712,8 @@ class PanModelEditor extends PanYamlTree
             onPressed: () async {
               await addVersion(context, model);
             },
-            label: Text('add version'),
-            icon: Icon(Icons.add_box_outlined),
+            label: const Text('add version'),
+            icon: const Icon(Icons.add_box_outlined),
           ),
         Expanded(
           child: PanModelVersionList(
@@ -746,7 +767,7 @@ class PanModelEditor extends PanYamlTree
     //   modelProperties,
     //   extend,
     // );
-    await Future.delayed(Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 2));
     await changeVersion(model);
     // ignore: invalid_use_of_protected_member
     keyVersion.currentState?.setState(() {});
@@ -775,7 +796,7 @@ class PanModelEditor extends PanYamlTree
     currentCompany.currentModel!.isFile = isFile;
 
     return Padding(
-      padding: EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       child: Column(
         spacing: 10,
         mainAxisAlignment: MainAxisAlignment.start,
@@ -804,10 +825,10 @@ class PanModelEditor extends PanYamlTree
           ),
           if (isFile)
             Padding(
-              padding: EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(top: 10),
               child: Text(
                 'File properties',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           if (isFile)
@@ -875,8 +896,8 @@ class PanModelEditor extends PanYamlTree
   @override
   Widget? getAttributProperties(BuildContext context) {
     return AttributProperties(
+      key: showCaseInfo.keys['PropCard'] = keyAttrEditor,
       typeAttr: TypeAttr.detailmodel,
-      key: keyAttrEditor,
       getModel: () {
         return getSchema();
       },

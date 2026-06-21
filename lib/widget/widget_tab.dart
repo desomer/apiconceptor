@@ -171,7 +171,7 @@ class _WidgetTabState extends State<WidgetTab>
                           t.tabBarTheme.indicatorColor ??
                           t.colorScheme.primary,
                     ),
-                    insets: EdgeInsets.only(left: 0, right: 0, bottom: 0),
+                    insets: const EdgeInsets.only(left: 0, right: 0, bottom: 0),
                   ),
                   isScrollable: true,
                   tabAlignment: TabAlignment.start,

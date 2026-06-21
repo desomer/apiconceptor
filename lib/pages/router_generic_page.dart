@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/feature/home/background_screen.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
@@ -15,12 +16,18 @@ mixin GenericPage {
     PageInit? pageInit,
   );
 
-  List<Widget> getDefaultActionModel(BuildContext context) {
+  List<Widget> getDefaultActionModel(
+    BuildContext context,
+    ShowCaseInfo showCaseInfo,
+  ) {
     return [
-      WidgetSearchText(),
-      Text('   Open factor '),
-      WidgetZoomSelector(zoom: openFactor),
+      WidgetSearchText(key: showCaseInfo.keys['search'] = GlobalKey()),
+      WidgetZoomSelector(
+        key: showCaseInfo.keys['zoom'] = GlobalKey(),
+        zoom: openFactor,
+      ),
       IconButton(
+        key: showCaseInfo.keys['replay'] = GlobalKey(),
         icon: const Icon(Icons.help_outline),
         tooltip: 'Start guide',
         onPressed: () {
@@ -119,4 +126,5 @@ class NavigationInfo {
   List<BreadNode> breadcrumbs = [];
   List<BreadNode> navLeft = [];
   List<Widget> actions = [];
+  ShowCaseInfo? showCaseInfo;
 }

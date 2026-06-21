@@ -29,7 +29,7 @@ class _WidgetTileState<T extends NodeAttribut> extends State<WidgetTile<T>> {
   final int columns = 3;
   final double cardWidth = 120;
   final double cardHeight = 80;
-  final double spacing = 12;  
+  final double spacing = 12;
 
   void _addChoice() {
     setState(() {
@@ -44,7 +44,6 @@ class _WidgetTileState<T extends NodeAttribut> extends State<WidgetTile<T>> {
       widget.onSave(_choices);
     });
   }
-
 
   @override
   void initState() {
@@ -75,13 +74,18 @@ class _WidgetTileState<T extends NodeAttribut> extends State<WidgetTile<T>> {
           ),
         ),
       ];
-      widget.model.infoManager.addRowWidget(choice, widget.model, cells, context);
+      widget.model.infoManager.addRowWidget(
+        choice,
+        widget.model,
+        cells,
+        context,
+      );
       cells.add(Spacer());
       cells.add(
         Padding(
-          padding: EdgeInsets.only(right: 50),
+          padding: const EdgeInsets.only(right: 50),
           child: InkWell(
-            child: Icon(Icons.highlight_off),
+            child: const Icon(Icons.highlight_off),
             onTap: () => _removeChoice(index),
           ),
         ),
@@ -103,68 +107,61 @@ class _WidgetTileState<T extends NodeAttribut> extends State<WidgetTile<T>> {
     return LayoutBuilder(
       builder: (context, constraints) {
         return Stack(
-          children:
-              _choices.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
+          children: _choices.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
 
-                final row = index ~/ columns;
-                final col = index % columns;
+            final row = index ~/ columns;
+            final col = index % columns;
 
-                final left = col * (cardWidth + spacing);
-                final top = row * (cardHeight + spacing);
+            final left = col * (cardWidth + spacing);
+            final top = row * (cardHeight + spacing);
 
-                return AnimatedPositioned(
-                  key: ValueKey(item.info.masterID),
-                  duration: Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  left: left.toDouble(),
-                  top: top.toDouble(),
-                  child: DragTarget<T>(
-                    onWillAcceptWithDetails: (data) => data.data != item,
-                    onAcceptWithDetails: (data) {
-                     // setState(() {
-                        final fromIndex = _choices.indexWhere(
-                          (i) => i.info.masterID == data.data.info.masterID,
-                        );
-                        final toIndex = _choices.indexWhere(
-                          (i) => i.info.masterID == item.info.masterID,
-                        );
-                        final dragged = _choices.removeAt(fromIndex);
-                        _choices.insert(toIndex, dragged);
-                         widget.onSave(_choices);
-                      //});
-                    },
-                    builder: (context, candidateData, rejectedData) {
-                      return Draggable<T>(
-                        data: item,
-                        onDragStarted:
-                            () => setState(() => draggingItem = item),
-                        onDraggableCanceled:
-                            (_, _) => setState(() => draggingItem = null),
-                        onDragCompleted:
-                            () => setState(() => draggingItem = null),
-                        feedback: Material(
-                          color: Colors.transparent,
-                          child: Transform.scale(
-                            scale: 1.1,
-                            child: _buildCard(item, isDragging: true),
-                          ),
-                        ),
-                        child: _buildCard(
-                          item,
-                          isDragging: draggingItem == item,
-                        ),
-                      );
-                    },
-                  ),
-                );
-              }).toList(),
+            return AnimatedPositioned(
+              key: ValueKey(item.info.masterID),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              left: left.toDouble(),
+              top: top.toDouble(),
+              child: DragTarget<T>(
+                onWillAcceptWithDetails: (data) => data.data != item,
+                onAcceptWithDetails: (data) {
+                  // setState(() {
+                  final fromIndex = _choices.indexWhere(
+                    (i) => i.info.masterID == data.data.info.masterID,
+                  );
+                  final toIndex = _choices.indexWhere(
+                    (i) => i.info.masterID == item.info.masterID,
+                  );
+                  final dragged = _choices.removeAt(fromIndex);
+                  _choices.insert(toIndex, dragged);
+                  widget.onSave(_choices);
+                  //});
+                },
+                builder: (context, candidateData, rejectedData) {
+                  return Draggable<T>(
+                    data: item,
+                    onDragStarted: () => setState(() => draggingItem = item),
+                    onDraggableCanceled: (_, _) =>
+                        setState(() => draggingItem = null),
+                    onDragCompleted: () => setState(() => draggingItem = null),
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: Transform.scale(
+                        scale: 1.1,
+                        child: _buildCard(item, isDragging: true),
+                      ),
+                    ),
+                    child: _buildCard(item, isDragging: draggingItem == item),
+                  );
+                },
+              ),
+            );
+          }).toList(),
         );
       },
     );
   }
-
 
   Widget _buildCard(T item, {bool isDragging = false}) {
     return Opacity(

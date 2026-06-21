@@ -8,6 +8,8 @@ import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/widget/show_case/showcase.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
+bool mustShowCoach = true;
+
 class DesignListModelPage extends GenericPageStateless {
   DesignListModelPage({super.key, this.state});
   final GoRouterState? state;
@@ -82,8 +84,13 @@ class DesignListModelPage extends GenericPageStateless {
         aContext,
         steps: [
           CoachStep(
+            targetKey: keys['domain']!,
+            title: 'Domain selection',
+            description: ["Sélection du domaine de modélisation"],
+          ),
+          CoachStep(
             targetKey: keys['button']!,
-            title: 'Welcome!',
+            title: 'Create new modeling',
             description: [
               "Ajout d'un nouveau modèle",
               "différents modèles possibles",
@@ -108,12 +115,37 @@ class DesignListModelPage extends GenericPageStateless {
               'Possibilité de modifier le type, le libellé, la description, etc.',
             ],
           ),
-           CoachStep(
+          CoachStep(
             targetKey: keys['PropCard']!,
             title: 'Card with attribut properties',
             description: [
               'Détail de chaque propriété du modèle',
               'Respecte le standard JSON schema',
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['search']!,
+            title: 'Search attributes',
+            tooltipPosition: ShowcaseTooltipPosition.below,
+            description: [
+              'Permet de rechercher un attribut par son nom',
+              'Filtre par target',
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['zoom']!,
+            title: 'Zoom control',
+            description: [
+              'Permet de contrôler le facteur de zoom',
+              'Affecte l\'affichage des modèles',
+            ],
+          ),
+          CoachStep(
+            targetKey: keys['replay']!,
+            title: 'Replay guide',
+            description: [
+              'Permet de relancer le guide',
+              'Affiche à nouveau les étapes du guide',
             ],
           ),
         ],
@@ -132,6 +164,7 @@ class DesignListModelPage extends GenericPageStateless {
     });
 
     return NavigationInfo()
+      ..showCaseInfo = showCaseInfo
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.data_object),
@@ -164,12 +197,16 @@ class DesignListModelPage extends GenericPageStateless {
           type: BreadNodeType.widget,
         ),
       ]
-      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
+      ..actions = getDefaultActionModel(
+        keyPage.currentContext ?? context,
+        showCaseInfo,
+      );
   }
 }
 
 class ShowCaseInfo {
   final Map<String, GlobalKey> keys = {};
   final Map<String, Function> action = {};
+
   ShowCaseInfo();
 }

@@ -49,7 +49,6 @@ class _WidgetDocState extends State<WidgetDoc> {
 
   @override
   Widget build(BuildContext context) {
-
     var doc = widget.accessorAttr?.get();
     if (doc != null) {
       _controller.text = doc.toString();
@@ -59,14 +58,19 @@ class _WidgetDocState extends State<WidgetDoc> {
       secondaryWidth: -1,
       primaryWidth: -1,
       children: [
-        Row(children: [Expanded(child: _buildEditor()), VerticalDivider()]),
+        Row(
+          children: [
+            Expanded(child: _buildEditor()),
+            const VerticalDivider(),
+          ],
+        ),
         Column(
           children: [
             Container(
               color: Theme.of(context).colorScheme.secondaryContainer,
-              child: Center(child: Text('Preview')),
+              child: const Center(child: Text('Preview')),
             ),
-            Divider(),
+            const Divider(),
             Expanded(
               child: ValueListenableBuilder(
                 valueListenable: _controller,
@@ -90,9 +94,9 @@ class _WidgetDocState extends State<WidgetDoc> {
       // Change the toolbar alignment
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        SizedBox(height: 5.0),
+        const SizedBox(height: 5.0),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: MarkdownToolbar(
             // If you set useIncludedTextField to true, remove
             // a) the controller and focusNode fields below and

@@ -199,7 +199,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
 
   @override
   Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
-    Widget icon = Container();
+    Widget icon = const SizedBox.shrink();
     var isRoot = node.isRoot;
     var type = node.data.info.type;
     var isPath = type == 'Path';
@@ -210,17 +210,17 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
     String name = key.toLowerCase();
 
     if (isRoot) {
-      icon = Icon(Icons.business);
+      icon = const Icon(Icons.business);
     } else if (isService) {
-      icon = Icon(Icons.dns_outlined);
+      icon = const Icon(Icons.dns_outlined);
     } else if (isPath) {
       if (node.data.info.properties!['\$server'] != null) {
-        icon = Icon(Icons.dns_outlined);
+        icon = const Icon(Icons.dns_outlined);
       } else {
-        icon = Icon(Icons.lan_outlined);
+        icon = const Icon(Icons.lan_outlined);
       }
     } else if (name == ('\$server')) {
-      icon = Icon(Icons.http_outlined);
+      icon = const Icon(Icons.http_outlined);
       name = 'Server';
     }
 
@@ -248,7 +248,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
               child: Row(
                 children: [
                   header,
-                  Spacer(),
+                  const Spacer(),
                   getWidgetType(node.data, isAPI, isRoot),
                 ],
               ),
@@ -291,7 +291,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
   }
 
   Widget getWidgetType(NodeAttribut attr, bool isAPI, bool isRoot) {
-    if (isRoot) return Container();
+    if (isRoot) return const SizedBox.shrink();
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
     hasError = hasError || attr.info.error?[EnumErrorType.errorType] != null;
@@ -302,12 +302,12 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
       child: getChip(
         isAPI
             ? Row(
-              spacing: 5,
-              children: [
-                Text(attr.info.type),
-                Icon(Icons.arrow_forward_ios, size: 10),
-              ],
-            )
+                spacing: 5,
+                children: [
+                  Text(attr.info.type),
+                  const Icon(Icons.arrow_forward_ios, size: 10),
+                ],
+              )
             : Text(attr.info.type),
         color: hasError ? Colors.redAccent : (isAPI ? Colors.blue : null),
       ),
@@ -346,7 +346,7 @@ class InfoManagerTrash extends InfoManager with WidgetHelper {
   }
 
   Widget getWidgetType(NodeAttribut attr, bool isRoot) {
-    if (isRoot) return Container();
+    if (isRoot) return const SizedBox.shrink();
 
     return getChip(Text(attr.info.type), color: null);
   }
@@ -357,7 +357,7 @@ class InfoManagerTrash extends InfoManager with WidgetHelper {
       direction: Axis.horizontal,
       children: [
         SelectableText(node.data.info.name),
-        Spacer(),
+        const Spacer(),
         getWidgetType(node.data, node.isRoot),
         getChip(Text(node.data.info.tooltipError ?? '?'), color: Colors.blue),
       ],

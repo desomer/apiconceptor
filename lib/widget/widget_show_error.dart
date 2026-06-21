@@ -8,7 +8,7 @@ void showError(String message) {
   SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
     ScaffoldMessenger.of(keyError.currentContext!).showSnackBar(
       SnackBar(
-        duration: Duration(seconds: 5),
+        duration: const Duration(seconds: 5),
         backgroundColor: Colors.red,
 
         content: Text(message, style: TextStyle(color: Colors.white)),
@@ -26,7 +26,7 @@ class WidgetShowError extends StatelessWidget {
       SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            duration: Duration(minutes: 1),
+            duration: const Duration(minutes: 1),
             backgroundColor: Colors.red,
 
             content: Text(

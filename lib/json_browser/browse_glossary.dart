@@ -319,11 +319,11 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
     bool isCategory = node.data.info.type == 'Category';
 
     if (isRoot) {
-      icon = Icon(Icons.business);
+      icon = const Icon(Icons.business);
     } else if (isCategory) {
-      icon = Icon(Icons.folder);
+      icon = const Icon(Icons.folder);
     } else {
-      icon = Icon(Icons.label_outline);
+      icon = const Icon(Icons.label_outline);
     }
 
     var attr = node.data;
@@ -339,14 +339,14 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
           spacing: 5,
           children: [
             Text(attr.info.type),
-            Icon(Icons.arrow_drop_down, size: 15),
+            const Icon(Icons.arrow_drop_down, size: 15),
           ],
         ),
         color: hasError ? Colors.red : null,
       );
       w = getEditorType(attr, context, w);
     } else {
-      w = SizedBox.shrink();
+      w = const SizedBox.shrink();
     }
 
     return NoOverflowErrorFlex(
@@ -367,7 +367,7 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
                       ? const TextStyle(fontWeight: FontWeight.bold)
                       : null,
                 ),
-                Spacer(),
+                const Spacer(),
                 w,
               ],
             ),

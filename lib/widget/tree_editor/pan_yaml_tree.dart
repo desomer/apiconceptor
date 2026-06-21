@@ -26,12 +26,12 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     super.key,
     required this.getSchemaFct,
     this.showable,
-    this.showCaseInfo,
-  });
-  ShowCaseInfo? showCaseInfo;
+    ShowCaseInfo? showCaseInfo,
+  }) : showCaseInfo = showCaseInfo ?? ShowCaseInfo();
 
   final Function getSchemaFct;
   final Function? showable;
+  final ShowCaseInfo showCaseInfo;
 
   Widget? _cacheContent;
   late ModelSchema _schema;
@@ -63,7 +63,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   }
 
   Widget getLoader() {
-    return Center(child: CircularProgressIndicator());
+    return const Center(child: CircularProgressIndicator());
   }
 
   dynamic initSchema() {
@@ -72,17 +72,15 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   @override
   Widget build(BuildContext context) {
-
-    showCaseInfo?.action['openProperties'] = () {
+    showCaseInfo.action['openProperties'] = () {
       doShowAttrEditor(jsonBrowserWidget.getFirstAttr());
-    }; 
-
+    };
 
     onInit(context);
     currentYamlTree = this;
 
     if (showable != null && showable!() == false) {
-      return Container();
+      return const SizedBox.shrink();
     }
 
     dynamic futureModel = initSchema();
@@ -207,7 +205,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
       return Row(
         children: [
           Expanded(child: getYamlEditor()),
-          VerticalSep(),
+          const VerticalSep(),
         ],
       );
     } else {
@@ -266,7 +264,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   Widget getTree(BuildContext context) {
     return TreeView<NodeAttribut>(
-      key: showCaseInfo?.keys['structureCard'] = keyTreeEditor,
+      key: showCaseInfo.keys['structureCard'] = keyTreeEditor,
       isSelected: (node, cur, old) {
         if (node.data.info.masterID == _schema.selectedAttr?.info.masterID) {
           return node.data.info.getJsonPath() ==
@@ -363,7 +361,6 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   // }
 
   Widget getYamlEditor() {
-
     var doc = getDoc();
     final GlobalKey<TextEditorState> yamlEditor = GlobalKey(
       debugLabel: 'yamlEditor',
@@ -372,7 +369,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return readOnlyCapable(
       isReadOnly(),
       Container(
-        key: showCaseInfo?.keys['yamlCard'] = GlobalKey(debugLabel: 'yamlCard'),
+        key: showCaseInfo.keys['yamlCard'] = GlobalKey(debugLabel: 'yamlCard'),
         color: Colors.black,
         child: TextEditor(
           onHistory: (BuildContext ctx) {
@@ -394,7 +391,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
-                      child: Text('Close'),
+                      child: const Text('Close'),
                     ),
                   ],
                 );
@@ -749,7 +746,7 @@ class TreeViewBrowserWidget extends JsonBrowser {
     }
     return newNode;
   }
-  
+
   NodeAttribut? getFirstAttr() {
     if (rootTree == null) return null;
     if (rootTree!.children?.isEmpty ?? true) return rootTree!.data;

@@ -2,6 +2,7 @@ import 'package:assorted_layout_widgets/assorted_layout_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -12,8 +13,13 @@ class BreadCrumbNavigator extends StatefulWidget {
   static NavigationInfo? currentNavigationInfo;
   static GlobalKey keyBreadcrumb = GlobalKey(debugLabel: 'keyBreadcrumb');
 
-  const BreadCrumbNavigator({super.key, required this.getList});
+  const BreadCrumbNavigator({
+    super.key,
+    required this.getList,
+    required this.getShowCaseInfo,
+  });
   final Function getList;
+  final ShowCaseInfo Function() getShowCaseInfo;
 
   @override
   State<StatefulWidget> createState() {
@@ -72,7 +78,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
                     // // ignore: use_build_context_synchronously
                     // context.pushReplacement(
                     //   '${route.path}?id=${sel.masterID!}',
-                    // );                    
+                    // );
                   });
                   //setState(() {});
                 },
@@ -83,7 +89,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
             );
           },
           child: SizedBox(
-            key: keyDomain,
+            key: widget.getShowCaseInfo().keys['domain'] = keyDomain,
             height: 18,
             child: Row(
               spacing: 5,
@@ -102,6 +108,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
 
       Widget btn = _BreadButton(
         route.type,
+        //key: route.key,
         currentPathOnStack[index].settings.name ?? '',
         index == 0,
         route.type == BreadNodeType.domain ||
@@ -145,13 +152,16 @@ class BreadNode extends Route {
     this.icon,
     this.path,
     this.onTap,
+    this.key,
   });
+
   int idx = 0;
   Icon? icon;
   BreadNodeType type;
   String? tooltip;
   String? path;
   Function? onTap;
+  GlobalKey<State<StatefulWidget>>? key;
 }
 
 class _BreadButton extends StatelessWidget {
@@ -176,12 +186,12 @@ class _BreadButton extends StatelessWidget {
     return ClipPath(
       clipper: TriangleClipper(!isFirstButton),
       child: Container(
-        color:
-            type == BreadNodeType.domain
-                ? Colors.blue
-                : enable
-                ? Colors.blue.withAlpha(50)
-                : Theme.of(context).highlightColor,
+        key: key,
+        color: type == BreadNodeType.domain
+            ? Colors.blue
+            : enable
+            ? Colors.blue.withAlpha(50)
+            : Theme.of(context).highlightColor,
         child: Padding(
           padding: EdgeInsetsDirectional.only(
             start: isFirstButton ? 8 : 30,

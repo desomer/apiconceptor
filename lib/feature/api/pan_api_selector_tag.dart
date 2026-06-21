@@ -58,6 +58,15 @@ class _PanApiSelectorTagState extends State<PanApiSelectorTag>
     );
     export.browse(_schema, false);
 
+    if (export.tags.isEmpty) {
+      return Center(
+        child: Text(
+          'No API found in this domain',
+          style: TextStyle(fontSize: 20, color: Colors.grey),
+        ),
+      );
+    }
+
     return ListView.builder(
       itemCount: export.tags.length,
       itemBuilder: (context, index) {

@@ -252,7 +252,7 @@ Widget getPage(BuildContext context, GoRouterState state) {
 
     return cacheRoute[path]!.cache!;
   }
-  return const HomePage();
+  return HomePage();
 }
 
 CustomTransitionPage getPageNoAnim(BuildContext context, GoRouterState state) =>
@@ -423,7 +423,7 @@ final GoRouter router = GoRouter(
       routes: [
         addRoute(
           GoRoute(path: '/', pageBuilder: getPageAnim),
-          (context, state) => const HomePage(),
+          (context, state) => HomePage(),
         ),
         addRoute(
           GoRoute(path: '/about', pageBuilder: getPageAnim),

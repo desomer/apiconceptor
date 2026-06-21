@@ -72,7 +72,7 @@ class _TagSelectorState extends State<TagSelector> with WidgetHelper {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.grey, width: 1),
         ),
-        padding: EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
         child: Row(
           spacing: 4,
           mainAxisSize: MainAxisSize.min,
@@ -80,11 +80,11 @@ class _TagSelectorState extends State<TagSelector> with WidgetHelper {
             Text(tag),
             IconButton(
               padding: EdgeInsets.zero,
-              constraints: BoxConstraints(),
+              constraints: const BoxConstraints(),
               onPressed: () {
                 _removeTag(tag);
               },
-              icon: Icon(Icons.close, size: 18),
+              icon: const Icon(Icons.close, size: 18),
             ),
           ],
         ),
@@ -99,7 +99,7 @@ class _TagSelectorState extends State<TagSelector> with WidgetHelper {
       tagChips.add(
         IconButton(
           padding: EdgeInsets.zero,
-          constraints: BoxConstraints(),
+          constraints: const BoxConstraints(),
 
           onPressed: () {
             //Size size = MediaQuery.of(context).size;
@@ -126,7 +126,7 @@ class _TagSelectorState extends State<TagSelector> with WidgetHelper {
             );
           },
 
-          icon: Icon(Icons.add, size: 20),
+          icon: const Icon(Icons.add, size: 20),
         ),
       );
     }
@@ -135,7 +135,7 @@ class _TagSelectorState extends State<TagSelector> with WidgetHelper {
   }
 
   Widget getTagSelector() {
-    Future.delayed(Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       aFocusNode.requestFocus();
     });
 

@@ -329,7 +329,7 @@ class MyApp extends StatelessWidget {
       explicitChildNodes: true,
       excludeSemantics: true,
       child: MaterialApp.router(
-        title: 'API Architect',
+        title: 'API Architec',
         localizationsDelegates: [
           //FleatherLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,

@@ -15,8 +15,6 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:yaml/yaml.dart';
 
-bool mustShowCoach = true;
-
 class WidgetModelMain extends StatefulWidget with WidgetHelper {
   const WidgetModelMain({super.key, required this.showCaseInfo});
   final ShowCaseInfo showCaseInfo;

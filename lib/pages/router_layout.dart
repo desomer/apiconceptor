@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/designer/editor/engine/undo_manager.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -327,7 +328,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
                 ),
                 Spacer(),
                 Text(
-                  'API Architect by Desomer G. V1.0.4.19',
+                  'API Architec by Desomer G. V1.0.5.0',
                   style: TextStyle(fontSize: 12),
                 ),
                 SizedBox(width: 20),
@@ -459,6 +460,9 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
               key: BreadCrumbNavigator.keyBreadcrumb,
               getList: () {
                 return navigationInfo.breadcrumbs;
+              },
+              getShowCaseInfo: () {
+                return navigationInfo.showCaseInfo ?? ShowCaseInfo();
               },
             ),
           ],

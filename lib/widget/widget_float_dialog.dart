@@ -33,10 +33,10 @@ void showFloatingNotification(
                   color: Colors.blue,
                   child: Row(
                     children: [
-                      Icon(Icons.drag_indicator, color: Colors.white),
-                      Spacer(),
+                      const Icon(Icons.drag_indicator, color: Colors.white),
+                      const Spacer(),
                       InkWell(
-                        child: Icon(Icons.close, color: Colors.white),
+                        child: const Icon(Icons.close, color: Colors.white),
                         onTap: () {
                           overlayEntry.remove();
                         },

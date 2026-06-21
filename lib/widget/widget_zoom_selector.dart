@@ -3,7 +3,6 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart' show stateOpenFactor;
 
-
 class WidgetZoomSelector extends StatefulWidget {
   const WidgetZoomSelector({super.key, required this.zoom});
   final ValueNotifier<double> zoom;
@@ -19,6 +18,10 @@ class WidgetZoomSelectorState extends State<WidgetZoomSelector> {
 
     return Row(
       children: [
+        Text(
+          '   Open factor ',
+          style: const TextStyle(fontSize: 14, color: Colors.grey),
+        ),
         Text(widget.zoom.value.toInt().toString()),
         SizedBox(
           width: 100,

@@ -73,12 +73,15 @@ class _WidgetTabSliderState extends State<WidgetTabSlider> {
     return CustomSlidingSegmentedControl<int>(
       //initialValue: 2,
       children: tabs,
-      innerPadding: EdgeInsets.all(2),
+      innerPadding: const EdgeInsets.all(2),
       controller: controllerSlider,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: Theme.of(context).colorScheme.secondaryContainer, width: 2),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.secondaryContainer,
+          width: 2,
+        ),
       ),
       thumbDecoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primaryContainer,
@@ -92,7 +95,7 @@ class _WidgetTabSliderState extends State<WidgetTabSlider> {
           ),
         ],
       ),
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeInToLinear,
       onValueChanged: (v) {},
     );

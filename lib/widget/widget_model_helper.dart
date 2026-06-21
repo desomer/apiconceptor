@@ -158,7 +158,7 @@ mixin class WidgetHelper {
               pos: offset ?? Offset(0, 0),
               targetKey: targetKey,
               child: AlertDialog(
-                contentPadding: EdgeInsets.all(5),
+                contentPadding: const EdgeInsets.all(5),
                 content: child,
                 actions: [
                   TextButton(
@@ -181,7 +181,7 @@ mixin class WidgetHelper {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          contentPadding: EdgeInsets.all(5),
+          contentPadding: const EdgeInsets.all(5),
           content: child,
           actions: [
             TextButton(
@@ -201,7 +201,7 @@ mixin class WidgetHelper {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          contentPadding: EdgeInsets.all(0),
+          contentPadding: const EdgeInsets.all(0),
           content: SizedBox(
             height: 450,
             width: 500,
@@ -272,9 +272,9 @@ mixin class WidgetHelper {
 
   Widget getChip(Widget content, {required Color? color, double? height}) {
     var w = Chip(
-      labelPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 5),
+      labelPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 5),
       color: WidgetStatePropertyAll(color),
-      padding: EdgeInsets.all(0),
+      padding: const EdgeInsets.all(0),
       label: content, // SelectionArea(child: content),
     );
     if (height != null) {
@@ -331,7 +331,7 @@ mixin class WidgetHelper {
           tooltip.insert(
             0,
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 1),
               decoration: BoxDecoration(
                 border: BoxBorder.all(color: Colors.grey, width: 1),
               ),

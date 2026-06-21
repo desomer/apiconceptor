@@ -71,18 +71,18 @@ class _WidgetChoiseEnvState extends State<WidgetChoiseEnv> with WidgetHelper {
             color: Colors.blue,
             key: keyEnv,
             height: 30,
-            padding: EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: NoOverflowErrorFlex(
               direction: Axis.horizontal,
               children: [
-                Icon(Icons.dns_rounded),
-                SizedBox(width: 10),
+                const Icon(Icons.dns_rounded),
+                const SizedBox(width: 10),
                 Text(
                   currentCompany.listEnv?.selectedAttr?.info.name ?? 'No env',
                   style: _textStyle,
                 ),
-                SizedBox(width: 10),
-                Icon(Icons.arrow_drop_down, size: 20),
+                const SizedBox(width: 10),
+                const Icon(Icons.arrow_drop_down, size: 20),
               ],
             ),
           ),

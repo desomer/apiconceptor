@@ -109,13 +109,13 @@ class _WidgetListState<T extends NodeAttribut> extends State<WidgetList<T>>
         context,
       );
       if (widget.withSpacer) cells.add(Spacer());
-      if (!widget.withSpacer) cells.add(SizedBox(width: 20));
+      if (!widget.withSpacer) cells.add(const SizedBox(width: 20));
       if (widget.model.isReadOnlyModel == false) {
         cells.add(
           Padding(
-            padding: EdgeInsets.only(right: 50),
+            padding: const EdgeInsets.only(right: 50),
             child: InkWell(
-              child: Icon(Icons.highlight_off),
+              child: const Icon(Icons.highlight_off),
               onTap: () async {
                 bool result = await askUser(
                   context,

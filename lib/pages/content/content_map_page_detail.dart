@@ -11,6 +11,7 @@ import 'package:jsonschema/feature/model/pan_model_selector.dart';
 import 'package:jsonschema/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/content/widget_derived_field.dart';
 import 'package:jsonschema/pages/content/widget_mapping_field.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -281,6 +282,7 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
 
     PanModelSelector panModelSelector = PanModelSelector(
       type: TypeModelSelector.dataMap,
+      showCaseInfo: ShowCaseInfo(),
       onSelectModel: (ModelSchema schema, NodeAttribut attr) async {
         aCtx?.pop();
         var aModel = await currentCompany.getModelByMasterId(

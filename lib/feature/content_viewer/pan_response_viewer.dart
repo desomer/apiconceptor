@@ -231,7 +231,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
         .getSubSchema(subNode: 200);
 
     if (modelLoaded == null) {
-      return Text('No response model for 200');
+      return const Text('No response model for 200');
     }
 
     WidgetTyped ret = await getRootWidgetTyped(
@@ -265,22 +265,22 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
 
     List<Widget> saveWidget = [];
     if (widget.callerDatasource != null && widget.callerDatasource!.canSave()) {
-      saveWidget.add(Spacer());
+      saveWidget.add(const Spacer());
       saveWidget.add(
         ElevatedButton.icon(
-          icon: Icon(Icons.add),
+          icon: const Icon(Icons.add),
           onPressed: () {
             json2ui.stateMgr.data = jsonDecode(
               jsonEncode(json2ui.stateMgr.dataEmpty),
             );
             json2ui.loadData(json2ui.stateMgr.data);
           },
-          label: Text('Create'),
+          label: const Text('Create'),
         ),
       );
       saveWidget.add(
         ElevatedButton.icon(
-          icon: Icon(Icons.save),
+          icon: const Icon(Icons.save),
           onPressed: () {
             //startSearch(context);
             if (widget.callerDatasource != null &&
@@ -323,7 +323,7 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
             }
             json2ui.stateMgr.clearDisplayedData();
           },
-          label: Text('Save'),
+          label: const Text('Save'),
         ),
       );
     }
@@ -341,30 +341,30 @@ class _PanResponseViewerState extends State<PanResponseViewer> with UIMixin {
           Row(
             children: [
               ElevatedButton.icon(
-                icon: Icon(Icons.search),
+                icon: const Icon(Icons.search),
                 onPressed: () {
                   startSearch(context);
                 },
-                label: Text('Search'),
+                label: const Text('Search'),
               ),
 
               if (paginationVariable != null)
                 ElevatedButton.icon(
-                  icon: Icon(Icons.navigate_before),
+                  icon: const Icon(Icons.navigate_before),
                   onPressed: () {
                     doPrevPage(paginationVariable, paginationMin);
                     startSearch(context);
                   },
-                  label: Text('Previous'),
+                  label: const Text('Previous'),
                 ),
               if (paginationVariable != null)
                 ElevatedButton.icon(
-                  icon: Icon(Icons.navigate_next),
+                  icon: const Icon(Icons.navigate_next),
                   onPressed: () {
                     doNextPage(paginationVariable);
                     startSearch(context);
                   },
-                  label: Text('Next'),
+                  label: const Text('Next'),
                 ),
               ...saveWidget,
             ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
+import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
@@ -41,6 +42,7 @@ class CallAPIPageDetail extends GenericPageStateless {
   CallAPIPageDetail({super.key, required this.typeTab});
   String query = '';
   final TypeAPITab typeTab;
+  final ShowCaseInfo showCaseInfo = ShowCaseInfo();
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +78,10 @@ class CallAPIPageDetail extends GenericPageStateless {
         ),
         ...goTo.getBreadcrumbApi(query),
       ]
-      ..actions = getDefaultActionModel(keyPage.currentContext ?? context);
+      ..actions = getDefaultActionModel(
+        keyPage.currentContext ?? context,
+        showCaseInfo,
+      );
   }
 }
 
