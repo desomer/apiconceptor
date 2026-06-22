@@ -55,6 +55,7 @@ class LinkManager {
     String toBlockId,
     String name,
     double labelPosition,
+    Offset labelOffset,
     ConnectorType connectorType,
     Offset? sourceAnchorUnit,
     Offset? targetAnchorUnit,
@@ -65,6 +66,7 @@ class LinkManager {
       toBlockId: toBlockId,
       name: name,
       labelPosition: labelPosition,
+      labelOffset: labelOffset,
       connectorType: connectorType,
       inflectionPoints: inflectionPoints,
       sourceAnchorUnit: sourceAnchorUnit,
@@ -95,6 +97,7 @@ class LinkManager {
       'to': link.toBlockId,
       'name': link.name,
       'labelPosition': link.labelPosition,
+      'labelOffset': {'dx': link.labelOffset.dx, 'dy': link.labelOffset.dy},
       'type': link.connectorType == ConnectorType.bezier
           ? 'bezier'
           : 'orthogonal',
@@ -157,6 +160,9 @@ class LinkManager {
           labelPosition: (item['labelPosition'] is num)
               ? (item['labelPosition'] as num).toDouble().clamp(0.0, 1.0)
               : 0.5,
+          labelOffset: item['labelOffset'] == null
+              ? Offset.zero
+              : _offsetFromJson(item['labelOffset']),
           connectorType: item['type'] == 'orthogonal'
               ? ConnectorType.orthogonal
               : ConnectorType.bezier,

@@ -41,6 +41,8 @@ class MiroCanvasPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    _drawDottedGrid(canvas, size);
+
     // Dessiner les liens
     final linkPaint = Paint()
       ..color = colorLinkDefault
@@ -126,6 +128,7 @@ class MiroCanvasPainter extends CustomPainter {
         viaCanvas,
         startTangent: startTangent,
         endTangent: endTangent,
+        isSelected: selectedLink == link,
       );
     }
 
@@ -174,6 +177,27 @@ class MiroCanvasPainter extends CustomPainter {
             ..color = colorInflectionPoint
             ..style = PaintingStyle.fill,
         );
+      }
+    }
+  }
+
+  void _drawDottedGrid(Canvas canvas, Size size) {
+    const gridSpacingModel = 24.0;
+    final gridSpacingCanvas = gridSpacingModel * zoomLevel;
+    if (gridSpacingCanvas < 8.0) {
+      return;
+    }
+
+    final dotPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.12)
+      ..style = PaintingStyle.fill;
+
+    final startX = canvasOffset.dx % gridSpacingCanvas;
+    final startY = canvasOffset.dy % gridSpacingCanvas;
+
+    for (double x = startX; x < size.width; x += gridSpacingCanvas) {
+      for (double y = startY; y < size.height; y += gridSpacingCanvas) {
+        canvas.drawCircle(Offset(x, y), 1.2, dotPaint);
       }
     }
   }
@@ -579,6 +603,7 @@ class MiroCanvasPainter extends CustomPainter {
     List<Offset> viaPoints, {
     Offset? startTangent,
     Offset? endTangent,
+    bool isSelected = false,
   }) {
     final label = link.name.trim();
     if (label.isEmpty) {
@@ -614,16 +639,17 @@ class MiroCanvasPainter extends CustomPainter {
     }
 
     final normal = Offset(-math.sin(midpoint.angle), math.cos(midpoint.angle));
-    final labelCenter = midpoint.position + normal * 18;
+    final labelCenter =
+        midpoint.position + normal * 18 + link.labelOffset * zoomLevel;
 
     final painter = TextPainter(
       text: TextSpan(
         text: label,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: isSelected ? colorLinkSelected : Colors.white,
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          shadows: [
+          shadows: const [
             Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
           ],
         ),
@@ -639,7 +665,9 @@ class MiroCanvasPainter extends CustomPainter {
     );
 
     final background = Paint()
-      ..color = const Color.fromARGB(190, 18, 18, 24)
+      ..color = isSelected
+          ? colorLinkSelected.withValues(alpha: 0.16)
+          : const Color.fromARGB(190, 18, 18, 24)
       ..style = PaintingStyle.fill;
 
     canvas.drawRRect(

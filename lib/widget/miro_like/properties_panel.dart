@@ -16,6 +16,7 @@ class PropertiesPanel extends StatefulWidget {
   final Function(String, String)? onBlockTitleChanged;
   final Function(BlockLink, String)? onLinkNameChanged;
   final Function(BlockLink, double)? onLinkLabelPositionChanged;
+  final Function(BlockLink, Offset)? onLinkLabelOffsetChanged;
   final Function(BlockLink)? onReverseLink;
   final Function(BlockLink)? onDeleteLink;
   final Function(BlockLink, ConnectorType)? onConnectorTypeChanged;
@@ -27,6 +28,7 @@ class PropertiesPanel extends StatefulWidget {
     this.onBlockTitleChanged,
     this.onLinkNameChanged,
     this.onLinkLabelPositionChanged,
+    this.onLinkLabelOffsetChanged,
     this.onReverseLink,
     this.onDeleteLink,
     this.onConnectorTypeChanged,
@@ -215,6 +217,28 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             onChanged: (value) {
               widget.onLinkLabelPositionChanged?.call(link, value);
             },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Décalage label: ${link.labelOffset.dx.toStringAsFixed(1)}, ${link.labelOffset.dy.toStringAsFixed(1)}',
+                  style: const TextStyle(color: colorTextSecondary),
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  widget.onLinkLabelOffsetChanged?.call(link, Offset.zero);
+                },
+                icon: const Icon(Icons.restart_alt),
+                iconSize: 18,
+                tooltip: 'Remettre à zéro',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<ConnectorType>(

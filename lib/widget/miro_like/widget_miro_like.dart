@@ -302,6 +302,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'toBlockId': link.toBlockId,
       'name': link.name,
       'labelPosition': link.labelPosition,
+      'labelOffset': _offsetToJson(link.labelOffset),
       'connectorType': link.connectorType.name,
       'inflectionPoints': link.inflectionPoints.map(_offsetToJson).toList(),
       'sourceAnchorUnit': link.sourceAnchorUnit == null
@@ -402,6 +403,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           labelPosition: item['labelPosition'] is num
               ? (item['labelPosition'] as num).toDouble().clamp(0.0, 1.0)
               : 0.5,
+          labelOffset: item['labelOffset'] == null
+              ? Offset.zero
+              : _offsetFromJson(item['labelOffset']),
           connectorType: _connectorTypeFromName(item['connectorType']),
           inflectionPoints: inflectionPoints,
           sourceAnchorUnit: item['sourceAnchorUnit'] == null
@@ -484,6 +488,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             toBlockId: targetBlock.id,
             name: 'Lien ${links.length + 1}',
             labelPosition: 0.5,
+            labelOffset: Offset.zero,
             connectorType: ConnectorType.bezier,
             inflectionPoints: List<Offset>.from(pendingInflectionPoints),
             sourceAnchorUnit: sourceAnchorUnit,
@@ -1084,6 +1089,91 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return widgets;
   }
 
+  Offset? _linkLabelReferenceCanvas(BlockLink link) {
+    final points = _linkControlPointsCanvas(link);
+    if (points == null || points.length < 2) {
+      return null;
+    }
+
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var i = 1; i < points.length; i++) {
+      path.lineTo(points[i].dx, points[i].dy);
+    }
+
+    final iterator = path.computeMetrics().iterator;
+    if (!iterator.moveNext()) {
+      return null;
+    }
+
+    final metric = iterator.current;
+    if (metric.length <= 0) {
+      return null;
+    }
+
+    final offsetOnPath = (metric.length * link.labelPosition).clamp(
+      0.0,
+      metric.length,
+    );
+    final tangent = metric.getTangentForOffset(offsetOnPath);
+    if (tangent == null) {
+      return null;
+    }
+
+    final normal = Offset(-math.sin(tangent.angle), math.cos(tangent.angle));
+    return tangent.position + normal * 18 + link.labelOffset * zoomLevel;
+  }
+
+  List<Widget> _buildLinkLabelHandles() {
+    final widgets = <Widget>[];
+
+    for (final link in links) {
+      if (link.name.trim().isEmpty) {
+        continue;
+      }
+
+      final labelCenter = _linkLabelReferenceCanvas(link);
+      if (labelCenter == null) {
+        continue;
+      }
+
+      final width = math.max(90.0, link.name.length * 8.0 + 28.0);
+      const height = 32.0;
+
+      widgets.add(
+        Positioned(
+          left: labelCenter.dx - width / 2,
+          top: labelCenter.dy - height / 2,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.move,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTapDown: (_) {
+                setState(() {
+                  selectedLink = link;
+                  selectedBlock = null;
+                });
+              },
+              onPanUpdate: (details) {
+                setState(() {
+                  selectedLink = link;
+                  selectedBlock = null;
+                  link.labelOffset += details.delta / zoomLevel;
+                });
+              },
+              child: SizedBox(
+                width: width,
+                height: height,
+                child: const ColoredBox(color: Colors.transparent),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
   List<Widget> _buildAnchorHandles() {
     final widgets = <Widget>[];
 
@@ -1376,20 +1466,47 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                               );
                               if (hitLink != null) {
                                 selectedBlock = null;
-                                // Essayer d'ajouter un point d'inflexion au clic
-                                final pointAdded = _insertInflectionPointOnLink(
-                                  canvasPosition,
-                                  modelPosition,
-                                );
-                                // Si pas d'ajout, juste sélectionner le lien
-                                if (!pointAdded) {
-                                  selectedLink = hitLink;
-                                }
+                                selectedLink = hitLink;
                                 return;
                               }
 
                               selectedBlock = null;
                               selectedLink = null;
+                            });
+                          },
+                          onSecondaryTapDown: (details) {
+                            setState(() {
+                              final canvasPosition = _toCanvasLocal(
+                                details.globalPosition,
+                              );
+                              final modelPosition = _toModelPosition(
+                                details.globalPosition,
+                              );
+
+                              if (linkSourceBlock != null) {
+                                return;
+                              }
+
+                              final hitLink = _findLinkAtCanvasPosition(
+                                canvasPosition,
+                              );
+                              if (hitLink == null) {
+                                return;
+                              }
+
+                              selectedBlock = null;
+                              if (selectedLink != hitLink) {
+                                selectedLink = hitLink;
+                                return;
+                              }
+
+                              final pointAdded = _insertInflectionPointOnLink(
+                                canvasPosition,
+                                modelPosition,
+                              );
+                              if (!pointAdded) {
+                                selectedLink = hitLink;
+                              }
                             });
                           },
                         ),
@@ -1451,9 +1568,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                               ),
                             ),
                           );
-                        }).toList(),
+                        }),
                         ..._buildAnchorHandles(),
                         ..._buildInflectionHandles(),
+                        ..._buildLinkLabelHandles(),
                       ],
                     ),
                   ),
@@ -1480,6 +1598,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             onLinkLabelPositionChanged: (link, value) {
               setState(() {
                 link.labelPosition = value;
+              });
+            },
+            onLinkLabelOffsetChanged: (link, offset) {
+              setState(() {
+                link.labelOffset = offset;
               });
             },
             onReverseLink: _reverseLink,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
-import 'package:jsonschema/feature/graph/pan_spring_graph.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';

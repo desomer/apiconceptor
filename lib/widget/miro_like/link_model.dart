@@ -9,6 +9,7 @@ class BlockLink {
   String toBlockId;
   String name;
   double labelPosition;
+  Offset labelOffset;
   ConnectorType connectorType;
   List<Offset> inflectionPoints;
   Offset? sourceAnchorUnit;
@@ -23,6 +24,7 @@ class BlockLink {
     required this.toBlockId,
     this.name = '',
     this.labelPosition = 0.5,
+    this.labelOffset = Offset.zero,
     this.connectorType = ConnectorType.bezier,
     List<Offset>? inflectionPoints,
     this.sourceAnchorUnit,
