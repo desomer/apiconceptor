@@ -117,6 +117,16 @@ class MiroCanvasPainter extends CustomPainter {
         endTangent: endTangent,
         isSelected: selectedLink == link,
       );
+
+      _drawLinkLabel(
+        canvas,
+        link,
+        fromEdge,
+        toEdge,
+        viaCanvas,
+        startTangent: startTangent,
+        endTangent: endTangent,
+      );
     }
 
     // Dessiner le lien en cours de création
@@ -559,6 +569,81 @@ class MiroCanvasPainter extends CustomPainter {
         canvas.drawCircle(tangent.position, radius * 0.4, corePaint);
       }
     } while (iterator.moveNext());
+  }
+
+  void _drawLinkLabel(
+    Canvas canvas,
+    BlockLink link,
+    Offset from,
+    Offset to,
+    List<Offset> viaPoints, {
+    Offset? startTangent,
+    Offset? endTangent,
+  }) {
+    final label = link.name.trim();
+    if (label.isEmpty) {
+      return;
+    }
+
+    final path = _connectorPath(
+      from,
+      to,
+      connectorType: link.connectorType,
+      viaPoints: viaPoints,
+      startTangent: startTangent,
+      endTangent: endTangent,
+    );
+
+    final iterator = path.computeMetrics().iterator;
+    if (!iterator.moveNext()) {
+      return;
+    }
+
+    final metric = iterator.current;
+    if (metric.length <= 0) {
+      return;
+    }
+
+    final midpoint = metric.getTangentForOffset(metric.length / 2);
+    if (midpoint == null) {
+      return;
+    }
+
+    final painter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          shadows: [
+            Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: 220);
+
+    final padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
+    final rect = Rect.fromCenter(
+      center: midpoint.position + const Offset(0, -18),
+      width: painter.width + padding.horizontal,
+      height: painter.height + padding.vertical,
+    );
+
+    final background = Paint()
+      ..color = const Color.fromARGB(190, 18, 18, 24)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(8)),
+      background,
+    );
+
+    painter.paint(
+      canvas,
+      rect.topLeft + Offset(padding.left / 2, padding.top / 2),
+    );
   }
 
   void _lineOrArcTo(

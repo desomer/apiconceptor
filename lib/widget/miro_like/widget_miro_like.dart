@@ -300,6 +300,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return {
       'fromBlockId': link.fromBlockId,
       'toBlockId': link.toBlockId,
+      'name': link.name,
       'connectorType': link.connectorType.name,
       'inflectionPoints': link.inflectionPoints.map(_offsetToJson).toList(),
       'sourceAnchorUnit': link.sourceAnchorUnit == null
@@ -396,6 +397,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         BlockLink(
           fromBlockId: fromId,
           toBlockId: toId,
+          name: item['name']?.toString() ?? '',
           connectorType: _connectorTypeFromName(item['connectorType']),
           inflectionPoints: inflectionPoints,
           sourceAnchorUnit: item['sourceAnchorUnit'] == null
@@ -476,6 +478,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           BlockLink(
             fromBlockId: linkSourceBlock!.id,
             toBlockId: targetBlock.id,
+            name: 'Lien ${links.length + 1}',
             connectorType: ConnectorType.bezier,
             inflectionPoints: List<Offset>.from(pendingInflectionPoints),
             sourceAnchorUnit: sourceAnchorUnit,
@@ -1462,6 +1465,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 if (blockIndex != -1) {
                   blocks[blockIndex].title = newTitle;
                 }
+              });
+            },
+            onLinkNameChanged: (link, newName) {
+              setState(() {
+                link.name = newName;
               });
             },
             onReverseLink: _reverseLink,

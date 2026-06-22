@@ -53,6 +53,7 @@ class LinkManager {
   BlockLink createLink(
     String fromBlockId,
     String toBlockId,
+    String name,
     ConnectorType connectorType,
     Offset? sourceAnchorUnit,
     Offset? targetAnchorUnit,
@@ -61,6 +62,7 @@ class LinkManager {
     return BlockLink(
       fromBlockId: fromBlockId,
       toBlockId: toBlockId,
+      name: name,
       connectorType: connectorType,
       inflectionPoints: inflectionPoints,
       sourceAnchorUnit: sourceAnchorUnit,
@@ -89,6 +91,7 @@ class LinkManager {
     return {
       'from': link.fromBlockId,
       'to': link.toBlockId,
+      'name': link.name,
       'type': link.connectorType == ConnectorType.bezier
           ? 'bezier'
           : 'orthogonal',
@@ -147,6 +150,7 @@ class LinkManager {
         BlockLink(
           fromBlockId: from,
           toBlockId: to,
+          name: item['name']?.toString() ?? '',
           connectorType: item['type'] == 'orthogonal'
               ? ConnectorType.orthogonal
               : ConnectorType.bezier,

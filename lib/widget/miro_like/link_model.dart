@@ -7,6 +7,7 @@ enum ConnectorType { bezier, orthogonal }
 class BlockLink {
   String fromBlockId;
   String toBlockId;
+  String name;
   ConnectorType connectorType;
   List<Offset> inflectionPoints;
   Offset? sourceAnchorUnit;
@@ -19,6 +20,7 @@ class BlockLink {
   BlockLink({
     required this.fromBlockId,
     required this.toBlockId,
+    this.name = '',
     this.connectorType = ConnectorType.bezier,
     List<Offset>? inflectionPoints,
     this.sourceAnchorUnit,

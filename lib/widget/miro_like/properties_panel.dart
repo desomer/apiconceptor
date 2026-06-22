@@ -14,6 +14,7 @@ class PropertiesPanel extends StatefulWidget {
   final Block? selectedBlock;
   final BlockLink? selectedLink;
   final Function(String, String)? onBlockTitleChanged;
+  final Function(BlockLink, String)? onLinkNameChanged;
   final Function(BlockLink)? onReverseLink;
   final Function(BlockLink)? onDeleteLink;
   final Function(BlockLink, ConnectorType)? onConnectorTypeChanged;
@@ -23,6 +24,7 @@ class PropertiesPanel extends StatefulWidget {
     this.selectedBlock,
     this.selectedLink,
     this.onBlockTitleChanged,
+    this.onLinkNameChanged,
     this.onReverseLink,
     this.onDeleteLink,
     this.onConnectorTypeChanged,
@@ -34,13 +36,18 @@ class PropertiesPanel extends StatefulWidget {
 
 class _PropertiesPanelState extends State<PropertiesPanel> {
   late TextEditingController _blockTitleController;
+  late TextEditingController _linkNameController;
 
   @override
   void initState() {
     super.initState();
     _blockTitleController = TextEditingController();
+    _linkNameController = TextEditingController();
     if (widget.selectedBlock != null) {
       _blockTitleController.text = widget.selectedBlock!.title;
+    }
+    if (widget.selectedLink != null) {
+      _linkNameController.text = widget.selectedLink!.name;
     }
   }
 
@@ -51,11 +58,19 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         oldWidget.selectedBlock?.id != widget.selectedBlock?.id) {
       _blockTitleController.text = widget.selectedBlock!.title;
     }
+    if (widget.selectedLink != null &&
+        (oldWidget.selectedLink?.fromBlockId !=
+                widget.selectedLink?.fromBlockId ||
+            oldWidget.selectedLink?.toBlockId !=
+                widget.selectedLink?.toBlockId)) {
+      _linkNameController.text = widget.selectedLink!.name;
+    }
   }
 
   @override
   void dispose() {
     _blockTitleController.dispose();
+    _linkNameController.dispose();
     super.dispose();
   }
 
@@ -166,6 +181,23 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           Text(
             'Cible: ${link.toBlockId}',
             style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: ValueKey('link-name-${link.fromBlockId}-${link.toBlockId}'),
+            controller: _linkNameController,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Nom du lien',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            onChanged: (value) {
+              widget.onLinkNameChanged?.call(link, value);
+            },
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<ConnectorType>(
