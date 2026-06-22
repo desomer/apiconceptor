@@ -18,8 +18,13 @@ class Block {
 class BlockLink {
   String fromBlockId;
   String toBlockId;
+  List<Offset> inflectionPoints;
 
-  BlockLink({required this.fromBlockId, required this.toBlockId});
+  BlockLink({
+    required this.fromBlockId,
+    required this.toBlockId,
+    List<Offset>? inflectionPoints,
+  }) : inflectionPoints = inflectionPoints ?? [];
 }
 
 enum ConnectorType { bezier, orthogonal }
@@ -33,6 +38,8 @@ class MiroLikeWidget extends StatefulWidget {
 
 class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
+  static const double _linkHitTolerance = 14.0;
+  static const double _inflectionHandleRadius = 7.0;
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
   final List<BlockLink> links = [];
@@ -42,6 +49,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Block? linkSourceBlock;
   Offset? linkingFromPoint;
   Offset? currentMousePosition;
+  final List<Offset> pendingInflectionPoints = [];
   Offset canvasOffset = Offset.zero;
   double zoomLevel = 1.0;
 
@@ -95,6 +103,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     setState(() {
       linkSourceBlock = block;
       linkingFromPoint = _getBlockCenter(block);
+      pendingInflectionPoints.clear();
     });
   }
 
@@ -105,10 +114,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           BlockLink(
             fromBlockId: linkSourceBlock!.id,
             toBlockId: targetBlock.id,
+            inflectionPoints: List<Offset>.from(pendingInflectionPoints),
           ),
         );
         linkSourceBlock = null;
         linkingFromPoint = null;
+        pendingInflectionPoints.clear();
       });
     }
   }
@@ -132,6 +143,159 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset _toModelPosition(Offset globalPosition) {
     final localPosition = _toCanvasLocal(globalPosition);
     return (localPosition - canvasOffset) / zoomLevel;
+  }
+
+  Offset _modelToCanvas(Offset modelPoint) {
+    return Offset(
+      modelPoint.dx * zoomLevel + canvasOffset.dx,
+      modelPoint.dy * zoomLevel + canvasOffset.dy,
+    );
+  }
+
+  Rect _blockRectCanvas(Block block) {
+    return Rect.fromLTWH(
+      block.position.dx * zoomLevel + canvasOffset.dx,
+      block.position.dy * zoomLevel + canvasOffset.dy,
+      block.size.width * zoomLevel,
+      block.size.height * zoomLevel,
+    );
+  }
+
+  Offset _pointOnRectBorderTowards(Rect rect, Offset target) {
+    final center = rect.center;
+    final vector = target - center;
+    if (vector.distanceSquared == 0) {
+      return center;
+    }
+
+    final halfW = rect.width / 2;
+    final halfH = rect.height / 2;
+    final scale =
+        1 / math.max(vector.dx.abs() / halfW, vector.dy.abs() / halfH);
+    return center + vector * scale;
+  }
+
+  List<Offset>? _linkControlPointsCanvas(BlockLink link) {
+    final fromIndex = blocks.indexWhere((b) => b.id == link.fromBlockId);
+    final toIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
+    if (fromIndex == -1 || toIndex == -1) {
+      return null;
+    }
+
+    final fromBlock = blocks[fromIndex];
+    final toBlock = blocks[toIndex];
+
+    final fromRect = _blockRectCanvas(fromBlock);
+    final toRect = _blockRectCanvas(toBlock);
+    final fromCenter = fromRect.center;
+    final toCenter = toRect.center;
+    final fromEdge = _pointOnRectBorderTowards(fromRect, toCenter);
+    final toEdge = _pointOnRectBorderTowards(toRect, fromCenter);
+    final viaCanvas = link.inflectionPoints
+        .map((point) => _modelToCanvas(point))
+        .toList();
+
+    return [fromEdge, ...viaCanvas, toEdge];
+  }
+
+  double _distancePointToSegmentSquared(Offset p, Offset a, Offset b) {
+    final ab = b - a;
+    final ap = p - a;
+    final abLenSq = ab.distanceSquared;
+    if (abLenSq == 0) {
+      return (p - a).distanceSquared;
+    }
+
+    final t = (ap.dx * ab.dx + ap.dy * ab.dy) / abLenSq;
+    final clampedT = t.clamp(0.0, 1.0);
+    final proj = a + ab * clampedT;
+    return (p - proj).distanceSquared;
+  }
+
+  bool _insertInflectionPointOnLink(Offset tapCanvas, Offset tapModel) {
+    final toleranceSq = _linkHitTolerance * _linkHitTolerance;
+
+    for (var linkIndex = links.length - 1; linkIndex >= 0; linkIndex--) {
+      final link = links[linkIndex];
+      final points = _linkControlPointsCanvas(link);
+      if (points == null || points.length < 2) {
+        continue;
+      }
+
+      var bestSegIndex = -1;
+      var bestDistSq = double.infinity;
+      for (var seg = 0; seg < points.length - 1; seg++) {
+        final distSq = _distancePointToSegmentSquared(
+          tapCanvas,
+          points[seg],
+          points[seg + 1],
+        );
+        if (distSq < bestDistSq) {
+          bestDistSq = distSq;
+          bestSegIndex = seg;
+        }
+      }
+
+      if (bestSegIndex != -1 && bestDistSq <= toleranceSq) {
+        final insertIndex = bestSegIndex.clamp(0, link.inflectionPoints.length);
+        link.inflectionPoints.insert(insertIndex, tapModel);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  List<Widget> _buildInflectionHandles() {
+    final widgets = <Widget>[];
+
+    for (var linkIndex = 0; linkIndex < links.length; linkIndex++) {
+      final link = links[linkIndex];
+      for (
+        var pointIndex = 0;
+        pointIndex < link.inflectionPoints.length;
+        pointIndex++
+      ) {
+        final modelPoint = link.inflectionPoints[pointIndex];
+        final canvasPoint = _modelToCanvas(modelPoint);
+
+        widgets.add(
+          Positioned(
+            left: canvasPoint.dx - _inflectionHandleRadius,
+            top: canvasPoint.dy - _inflectionHandleRadius,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onPanUpdate: (details) {
+                  setState(() {
+                    link.inflectionPoints[pointIndex] +=
+                        details.delta / zoomLevel;
+                  });
+                },
+                child: Container(
+                  width: _inflectionHandleRadius * 2,
+                  height: _inflectionHandleRadius * 2,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade700,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets;
   }
 
   @override
@@ -191,6 +355,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             linkSourceBlock: linkSourceBlock,
             connectorType: connectorType,
             flowAnimation: _flowController,
+            pendingInflectionPoints: pendingInflectionPoints,
           ),
           child: Container(
             color: Colors.grey[100],
@@ -199,10 +364,25 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 GestureDetector(
                   onTapDown: (details) {
                     setState(() {
-                      selectedBlock = null;
+                      final canvasPosition = _toCanvasLocal(
+                        details.globalPosition,
+                      );
                       final modelPosition = _toModelPosition(
                         details.globalPosition,
                       );
+
+                      if (linkSourceBlock != null) {
+                        return;
+                      }
+
+                      if (_insertInflectionPointOnLink(
+                        canvasPosition,
+                        modelPosition,
+                      )) {
+                        return;
+                      }
+
+                      selectedBlock = null;
                       for (var block in blocks) {
                         final blockRect = Rect.fromLTWH(
                           block.position.dx,
@@ -272,6 +452,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                             linkSourceBlock = null;
                             linkingFromPoint = null;
                             currentMousePosition = null;
+                            pendingInflectionPoints.clear();
                           });
                         }
                       },
@@ -282,6 +463,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     ),
                   );
                 }),
+                ..._buildInflectionHandles(),
               ],
             ),
           ),
@@ -338,6 +520,7 @@ class MiroCanvasPainter extends CustomPainter {
   final Block? linkSourceBlock;
   final ConnectorType connectorType;
   final Animation<double>? flowAnimation;
+  final List<Offset> pendingInflectionPoints;
 
   MiroCanvasPainter({
     required this.blocks,
@@ -350,6 +533,7 @@ class MiroCanvasPainter extends CustomPainter {
     this.linkSourceBlock,
     this.connectorType = ConnectorType.bezier,
     this.flowAnimation,
+    this.pendingInflectionPoints = const [],
   }) : super(repaint: flowAnimation);
 
   @override
@@ -379,7 +563,11 @@ class MiroCanvasPainter extends CustomPainter {
       final fromEdge = _pointOnRectBorderTowards(fromRect, toCenter);
       final toEdge = _pointOnRectBorderTowards(toRect, fromCenter);
 
-      _drawArrow(canvas, fromEdge, toEdge, linkPaint);
+      final viaCanvas = link.inflectionPoints
+          .map((point) => _modelToCanvas(point))
+          .toList();
+
+      _drawArrow(canvas, fromEdge, toEdge, linkPaint, viaPoints: viaCanvas);
     }
 
     // Dessiner le lien en cours de création
@@ -398,9 +586,36 @@ class MiroCanvasPainter extends CustomPainter {
         currentMousePosition!,
       );
 
+      final previewViaCanvas = pendingInflectionPoints
+          .map((point) => _modelToCanvas(point))
+          .toList();
+
       // Dessiner une petite flèche de prévisualisation
-      _drawArrow(canvas, linkingFromCanvas, currentMousePosition!, tempPaint);
+      _drawArrow(
+        canvas,
+        linkingFromCanvas,
+        currentMousePosition!,
+        tempPaint,
+        viaPoints: previewViaCanvas,
+      );
+
+      for (final point in previewViaCanvas) {
+        canvas.drawCircle(
+          point,
+          5,
+          Paint()
+            ..color = Colors.orange.shade700
+            ..style = PaintingStyle.fill,
+        );
+      }
     }
+  }
+
+  Offset _modelToCanvas(Offset modelPoint) {
+    return Offset(
+      modelPoint.dx * zoomLevel + canvasOffset.dx,
+      modelPoint.dy * zoomLevel + canvasOffset.dy,
+    );
   }
 
   Rect _blockRectCanvas(Block block) {
@@ -426,8 +641,14 @@ class MiroCanvasPainter extends CustomPainter {
     return center + vector * scale;
   }
 
-  void _drawArrow(Canvas canvas, Offset from, Offset to, Paint paint) {
-    final path = _connectorPath(from, to);
+  void _drawArrow(
+    Canvas canvas,
+    Offset from,
+    Offset to,
+    Paint paint, {
+    List<Offset> viaPoints = const [],
+  }) {
+    final path = _connectorPath(from, to, viaPoints: viaPoints);
     canvas.drawPath(path, paint);
     _drawFlowParticles(canvas, path, paint.color);
 
@@ -439,42 +660,46 @@ class MiroCanvasPainter extends CustomPainter {
     _drawArrowHead(canvas, to, endAngle, paint);
   }
 
-  Path _connectorPath(Offset from, Offset to) {
+  Path _connectorPath(
+    Offset from,
+    Offset to, {
+    List<Offset> viaPoints = const [],
+  }) {
+    final allPoints = <Offset>[from, ...viaPoints, to];
+    if (allPoints.length < 2) {
+      return Path();
+    }
+
+    final path = Path()..moveTo(allPoints.first.dx, allPoints.first.dy);
+    for (var i = 0; i < allPoints.length - 1; i++) {
+      _appendConnectorSegment(path, allPoints[i], allPoints[i + 1]);
+    }
+    return path;
+  }
+
+  void _appendConnectorSegment(Path path, Offset from, Offset to) {
     switch (connectorType) {
       case ConnectorType.bezier:
-        return _buildBezierPath(from, to);
+        final controlPoints = _bezierControlPoints(from, to);
+        final c1 = controlPoints.$1;
+        final c2 = controlPoints.$2;
+        path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, to.dx, to.dy);
+        break;
       case ConnectorType.orthogonal:
-        return _buildOrthogonalPath(from, to);
+        const radius = 18.0;
+        final delta = to - from;
+        final horizontalFirst = delta.dx.abs() >= delta.dy.abs();
+        final p1 = horizontalFirst
+            ? Offset((from.dx + to.dx) / 2, from.dy)
+            : Offset(from.dx, (from.dy + to.dy) / 2);
+        final p2 = horizontalFirst
+            ? Offset((from.dx + to.dx) / 2, to.dy)
+            : Offset(to.dx, (from.dy + to.dy) / 2);
+        _lineOrArcTo(path, from, p1, p2, radius);
+        _lineOrArcTo(path, p1, p2, to, radius);
+        path.lineTo(to.dx, to.dy);
+        break;
     }
-  }
-
-  Path _buildBezierPath(Offset from, Offset to) {
-    final controlPoints = _bezierControlPoints(from, to);
-    final c1 = controlPoints.$1;
-    final c2 = controlPoints.$2;
-
-    return Path()
-      ..moveTo(from.dx, from.dy)
-      ..cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, to.dx, to.dy);
-  }
-
-  Path _buildOrthogonalPath(Offset from, Offset to) {
-    const radius = 18.0;
-
-    final delta = to - from;
-    final horizontalFirst = delta.dx.abs() >= delta.dy.abs();
-    final p1 = horizontalFirst
-        ? Offset((from.dx + to.dx) / 2, from.dy)
-        : Offset(from.dx, (from.dy + to.dy) / 2);
-    final p2 = horizontalFirst
-        ? Offset((from.dx + to.dx) / 2, to.dy)
-        : Offset(to.dx, (from.dy + to.dy) / 2);
-
-    final path = Path()..moveTo(from.dx, from.dy);
-    _lineOrArcTo(path, from, p1, p2, radius);
-    _lineOrArcTo(path, p1, p2, to, radius);
-    path.lineTo(to.dx, to.dy);
-    return path;
   }
 
   void _drawArrowHead(Canvas canvas, Offset to, double angle, Paint paint) {
@@ -503,7 +728,10 @@ class MiroCanvasPainter extends CustomPainter {
       return null;
     }
 
-    final metric = iterator.current;
+    var metric = iterator.current;
+    while (iterator.moveNext()) {
+      metric = iterator.current;
+    }
     if (metric.length <= 0) {
       return null;
     }
