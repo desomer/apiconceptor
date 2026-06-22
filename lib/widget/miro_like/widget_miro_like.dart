@@ -31,10 +31,12 @@ class MiroLikeWidget extends StatefulWidget {
   State<MiroLikeWidget> createState() => _MiroLikeWidgetState();
 }
 
-class _MiroLikeWidgetState extends State<MiroLikeWidget> {
+class _MiroLikeWidgetState extends State<MiroLikeWidget>
+    with SingleTickerProviderStateMixin {
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
   final List<BlockLink> links = [];
+  late final AnimationController _flowController;
   ConnectorType connectorType = ConnectorType.bezier;
   Block? selectedBlock;
   Block? linkSourceBlock;
@@ -46,7 +48,17 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget> {
   @override
   void initState() {
     super.initState();
+    _flowController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
     _initializeSampleBlocks();
+  }
+
+  @override
+  void dispose() {
+    _flowController.dispose();
+    super.dispose();
   }
 
   void _initializeSampleBlocks() {
@@ -178,6 +190,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget> {
             currentMousePosition: currentMousePosition,
             linkSourceBlock: linkSourceBlock,
             connectorType: connectorType,
+            flowAnimation: _flowController,
           ),
           child: Container(
             color: Colors.grey[100],
@@ -324,6 +337,7 @@ class MiroCanvasPainter extends CustomPainter {
   final Offset? currentMousePosition;
   final Block? linkSourceBlock;
   final ConnectorType connectorType;
+  final Animation<double>? flowAnimation;
 
   MiroCanvasPainter({
     required this.blocks,
@@ -335,7 +349,8 @@ class MiroCanvasPainter extends CustomPainter {
     this.currentMousePosition,
     this.linkSourceBlock,
     this.connectorType = ConnectorType.bezier,
-  });
+    this.flowAnimation,
+  }) : super(repaint: flowAnimation);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -347,8 +362,14 @@ class MiroCanvasPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (var link in links) {
-      final fromBlock = blocks.firstWhere((b) => b.id == link.fromBlockId);
-      final toBlock = blocks.firstWhere((b) => b.id == link.toBlockId);
+      final fromIndex = blocks.indexWhere((b) => b.id == link.fromBlockId);
+      final toIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
+      if (fromIndex == -1 || toIndex == -1) {
+        continue;
+      }
+
+      final fromBlock = blocks[fromIndex];
+      final toBlock = blocks[toIndex];
 
       final fromRect = _blockRectCanvas(fromBlock);
       final toRect = _blockRectCanvas(toBlock);
@@ -406,27 +427,58 @@ class MiroCanvasPainter extends CustomPainter {
   }
 
   void _drawArrow(Canvas canvas, Offset from, Offset to, Paint paint) {
+    final path = _connectorPath(from, to);
+    canvas.drawPath(path, paint);
+    _drawFlowParticles(canvas, path, paint.color);
+
+    final endAngle = _pathEndAngle(path);
+    if (endAngle == null) {
+      return;
+    }
+
+    _drawArrowHead(canvas, to, endAngle, paint);
+  }
+
+  Path _connectorPath(Offset from, Offset to) {
     switch (connectorType) {
       case ConnectorType.bezier:
-        _drawBezierArrow(canvas, from, to, paint);
+        return _buildBezierPath(from, to);
       case ConnectorType.orthogonal:
-        _drawOrthogonalArrow(canvas, from, to, paint);
+        return _buildOrthogonalPath(from, to);
     }
   }
 
-  void _drawBezierArrow(Canvas canvas, Offset from, Offset to, Paint paint) {
-    const arrowSize = 15.0;
-
+  Path _buildBezierPath(Offset from, Offset to) {
     final controlPoints = _bezierControlPoints(from, to);
     final c1 = controlPoints.$1;
     final c2 = controlPoints.$2;
 
-    final path = Path()
+    return Path()
       ..moveTo(from.dx, from.dy)
       ..cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, to.dx, to.dy);
-    canvas.drawPath(path, paint);
+  }
 
-    final angle = (to - c2).direction;
+  Path _buildOrthogonalPath(Offset from, Offset to) {
+    const radius = 18.0;
+
+    final delta = to - from;
+    final horizontalFirst = delta.dx.abs() >= delta.dy.abs();
+    final p1 = horizontalFirst
+        ? Offset((from.dx + to.dx) / 2, from.dy)
+        : Offset(from.dx, (from.dy + to.dy) / 2);
+    final p2 = horizontalFirst
+        ? Offset((from.dx + to.dx) / 2, to.dy)
+        : Offset(to.dx, (from.dy + to.dy) / 2);
+
+    final path = Path()..moveTo(from.dx, from.dy);
+    _lineOrArcTo(path, from, p1, p2, radius);
+    _lineOrArcTo(path, p1, p2, to, radius);
+    path.lineTo(to.dx, to.dy);
+    return path;
+  }
+
+  void _drawArrowHead(Canvas canvas, Offset to, double angle, Paint paint) {
+    const arrowSize = 15.0;
     final arrowPaint = Paint()
       ..color = paint.color
       ..strokeWidth = paint.strokeWidth
@@ -445,49 +497,69 @@ class MiroCanvasPainter extends CustomPainter {
     );
   }
 
-  void _drawOrthogonalArrow(
-    Canvas canvas,
-    Offset from,
-    Offset to,
-    Paint paint,
-  ) {
-    const arrowSize = 15.0;
-    const radius = 18.0;
+  double? _pathEndAngle(Path path) {
+    final iterator = path.computeMetrics().iterator;
+    if (!iterator.moveNext()) {
+      return null;
+    }
 
-    final delta = to - from;
-    final horizontalFirst = delta.dx.abs() >= delta.dy.abs();
-    final p1 = horizontalFirst
-        ? Offset((from.dx + to.dx) / 2, from.dy)
-        : Offset(from.dx, (from.dy + to.dy) / 2);
-    final p2 = horizontalFirst
-        ? Offset((from.dx + to.dx) / 2, to.dy)
-        : Offset(to.dx, (from.dy + to.dy) / 2);
+    final metric = iterator.current;
+    if (metric.length <= 0) {
+      return null;
+    }
 
-    final path = Path()..moveTo(from.dx, from.dy);
-    _lineOrArcTo(path, from, p1, p2, radius);
-    _lineOrArcTo(path, p1, p2, to, radius);
-    path.lineTo(to.dx, to.dy);
-    canvas.drawPath(path, paint);
+    final endTangent = metric.getTangentForOffset(metric.length);
+    if (endTangent == null) {
+      return null;
+    }
 
-    final angle = (to - p2).direction;
-    final arrowPaint = Paint()
-      ..color = paint.color
-      ..strokeWidth = paint.strokeWidth
-      ..style = PaintingStyle.fill;
+    final sampleOffset = math.max(0.0, metric.length - 8.0);
+    final sampleTangent = metric.getTangentForOffset(sampleOffset);
+    if (sampleTangent == null) {
+      return endTangent.angle;
+    }
 
-    final pArrow1 =
-        to + Offset(-arrowSize * 0.866, arrowSize * 0.5).rotate(angle);
-    final pArrow2 =
-        to + Offset(-arrowSize * 0.866, -arrowSize * 0.5).rotate(angle);
+    final direction = endTangent.position - sampleTangent.position;
+    if (direction.distanceSquared == 0) {
+      return endTangent.angle;
+    }
 
-    canvas.drawPath(
-      Path()
-        ..moveTo(to.dx, to.dy)
-        ..lineTo(pArrow1.dx, pArrow1.dy)
-        ..lineTo(pArrow2.dx, pArrow2.dy)
-        ..close(),
-      arrowPaint,
-    );
+    return direction.direction;
+  }
+
+  void _drawFlowParticles(Canvas canvas, Path path, Color color) {
+    final metrics = path.computeMetrics();
+    final iterator = metrics.iterator;
+    if (!iterator.moveNext()) {
+      return;
+    }
+
+    const spacing = 34.0;
+    const speedPx = 170.0;
+    final travel = (flowAnimation?.value ?? 0.0) * speedPx;
+
+    do {
+      final metric = iterator.current;
+      final length = metric.length;
+      if (length <= 0) {
+        continue;
+      }
+
+      final phase = travel % spacing;
+      for (double d = phase; d < length + spacing; d += spacing) {
+        final offsetOnPath = d % length;
+        final tangent = metric.getTangentForOffset(offsetOnPath);
+        if (tangent == null) {
+          continue;
+        }
+        final progress = offsetOnPath / length;
+        final radius = 2.0 + (1.4 * progress);
+        final flowPaint = Paint()
+          ..color = color.withOpacity(0.45 + (0.5 * progress))
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(tangent.position, radius, flowPaint);
+      }
+    } while (iterator.moveNext());
   }
 
   void _lineOrArcTo(
