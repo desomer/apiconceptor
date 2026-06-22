@@ -1276,10 +1276,89 @@ class MiroCanvasPainter extends CustomPainter {
       );
     }
 
-    final path = Path()..moveTo(allPoints.first.dx, allPoints.first.dy);
-    for (var i = 0; i < allPoints.length - 1; i++) {
-      _appendConnectorSegment(path, allPoints[i], allPoints[i + 1]);
+    return _buildOrthogonalPath(
+      allPoints,
+      startTangent: startTangent,
+      endTangent: endTangent,
+    );
+  }
+
+  Path _buildOrthogonalPath(
+    List<Offset> points, {
+    Offset? startTangent,
+    Offset? endTangent,
+  }) {
+    final routed = <Offset>[...points];
+
+    if (routed.length >= 2 && startTangent != null) {
+      final start = routed.first;
+      final next = routed[1];
+      final dir = _unitOrFallback(startTangent, const Offset(1, 0));
+      final lead = (next - start).distance;
+      final leadLen = lead <= 0 ? 24.0 : (lead * 0.45).clamp(12.0, 52.0);
+      routed.insert(1, start + dir * leadLen);
     }
+
+    if (routed.length >= 2 && endTangent != null) {
+      final end = routed.last;
+      final prev = routed[routed.length - 2];
+      final dir = _unitOrFallback(endTangent, const Offset(-1, 0));
+      final lead = (end - prev).distance;
+      final leadLen = lead <= 0 ? 24.0 : (lead * 0.45).clamp(12.0, 52.0);
+      routed.insert(routed.length - 1, end - dir * leadLen);
+    }
+
+    const eps = 0.001;
+    final manhattan = <Offset>[routed.first];
+
+    for (var i = 1; i < routed.length; i++) {
+      final from = manhattan.last;
+      final to = routed[i];
+      final dx = to.dx - from.dx;
+      final dy = to.dy - from.dy;
+
+      if (dx.abs() <= eps || dy.abs() <= eps) {
+        if ((to - from).distanceSquared > eps * eps) {
+          manhattan.add(to);
+        }
+        continue;
+      }
+
+      final horizontalFirst = dx.abs() >= dy.abs();
+      final elbow = horizontalFirst
+          ? Offset(to.dx, from.dy)
+          : Offset(from.dx, to.dy);
+
+      if ((elbow - from).distanceSquared > eps * eps) {
+        manhattan.add(elbow);
+      }
+      if ((to - manhattan.last).distanceSquared > eps * eps) {
+        manhattan.add(to);
+      }
+    }
+
+    if (manhattan.length <= 1) {
+      return Path()..moveTo(routed.first.dx, routed.first.dy);
+    }
+
+    final path = Path()..moveTo(manhattan.first.dx, manhattan.first.dy);
+    if (manhattan.length == 2) {
+      path.lineTo(manhattan.last.dx, manhattan.last.dy);
+      return path;
+    }
+
+    const radius = 18.0;
+    for (var i = 1; i < manhattan.length - 1; i++) {
+      _lineOrArcTo(
+        path,
+        manhattan[i - 1],
+        manhattan[i],
+        manhattan[i + 1],
+        radius,
+      );
+    }
+
+    path.lineTo(manhattan.last.dx, manhattan.last.dy);
     return path;
   }
 
@@ -1328,31 +1407,6 @@ class MiroCanvasPainter extends CustomPainter {
     }
 
     return path;
-  }
-
-  void _appendConnectorSegment(Path path, Offset from, Offset to) {
-    switch (connectorType) {
-      case ConnectorType.bezier:
-        final controlPoints = _bezierControlPoints(from, to);
-        final c1 = controlPoints.$1;
-        final c2 = controlPoints.$2;
-        path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, to.dx, to.dy);
-        break;
-      case ConnectorType.orthogonal:
-        const radius = 18.0;
-        final delta = to - from;
-        final horizontalFirst = delta.dx.abs() >= delta.dy.abs();
-        final p1 = horizontalFirst
-            ? Offset((from.dx + to.dx) / 2, from.dy)
-            : Offset(from.dx, (from.dy + to.dy) / 2);
-        final p2 = horizontalFirst
-            ? Offset((from.dx + to.dx) / 2, to.dy)
-            : Offset(to.dx, (from.dy + to.dy) / 2);
-        _lineOrArcTo(path, from, p1, p2, radius);
-        _lineOrArcTo(path, p1, p2, to, radius);
-        path.lineTo(to.dx, to.dy);
-        break;
-    }
   }
 
   void _drawArrowHead(Canvas canvas, Offset to, double angle, Paint paint) {
