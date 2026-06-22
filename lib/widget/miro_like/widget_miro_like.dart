@@ -63,6 +63,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   static const double _anchorHandleRadius = 6.0;
   static const double _anchorSpacingDistance = 15.0;
   static const double _anchorPaddingMargin = 50.0;
+  static const double _alignmentSnapCaptureDistance = 10.0;
+  static const double _alignmentSnapReleaseDistance = 24.0;
 
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
@@ -79,6 +81,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset canvasOffset = Offset.zero;
   double zoomLevel = 1.0;
   bool isPanning = false;
+  double? _snapLeftModel;
+  double? _snapTopModel;
+  Offset? _dragFreePositionModel;
 
   @override
   void initState() {
@@ -403,7 +408,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           name: item['name']?.toString() ?? '',
           labelPosition: item['labelPosition'] is num
               ? (item['labelPosition'] as num).toDouble().clamp(0.0, 1.0)
-              : 0.5,
+              : 0.75,
           labelOffset: item['labelOffset'] == null
               ? Offset.zero
               : _offsetFromJson(item['labelOffset']),
@@ -488,7 +493,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             fromBlockId: linkSourceBlock!.id,
             toBlockId: targetBlock.id,
             name: 'Lien ${links.length + 1}',
-            labelPosition: 0.5,
+            labelPosition: 0.75,
             labelOffset: Offset.zero,
             connectorType: ConnectorType.bezier,
             inflectionPoints: List<Offset>.from(pendingInflectionPoints),
@@ -630,6 +635,67 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return Offset(
       modelPoint.dx * zoomLevel + canvasOffset.dx,
       modelPoint.dy * zoomLevel + canvasOffset.dy,
+    );
+  }
+
+  void _resetBlockDragSnap() {
+    _snapLeftModel = null;
+    _snapTopModel = null;
+    _dragFreePositionModel = null;
+  }
+
+  Offset _applyBlockAlignmentSnap(Block movingBlock, Offset proposedPosition) {
+    final captureDistanceModel = _alignmentSnapCaptureDistance / zoomLevel;
+    final releaseDistanceModel = _alignmentSnapReleaseDistance / zoomLevel;
+
+    double? closestLeft;
+    double closestLeftDeltaAbs = double.infinity;
+    double? closestTop;
+    double closestTopDeltaAbs = double.infinity;
+
+    for (final other in blocks) {
+      if (other.id == movingBlock.id) {
+        continue;
+      }
+
+      final leftDelta = other.position.dx - proposedPosition.dx;
+      final leftDeltaAbs = leftDelta.abs();
+      if (leftDeltaAbs < closestLeftDeltaAbs) {
+        closestLeftDeltaAbs = leftDeltaAbs;
+        closestLeft = other.position.dx;
+      }
+
+      final topDelta = other.position.dy - proposedPosition.dy;
+      final topDeltaAbs = topDelta.abs();
+      if (topDeltaAbs < closestTopDeltaAbs) {
+        closestTopDeltaAbs = topDeltaAbs;
+        closestTop = other.position.dy;
+      }
+    }
+
+    if (_snapLeftModel != null &&
+        (proposedPosition.dx - _snapLeftModel!).abs() > releaseDistanceModel) {
+      _snapLeftModel = null;
+    }
+    if (_snapTopModel != null &&
+        (proposedPosition.dy - _snapTopModel!).abs() > releaseDistanceModel) {
+      _snapTopModel = null;
+    }
+
+    if (_snapLeftModel == null &&
+        closestLeft != null &&
+        closestLeftDeltaAbs <= captureDistanceModel) {
+      _snapLeftModel = closestLeft;
+    }
+    if (_snapTopModel == null &&
+        closestTop != null &&
+        closestTopDeltaAbs <= captureDistanceModel) {
+      _snapTopModel = closestTop;
+    }
+
+    return Offset(
+      _snapLeftModel ?? proposedPosition.dx,
+      _snapTopModel ?? proposedPosition.dy,
     );
   }
 
@@ -1623,23 +1689,38 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                                   setState(() {
                                     selectedBlock = block;
                                     selectedLink = null;
+                                    _resetBlockDragSnap();
+                                    _dragFreePositionModel = block.position;
                                   });
                                 },
                                 onPanUpdate: (details) {
                                   if (selectedBlock == block) {
                                     setState(() {
-                                      block.position += Offset(
+                                      final deltaModel = Offset(
                                         details.delta.dx / zoomLevel,
                                         details.delta.dy / zoomLevel,
+                                      );
+                                      final proposedPosition =
+                                          (_dragFreePositionModel ??
+                                              block.position) +
+                                          deltaModel;
+                                      _dragFreePositionModel = proposedPosition;
+                                      block.position = _applyBlockAlignmentSnap(
+                                        block,
+                                        proposedPosition,
                                       );
                                       _updateLinksAnchorsForBlock(block);
                                     });
                                   }
                                 },
+                                onPanEnd: (_) {
+                                  _resetBlockDragSnap();
+                                },
                                 onTapDown: (details) {
                                   setState(() {
                                     selectedBlock = block;
                                     selectedLink = null;
+                                    _resetBlockDragSnap();
                                   });
                                 },
                                 child: BlockWidget(

@@ -159,7 +159,7 @@ class LinkManager {
           name: item['name']?.toString() ?? '',
           labelPosition: (item['labelPosition'] is num)
               ? (item['labelPosition'] as num).toDouble().clamp(0.0, 1.0)
-              : 0.5,
+              : 0.75,
           labelOffset: item['labelOffset'] == null
               ? Offset.zero
               : _offsetFromJson(item['labelOffset']),

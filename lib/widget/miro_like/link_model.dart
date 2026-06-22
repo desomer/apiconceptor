@@ -23,7 +23,7 @@ class BlockLink {
     required this.fromBlockId,
     required this.toBlockId,
     this.name = '',
-    this.labelPosition = 0.5,
+    this.labelPosition = 0.75,
     this.labelOffset = Offset.zero,
     this.connectorType = ConnectorType.bezier,
     List<Offset>? inflectionPoints,
