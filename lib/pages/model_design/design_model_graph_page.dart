@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart' show GoRouterState;
 import 'package:jsonschema/feature/graph/pan_spring_graph.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 
 class DesignModelGraphPage extends GenericPageStateless {
@@ -10,7 +11,8 @@ class DesignModelGraphPage extends GenericPageStateless {
 
   @override
   Widget build(BuildContext context) {
-    return PanModelGraph();
+    return MiroLikeWidget();
+    //return PanModelGraph();
   }
 
   // Widget build2(BuildContext context) {

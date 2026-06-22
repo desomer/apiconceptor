@@ -22,11 +22,11 @@ const Color colorPanelBorder = Color.fromARGB(255, 71, 71, 74);
 
 // Block Colors
 const Color colorBlockBackground = Color.fromARGB(255, 33, 33, 36);
-const Color colorBlockBackgroundSelected = Color.fromARGB(255, 255, 193, 7);
+const Color colorBlockBackgroundSelected = Color.fromARGB(61, 255, 193, 7);
 const Color colorBlockBorder = Color.fromARGB(255, 66, 66, 69);
 const Color colorBlockBorderSelected = Color.fromARGB(255, 255, 152, 0);
 const Color colorBlockText = Colors.white;
-const Color colorBlockTextSelected = Colors.black;
+const Color colorBlockTextSelected = Colors.white;
 
 // Link Colors
 const Color colorLinkDefault = Color.fromARGB(255, 100, 200, 255);
@@ -57,7 +57,7 @@ class MiroLikeWidget extends StatefulWidget {
 
 class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
-  static const double _linkHitTolerance = 14.0;
+  static const double _linkHitTolerance = 24.0;
   static const double _inflectionHandleRadius = 7.0;
   static const double _anchorHandleRadius = 6.0;
   static const double _anchorSpacingDistance = 15.0;
@@ -77,6 +77,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   final List<Offset> pendingInflectionPoints = [];
   Offset canvasOffset = Offset.zero;
   double zoomLevel = 1.0;
+  bool isPanning = false;
 
   @override
   void initState() {
@@ -148,6 +149,56 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   void _reverseLink(BlockLink link) {
     setState(() {
       linkManager.reverseLink(links, link);
+    });
+  }
+
+  void _fitToView() {
+    if (blocks.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      // Calculer la bounding box de tous les blocs
+      double minX = blocks[0].position.dx;
+      double minY = blocks[0].position.dy;
+      double maxX = blocks[0].position.dx + blocks[0].size.width;
+      double maxY = blocks[0].position.dy + blocks[0].size.height;
+
+      for (final block in blocks) {
+        minX = math.min(minX, block.position.dx);
+        minY = math.min(minY, block.position.dy);
+        maxX = math.max(maxX, block.position.dx + block.size.width);
+        maxY = math.max(maxY, block.position.dy + block.size.height);
+      }
+
+      final contentWidth = maxX - minX;
+      final contentHeight = maxY - minY;
+      const padding = 60.0;
+
+      // Calculer le zoom pour que tout rentre dans la vue avec du padding
+      final RenderBox? renderBox =
+          _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox == null) {
+        return;
+      }
+
+      final viewportWidth = renderBox.size.width - (padding * 2);
+      final viewportHeight = renderBox.size.height - (padding * 2);
+
+      final zoomX = viewportWidth / contentWidth;
+      final zoomY = viewportHeight / contentHeight;
+      zoomLevel = math.min(zoomX, zoomY).clamp(0.2, 4.0);
+
+      // Centrer le contenu dans la vue
+      final centeredX =
+          viewportWidth / 2 - (contentWidth * zoomLevel) / 2 + padding;
+      final centeredY =
+          viewportHeight / 2 - (contentHeight * zoomLevel) / 2 + padding;
+
+      canvasOffset = Offset(
+        centeredX - minX * zoomLevel,
+        centeredY - minY * zoomLevel,
+      );
     });
   }
 
@@ -372,16 +423,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   void _importBoard(Map<String, dynamic> decoded) {
     final importedBlocks = _blocksFromJson(decoded['blocks']);
-    final legacyType = _connectorTypeFromName(
-      decoded['connectorType'],
-    );
+    final legacyType = _connectorTypeFromName(decoded['connectorType']);
     final importedLinks = _linksFromJson(
       decoded['links'],
       fallbackType: legacyType,
     );
-    final importedIds = importedBlocks
-        .map((b) => b.id)
-        .toSet();
+    final importedIds = importedBlocks.map((b) => b.id).toSet();
     importedLinks.removeWhere(
       (l) =>
           !importedIds.contains(l.fromBlockId) ||
@@ -979,7 +1026,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             left: canvasPoint.dx - _inflectionHandleRadius,
             top: canvasPoint.dy - _inflectionHandleRadius,
             child: MouseRegion(
-              cursor: SystemMouseCursors.click,
+              cursor: SystemMouseCursors.move,
               child: GestureDetector(
                 onTapDown: (_) {
                   setState(() {
@@ -1049,7 +1096,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           left: fromAnchor.dx - _anchorHandleRadius,
           top: fromAnchor.dy - _anchorHandleRadius,
           child: MouseRegion(
-            cursor: SystemMouseCursors.resizeUpLeftDownRight,
+            cursor: SystemMouseCursors.click,
             child: GestureDetector(
               onTapDown: (_) {
                 setState(() {
@@ -1108,7 +1155,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           left: toAnchor.dx - _anchorHandleRadius,
           top: toAnchor.dy - _anchorHandleRadius,
           child: MouseRegion(
-            cursor: SystemMouseCursors.resizeUpLeftDownRight,
+            cursor: SystemMouseCursors.click,
             child: GestureDetector(
               onTapDown: (_) {
                 setState(() {
@@ -1194,6 +1241,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             tooltip: 'Import JSON',
             onPressed: () => importExportManager.showImportDialog(),
           ),
+          IconButton(
+            icon: const Icon(Icons.fit_screen),
+            tooltip: 'Voir tous les blocs',
+            onPressed: _fitToView,
+          ),
         ],
       ),
       body: Row(
@@ -1207,161 +1259,195 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   currentMousePosition = event.localPosition;
                 });
               },
-              child: CustomPaint(
-                foregroundPainter: MiroCanvasPainter(
-                  blocks: blocks,
-                  links: links,
-                  canvasOffset: canvasOffset,
-                  zoomLevel: zoomLevel,
-                  selectedBlock: selectedBlock,
-                  selectedLink: selectedLink,
-                  linkingFromPoint: linkingFromPoint,
-                  currentMousePosition: currentMousePosition,
-                  linkSourceBlock: linkSourceBlock,
-                  flowAnimation: _flowController,
-                  pendingInflectionPoints: pendingInflectionPoints,
-                ),
-                child: Container(
-                  color: colorCanvasBackground,
-                  child: Stack(
-                    children: [
-                      GestureDetector(
-                        onTapDown: (details) {
-                          setState(() {
-                            final canvasPosition = _toCanvasLocal(
-                              details.globalPosition,
-                            );
-                            final modelPosition = _toModelPosition(
-                              details.globalPosition,
-                            );
+              child: Listener(
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent) {
+                    setState(() {
+                      // Position locale de la souris sur le canvas
+                      final mouseCanvasPos = event.localPosition;
 
-                            if (linkSourceBlock != null) {
-                              return;
-                            }
+                      // Point modèle sous la souris avant le zoom
+                      final modelPointBeforeZoom =
+                          (mouseCanvasPos - canvasOffset) / zoomLevel;
 
-                            for (var block in blocks) {
-                              final blockRect = Rect.fromLTWH(
-                                block.position.dx,
-                                block.position.dy,
-                                block.size.width,
-                                block.size.height,
+                      // Appliquer le nouveau zoom
+                      final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
+                      zoomLevel = (zoomLevel * zoomFactor).clamp(0.2, 4.0);
+
+                      // Ajuster le canvasOffset pour que le point reste sous la souris
+                      canvasOffset =
+                          mouseCanvasPos - modelPointBeforeZoom * zoomLevel;
+                    });
+                  }
+                },
+                child: CustomPaint(
+                  foregroundPainter: MiroCanvasPainter(
+                    blocks: blocks,
+                    links: links,
+                    canvasOffset: canvasOffset,
+                    zoomLevel: zoomLevel,
+                    selectedBlock: selectedBlock,
+                    selectedLink: selectedLink,
+                    linkingFromPoint: linkingFromPoint,
+                    currentMousePosition: currentMousePosition,
+                    linkSourceBlock: linkSourceBlock,
+                    flowAnimation: _flowController,
+                    pendingInflectionPoints: pendingInflectionPoints,
+                  ),
+                  child: Container(
+                    color: colorCanvasBackground,
+                    child: Stack(
+                      children: [
+                        GestureDetector(
+                          onPanDown: (details) {
+                            setState(() {
+                              final modelPosition = _toModelPosition(
+                                details.globalPosition,
                               );
-                              if (blockRect.contains(modelPosition)) {
-                                selectedBlock = block;
-                                selectedLink = null;
-                                return;
-                              }
-                            }
 
-                            final hitLink = _findLinkAtCanvasPosition(
-                              canvasPosition,
-                            );
-                            if (hitLink != null) {
-                              selectedLink = hitLink;
-                              selectedBlock = null;
-                              _insertInflectionPointOnLink(
-                                canvasPosition,
-                                modelPosition,
+                              // Vérifier si on clique sur un bloc
+                              bool isOnBlock = false;
+                              for (var block in blocks) {
+                                final blockRect = Rect.fromLTWH(
+                                  block.position.dx,
+                                  block.position.dy,
+                                  block.size.width,
+                                  block.size.height,
+                                );
+                                if (blockRect.contains(modelPosition)) {
+                                  isOnBlock = true;
+                                  break;
+                                }
+                              }
+
+                              // Si on est sur une zone vide, autoriser le panoramique
+                              isPanning = !isOnBlock;
+                            });
+                          },
+                          onPanUpdate: (details) {
+                            if (isPanning) {
+                              setState(() {
+                                canvasOffset += details.delta;
+                              });
+                            }
+                          },
+                          onPanEnd: (details) {
+                            setState(() {
+                              isPanning = false;
+                            });
+                          },
+                          onTapDown: (details) {
+                            setState(() {
+                              final canvasPosition = _toCanvasLocal(
+                                details.globalPosition,
                               );
-                              return;
-                            }
-
-                            selectedBlock = null;
-                            selectedLink = null;
-                          });
-                        },
-                        onSecondaryTapDown: (details) {
-                          setState(() {
-                            final modelPosition = _toModelPosition(
-                              details.globalPosition,
-                            );
-
-                            // Vérifier qu'on ne clique pas sur un bloc existant
-                            for (var block in blocks) {
-                              final blockRect = Rect.fromLTWH(
-                                block.position.dx,
-                                block.position.dy,
-                                block.size.width,
-                                block.size.height,
+                              final modelPosition = _toModelPosition(
+                                details.globalPosition,
                               );
-                              if (blockRect.contains(modelPosition)) {
-                                return;
-                              }
-                            }
 
-                            // Ajouter un bloc sur zone vide
-                            blocks.add(
-                              Block(
-                                id: DateTime.now()
-                                    .millisecondsSinceEpoch
-                                    .toString(),
-                                title: 'Block ${blocks.length + 1}',
-                                position: modelPosition,
-                              ),
-                            );
-                            selectedBlock = null;
-                            selectedLink = null;
-                          });
-                        },
-                      ),
-                      ...blocks.map((block) {
-                        return Positioned(
-                          left: block.position.dx * zoomLevel + canvasOffset.dx,
-                          top: block.position.dy * zoomLevel + canvasOffset.dy,
-                          child: Listener(
-                            behavior: HitTestBehavior.opaque,
-                            onPointerDown: (event) {
-                              if (_isSecondaryButtonPressed(event.buttons)) {
-                                _startLinking(block);
-                                _updateLinkPreviewFromGlobal(event.position);
-                              }
-                            },
-                            onPointerMove: (event) {
-                              if (linkSourceBlock != null &&
-                                  _isSecondaryButtonPressed(event.buttons)) {
-                                _updateLinkPreviewFromGlobal(event.position);
-                              }
-                            },
-                            onPointerUp: (event) {
                               if (linkSourceBlock != null) {
-                                _finishLinkingAtGlobal(event.position);
+                                return;
                               }
-                            },
-                            child: GestureDetector(
-                              onPanDown: (details) {
-                                setState(() {
+
+                              for (var block in blocks) {
+                                final blockRect = Rect.fromLTWH(
+                                  block.position.dx,
+                                  block.position.dy,
+                                  block.size.width,
+                                  block.size.height,
+                                );
+                                if (blockRect.contains(modelPosition)) {
                                   selectedBlock = block;
                                   selectedLink = null;
-                                });
-                              },
-                              onPanUpdate: (details) {
-                                if (selectedBlock == block) {
-                                  setState(() {
-                                    block.position += Offset(
-                                      details.delta.dx / zoomLevel,
-                                      details.delta.dy / zoomLevel,
-                                    );
-                                    _updateLinksAnchorsForBlock(block);
-                                  });
+                                  return;
+                                }
+                              }
+
+                              final hitLink = _findLinkAtCanvasPosition(
+                                canvasPosition,
+                              );
+                              if (hitLink != null) {
+                                selectedBlock = null;
+                                // Essayer d'ajouter un point d'inflexion au clic
+                                final pointAdded = _insertInflectionPointOnLink(
+                                  canvasPosition,
+                                  modelPosition,
+                                );
+                                // Si pas d'ajout, juste sélectionner le lien
+                                if (!pointAdded) {
+                                  selectedLink = hitLink;
+                                }
+                                return;
+                              }
+
+                              selectedBlock = null;
+                              selectedLink = null;
+                            });
+                          },
+                        ),
+                        ...blocks.map((block) {
+                          return Positioned(
+                            left:
+                                block.position.dx * zoomLevel + canvasOffset.dx,
+                            top:
+                                block.position.dy * zoomLevel + canvasOffset.dy,
+                            width: block.size.width * zoomLevel,
+                            height: block.size.height * zoomLevel,
+                            child: Listener(
+                              behavior: HitTestBehavior.opaque,
+                              onPointerDown: (event) {
+                                if (_isSecondaryButtonPressed(event.buttons)) {
+                                  _startLinking(block);
+                                  _updateLinkPreviewFromGlobal(event.position);
                                 }
                               },
-                              onTapDown: (details) {
-                                setState(() {
-                                  selectedBlock = block;
-                                  selectedLink = null;
-                                });
+                              onPointerMove: (event) {
+                                if (linkSourceBlock != null &&
+                                    _isSecondaryButtonPressed(event.buttons)) {
+                                  _updateLinkPreviewFromGlobal(event.position);
+                                }
                               },
-                              child: BlockWidget(
-                                block: block,
-                                isSelected: selectedBlock == block,
+                              onPointerUp: (event) {
+                                if (linkSourceBlock != null) {
+                                  _finishLinkingAtGlobal(event.position);
+                                }
+                              },
+                              child: GestureDetector(
+                                onPanDown: (details) {
+                                  setState(() {
+                                    selectedBlock = block;
+                                    selectedLink = null;
+                                  });
+                                },
+                                onPanUpdate: (details) {
+                                  if (selectedBlock == block) {
+                                    setState(() {
+                                      block.position += Offset(
+                                        details.delta.dx / zoomLevel,
+                                        details.delta.dy / zoomLevel,
+                                      );
+                                      _updateLinksAnchorsForBlock(block);
+                                    });
+                                  }
+                                },
+                                onTapDown: (details) {
+                                  setState(() {
+                                    selectedBlock = block;
+                                    selectedLink = null;
+                                  });
+                                },
+                                child: BlockWidget(
+                                  block: block,
+                                  isSelected: selectedBlock == block,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }),
-                      ..._buildAnchorHandles(),
-                      ..._buildInflectionHandles(),
-                    ],
+                          );
+                        }).toList(),
+                        ..._buildAnchorHandles(),
+                        ..._buildInflectionHandles(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1372,8 +1458,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             selectedLink: selectedLink,
             onBlockTitleChanged: (blockId, newTitle) {
               setState(() {
-                final blockIndex =
-                    blocks.indexWhere((b) => b.id == blockId);
+                final blockIndex = blocks.indexWhere((b) => b.id == blockId);
                 if (blockIndex != -1) {
                   blocks[blockIndex].title = newTitle;
                 }
