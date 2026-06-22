@@ -586,7 +586,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               sourceRect,
               targetRect,
             );
-            link.sourceAnchorUnit = newAnchor;
+            // Only update if the new anchor is truly opposite to the current one
+            if (link.sourceAnchorUnit != null &&
+                _areAnchorsTrulyOpposite(link.sourceAnchorUnit!, newAnchor)) {
+              link.sourceAnchorUnit = newAnchor;
+            } else {
+              link.sourceAnchorUnit ??= newAnchor;
+            }
           }
         }
 
@@ -602,7 +608,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               targetRect,
               sourceRect,
             );
-            link.targetAnchorUnit = newAnchor;
+            // Only update if the new anchor is truly opposite to the current one
+            if (link.targetAnchorUnit != null &&
+                _areAnchorsTrulyOpposite(link.targetAnchorUnit!, newAnchor)) {
+              link.targetAnchorUnit = newAnchor;
+            } else if (link.targetAnchorUnit == null) {
+              // If no anchor set yet, use the new one
+              link.targetAnchorUnit = newAnchor;
+            }
           }
         }
       }
@@ -612,6 +625,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         _ensureBlockHasSpaceForAnchors(blocks[blockIndex]);
       }
     }
+  }
+
+  /// Check if two anchor units are truly opposite (e.g., left vs right, top vs bottom)
+  bool _areAnchorsTrulyOpposite(Offset current, Offset newAnchor) {
+    // Two anchors are truly opposite if their dot product is -1
+    final dotProduct = current.dx * newAnchor.dx + current.dy * newAnchor.dy;
+    return dotProduct <
+        -0.5; // Less than -0.5 to account for floating point precision
   }
 
   Offset _getBlockCenter(Block block) {
