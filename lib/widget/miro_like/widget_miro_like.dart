@@ -4,6 +4,43 @@ import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import 'dart:convert';
 
+// ============================================================================
+// THEME COLORS - Centralized color definitions for the entire application
+// ============================================================================
+
+// Canvas and Background Colors
+const Color colorCanvasBackground = Color.fromARGB(255, 48, 48, 51);
+const Color colorPropertiesPanelBg = Color.fromARGB(255, 24, 24, 27);
+const Color colorPanelBorder = Color.fromARGB(255, 71, 71, 74);
+
+// Block Colors
+const Color colorBlockBackground = Color.fromARGB(255, 33, 33, 36);
+const Color colorBlockBackgroundSelected = Color.fromARGB(255, 255, 193, 7);
+const Color colorBlockBorder = Color.fromARGB(255, 66, 66, 69);
+const Color colorBlockBorderSelected = Color.fromARGB(255, 255, 152, 0);
+const Color colorBlockText = Colors.white;
+const Color colorBlockTextSelected = Colors.black;
+
+// Link Colors
+const Color colorLinkDefault = Color.fromARGB(255, 100, 200, 255);
+const Color colorLinkSelected = Color.fromARGB(255, 255, 165, 0);
+const Color colorLinkCreation = Color.fromARGB(255, 56, 142, 60);
+const Color colorInflectionPoint = Color.fromARGB(255, 255, 152, 0);
+
+// Anchor Handle Colors
+const Color colorAnchorSourceHandle = Color.fromARGB(255, 0, 128, 128);
+const Color colorAnchorTargetHandle = Color.fromARGB(255, 103, 58, 183);
+const Color colorAnchorBorder = Colors.white;
+
+// Text Colors
+const Color colorTextPrimary = Colors.white;
+const Color colorTextSecondary = Color.fromARGB(179, 255, 255, 255);
+const Color colorTextError = Colors.red;
+
+// Shadow and Effects
+const Color colorShadow1 = Color.fromARGB(77, 0, 0, 0);
+const Color colorShadow2 = Color.fromARGB(64, 0, 0, 0);
+
 class Block {
   String id;
   String title;
@@ -456,7 +493,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           error!,
-                          style: const TextStyle(color: Colors.red),
+                          style: const TextStyle(color: colorTextError),
                         ),
                       ),
                   ],
@@ -1133,12 +1170,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   width: _inflectionHandleRadius * 2,
                   height: _inflectionHandleRadius * 2,
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade700,
+                    color: colorInflectionPoint,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                    border: Border.all(color: colorAnchorBorder, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.25),
+                        color: colorShadow2,
                         blurRadius: 3,
                         offset: const Offset(0, 1),
                       ),
@@ -1219,9 +1256,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 width: _anchorHandleRadius * 2,
                 height: _anchorHandleRadius * 2,
                 decoration: BoxDecoration(
-                  color: Colors.teal.shade600,
+                  color: colorAnchorSourceHandle,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: colorAnchorBorder, width: 2),
                 ),
               ),
             ),
@@ -1278,9 +1315,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 width: _anchorHandleRadius * 2,
                 height: _anchorHandleRadius * 2,
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade500,
+                  color: colorAnchorTargetHandle,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(color: colorAnchorBorder, width: 2),
                 ),
               ),
             ),
@@ -1300,8 +1337,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       return Container(
         width: 320,
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(left: BorderSide(color: Colors.grey.shade300)),
+          color: colorPropertiesPanelBg,
+          border: Border(left: BorderSide(color: colorPanelBorder)),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1309,17 +1346,28 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           children: [
             const Text(
               'Proprietes du bloc',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colorTextPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-            Text('ID: ${block.id}'),
+            Text(
+              'ID: ${block.id}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
             const SizedBox(height: 12),
             TextFormField(
               key: ValueKey('block-title-${block.id}'),
               initialValue: block.title,
-              decoration: const InputDecoration(
+              style: const TextStyle(color: colorTextPrimary),
+              decoration: InputDecoration(
                 labelText: 'Titre',
-                border: OutlineInputBorder(),
+                labelStyle: const TextStyle(color: colorTextSecondary),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: colorPanelBorder),
+                ),
                 isDense: true,
               ),
               onChanged: (value) {
@@ -1329,11 +1377,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               },
             ),
             const SizedBox(height: 12),
-            Text('Position X: ${block.position.dx.toStringAsFixed(1)}'),
-            Text('Position Y: ${block.position.dy.toStringAsFixed(1)}'),
+            Text(
+              'Position X: ${block.position.dx.toStringAsFixed(1)}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
+            Text(
+              'Position Y: ${block.position.dy.toStringAsFixed(1)}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
             const SizedBox(height: 8),
-            Text('Largeur: ${block.size.width.toStringAsFixed(1)}'),
-            Text('Hauteur: ${block.size.height.toStringAsFixed(1)}'),
+            Text(
+              'Largeur: ${block.size.width.toStringAsFixed(1)}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
+            Text(
+              'Hauteur: ${block.size.height.toStringAsFixed(1)}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
           ],
         ),
       );
@@ -1343,8 +1403,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       return Container(
         width: 320,
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(left: BorderSide(color: Colors.grey.shade300)),
+          color: colorPropertiesPanelBg,
+          border: Border(left: BorderSide(color: colorPanelBorder)),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1352,27 +1412,48 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           children: [
             const Text(
               'Proprietes du lien',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: colorTextPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-            Text('Source: ${link.fromBlockId}'),
-            Text('Cible: ${link.toBlockId}'),
+            Text(
+              'Source: ${link.fromBlockId}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
+            Text(
+              'Cible: ${link.toBlockId}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<ConnectorType>(
               initialValue: link.connectorType,
-              decoration: const InputDecoration(
+              dropdownColor: colorBlockBackground,
+              style: const TextStyle(color: colorTextPrimary),
+              decoration: InputDecoration(
                 labelText: 'Type de lien',
-                border: OutlineInputBorder(),
+                labelStyle: const TextStyle(color: colorTextSecondary),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: colorPanelBorder),
+                ),
                 isDense: true,
               ),
               items: const [
                 DropdownMenuItem(
                   value: ConnectorType.bezier,
-                  child: Text('Bezier'),
+                  child: Text(
+                    'Bezier',
+                    style: TextStyle(color: colorTextPrimary),
+                  ),
                 ),
                 DropdownMenuItem(
                   value: ConnectorType.orthogonal,
-                  child: Text('Orthogonale'),
+                  child: Text(
+                    'Orthogonale',
+                    style: TextStyle(color: colorTextPrimary),
+                  ),
                 ),
               ],
               onChanged: (value) {
@@ -1385,12 +1466,19 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               },
             ),
             const SizedBox(height: 8),
-            Text('Points d\'inflexion: ${link.inflectionPoints.length}'),
+            Text(
+              'Points d\'inflexion: ${link.inflectionPoints.length}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
             const SizedBox(height: 8),
             Text(
               'Ancre source: ${link.sourceAnchorUnit?.toString() ?? 'auto'}',
+              style: const TextStyle(color: colorTextSecondary),
             ),
-            Text('Ancre cible: ${link.targetAnchorUnit?.toString() ?? 'auto'}'),
+            Text(
+              'Ancre cible: ${link.targetAnchorUnit?.toString() ?? 'auto'}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -1419,8 +1507,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return Container(
       width: 320,
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(left: BorderSide(color: Colors.grey.shade300)),
+        color: colorPropertiesPanelBg,
+        border: Border(left: BorderSide(color: colorPanelBorder)),
       ),
       padding: const EdgeInsets.all(16),
       child: const Column(
@@ -1428,10 +1516,17 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         children: [
           Text(
             'Proprietes',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: colorTextPrimary,
+            ),
           ),
           SizedBox(height: 12),
-          Text('Selectionnez un bloc ou un lien.'),
+          Text(
+            'Selectionnez un bloc ou un lien.',
+            style: TextStyle(color: colorTextSecondary),
+          ),
         ],
       ),
     );
@@ -1493,7 +1588,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   pendingInflectionPoints: pendingInflectionPoints,
                 ),
                 child: Container(
-                  color: Colors.grey[100],
+                  color: colorCanvasBackground,
                   child: Stack(
                     children: [
                       GestureDetector(
@@ -1618,15 +1713,15 @@ class BlockWidget extends StatelessWidget {
       width: block.size.width,
       height: block.size.height,
       decoration: BoxDecoration(
-        color: isSelected ? Colors.orange[100] : Colors.white,
+        color: isSelected ? colorBlockBackgroundSelected : colorBlockBackground,
         border: Border.all(
-          color: isSelected ? Colors.orange : Colors.grey,
+          color: isSelected ? colorBlockBorderSelected : colorBlockBorder,
           width: isSelected ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: colorShadow1,
             blurRadius: 4,
             offset: const Offset(2, 2),
           ),
@@ -1635,7 +1730,11 @@ class BlockWidget extends StatelessWidget {
       child: Center(
         child: Text(
           block.title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: isSelected ? colorBlockTextSelected : colorBlockText,
+          ),
         ),
       ),
     );
@@ -1673,7 +1772,7 @@ class MiroCanvasPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Dessiner les liens
     final linkPaint = Paint()
-      ..color = Colors.blueGrey.shade700
+      ..color = colorLinkDefault
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -1754,7 +1853,7 @@ class MiroCanvasPainter extends CustomPainter {
         linkSourceBlock != null &&
         currentMousePosition != null) {
       final tempPaint = Paint()
-        ..color = Colors.blue.shade700
+        ..color = colorLinkCreation
         ..strokeWidth = 3
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
@@ -1791,7 +1890,7 @@ class MiroCanvasPainter extends CustomPainter {
           point,
           5,
           Paint()
-            ..color = Colors.orange.shade700
+            ..color = colorInflectionPoint
             ..style = PaintingStyle.fill,
         );
       }
@@ -1895,9 +1994,7 @@ class MiroCanvasPainter extends CustomPainter {
     );
 
     // Déterminer la couleur du tube (bleu par défaut, orange si sélectionné)
-    final tubeColor = isSelected
-        ? const Color.fromARGB(255, 255, 165, 0)
-        : const Color.fromARGB(255, 100, 200, 255);
+    final tubeColor = isSelected ? colorLinkSelected : colorLinkDefault;
 
     // Dessiner le tube néon avec effet de glow
     _drawNeonTube(canvas, path, tubeColor);
@@ -1916,7 +2013,7 @@ class MiroCanvasPainter extends CustomPainter {
   void _drawNeonTube(
     Canvas canvas,
     Path path, [
-    Color tubeColor = const Color.fromARGB(255, 100, 200, 255),
+    Color tubeColor = colorLinkDefault,
   ]) {
     // Tube avec couleur dynamique (bleu par défaut, orange si sélectionné)
     final tubePaint = Paint()
