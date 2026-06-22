@@ -55,6 +55,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   static const double _inflectionHandleRadius = 7.0;
   static const double _anchorHandleRadius = 6.0;
   static const double _anchorSpacingDistance = 15.0;
+  static const double _anchorPaddingMargin = 50.0;
+
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
   final List<BlockLink> links = [];
@@ -770,8 +772,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     final requiredModelHeight = requiredCanvasHeight / zoomLevel;
     final requiredModelWidth = requiredCanvasWidth / zoomLevel;
 
-    final newWidth = math.max(block.size.width, requiredModelWidth);
-    final newHeight = math.max(block.size.height, requiredModelHeight);
+    // Add padding margin to allow easy addition of new anchors
+    final paddingMargin = _anchorPaddingMargin / zoomLevel;
+    final newWidth = math.max(
+      block.size.width,
+      requiredModelWidth + paddingMargin,
+    );
+    final newHeight = math.max(
+      block.size.height,
+      requiredModelHeight + paddingMargin,
+    );
 
     if (newWidth != block.size.width || newHeight != block.size.height) {
       block.size = Size(newWidth, newHeight);
