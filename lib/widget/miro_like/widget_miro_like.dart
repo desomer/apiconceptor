@@ -1270,6 +1270,39 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                             selectedLink = null;
                           });
                         },
+                        onSecondaryTapDown: (details) {
+                          setState(() {
+                            final modelPosition = _toModelPosition(
+                              details.globalPosition,
+                            );
+
+                            // Vérifier qu'on ne clique pas sur un bloc existant
+                            for (var block in blocks) {
+                              final blockRect = Rect.fromLTWH(
+                                block.position.dx,
+                                block.position.dy,
+                                block.size.width,
+                                block.size.height,
+                              );
+                              if (blockRect.contains(modelPosition)) {
+                                return;
+                              }
+                            }
+
+                            // Ajouter un bloc sur zone vide
+                            blocks.add(
+                              Block(
+                                id: DateTime.now()
+                                    .millisecondsSinceEpoch
+                                    .toString(),
+                                title: 'Block ${blocks.length + 1}',
+                                position: modelPosition,
+                              ),
+                            );
+                            selectedBlock = null;
+                            selectedLink = null;
+                          });
+                        },
                       ),
                       ...blocks.map((block) {
                         return Positioned(
