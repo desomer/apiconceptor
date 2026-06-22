@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'dart:math' as math;
 
 class Block {
@@ -107,6 +108,51 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _updateLinkPreviewFromGlobal(Offset globalPosition) {
+    if (linkSourceBlock == null) {
+      return;
+    }
+    setState(() {
+      currentMousePosition = _toCanvasLocal(globalPosition);
+    });
+  }
+
+  void _cancelLinking() {
+    setState(() {
+      linkSourceBlock = null;
+      linkingFromPoint = null;
+      currentMousePosition = null;
+      pendingInflectionPoints.clear();
+    });
+  }
+
+  void _finishLinkingAtGlobal(Offset globalPosition) {
+    if (linkSourceBlock == null) {
+      return;
+    }
+
+    final modelPosition = _toModelPosition(globalPosition);
+    for (var b in blocks) {
+      final blockBounds = Rect.fromLTWH(
+        b.position.dx,
+        b.position.dy,
+        b.size.width,
+        b.size.height,
+      );
+      if (blockBounds.contains(modelPosition)) {
+        _endLinking(b);
+        _cancelLinking();
+        return;
+      }
+    }
+
+    _cancelLinking();
+  }
+
+  bool _isSecondaryButtonPressed(int buttons) {
+    return (buttons & kSecondaryMouseButton) != 0;
+  }
+
   void _endLinking(Block targetBlock) {
     if (linkSourceBlock != null && linkSourceBlock!.id != targetBlock.id) {
       setState(() {
@@ -191,10 +237,20 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         .map((point) => _modelToCanvas(point))
         .toList();
 
+    final toBorderForSource = _pointOnRectBorderTowards(
+      toRect,
+      fromRect.center,
+    );
+    final fromBorderForTarget = _pointOnRectBorderTowards(
+      fromRect,
+      toRect.center,
+    );
     final fromReference = viaCanvas.isNotEmpty
         ? viaCanvas.first
-        : toRect.center;
-    final toReference = viaCanvas.isNotEmpty ? viaCanvas.last : fromRect.center;
+        : toBorderForSource;
+    final toReference = viaCanvas.isNotEmpty
+        ? viaCanvas.last
+        : fromBorderForTarget;
     final fromEdge = _pointOnRectBorderTowards(fromRect, fromReference);
     final toEdge = _pointOnRectBorderTowards(toRect, toReference);
 
@@ -269,6 +325,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
+                onSecondaryTapDown: (_) {
+                  setState(() {
+                    if (pointIndex >= 0 &&
+                        pointIndex < link.inflectionPoints.length) {
+                      link.inflectionPoints.removeAt(pointIndex);
+                    }
+                  });
+                },
                 onPanUpdate: (details) {
                   setState(() {
                     link.inflectionPoints[pointIndex] +=
@@ -405,63 +469,45 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   return Positioned(
                     left: block.position.dx * zoomLevel + canvasOffset.dx,
                     top: block.position.dy * zoomLevel + canvasOffset.dy,
-                    child: GestureDetector(
-                      onPanUpdate: (details) {
-                        if (selectedBlock == block) {
-                          setState(() {
-                            block.position += Offset(
-                              details.delta.dx / zoomLevel,
-                              details.delta.dy / zoomLevel,
-                            );
-                          });
+                    child: Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerDown: (event) {
+                        if (_isSecondaryButtonPressed(event.buttons)) {
+                          _startLinking(block);
+                          _updateLinkPreviewFromGlobal(event.position);
                         }
                       },
-                      onTapDown: (details) {
-                        setState(() {
-                          selectedBlock = block;
-                        });
-                      },
-                      onSecondaryLongPressStart: (details) {
-                        _startLinking(block);
-                      },
-                      onSecondaryLongPressMoveUpdate: (details) {
-                        if (linkSourceBlock != null) {
-                          setState(() {
-                            currentMousePosition = _toCanvasLocal(
-                              details.globalPosition,
-                            );
-                          });
+                      onPointerMove: (event) {
+                        if (linkSourceBlock != null &&
+                            _isSecondaryButtonPressed(event.buttons)) {
+                          _updateLinkPreviewFromGlobal(event.position);
                         }
                       },
-                      onSecondaryLongPressEnd: (details) {
+                      onPointerUp: (event) {
                         if (linkSourceBlock != null) {
-                          final modelPosition = _toModelPosition(
-                            details.globalPosition,
-                          );
-
-                          for (var b in blocks) {
-                            final blockBounds = Rect.fromLTWH(
-                              b.position.dx,
-                              b.position.dy,
-                              b.size.width,
-                              b.size.height,
-                            );
-                            if (blockBounds.contains(modelPosition)) {
-                              _endLinking(b);
-                              break;
-                            }
+                          _finishLinkingAtGlobal(event.position);
+                        }
+                      },
+                      child: GestureDetector(
+                        onPanUpdate: (details) {
+                          if (selectedBlock == block) {
+                            setState(() {
+                              block.position += Offset(
+                                details.delta.dx / zoomLevel,
+                                details.delta.dy / zoomLevel,
+                              );
+                            });
                           }
+                        },
+                        onTapDown: (details) {
                           setState(() {
-                            linkSourceBlock = null;
-                            linkingFromPoint = null;
-                            currentMousePosition = null;
-                            pendingInflectionPoints.clear();
+                            selectedBlock = block;
                           });
-                        }
-                      },
-                      child: BlockWidget(
-                        block: block,
-                        isSelected: selectedBlock == block,
+                        },
+                        child: BlockWidget(
+                          block: block,
+                          isSelected: selectedBlock == block,
+                        ),
                       ),
                     ),
                   );
@@ -565,12 +611,20 @@ class MiroCanvasPainter extends CustomPainter {
           .map((point) => _modelToCanvas(point))
           .toList();
 
+      final toBorderForSource = _pointOnRectBorderTowards(
+        toRect,
+        fromRect.center,
+      );
+      final fromBorderForTarget = _pointOnRectBorderTowards(
+        fromRect,
+        toRect.center,
+      );
       final fromReference = viaCanvas.isNotEmpty
           ? viaCanvas.first
-          : toRect.center;
+          : toBorderForSource;
       final toReference = viaCanvas.isNotEmpty
           ? viaCanvas.last
-          : fromRect.center;
+          : fromBorderForTarget;
       final fromEdge = _pointOnRectBorderTowards(fromRect, fromReference);
       final toEdge = _pointOnRectBorderTowards(toRect, toReference);
 
