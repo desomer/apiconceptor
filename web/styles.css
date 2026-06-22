@@ -1,8 +1,13 @@
+:root {
+    color-scheme: dark;
+}
+
 html,
 body {
     height: 98%;
     width: 98%;
-    background-color: #ffffff;
+    background-color: #0f1115;
+    color: #e9edf5;
 }
 
 .center {
@@ -41,7 +46,7 @@ body {
     display: block;
     width: 25%;
     height: 25%;
-    background-color: #000000;
+    background-color: #f3f6ff;
     border-radius: 100%;
     animation: sk-chase-dot-before 2.0s infinite ease-in-out both;
 }

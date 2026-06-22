@@ -771,7 +771,8 @@ class MiroCanvasPainter extends CustomPainter {
     Offset anchorUnit,
   ) {
     final side = _anchorSideUnit(anchorUnit);
-    final spacingDistance = 15.0; // Distance between anchors
+    final spacingDistance =
+        15.0 * zoomLevel; // Distance between anchors (zoom-dependent)
 
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {

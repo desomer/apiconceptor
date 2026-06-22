@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:jsonschema/widget/miro_like/block_widget.dart';
 import 'package:jsonschema/widget/miro_like/miro_canvas_painter.dart';
+import 'package:jsonschema/widget/miro_like/connector_path_utils.dart';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'link_manager.dart';
@@ -804,7 +805,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     Offset anchorUnit,
   ) {
     final side = _anchorSideUnit(anchorUnit);
-    final spacingDistance = _anchorSpacingDistance;
+    final spacingDistance = _anchorSpacingDistance * zoomLevel;
 
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {
@@ -941,47 +942,122 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return (fromEdge, toEdge, viaCanvas, fromRect, toRect);
   }
 
-  double _distancePointToSegmentSquared(Offset p, Offset a, Offset b) {
-    final ab = b - a;
-    final ap = p - a;
-    final abLenSq = ab.distanceSquared;
-    if (abLenSq == 0) {
-      return (p - a).distanceSquared;
+  Path? _linkPathCanvas(BlockLink link) {
+    final linkData = _resolveLinkAnchorsAndRects(link);
+    if (linkData == null) {
+      return null;
     }
 
-    final t = (ap.dx * ab.dx + ap.dy * ab.dy) / abLenSq;
-    final clampedT = t.clamp(0.0, 1.0);
-    final proj = a + ab * clampedT;
-    return (p - proj).distanceSquared;
+    final fromEdge = linkData.$1;
+    final toEdge = linkData.$2;
+    final viaCanvas = linkData.$3;
+    final fromRect = linkData.$4;
+    final toRect = linkData.$5;
+
+    final startTangent = axisNormalForBorderPoint(fromRect, fromEdge);
+    final targetOutward = axisNormalForBorderPoint(toRect, toEdge);
+    final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
+
+    final path = buildConnectorPath(
+      fromEdge,
+      toEdge,
+      connectorType: link.connectorType,
+      viaPoints: viaCanvas,
+      startTangent: startTangent,
+      endTangent: endTangent,
+    );
+
+    return path;
   }
 
-  bool _insertInflectionPointOnLink(Offset tapCanvas, Offset tapModel) {
+  (double, Offset)? _closestDistanceAndPointOnPath(
+    Path path,
+    Offset tapCanvas,
+  ) {
+    final metrics = path.computeMetrics();
+    final iterator = metrics.iterator;
+    if (!iterator.moveNext()) {
+      return null;
+    }
+
+    var bestDistSq = double.infinity;
+    var bestPoint = Offset.zero;
+
+    do {
+      final metric = iterator.current;
+      if (metric.length <= 0) {
+        continue;
+      }
+
+      final sampleCount = math.max(24, (metric.length / 10).round());
+      for (var i = 0; i <= sampleCount; i++) {
+        final t = i / sampleCount;
+        final offsetOnPath = metric.length * t;
+        final tangent = metric.getTangentForOffset(offsetOnPath);
+        if (tangent == null) {
+          continue;
+        }
+
+        final distSq = (tapCanvas - tangent.position).distanceSquared;
+        if (distSq < bestDistSq) {
+          bestDistSq = distSq;
+          bestPoint = tangent.position;
+        }
+      }
+    } while (iterator.moveNext());
+
+    if (!bestDistSq.isFinite) {
+      return null;
+    }
+    return (bestDistSq, bestPoint);
+  }
+
+  bool _insertInflectionPointOnLink(Offset tapCanvas) {
     final toleranceSq = _linkHitTolerance * _linkHitTolerance;
 
     for (var linkIndex = links.length - 1; linkIndex >= 0; linkIndex--) {
       final link = links[linkIndex];
+      final path = _linkPathCanvas(link);
+      if (path == null) {
+        continue;
+      }
       final points = _linkControlPointsCanvas(link);
       if (points == null || points.length < 2) {
         continue;
       }
 
-      var bestSegIndex = -1;
-      var bestDistSq = double.infinity;
-      for (var seg = 0; seg < points.length - 1; seg++) {
-        final distSq = _distancePointToSegmentSquared(
-          tapCanvas,
-          points[seg],
-          points[seg + 1],
-        );
-        if (distSq < bestDistSq) {
-          bestDistSq = distSq;
-          bestSegIndex = seg;
-        }
+      final closest = _closestDistanceAndPointOnPath(path, tapCanvas);
+      if (closest == null) {
+        continue;
       }
+      final bestDistSq = closest.$1;
+      final closestCanvasPoint = closest.$2;
 
-      if (bestSegIndex != -1 && bestDistSq <= toleranceSq) {
+      if (bestDistSq <= toleranceSq) {
+        var bestSegIndex = 0;
+        var bestSegDistSq = double.infinity;
+        for (var seg = 0; seg < points.length - 1; seg++) {
+          final a = points[seg];
+          final b = points[seg + 1];
+          final ab = b - a;
+          final abLenSq = ab.distanceSquared;
+          if (abLenSq == 0) {
+            continue;
+          }
+
+          final ap = closestCanvasPoint - a;
+          final t = ((ap.dx * ab.dx + ap.dy * ab.dy) / abLenSq).clamp(0.0, 1.0);
+          final projection = a + ab * t;
+          final distSq = (closestCanvasPoint - projection).distanceSquared;
+          if (distSq < bestSegDistSq) {
+            bestSegDistSq = distSq;
+            bestSegIndex = seg;
+          }
+        }
+
         final insertIndex = bestSegIndex.clamp(0, link.inflectionPoints.length);
-        link.inflectionPoints.insert(insertIndex, tapModel);
+        final modelPoint = (closestCanvasPoint - canvasOffset) / zoomLevel;
+        link.inflectionPoints.insert(insertIndex, modelPoint);
         selectedLink = link;
         selectedBlock = null;
         return true;
@@ -996,22 +1072,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     for (var linkIndex = links.length - 1; linkIndex >= 0; linkIndex--) {
       final link = links[linkIndex];
-      final points = _linkControlPointsCanvas(link);
-      if (points == null || points.length < 2) {
+      final path = _linkPathCanvas(link);
+      if (path == null) {
         continue;
       }
 
-      var bestDistSq = double.infinity;
-      for (var seg = 0; seg < points.length - 1; seg++) {
-        final distSq = _distancePointToSegmentSquared(
-          tapCanvas,
-          points[seg],
-          points[seg + 1],
-        );
-        if (distSq < bestDistSq) {
-          bestDistSq = distSq;
-        }
+      final closest = _closestDistanceAndPointOnPath(path, tapCanvas);
+      if (closest == null) {
+        continue;
       }
+      final bestDistSq = closest.$1;
 
       if (bestDistSq <= toleranceSq) {
         return link;
@@ -1090,34 +1160,42 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   Offset? _linkLabelReferenceCanvas(BlockLink link) {
-    final points = _linkControlPointsCanvas(link);
-    if (points == null || points.length < 2) {
-      return null;
-    }
+    final linkData = _resolveLinkAnchorsAndRects(link);
+    if (linkData == null) return null;
 
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (var i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
-    }
+    final fromEdge = linkData.$1;
+    final toEdge = linkData.$2;
+    final viaCanvas = linkData.$3;
+    final fromRect = linkData.$4;
+    final toRect = linkData.$5;
+
+    // Compute tangents the same way the painter does
+    final startTangent = axisNormalForBorderPoint(fromRect, fromEdge);
+    final targetOutward = axisNormalForBorderPoint(toRect, toEdge);
+    final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
+
+    // Build the exact same path as the painter so the hit area matches
+    final path = buildConnectorPath(
+      fromEdge,
+      toEdge,
+      connectorType: link.connectorType,
+      viaPoints: viaCanvas,
+      startTangent: startTangent,
+      endTangent: endTangent,
+    );
 
     final iterator = path.computeMetrics().iterator;
-    if (!iterator.moveNext()) {
-      return null;
-    }
+    if (!iterator.moveNext()) return null;
 
     final metric = iterator.current;
-    if (metric.length <= 0) {
-      return null;
-    }
+    if (metric.length <= 0) return null;
 
     final offsetOnPath = (metric.length * link.labelPosition).clamp(
       0.0,
       metric.length,
     );
     final tangent = metric.getTangentForOffset(offsetOnPath);
-    if (tangent == null) {
-      return null;
-    }
+    if (tangent == null) return null;
 
     final normal = Offset(-math.sin(tangent.angle), math.cos(tangent.angle));
     return tangent.position + normal * 18 + link.labelOffset * zoomLevel;
@@ -1177,6 +1255,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   List<Widget> _buildAnchorHandles() {
     final widgets = <Widget>[];
 
+    // Scale handle radius with zoom so handles never overlap
+    // (spacing = 15 * zoomLevel, handles must fit within that spacing)
+    final effectiveRadius = (_anchorHandleRadius * zoomLevel).clamp(
+      3.0,
+      _anchorHandleRadius,
+    );
+
     for (var linkIndex = 0; linkIndex < links.length; linkIndex++) {
       final link = links[linkIndex];
       final linkData = _resolveLinkAnchorsAndRects(link);
@@ -1191,8 +1276,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
       widgets.add(
         Positioned(
-          left: fromAnchor.dx - _anchorHandleRadius,
-          top: fromAnchor.dy - _anchorHandleRadius,
+          left: fromAnchor.dx - effectiveRadius,
+          top: fromAnchor.dy - effectiveRadius,
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
@@ -1235,8 +1320,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 });
               },
               child: Container(
-                width: _anchorHandleRadius * 2,
-                height: _anchorHandleRadius * 2,
+                width: effectiveRadius * 2,
+                height: effectiveRadius * 2,
                 decoration: BoxDecoration(
                   color: colorAnchorSourceHandle,
                   shape: BoxShape.circle,
@@ -1250,8 +1335,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
       widgets.add(
         Positioned(
-          left: toAnchor.dx - _anchorHandleRadius,
-          top: toAnchor.dy - _anchorHandleRadius,
+          left: toAnchor.dx - effectiveRadius,
+          top: toAnchor.dy - effectiveRadius,
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
@@ -1294,8 +1379,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 });
               },
               child: Container(
-                width: _anchorHandleRadius * 2,
-                height: _anchorHandleRadius * 2,
+                width: effectiveRadius * 2,
+                height: effectiveRadius * 2,
                 decoration: BoxDecoration(
                   color: colorAnchorTargetHandle,
                   shape: BoxShape.circle,
@@ -1479,9 +1564,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                               final canvasPosition = _toCanvasLocal(
                                 details.globalPosition,
                               );
-                              final modelPosition = _toModelPosition(
-                                details.globalPosition,
-                              );
 
                               if (linkSourceBlock != null) {
                                 return;
@@ -1502,7 +1584,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
                               final pointAdded = _insertInflectionPointOnLink(
                                 canvasPosition,
-                                modelPosition,
                               );
                               if (!pointAdded) {
                                 selectedLink = hitLink;
