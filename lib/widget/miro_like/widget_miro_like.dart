@@ -21,6 +21,7 @@ class Block {
 class BlockLink {
   String fromBlockId;
   String toBlockId;
+  ConnectorType connectorType;
   List<Offset> inflectionPoints;
   Offset? sourceAnchorUnit;
   Offset? targetAnchorUnit;
@@ -28,6 +29,7 @@ class BlockLink {
   BlockLink({
     required this.fromBlockId,
     required this.toBlockId,
+    this.connectorType = ConnectorType.bezier,
     List<Offset>? inflectionPoints,
     this.sourceAnchorUnit,
     this.targetAnchorUnit,
@@ -52,8 +54,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   final List<Block> blocks = [];
   final List<BlockLink> links = [];
   late final AnimationController _flowController;
-  ConnectorType connectorType = ConnectorType.bezier;
   Block? selectedBlock;
+  BlockLink? selectedLink;
   Block? linkSourceBlock;
   Offset? linkingFromPoint;
   Offset? currentMousePosition;
@@ -104,6 +106,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         (link) => link.fromBlockId == block.id || link.toBlockId == block.id,
       );
       selectedBlock = null;
+      if (selectedLink != null && !links.contains(selectedLink)) {
+        selectedLink = null;
+      }
+    });
+  }
+
+  void _deleteLink(BlockLink link) {
+    setState(() {
+      links.remove(link);
+      if (selectedLink == link) {
+        selectedLink = null;
+      }
     });
   }
 
@@ -205,6 +219,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return {
       'fromBlockId': link.fromBlockId,
       'toBlockId': link.toBlockId,
+      'connectorType': link.connectorType.name,
       'inflectionPoints': link.inflectionPoints.map(_offsetToJson).toList(),
       'sourceAnchorUnit': link.sourceAnchorUnit == null
           ? null
@@ -218,7 +233,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Map<String, dynamic> _boardToJson() {
     return {
       'version': 1,
-      'connectorType': connectorType.name,
       'zoomLevel': zoomLevel,
       'canvasOffset': _offsetToJson(canvasOffset),
       'blocks': blocks.map(_blockToJson).toList(),
@@ -267,7 +281,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return parsed;
   }
 
-  List<BlockLink> _linksFromJson(dynamic value) {
+  List<BlockLink> _linksFromJson(
+    dynamic value, {
+    ConnectorType fallbackType = ConnectorType.bezier,
+  }) {
     if (value is! List) {
       return [];
     }
@@ -296,6 +313,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         BlockLink(
           fromBlockId: fromId,
           toBlockId: toId,
+          connectorType: _connectorTypeFromName(item['connectorType']),
           inflectionPoints: inflectionPoints,
           sourceAnchorUnit: item['sourceAnchorUnit'] == null
               ? null
@@ -305,6 +323,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               : _offsetFromJson(item['targetAnchorUnit']),
         ),
       );
+      if (item['connectorType'] == null) {
+        parsed.last.connectorType = fallbackType;
+      }
     }
     return parsed;
   }
@@ -405,7 +426,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       }
 
                       final importedBlocks = _blocksFromJson(decoded['blocks']);
-                      final importedLinks = _linksFromJson(decoded['links']);
+                      final legacyType = _connectorTypeFromName(
+                        decoded['connectorType'],
+                      );
+                      final importedLinks = _linksFromJson(
+                        decoded['links'],
+                        fallbackType: legacyType,
+                      );
                       final importedIds = importedBlocks
                           .map((b) => b.id)
                           .toSet();
@@ -422,9 +449,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         links
                           ..clear()
                           ..addAll(importedLinks);
-                        connectorType = _connectorTypeFromName(
-                          decoded['connectorType'],
-                        );
 
                         final zoom = decoded['zoomLevel'];
                         if (zoom is num) {
@@ -466,6 +490,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           BlockLink(
             fromBlockId: linkSourceBlock!.id,
             toBlockId: targetBlock.id,
+            connectorType: ConnectorType.bezier,
             inflectionPoints: List<Offset>.from(pendingInflectionPoints),
           ),
         );
@@ -656,11 +681,43 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       if (bestSegIndex != -1 && bestDistSq <= toleranceSq) {
         final insertIndex = bestSegIndex.clamp(0, link.inflectionPoints.length);
         link.inflectionPoints.insert(insertIndex, tapModel);
+        selectedLink = link;
+        selectedBlock = null;
         return true;
       }
     }
 
     return false;
+  }
+
+  BlockLink? _findLinkAtCanvasPosition(Offset tapCanvas) {
+    final toleranceSq = _linkHitTolerance * _linkHitTolerance;
+
+    for (var linkIndex = links.length - 1; linkIndex >= 0; linkIndex--) {
+      final link = links[linkIndex];
+      final points = _linkControlPointsCanvas(link);
+      if (points == null || points.length < 2) {
+        continue;
+      }
+
+      var bestDistSq = double.infinity;
+      for (var seg = 0; seg < points.length - 1; seg++) {
+        final distSq = _distancePointToSegmentSquared(
+          tapCanvas,
+          points[seg],
+          points[seg + 1],
+        );
+        if (distSq < bestDistSq) {
+          bestDistSq = distSq;
+        }
+      }
+
+      if (bestDistSq <= toleranceSq) {
+        return link;
+      }
+    }
+
+    return null;
   }
 
   List<Widget> _buildInflectionHandles() {
@@ -683,6 +740,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
+                onTapDown: (_) {
+                  setState(() {
+                    selectedLink = link;
+                    selectedBlock = null;
+                  });
+                },
                 onSecondaryTapDown: (_) {
                   setState(() {
                     if (pointIndex >= 0 &&
@@ -693,6 +756,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 },
                 onPanUpdate: (details) {
                   setState(() {
+                    selectedLink = link;
+                    selectedBlock = null;
                     link.inflectionPoints[pointIndex] +=
                         details.delta / zoomLevel;
                   });
@@ -706,7 +771,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
+                        color: Colors.black.withValues(alpha: 0.25),
                         blurRadius: 3,
                         offset: const Offset(0, 1),
                       ),
@@ -745,15 +810,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           child: MouseRegion(
             cursor: SystemMouseCursors.resizeUpLeftDownRight,
             child: GestureDetector(
+              onTapDown: (_) {
+                setState(() {
+                  selectedLink = link;
+                  selectedBlock = null;
+                });
+              },
               onSecondaryTapDown: (_) {
                 setState(() {
                   if (linkIndex >= 0 && linkIndex < links.length) {
                     links.removeAt(linkIndex);
+                    if (selectedLink == link) {
+                      selectedLink = null;
+                    }
                   }
                 });
               },
               onPanUpdate: (details) {
                 setState(() {
+                  selectedLink = link;
+                  selectedBlock = null;
                   final canvasPosition = _toCanvasLocal(details.globalPosition);
                   link.sourceAnchorUnit = _anchorUnitFromCanvasPoint(
                     fromRect,
@@ -782,15 +858,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           child: MouseRegion(
             cursor: SystemMouseCursors.resizeUpLeftDownRight,
             child: GestureDetector(
+              onTapDown: (_) {
+                setState(() {
+                  selectedLink = link;
+                  selectedBlock = null;
+                });
+              },
               onSecondaryTapDown: (_) {
                 setState(() {
                   if (linkIndex >= 0 && linkIndex < links.length) {
                     links.removeAt(linkIndex);
+                    if (selectedLink == link) {
+                      selectedLink = null;
+                    }
                   }
                 });
               },
               onPanUpdate: (details) {
                 setState(() {
+                  selectedLink = link;
+                  selectedBlock = null;
                   final canvasPosition = _toCanvasLocal(details.globalPosition);
                   link.targetAnchorUnit = _anchorUnitFromCanvasPoint(
                     toRect,
@@ -816,6 +903,137 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return widgets;
   }
 
+  Widget _buildPropertiesPanel() {
+    final block = selectedBlock;
+    final link = selectedLink;
+
+    if (block != null) {
+      return Container(
+        width: 320,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(left: BorderSide(color: Colors.grey.shade300)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Proprietes du bloc',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            Text('ID: ${block.id}'),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: ValueKey('block-title-${block.id}'),
+              initialValue: block.title,
+              decoration: const InputDecoration(
+                labelText: 'Titre',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  block.title = value;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            Text('Position X: ${block.position.dx.toStringAsFixed(1)}'),
+            Text('Position Y: ${block.position.dy.toStringAsFixed(1)}'),
+            const SizedBox(height: 8),
+            Text('Largeur: ${block.size.width.toStringAsFixed(1)}'),
+            Text('Hauteur: ${block.size.height.toStringAsFixed(1)}'),
+          ],
+        ),
+      );
+    }
+
+    if (link != null) {
+      return Container(
+        width: 320,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(left: BorderSide(color: Colors.grey.shade300)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Proprietes du lien',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            Text('Source: ${link.fromBlockId}'),
+            Text('Cible: ${link.toBlockId}'),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<ConnectorType>(
+              initialValue: link.connectorType,
+              decoration: const InputDecoration(
+                labelText: 'Type de lien',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: ConnectorType.bezier,
+                  child: Text('Bezier'),
+                ),
+                DropdownMenuItem(
+                  value: ConnectorType.orthogonal,
+                  child: Text('Orthogonale'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  link.connectorType = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Text('Points d\'inflexion: ${link.inflectionPoints.length}'),
+            const SizedBox(height: 8),
+            Text(
+              'Ancre source: ${link.sourceAnchorUnit?.toString() ?? 'auto'}',
+            ),
+            Text('Ancre cible: ${link.targetAnchorUnit?.toString() ?? 'auto'}'),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: () => _deleteLink(link),
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Supprimer le lien'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: 320,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(left: BorderSide(color: Colors.grey.shade300)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Proprietes',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 12),
+          Text('Selectionnez un bloc ou un lien.'),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -834,23 +1052,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 : null,
             tooltip: 'Supprimer le bloc sélectionné',
           ),
-          PopupMenuButton<ConnectorType>(
-            tooltip: 'Type de flèche',
-            icon: const Icon(Icons.alt_route),
-            initialValue: connectorType,
-            onSelected: (value) {
-              setState(() {
-                connectorType = value;
-              });
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: ConnectorType.bezier, child: Text('Bezier')),
-              PopupMenuItem(
-                value: ConnectorType.orthogonal,
-                child: Text('Orthogonale'),
-              ),
-            ],
-          ),
           IconButton(
             icon: const Icon(Icons.file_upload_outlined),
             tooltip: 'Export JSON',
@@ -863,122 +1064,138 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           ),
         ],
       ),
-      body: MouseRegion(
-        key: _canvasKey,
-        cursor: SystemMouseCursors.grab,
-        onHover: (event) {
-          setState(() {
-            currentMousePosition = event.localPosition;
-          });
-        },
-        child: CustomPaint(
-          foregroundPainter: MiroCanvasPainter(
-            blocks: blocks,
-            links: links,
-            canvasOffset: canvasOffset,
-            zoomLevel: zoomLevel,
-            selectedBlock: selectedBlock,
-            linkingFromPoint: linkingFromPoint,
-            currentMousePosition: currentMousePosition,
-            linkSourceBlock: linkSourceBlock,
-            connectorType: connectorType,
-            flowAnimation: _flowController,
-            pendingInflectionPoints: pendingInflectionPoints,
-          ),
-          child: Container(
-            color: Colors.grey[100],
-            child: Stack(
-              children: [
-                GestureDetector(
-                  onTapDown: (details) {
-                    setState(() {
-                      final canvasPosition = _toCanvasLocal(
-                        details.globalPosition,
-                      );
-                      final modelPosition = _toModelPosition(
-                        details.globalPosition,
-                      );
-
-                      if (linkSourceBlock != null) {
-                        return;
-                      }
-
-                      if (_insertInflectionPointOnLink(
-                        canvasPosition,
-                        modelPosition,
-                      )) {
-                        return;
-                      }
-
-                      selectedBlock = null;
-                      for (var block in blocks) {
-                        final blockRect = Rect.fromLTWH(
-                          block.position.dx,
-                          block.position.dy,
-                          block.size.width,
-                          block.size.height,
-                        );
-                        if (blockRect.contains(modelPosition)) {
-                          selectedBlock = block;
-                          break;
-                        }
-                      }
-                    });
-                  },
+      body: Row(
+        children: [
+          Expanded(
+            child: MouseRegion(
+              key: _canvasKey,
+              cursor: SystemMouseCursors.grab,
+              onHover: (event) {
+                setState(() {
+                  currentMousePosition = event.localPosition;
+                });
+              },
+              child: CustomPaint(
+                foregroundPainter: MiroCanvasPainter(
+                  blocks: blocks,
+                  links: links,
+                  canvasOffset: canvasOffset,
+                  zoomLevel: zoomLevel,
+                  selectedBlock: selectedBlock,
+                  linkingFromPoint: linkingFromPoint,
+                  currentMousePosition: currentMousePosition,
+                  linkSourceBlock: linkSourceBlock,
+                  flowAnimation: _flowController,
+                  pendingInflectionPoints: pendingInflectionPoints,
                 ),
-                ...blocks.map((block) {
-                  return Positioned(
-                    left: block.position.dx * zoomLevel + canvasOffset.dx,
-                    top: block.position.dy * zoomLevel + canvasOffset.dy,
-                    child: Listener(
-                      behavior: HitTestBehavior.opaque,
-                      onPointerDown: (event) {
-                        if (_isSecondaryButtonPressed(event.buttons)) {
-                          _startLinking(block);
-                          _updateLinkPreviewFromGlobal(event.position);
-                        }
-                      },
-                      onPointerMove: (event) {
-                        if (linkSourceBlock != null &&
-                            _isSecondaryButtonPressed(event.buttons)) {
-                          _updateLinkPreviewFromGlobal(event.position);
-                        }
-                      },
-                      onPointerUp: (event) {
-                        if (linkSourceBlock != null) {
-                          _finishLinkingAtGlobal(event.position);
-                        }
-                      },
-                      child: GestureDetector(
-                        onPanUpdate: (details) {
-                          if (selectedBlock == block) {
-                            setState(() {
-                              block.position += Offset(
-                                details.delta.dx / zoomLevel,
-                                details.delta.dy / zoomLevel,
-                              );
-                            });
-                          }
-                        },
+                child: Container(
+                  color: Colors.grey[100],
+                  child: Stack(
+                    children: [
+                      GestureDetector(
                         onTapDown: (details) {
                           setState(() {
-                            selectedBlock = block;
+                            final canvasPosition = _toCanvasLocal(
+                              details.globalPosition,
+                            );
+                            final modelPosition = _toModelPosition(
+                              details.globalPosition,
+                            );
+
+                            if (linkSourceBlock != null) {
+                              return;
+                            }
+
+                            for (var block in blocks) {
+                              final blockRect = Rect.fromLTWH(
+                                block.position.dx,
+                                block.position.dy,
+                                block.size.width,
+                                block.size.height,
+                              );
+                              if (blockRect.contains(modelPosition)) {
+                                selectedBlock = block;
+                                selectedLink = null;
+                                return;
+                              }
+                            }
+
+                            final hitLink = _findLinkAtCanvasPosition(
+                              canvasPosition,
+                            );
+                            if (hitLink != null) {
+                              selectedLink = hitLink;
+                              selectedBlock = null;
+                              _insertInflectionPointOnLink(
+                                canvasPosition,
+                                modelPosition,
+                              );
+                              return;
+                            }
+
+                            selectedBlock = null;
+                            selectedLink = null;
                           });
                         },
-                        child: BlockWidget(
-                          block: block,
-                          isSelected: selectedBlock == block,
-                        ),
                       ),
-                    ),
-                  );
-                }),
-                ..._buildAnchorHandles(),
-                ..._buildInflectionHandles(),
-              ],
+                      ...blocks.map((block) {
+                        return Positioned(
+                          left: block.position.dx * zoomLevel + canvasOffset.dx,
+                          top: block.position.dy * zoomLevel + canvasOffset.dy,
+                          child: Listener(
+                            behavior: HitTestBehavior.opaque,
+                            onPointerDown: (event) {
+                              if (_isSecondaryButtonPressed(event.buttons)) {
+                                _startLinking(block);
+                                _updateLinkPreviewFromGlobal(event.position);
+                              }
+                            },
+                            onPointerMove: (event) {
+                              if (linkSourceBlock != null &&
+                                  _isSecondaryButtonPressed(event.buttons)) {
+                                _updateLinkPreviewFromGlobal(event.position);
+                              }
+                            },
+                            onPointerUp: (event) {
+                              if (linkSourceBlock != null) {
+                                _finishLinkingAtGlobal(event.position);
+                              }
+                            },
+                            child: GestureDetector(
+                              onPanUpdate: (details) {
+                                if (selectedBlock == block) {
+                                  setState(() {
+                                    block.position += Offset(
+                                      details.delta.dx / zoomLevel,
+                                      details.delta.dy / zoomLevel,
+                                    );
+                                  });
+                                }
+                              },
+                              onTapDown: (details) {
+                                setState(() {
+                                  selectedBlock = block;
+                                  selectedLink = null;
+                                });
+                              },
+                              child: BlockWidget(
+                                block: block,
+                                isSelected: selectedBlock == block,
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                      ..._buildAnchorHandles(),
+                      ..._buildInflectionHandles(),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+          _buildPropertiesPanel(),
+        ],
       ),
     );
   }
@@ -1004,7 +1221,7 @@ class BlockWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(2, 2),
           ),
@@ -1029,7 +1246,6 @@ class MiroCanvasPainter extends CustomPainter {
   final Offset? linkingFromPoint;
   final Offset? currentMousePosition;
   final Block? linkSourceBlock;
-  final ConnectorType connectorType;
   final Animation<double>? flowAnimation;
   final List<Offset> pendingInflectionPoints;
 
@@ -1042,7 +1258,6 @@ class MiroCanvasPainter extends CustomPainter {
     this.linkingFromPoint,
     this.currentMousePosition,
     this.linkSourceBlock,
-    this.connectorType = ConnectorType.bezier,
     this.flowAnimation,
     this.pendingInflectionPoints = const [],
   }) : super(repaint: flowAnimation);
@@ -1103,6 +1318,7 @@ class MiroCanvasPainter extends CustomPainter {
         fromEdge,
         toEdge,
         linkPaint,
+        connectorType: link.connectorType,
         viaPoints: viaCanvas,
         startTangent: startTangent,
         endTangent: endTangent,
@@ -1141,6 +1357,7 @@ class MiroCanvasPainter extends CustomPainter {
         linkingFromCanvas,
         currentMousePosition!,
         tempPaint,
+        connectorType: ConnectorType.bezier,
         viaPoints: previewViaCanvas,
         startTangent: startTangent,
       );
@@ -1234,6 +1451,7 @@ class MiroCanvasPainter extends CustomPainter {
     Offset from,
     Offset to,
     Paint paint, {
+    required ConnectorType connectorType,
     List<Offset> viaPoints = const [],
     Offset? startTangent,
     Offset? endTangent,
@@ -1241,12 +1459,17 @@ class MiroCanvasPainter extends CustomPainter {
     final path = _connectorPath(
       from,
       to,
+      connectorType: connectorType,
       viaPoints: viaPoints,
       startTangent: startTangent,
       endTangent: endTangent,
     );
-    canvas.drawPath(path, paint);
-    _drawFlowParticles(canvas, path, paint.color);
+
+    // Dessiner le tube néon avec effet de glow bleu
+    _drawNeonTube(canvas, path);
+
+    // Dessiner les particules qui circulent dans le tube
+    _drawFlowParticles(canvas, path, const Color.fromARGB(255, 100, 200, 255));
 
     final endAngle = _pathEndAngle(path);
     if (endAngle == null) {
@@ -1256,9 +1479,21 @@ class MiroCanvasPainter extends CustomPainter {
     _drawArrowHead(canvas, to, endAngle, paint);
   }
 
+  void _drawNeonTube(Canvas canvas, Path path) {
+    // Tube bleu
+    final tubePaint = Paint()
+      ..color = const Color.fromARGB(100, 100, 200, 255)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(path, tubePaint);
+  }
+
   Path _connectorPath(
     Offset from,
     Offset to, {
+    required ConnectorType connectorType,
     List<Offset> viaPoints = const [],
     Offset? startTangent,
     Offset? endTangent,
@@ -1488,11 +1723,34 @@ class MiroCanvasPainter extends CustomPainter {
           continue;
         }
         final progress = offsetOnPath / length;
-        final radius = 2.0 + (1.4 * progress);
+        final radius = 1.8 + (0.8 * progress);
+
+        // Effet de lueur néon - couches multiples pour l'effet glow
+        final neonColor = color.withValues(alpha: 0.15);
+
+        // Première couche de glow (la plus large)
+        final glow1Paint = Paint()
+          ..color = neonColor
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(tangent.position, radius * 1.8, glow1Paint);
+
+        // Deuxième couche de glow (moyenne)
+        final glow2Paint = Paint()
+          ..color = neonColor.withValues(alpha: 0.25)
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(tangent.position, radius * 1.3, glow2Paint);
+
+        // Couche principale avec lueur plus intense
         final flowPaint = Paint()
-          ..color = color.withOpacity(0.45 + (0.5 * progress))
+          ..color = color.withValues(alpha: 0.65 + (0.35 * progress))
           ..style = PaintingStyle.fill;
         canvas.drawCircle(tangent.position, radius, flowPaint);
+
+        // Cœur brillant central
+        final corePaint = Paint()
+          ..color = color.withValues(alpha: 0.9)
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(tangent.position, radius * 0.4, corePaint);
       }
     } while (iterator.moveNext());
   }

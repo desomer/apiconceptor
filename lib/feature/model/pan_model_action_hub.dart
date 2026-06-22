@@ -23,7 +23,7 @@ class PanModelActionHub extends StatelessWidget {
         children: [
           SizedBox(width: 10),
           GlowingHalo(
-            key: panModelSelector.showCaseInfo?.keys['button'] = GlobalKey(),
+            key: panModelSelector.showCaseInfo.keys['button'] = GlobalKey(),
             child: ElevatedButton.icon(
               icon: Icon(Icons.add_box_outlined),
               onPressed: () {
