@@ -535,6 +535,59 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     }
   }
 
+  void _updateLinksAnchorsForBlock(Block block) {
+    // Find all blocks connected to this block
+    final connectedBlockIds = <String>{};
+    for (var link in links) {
+      if (link.fromBlockId == block.id) {
+        connectedBlockIds.add(link.toBlockId);
+      }
+      if (link.toBlockId == block.id) {
+        connectedBlockIds.add(link.fromBlockId);
+      }
+    }
+
+    // Update anchors for this block and all connected blocks
+    final blockIdsToUpdate = {block.id, ...connectedBlockIds};
+
+    for (var blockId in blockIdsToUpdate) {
+      for (var link in links) {
+        final isSource = link.fromBlockId == blockId;
+        final isTarget = link.toBlockId == blockId;
+
+        if (isSource) {
+          final sourceIndex = blocks.indexWhere(
+            (b) => b.id == link.fromBlockId,
+          );
+          final targetIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
+          if (sourceIndex != -1 && targetIndex != -1) {
+            final sourceRect = _blockRectCanvas(blocks[sourceIndex]);
+            final targetRect = _blockRectCanvas(blocks[targetIndex]);
+            link.sourceAnchorUnit = _calculateOptimalAnchorUnit(
+              sourceRect,
+              targetRect,
+            );
+          }
+        }
+
+        if (isTarget) {
+          final sourceIndex = blocks.indexWhere(
+            (b) => b.id == link.fromBlockId,
+          );
+          final targetIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
+          if (sourceIndex != -1 && targetIndex != -1) {
+            final sourceRect = _blockRectCanvas(blocks[sourceIndex]);
+            final targetRect = _blockRectCanvas(blocks[targetIndex]);
+            link.targetAnchorUnit = _calculateOptimalAnchorUnit(
+              targetRect,
+              sourceRect,
+            );
+          }
+        }
+      }
+    }
+  }
+
   Offset _getBlockCenter(Block block) {
     return Offset(
       block.position.dx + block.size.width / 2,
@@ -598,15 +651,58 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return unit / maxAbs;
   }
 
-  Offset _borderPointFromUnit(Rect rect, Offset unit) {
+  Offset _borderPointFromUnit(
+    Rect rect,
+    Offset unit, {
+    Offset spacingOffset = Offset.zero,
+  }) {
     final normalized = _normalizeAnchorUnit(unit);
     final halfW = rect.width / 2;
     final halfH = rect.height / 2;
     final center = rect.center;
     return Offset(
-      center.dx + normalized.dx * halfW,
-      center.dy + normalized.dy * halfH,
+      center.dx + normalized.dx * halfW + spacingOffset.dx,
+      center.dy + normalized.dy * halfH + spacingOffset.dy,
     );
+  }
+
+  Offset _getAnchorSpacingOffset(
+    BlockLink currentLink,
+    String blockId,
+    Offset anchorUnit,
+  ) {
+    final normalized = _normalizeAnchorUnit(anchorUnit);
+    final spacingDistance = 15.0; // Distance between overlapping anchors
+
+    // Count how many other links have anchors on the same block and same side
+    int anchorIndex = 0;
+    for (var link in links) {
+      final isSameBlock =
+          (link.fromBlockId == blockId &&
+              link.sourceAnchorUnit != null &&
+              _normalizeAnchorUnit(link.sourceAnchorUnit!) == normalized) ||
+          (link.toBlockId == blockId &&
+              link.targetAnchorUnit != null &&
+              _normalizeAnchorUnit(link.targetAnchorUnit!) == normalized);
+
+      if (isSameBlock) {
+        if (link == currentLink) {
+          // We found our position in the sequence
+          break;
+        }
+        anchorIndex++;
+      }
+    }
+
+    // Apply spacing perpendicular to the anchor side
+    if (normalized.dx != 0 && normalized.dy == 0) {
+      // Horizontal side (left/right) - space vertically
+      return Offset(0, (anchorIndex - 0.5) * spacingDistance);
+    } else if (normalized.dx == 0 && normalized.dy != 0) {
+      // Vertical side (top/bottom) - space horizontally
+      return Offset((anchorIndex - 0.5) * spacingDistance, 0);
+    }
+    return Offset.zero;
   }
 
   List<Offset>? _linkControlPointsCanvas(BlockLink link) {
@@ -665,10 +761,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         : fromBorderForTarget;
 
     final fromEdge = link.sourceAnchorUnit != null
-        ? _borderPointFromUnit(fromRect, link.sourceAnchorUnit!)
+        ? _borderPointFromUnit(
+            fromRect,
+            link.sourceAnchorUnit!,
+            spacingOffset: _getAnchorSpacingOffset(
+              link,
+              link.fromBlockId,
+              link.sourceAnchorUnit!,
+            ),
+          )
         : _pointOnRectBorderTowards(fromRect, fromReference);
     final toEdge = link.targetAnchorUnit != null
-        ? _borderPointFromUnit(toRect, link.targetAnchorUnit!)
+        ? _borderPointFromUnit(
+            toRect,
+            link.targetAnchorUnit!,
+            spacingOffset: _getAnchorSpacingOffset(
+              link,
+              link.toBlockId,
+              link.targetAnchorUnit!,
+            ),
+          )
         : _pointOnRectBorderTowards(toRect, toReference);
 
     return (fromEdge, toEdge, viaCanvas, fromRect, toRect);
@@ -1203,6 +1315,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                                       details.delta.dx / zoomLevel,
                                       details.delta.dy / zoomLevel,
                                     );
+                                    _updateLinksAnchorsForBlock(block);
                                   });
                                 }
                               },
@@ -1448,17 +1561,6 @@ class MiroCanvasPainter extends CustomPainter {
       return const Offset(1, 0);
     }
     return unit / maxAbs;
-  }
-
-  Offset _borderPointFromUnit(Rect rect, Offset unit) {
-    final normalized = _normalizeAnchorUnit(unit);
-    final halfW = rect.width / 2;
-    final halfH = rect.height / 2;
-    final center = rect.center;
-    return Offset(
-      center.dx + normalized.dx * halfW,
-      center.dy + normalized.dy * halfH,
-    );
   }
 
   Offset _axisNormalForBorderPoint(Rect rect, Offset edgePoint) {
