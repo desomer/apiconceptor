@@ -54,6 +54,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   static const double _linkHitTolerance = 14.0;
   static const double _inflectionHandleRadius = 7.0;
   static const double _anchorHandleRadius = 6.0;
+  static const double _anchorSpacingDistance = 15.0;
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
   final List<BlockLink> links = [];
@@ -522,6 +523,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             targetAnchorUnit: targetAnchorUnit,
           ),
         );
+        _ensureBlockHasSpaceForAnchors(linkSourceBlock!);
+        _ensureBlockHasSpaceForAnchors(targetBlock);
         linkSourceBlock = null;
         linkingFromPoint = null;
         pendingInflectionPoints.clear();
@@ -600,6 +603,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             link.targetAnchorUnit = newAnchor;
           }
         }
+      }
+
+      final blockIndex = blocks.indexWhere((b) => b.id == blockId);
+      if (blockIndex != -1) {
+        _ensureBlockHasSpaceForAnchors(blocks[blockIndex]);
       }
     }
   }
@@ -705,6 +713,71 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return Offset(0, normalized.dy >= 0 ? 1 : -1);
   }
 
+  double _requiredCanvasExtentForAnchorCount(int count) {
+    if (count <= 0) {
+      return 0;
+    }
+
+    // Keep room for anchor handle diameter and edge breathing room.
+    final sidePadding = (_anchorHandleRadius * 2) + 4.0;
+    return (count - 1) * _anchorSpacingDistance + (2 * sidePadding);
+  }
+
+  void _ensureBlockHasSpaceForAnchors(Block block) {
+    int leftCount = 0;
+    int rightCount = 0;
+    int topCount = 0;
+    int bottomCount = 0;
+
+    for (final link in links) {
+      if (link.fromBlockId == block.id && link.sourceAnchorUnit != null) {
+        final side = _anchorSideUnit(link.sourceAnchorUnit!);
+        if (side.dx < 0) {
+          leftCount++;
+        } else if (side.dx > 0) {
+          rightCount++;
+        } else if (side.dy < 0) {
+          topCount++;
+        } else if (side.dy > 0) {
+          bottomCount++;
+        }
+      }
+
+      if (link.toBlockId == block.id && link.targetAnchorUnit != null) {
+        final side = _anchorSideUnit(link.targetAnchorUnit!);
+        if (side.dx < 0) {
+          leftCount++;
+        } else if (side.dx > 0) {
+          rightCount++;
+        } else if (side.dy < 0) {
+          topCount++;
+        } else if (side.dy > 0) {
+          bottomCount++;
+        }
+      }
+    }
+
+    final maxVerticalAnchors = math.max(leftCount, rightCount);
+    final maxHorizontalAnchors = math.max(topCount, bottomCount);
+
+    final requiredCanvasHeight = _requiredCanvasExtentForAnchorCount(
+      maxVerticalAnchors,
+    );
+    final requiredCanvasWidth = _requiredCanvasExtentForAnchorCount(
+      maxHorizontalAnchors,
+    );
+
+    final requiredModelHeight = requiredCanvasHeight / zoomLevel;
+    final requiredModelWidth = requiredCanvasWidth / zoomLevel;
+
+    final newWidth = math.max(block.size.width, requiredModelWidth);
+    final newHeight = math.max(block.size.height, requiredModelHeight);
+
+    if (newWidth != block.size.width || newHeight != block.size.height) {
+      block.size = Size(newWidth, newHeight);
+    }
+  }
+
   double _anchorOrderKeyForLinkSide(
     BlockLink link,
     String blockId,
@@ -731,7 +804,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     Offset anchorUnit,
   ) {
     final side = _anchorSideUnit(anchorUnit);
-    final spacingDistance = 15.0; // Distance between anchors
+    final spacingDistance = _anchorSpacingDistance;
 
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {
@@ -1068,6 +1141,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     link.sourceAnchorUnit!,
                     canvasPosition,
                   );
+                  final fromIndex = blocks.indexWhere(
+                    (b) => b.id == link.fromBlockId,
+                  );
+                  if (fromIndex != -1) {
+                    _ensureBlockHasSpaceForAnchors(blocks[fromIndex]);
+                  }
                 });
               },
               child: Container(
@@ -1121,6 +1200,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     link.targetAnchorUnit!,
                     canvasPosition,
                   );
+                  final toIndex = blocks.indexWhere(
+                    (b) => b.id == link.toBlockId,
+                  );
+                  if (toIndex != -1) {
+                    _ensureBlockHasSpaceForAnchors(blocks[toIndex]);
+                  }
                 });
               },
               child: Container(
