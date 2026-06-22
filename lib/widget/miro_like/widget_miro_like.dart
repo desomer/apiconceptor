@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'dart:math' as math;
+import 'dart:convert';
 
 class Block {
   String id;
@@ -20,11 +22,15 @@ class BlockLink {
   String fromBlockId;
   String toBlockId;
   List<Offset> inflectionPoints;
+  Offset? sourceAnchorUnit;
+  Offset? targetAnchorUnit;
 
   BlockLink({
     required this.fromBlockId,
     required this.toBlockId,
     List<Offset>? inflectionPoints,
+    this.sourceAnchorUnit,
+    this.targetAnchorUnit,
   }) : inflectionPoints = inflectionPoints ?? [];
 }
 
@@ -41,6 +47,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
   static const double _linkHitTolerance = 14.0;
   static const double _inflectionHandleRadius = 7.0;
+  static const double _anchorHandleRadius = 6.0;
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
   final List<BlockLink> links = [];
@@ -153,6 +160,305 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return (buttons & kSecondaryMouseButton) != 0;
   }
 
+  Map<String, dynamic> _offsetToJson(Offset offset) {
+    return {'dx': offset.dx, 'dy': offset.dy};
+  }
+
+  Offset _offsetFromJson(dynamic value, {Offset fallback = Offset.zero}) {
+    if (value is! Map) {
+      return fallback;
+    }
+    final dx = value['dx'];
+    final dy = value['dy'];
+    if (dx is num && dy is num) {
+      return Offset(dx.toDouble(), dy.toDouble());
+    }
+    return fallback;
+  }
+
+  Map<String, dynamic> _sizeToJson(Size size) {
+    return {'width': size.width, 'height': size.height};
+  }
+
+  Size _sizeFromJson(dynamic value, {Size fallback = const Size(150, 100)}) {
+    if (value is! Map) {
+      return fallback;
+    }
+    final width = value['width'];
+    final height = value['height'];
+    if (width is num && height is num) {
+      return Size(width.toDouble(), height.toDouble());
+    }
+    return fallback;
+  }
+
+  Map<String, dynamic> _blockToJson(Block block) {
+    return {
+      'id': block.id,
+      'title': block.title,
+      'position': _offsetToJson(block.position),
+      'size': _sizeToJson(block.size),
+    };
+  }
+
+  Map<String, dynamic> _linkToJson(BlockLink link) {
+    return {
+      'fromBlockId': link.fromBlockId,
+      'toBlockId': link.toBlockId,
+      'inflectionPoints': link.inflectionPoints.map(_offsetToJson).toList(),
+      'sourceAnchorUnit': link.sourceAnchorUnit == null
+          ? null
+          : _offsetToJson(link.sourceAnchorUnit!),
+      'targetAnchorUnit': link.targetAnchorUnit == null
+          ? null
+          : _offsetToJson(link.targetAnchorUnit!),
+    };
+  }
+
+  Map<String, dynamic> _boardToJson() {
+    return {
+      'version': 1,
+      'connectorType': connectorType.name,
+      'zoomLevel': zoomLevel,
+      'canvasOffset': _offsetToJson(canvasOffset),
+      'blocks': blocks.map(_blockToJson).toList(),
+      'links': links.map(_linkToJson).toList(),
+    };
+  }
+
+  String _generateBoardJson() {
+    return const JsonEncoder.withIndent('  ').convert(_boardToJson());
+  }
+
+  ConnectorType _connectorTypeFromName(dynamic value) {
+    final raw = value?.toString() ?? '';
+    if (raw == ConnectorType.orthogonal.name) {
+      return ConnectorType.orthogonal;
+    }
+    return ConnectorType.bezier;
+  }
+
+  List<Block> _blocksFromJson(dynamic value) {
+    if (value is! List) {
+      return [];
+    }
+
+    final parsed = <Block>[];
+    for (final item in value) {
+      if (item is! Map) {
+        continue;
+      }
+
+      final id = item['id']?.toString();
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+
+      final title = item['title']?.toString() ?? 'Block';
+      parsed.add(
+        Block(
+          id: id,
+          title: title,
+          position: _offsetFromJson(item['position']),
+          size: _sizeFromJson(item['size']),
+        ),
+      );
+    }
+    return parsed;
+  }
+
+  List<BlockLink> _linksFromJson(dynamic value) {
+    if (value is! List) {
+      return [];
+    }
+
+    final parsed = <BlockLink>[];
+    for (final item in value) {
+      if (item is! Map) {
+        continue;
+      }
+
+      final fromId = item['fromBlockId']?.toString();
+      final toId = item['toBlockId']?.toString();
+      if (fromId == null || fromId.isEmpty || toId == null || toId.isEmpty) {
+        continue;
+      }
+
+      final inflectionRaw = item['inflectionPoints'];
+      final inflectionPoints = <Offset>[];
+      if (inflectionRaw is List) {
+        for (final p in inflectionRaw) {
+          inflectionPoints.add(_offsetFromJson(p));
+        }
+      }
+
+      parsed.add(
+        BlockLink(
+          fromBlockId: fromId,
+          toBlockId: toId,
+          inflectionPoints: inflectionPoints,
+          sourceAnchorUnit: item['sourceAnchorUnit'] == null
+              ? null
+              : _offsetFromJson(item['sourceAnchorUnit']),
+          targetAnchorUnit: item['targetAnchorUnit'] == null
+              ? null
+              : _offsetFromJson(item['targetAnchorUnit']),
+        ),
+      );
+    }
+    return parsed;
+  }
+
+  Future<void> _showExportDialog() async {
+    final jsonText = _generateBoardJson();
+    if (!mounted) {
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Export JSON'),
+          content: SizedBox(
+            width: 640,
+            child: SingleChildScrollView(child: SelectableText(jsonText)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: jsonText));
+                if (!context.mounted) {
+                  return;
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('JSON copie dans le presse-papiers'),
+                  ),
+                );
+              },
+              child: const Text('Copier'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Fermer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showImportDialog() async {
+    final controller = TextEditingController();
+    String? error;
+
+    if (!mounted) {
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return AlertDialog(
+              title: const Text('Import JSON'),
+              content: SizedBox(
+                width: 640,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: controller,
+                      minLines: 10,
+                      maxLines: 18,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: 'Collez le JSON ici',
+                      ),
+                    ),
+                    if (error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          error!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    try {
+                      final decoded = jsonDecode(controller.text);
+                      if (decoded is! Map<String, dynamic>) {
+                        throw const FormatException(
+                          'Le JSON racine doit etre un objet',
+                        );
+                      }
+
+                      final importedBlocks = _blocksFromJson(decoded['blocks']);
+                      final importedLinks = _linksFromJson(decoded['links']);
+                      final importedIds = importedBlocks
+                          .map((b) => b.id)
+                          .toSet();
+                      importedLinks.removeWhere(
+                        (l) =>
+                            !importedIds.contains(l.fromBlockId) ||
+                            !importedIds.contains(l.toBlockId),
+                      );
+
+                      setState(() {
+                        blocks
+                          ..clear()
+                          ..addAll(importedBlocks);
+                        links
+                          ..clear()
+                          ..addAll(importedLinks);
+                        connectorType = _connectorTypeFromName(
+                          decoded['connectorType'],
+                        );
+
+                        final zoom = decoded['zoomLevel'];
+                        if (zoom is num) {
+                          zoomLevel = zoom.toDouble().clamp(0.2, 4.0);
+                        }
+
+                        canvasOffset = _offsetFromJson(decoded['canvasOffset']);
+                        selectedBlock = null;
+                        linkSourceBlock = null;
+                        linkingFromPoint = null;
+                        currentMousePosition = null;
+                        pendingInflectionPoints.clear();
+                      });
+
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Import JSON termine')),
+                      );
+                    } catch (e) {
+                      setLocalState(() {
+                        error = 'Import impossible: $e';
+                      });
+                    }
+                  },
+                  child: const Text('Importer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _endLinking(Block targetBlock) {
     if (linkSourceBlock != null && linkSourceBlock!.id != targetBlock.id) {
       setState(() {
@@ -221,7 +527,55 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return center + vector * scale;
   }
 
+  Offset _normalizeAnchorUnit(Offset unit) {
+    if (unit.distanceSquared == 0) {
+      return const Offset(1, 0);
+    }
+
+    final maxAbs = math.max(unit.dx.abs(), unit.dy.abs());
+    if (maxAbs == 0) {
+      return const Offset(1, 0);
+    }
+    return unit / maxAbs;
+  }
+
+  Offset _borderPointFromUnit(Rect rect, Offset unit) {
+    final normalized = _normalizeAnchorUnit(unit);
+    final halfW = rect.width / 2;
+    final halfH = rect.height / 2;
+    final center = rect.center;
+    return Offset(
+      center.dx + normalized.dx * halfW,
+      center.dy + normalized.dy * halfH,
+    );
+  }
+
   List<Offset>? _linkControlPointsCanvas(BlockLink link) {
+    final linkData = _resolveLinkAnchorsAndRects(link);
+    if (linkData == null) {
+      return null;
+    }
+    return [linkData.$1, ...linkData.$3, linkData.$2];
+  }
+
+  Offset _anchorUnitFromCanvasPoint(Rect rect, Offset canvasPoint) {
+    final center = rect.center;
+    final halfW = rect.width / 2;
+    final halfH = rect.height / 2;
+    if (halfW == 0 || halfH == 0) {
+      return const Offset(1, 0);
+    }
+
+    final normalized = Offset(
+      (canvasPoint.dx - center.dx) / halfW,
+      (canvasPoint.dy - center.dy) / halfH,
+    );
+    return _normalizeAnchorUnit(normalized);
+  }
+
+  (Offset, Offset, List<Offset>, Rect, Rect)? _resolveLinkAnchorsAndRects(
+    BlockLink link,
+  ) {
     final fromIndex = blocks.indexWhere((b) => b.id == link.fromBlockId);
     final toIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
     if (fromIndex == -1 || toIndex == -1) {
@@ -230,7 +584,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     final fromBlock = blocks[fromIndex];
     final toBlock = blocks[toIndex];
-
     final fromRect = _blockRectCanvas(fromBlock);
     final toRect = _blockRectCanvas(toBlock);
     final viaCanvas = link.inflectionPoints
@@ -251,10 +604,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     final toReference = viaCanvas.isNotEmpty
         ? viaCanvas.last
         : fromBorderForTarget;
-    final fromEdge = _pointOnRectBorderTowards(fromRect, fromReference);
-    final toEdge = _pointOnRectBorderTowards(toRect, toReference);
 
-    return [fromEdge, ...viaCanvas, toEdge];
+    final fromEdge = link.sourceAnchorUnit != null
+        ? _borderPointFromUnit(fromRect, link.sourceAnchorUnit!)
+        : _pointOnRectBorderTowards(fromRect, fromReference);
+    final toEdge = link.targetAnchorUnit != null
+        ? _borderPointFromUnit(toRect, link.targetAnchorUnit!)
+        : _pointOnRectBorderTowards(toRect, toReference);
+
+    return (fromEdge, toEdge, viaCanvas, fromRect, toRect);
   }
 
   double _distancePointToSegmentSquared(Offset p, Offset a, Offset b) {
@@ -365,6 +723,84 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return widgets;
   }
 
+  List<Widget> _buildAnchorHandles() {
+    final widgets = <Widget>[];
+
+    for (final link in links) {
+      final linkData = _resolveLinkAnchorsAndRects(link);
+      if (linkData == null) {
+        continue;
+      }
+
+      final fromAnchor = linkData.$1;
+      final toAnchor = linkData.$2;
+      final fromRect = linkData.$4;
+      final toRect = linkData.$5;
+
+      widgets.add(
+        Positioned(
+          left: fromAnchor.dx - _anchorHandleRadius,
+          top: fromAnchor.dy - _anchorHandleRadius,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeUpLeftDownRight,
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  final canvasPosition = _toCanvasLocal(details.globalPosition);
+                  link.sourceAnchorUnit = _anchorUnitFromCanvasPoint(
+                    fromRect,
+                    canvasPosition,
+                  );
+                });
+              },
+              child: Container(
+                width: _anchorHandleRadius * 2,
+                height: _anchorHandleRadius * 2,
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade600,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      widgets.add(
+        Positioned(
+          left: toAnchor.dx - _anchorHandleRadius,
+          top: toAnchor.dy - _anchorHandleRadius,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.resizeUpLeftDownRight,
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                setState(() {
+                  final canvasPosition = _toCanvasLocal(details.globalPosition);
+                  link.targetAnchorUnit = _anchorUnitFromCanvasPoint(
+                    toRect,
+                    canvasPosition,
+                  );
+                });
+              },
+              child: Container(
+                width: _anchorHandleRadius * 2,
+                height: _anchorHandleRadius * 2,
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.shade500,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -399,6 +835,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 child: Text('Orthogonale'),
               ),
             ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_upload_outlined),
+            tooltip: 'Export JSON',
+            onPressed: _showExportDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Import JSON',
+            onPressed: _showImportDialog,
           ),
         ],
       ),
@@ -512,6 +958,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     ),
                   );
                 }),
+                ..._buildAnchorHandles(),
                 ..._buildInflectionHandles(),
               ],
             ),
@@ -625,8 +1072,12 @@ class MiroCanvasPainter extends CustomPainter {
       final toReference = viaCanvas.isNotEmpty
           ? viaCanvas.last
           : fromBorderForTarget;
-      final fromEdge = _pointOnRectBorderTowards(fromRect, fromReference);
-      final toEdge = _pointOnRectBorderTowards(toRect, toReference);
+      final fromEdge = link.sourceAnchorUnit != null
+          ? _borderPointFromUnit(fromRect, link.sourceAnchorUnit!)
+          : _pointOnRectBorderTowards(fromRect, fromReference);
+      final toEdge = link.targetAnchorUnit != null
+          ? _borderPointFromUnit(toRect, link.targetAnchorUnit!)
+          : _pointOnRectBorderTowards(toRect, toReference);
 
       _drawArrow(canvas, fromEdge, toEdge, linkPaint, viaPoints: viaCanvas);
     }
@@ -702,6 +1153,29 @@ class MiroCanvasPainter extends CustomPainter {
     final scale =
         1 / math.max(vector.dx.abs() / halfW, vector.dy.abs() / halfH);
     return center + vector * scale;
+  }
+
+  Offset _normalizeAnchorUnit(Offset unit) {
+    if (unit.distanceSquared == 0) {
+      return const Offset(1, 0);
+    }
+
+    final maxAbs = math.max(unit.dx.abs(), unit.dy.abs());
+    if (maxAbs == 0) {
+      return const Offset(1, 0);
+    }
+    return unit / maxAbs;
+  }
+
+  Offset _borderPointFromUnit(Rect rect, Offset unit) {
+    final normalized = _normalizeAnchorUnit(unit);
+    final halfW = rect.width / 2;
+    final halfH = rect.height / 2;
+    final center = rect.center;
+    return Offset(
+      center.dx + normalized.dx * halfW,
+      center.dy + normalized.dy * halfH,
+    );
   }
 
   void _drawArrow(
