@@ -679,10 +679,39 @@ class MiroCanvasPainter extends CustomPainter {
       return Path();
     }
 
+    if (connectorType == ConnectorType.bezier) {
+      return _buildSmoothBezierPath(allPoints);
+    }
+
     final path = Path()..moveTo(allPoints.first.dx, allPoints.first.dy);
     for (var i = 0; i < allPoints.length - 1; i++) {
       _appendConnectorSegment(path, allPoints[i], allPoints[i + 1]);
     }
+    return path;
+  }
+
+  Path _buildSmoothBezierPath(List<Offset> points) {
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    if (points.length == 2) {
+      final controlPoints = _bezierControlPoints(points[0], points[1]);
+      final c1 = controlPoints.$1;
+      final c2 = controlPoints.$2;
+      path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, points[1].dx, points[1].dy);
+      return path;
+    }
+
+    const tension = 1.0;
+    for (var i = 0; i < points.length - 1; i++) {
+      final p0 = i > 0 ? points[i - 1] : points[i];
+      final p1 = points[i];
+      final p2 = points[i + 1];
+      final p3 = i + 2 < points.length ? points[i + 2] : points[i + 1];
+
+      final c1 = p1 + ((p2 - p0) * (tension / 6));
+      final c2 = p2 - ((p3 - p1) * (tension / 6));
+      path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
+    }
+
     return path;
   }
 
