@@ -187,13 +187,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     final fromRect = _blockRectCanvas(fromBlock);
     final toRect = _blockRectCanvas(toBlock);
-    final fromCenter = fromRect.center;
-    final toCenter = toRect.center;
-    final fromEdge = _pointOnRectBorderTowards(fromRect, toCenter);
-    final toEdge = _pointOnRectBorderTowards(toRect, fromCenter);
     final viaCanvas = link.inflectionPoints
         .map((point) => _modelToCanvas(point))
         .toList();
+
+    final fromReference = viaCanvas.isNotEmpty
+        ? viaCanvas.first
+        : toRect.center;
+    final toReference = viaCanvas.isNotEmpty ? viaCanvas.last : fromRect.center;
+    final fromEdge = _pointOnRectBorderTowards(fromRect, fromReference);
+    final toEdge = _pointOnRectBorderTowards(toRect, toReference);
 
     return [fromEdge, ...viaCanvas, toEdge];
   }
@@ -557,15 +560,19 @@ class MiroCanvasPainter extends CustomPainter {
 
       final fromRect = _blockRectCanvas(fromBlock);
       final toRect = _blockRectCanvas(toBlock);
-      final fromCenter = fromRect.center;
-      final toCenter = toRect.center;
-
-      final fromEdge = _pointOnRectBorderTowards(fromRect, toCenter);
-      final toEdge = _pointOnRectBorderTowards(toRect, fromCenter);
 
       final viaCanvas = link.inflectionPoints
           .map((point) => _modelToCanvas(point))
           .toList();
+
+      final fromReference = viaCanvas.isNotEmpty
+          ? viaCanvas.first
+          : toRect.center;
+      final toReference = viaCanvas.isNotEmpty
+          ? viaCanvas.last
+          : fromRect.center;
+      final fromEdge = _pointOnRectBorderTowards(fromRect, fromReference);
+      final toEdge = _pointOnRectBorderTowards(toRect, toReference);
 
       _drawArrow(canvas, fromEdge, toEdge, linkPaint, viaPoints: viaCanvas);
     }
@@ -581,14 +588,16 @@ class MiroCanvasPainter extends CustomPainter {
         ..style = PaintingStyle.stroke;
 
       final sourceRect = _blockRectCanvas(linkSourceBlock!);
-      final linkingFromCanvas = _pointOnRectBorderTowards(
-        sourceRect,
-        currentMousePosition!,
-      );
-
       final previewViaCanvas = pendingInflectionPoints
           .map((point) => _modelToCanvas(point))
           .toList();
+      final sourceReference = previewViaCanvas.isNotEmpty
+          ? previewViaCanvas.first
+          : currentMousePosition!;
+      final linkingFromCanvas = _pointOnRectBorderTowards(
+        sourceRect,
+        sourceReference,
+      );
 
       // Dessiner une petite flèche de prévisualisation
       _drawArrow(
