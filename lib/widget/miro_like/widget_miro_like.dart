@@ -27,6 +27,8 @@ class BlockLink {
   Offset? targetAnchorUnit;
   bool isSourceAnchorLocked = false;
   bool isTargetAnchorLocked = false;
+  double? sourceAnchorOrderKey;
+  double? targetAnchorOrderKey;
 
   BlockLink({
     required this.fromBlockId,
@@ -229,6 +231,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'targetAnchorUnit': link.targetAnchorUnit == null
           ? null
           : _offsetToJson(link.targetAnchorUnit!),
+      'sourceAnchorOrderKey': link.sourceAnchorOrderKey,
+      'targetAnchorOrderKey': link.targetAnchorOrderKey,
     };
   }
 
@@ -325,6 +329,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               : _offsetFromJson(item['targetAnchorUnit']),
         ),
       );
+      final sourceOrderKey = item['sourceAnchorOrderKey'];
+      if (sourceOrderKey is num) {
+        parsed.last.sourceAnchorOrderKey = sourceOrderKey.toDouble();
+      }
+      final targetOrderKey = item['targetAnchorOrderKey'];
+      if (targetOrderKey is num) {
+        parsed.last.targetAnchorOrderKey = targetOrderKey.toDouble();
+      }
       if (item['connectorType'] == null) {
         parsed.last.connectorType = fallbackType;
       }
@@ -670,63 +682,105 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     );
   }
 
+  double _anchorOrderKeyFromCanvasPoint(
+    Rect rect,
+    Offset anchorUnit,
+    Offset canvasPoint,
+  ) {
+    final side = _anchorSideUnit(anchorUnit);
+    if (side.dx != 0) {
+      return canvasPoint.dy - rect.center.dy;
+    }
+    if (side.dy != 0) {
+      return canvasPoint.dx - rect.center.dx;
+    }
+    return 0;
+  }
+
+  Offset _anchorSideUnit(Offset unit) {
+    final normalized = _normalizeAnchorUnit(unit);
+    if (normalized.dx.abs() >= normalized.dy.abs()) {
+      return Offset(normalized.dx >= 0 ? 1 : -1, 0);
+    }
+    return Offset(0, normalized.dy >= 0 ? 1 : -1);
+  }
+
+  double _anchorOrderKeyForLinkSide(
+    BlockLink link,
+    String blockId,
+    Offset anchorUnit,
+    int linkIndex,
+  ) {
+    final side = _anchorSideUnit(anchorUnit);
+    if (link.fromBlockId == blockId && link.sourceAnchorUnit != null) {
+      if (_anchorSideUnit(link.sourceAnchorUnit!) == side) {
+        return link.sourceAnchorOrderKey ?? linkIndex.toDouble();
+      }
+    }
+    if (link.toBlockId == blockId && link.targetAnchorUnit != null) {
+      if (_anchorSideUnit(link.targetAnchorUnit!) == side) {
+        return link.targetAnchorOrderKey ?? linkIndex.toDouble();
+      }
+    }
+    return linkIndex.toDouble();
+  }
+
   Offset _getAnchorSpacingOffset(
     BlockLink currentLink,
     String blockId,
     Offset anchorUnit,
   ) {
-    final normalized = _normalizeAnchorUnit(anchorUnit);
+    final side = _anchorSideUnit(anchorUnit);
     final spacingDistance = 15.0; // Distance between anchors
 
-    // Find the index of the current link in the links list
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {
       return Offset.zero;
     }
 
-    // Count how many links BEFORE this one have anchors on the same block and same side
-    int anchorIndex = 0;
-    for (int i = 0; i < currentLinkIndex; i++) {
+    final grouped = <(int, double)>[];
+    for (int i = 0; i < links.length; i++) {
       final link = links[i];
-      final isSameBlock =
+      final isSameSide =
           (link.fromBlockId == blockId &&
               link.sourceAnchorUnit != null &&
-              _normalizeAnchorUnit(link.sourceAnchorUnit!) == normalized) ||
+              _anchorSideUnit(link.sourceAnchorUnit!) == side) ||
           (link.toBlockId == blockId &&
               link.targetAnchorUnit != null &&
-              _normalizeAnchorUnit(link.targetAnchorUnit!) == normalized);
-
-      if (isSameBlock) {
-        anchorIndex++;
+              _anchorSideUnit(link.targetAnchorUnit!) == side);
+      if (!isSameSide) {
+        continue;
       }
+      grouped.add((i, _anchorOrderKeyForLinkSide(link, blockId, side, i)));
     }
 
-    // Count total anchors on the same block and side (including current)
-    int totalAnchors = anchorIndex + 1;
-    for (int i = currentLinkIndex + 1; i < links.length; i++) {
-      final link = links[i];
-      final isSameBlock =
-          (link.fromBlockId == blockId &&
-              link.sourceAnchorUnit != null &&
-              _normalizeAnchorUnit(link.sourceAnchorUnit!) == normalized) ||
-          (link.toBlockId == blockId &&
-              link.targetAnchorUnit != null &&
-              _normalizeAnchorUnit(link.targetAnchorUnit!) == normalized);
-
-      if (isSameBlock) {
-        totalAnchors++;
-      }
+    if (grouped.isEmpty) {
+      return Offset.zero;
     }
 
-    // Center anchors around the middle of the edge
+    grouped.sort((a, b) {
+      final byKey = a.$2.compareTo(b.$2);
+      if (byKey != 0) {
+        return byKey;
+      }
+      return a.$1.compareTo(b.$1);
+    });
+
+    final anchorIndex = grouped.indexWhere(
+      (entry) => entry.$1 == currentLinkIndex,
+    );
+    if (anchorIndex == -1) {
+      return Offset.zero;
+    }
+
     final centerOffset =
-        (anchorIndex - (totalAnchors - 1) / 2) * spacingDistance;
+        (anchorIndex - (grouped.length - 1) / 2) * spacingDistance;
 
     // Apply spacing parallel to the anchor side
-    if (normalized.dx != 0 && normalized.dy == 0) {
+    if (side.dx != 0) {
       // Horizontal side (left/right) - space vertically
       return Offset(0, centerOffset);
-    } else if (normalized.dx == 0 && normalized.dy != 0) {
+    } else if (side.dy != 0) {
       // Vertical side (top/bottom) - space horizontally
       return Offset(centerOffset, 0);
     }
@@ -1009,6 +1063,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     fromRect,
                     canvasPosition,
                   );
+                  link.sourceAnchorOrderKey = _anchorOrderKeyFromCanvasPoint(
+                    fromRect,
+                    link.sourceAnchorUnit!,
+                    canvasPosition,
+                  );
                 });
               },
               child: Container(
@@ -1055,6 +1114,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   final canvasPosition = _toCanvasLocal(details.globalPosition);
                   link.targetAnchorUnit = _anchorUnitFromCanvasPoint(
                     toRect,
+                    canvasPosition,
+                  );
+                  link.targetAnchorOrderKey = _anchorOrderKeyFromCanvasPoint(
+                    toRect,
+                    link.targetAnchorUnit!,
                     canvasPosition,
                   );
                 });
@@ -2006,63 +2070,90 @@ class MiroCanvasPainter extends CustomPainter {
     return (from + Offset(0, curvature * dir), to - Offset(0, curvature * dir));
   }
 
+  double _anchorOrderKeyForLinkSide(
+    BlockLink link,
+    String blockId,
+    Offset anchorUnit,
+    int linkIndex,
+  ) {
+    final side = _anchorSideUnit(anchorUnit);
+    if (link.fromBlockId == blockId && link.sourceAnchorUnit != null) {
+      if (_anchorSideUnit(link.sourceAnchorUnit!) == side) {
+        return link.sourceAnchorOrderKey ?? linkIndex.toDouble();
+      }
+    }
+    if (link.toBlockId == blockId && link.targetAnchorUnit != null) {
+      if (_anchorSideUnit(link.targetAnchorUnit!) == side) {
+        return link.targetAnchorOrderKey ?? linkIndex.toDouble();
+      }
+    }
+    return linkIndex.toDouble();
+  }
+
+  Offset _anchorSideUnit(Offset unit) {
+    final normalized = _normalizeAnchorUnit(unit);
+    if (normalized.dx.abs() >= normalized.dy.abs()) {
+      return Offset(normalized.dx >= 0 ? 1 : -1, 0);
+    }
+    return Offset(0, normalized.dy >= 0 ? 1 : -1);
+  }
+
   Offset _getAnchorSpacingOffset(
     BlockLink currentLink,
     String blockId,
     Offset anchorUnit,
   ) {
-    final normalized = _normalizeAnchorUnit(anchorUnit);
+    final side = _anchorSideUnit(anchorUnit);
     final spacingDistance = 15.0; // Distance between anchors
 
-    // Find the index of the current link in the links list
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {
       return Offset.zero;
     }
 
-    // Count how many links BEFORE this one have anchors on the same block and same side
-    int anchorIndex = 0;
-    for (int i = 0; i < currentLinkIndex; i++) {
+    final grouped = <(int, double)>[];
+    for (int i = 0; i < links.length; i++) {
       final link = links[i];
-      final isSameBlock =
+      final isSameSide =
           (link.fromBlockId == blockId &&
               link.sourceAnchorUnit != null &&
-              _normalizeAnchorUnit(link.sourceAnchorUnit!) == normalized) ||
+              _anchorSideUnit(link.sourceAnchorUnit!) == side) ||
           (link.toBlockId == blockId &&
               link.targetAnchorUnit != null &&
-              _normalizeAnchorUnit(link.targetAnchorUnit!) == normalized);
-
-      if (isSameBlock) {
-        anchorIndex++;
+              _anchorSideUnit(link.targetAnchorUnit!) == side);
+      if (!isSameSide) {
+        continue;
       }
+      grouped.add((i, _anchorOrderKeyForLinkSide(link, blockId, side, i)));
     }
 
-    // Count total anchors on the same block and side (including current)
-    int totalAnchors = anchorIndex + 1;
-    for (int i = currentLinkIndex + 1; i < links.length; i++) {
-      final link = links[i];
-      final isSameBlock =
-          (link.fromBlockId == blockId &&
-              link.sourceAnchorUnit != null &&
-              _normalizeAnchorUnit(link.sourceAnchorUnit!) == normalized) ||
-          (link.toBlockId == blockId &&
-              link.targetAnchorUnit != null &&
-              _normalizeAnchorUnit(link.targetAnchorUnit!) == normalized);
-
-      if (isSameBlock) {
-        totalAnchors++;
-      }
+    if (grouped.isEmpty) {
+      return Offset.zero;
     }
 
-    // Center anchors around the middle of the edge
+    grouped.sort((a, b) {
+      final byKey = a.$2.compareTo(b.$2);
+      if (byKey != 0) {
+        return byKey;
+      }
+      return a.$1.compareTo(b.$1);
+    });
+
+    final anchorIndex = grouped.indexWhere(
+      (entry) => entry.$1 == currentLinkIndex,
+    );
+    if (anchorIndex == -1) {
+      return Offset.zero;
+    }
+
     final centerOffset =
-        (anchorIndex - (totalAnchors - 1) / 2) * spacingDistance;
+        (anchorIndex - (grouped.length - 1) / 2) * spacingDistance;
 
     // Apply spacing parallel to the anchor side
-    if (normalized.dx != 0 && normalized.dy == 0) {
+    if (side.dx != 0) {
       // Horizontal side (left/right) - space vertically
       return Offset(0, centerOffset);
-    } else if (normalized.dx == 0 && normalized.dy != 0) {
+    } else if (side.dy != 0) {
       // Vertical side (top/bottom) - space horizontally
       return Offset(centerOffset, 0);
     }
