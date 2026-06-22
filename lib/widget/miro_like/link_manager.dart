@@ -54,6 +54,7 @@ class LinkManager {
     String fromBlockId,
     String toBlockId,
     String name,
+    double labelPosition,
     ConnectorType connectorType,
     Offset? sourceAnchorUnit,
     Offset? targetAnchorUnit,
@@ -63,6 +64,7 @@ class LinkManager {
       fromBlockId: fromBlockId,
       toBlockId: toBlockId,
       name: name,
+      labelPosition: labelPosition,
       connectorType: connectorType,
       inflectionPoints: inflectionPoints,
       sourceAnchorUnit: sourceAnchorUnit,
@@ -92,6 +94,7 @@ class LinkManager {
       'from': link.fromBlockId,
       'to': link.toBlockId,
       'name': link.name,
+      'labelPosition': link.labelPosition,
       'type': link.connectorType == ConnectorType.bezier
           ? 'bezier'
           : 'orthogonal',
@@ -151,6 +154,9 @@ class LinkManager {
           fromBlockId: from,
           toBlockId: to,
           name: item['name']?.toString() ?? '',
+          labelPosition: (item['labelPosition'] is num)
+              ? (item['labelPosition'] as num).toDouble().clamp(0.0, 1.0)
+              : 0.5,
           connectorType: item['type'] == 'orthogonal'
               ? ConnectorType.orthogonal
               : ConnectorType.bezier,

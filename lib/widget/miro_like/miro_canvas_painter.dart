@@ -604,10 +604,17 @@ class MiroCanvasPainter extends CustomPainter {
       return;
     }
 
-    final midpoint = metric.getTangentForOffset(metric.length / 2);
+    final offsetOnPath = (metric.length * link.labelPosition).clamp(
+      0.0,
+      metric.length,
+    );
+    final midpoint = metric.getTangentForOffset(offsetOnPath);
     if (midpoint == null) {
       return;
     }
+
+    final normal = Offset(-math.sin(midpoint.angle), math.cos(midpoint.angle));
+    final labelCenter = midpoint.position + normal * 18;
 
     final painter = TextPainter(
       text: TextSpan(
@@ -626,7 +633,7 @@ class MiroCanvasPainter extends CustomPainter {
 
     final padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
     final rect = Rect.fromCenter(
-      center: midpoint.position + const Offset(0, -18),
+      center: labelCenter,
       width: painter.width + padding.horizontal,
       height: painter.height + padding.vertical,
     );

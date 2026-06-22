@@ -15,6 +15,7 @@ class PropertiesPanel extends StatefulWidget {
   final BlockLink? selectedLink;
   final Function(String, String)? onBlockTitleChanged;
   final Function(BlockLink, String)? onLinkNameChanged;
+  final Function(BlockLink, double)? onLinkLabelPositionChanged;
   final Function(BlockLink)? onReverseLink;
   final Function(BlockLink)? onDeleteLink;
   final Function(BlockLink, ConnectorType)? onConnectorTypeChanged;
@@ -25,6 +26,7 @@ class PropertiesPanel extends StatefulWidget {
     this.selectedLink,
     this.onBlockTitleChanged,
     this.onLinkNameChanged,
+    this.onLinkLabelPositionChanged,
     this.onReverseLink,
     this.onDeleteLink,
     this.onConnectorTypeChanged,
@@ -200,6 +202,21 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             },
           ),
           const SizedBox(height: 12),
+          Text(
+            'Position du label: ${(link.labelPosition * 100).round()}%',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          Slider(
+            value: link.labelPosition.clamp(0.0, 1.0),
+            min: 0.0,
+            max: 1.0,
+            divisions: 20,
+            label: '${(link.labelPosition * 100).round()}%',
+            onChanged: (value) {
+              widget.onLinkLabelPositionChanged?.call(link, value);
+            },
+          ),
+          const SizedBox(height: 8),
           DropdownButtonFormField<ConnectorType>(
             initialValue: link.connectorType,
             dropdownColor: colorBlockBackground,

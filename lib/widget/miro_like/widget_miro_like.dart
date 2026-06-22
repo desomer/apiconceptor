@@ -301,6 +301,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'fromBlockId': link.fromBlockId,
       'toBlockId': link.toBlockId,
       'name': link.name,
+      'labelPosition': link.labelPosition,
       'connectorType': link.connectorType.name,
       'inflectionPoints': link.inflectionPoints.map(_offsetToJson).toList(),
       'sourceAnchorUnit': link.sourceAnchorUnit == null
@@ -398,6 +399,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           fromBlockId: fromId,
           toBlockId: toId,
           name: item['name']?.toString() ?? '',
+          labelPosition: item['labelPosition'] is num
+              ? (item['labelPosition'] as num).toDouble().clamp(0.0, 1.0)
+              : 0.5,
           connectorType: _connectorTypeFromName(item['connectorType']),
           inflectionPoints: inflectionPoints,
           sourceAnchorUnit: item['sourceAnchorUnit'] == null
@@ -479,6 +483,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             fromBlockId: linkSourceBlock!.id,
             toBlockId: targetBlock.id,
             name: 'Lien ${links.length + 1}',
+            labelPosition: 0.5,
             connectorType: ConnectorType.bezier,
             inflectionPoints: List<Offset>.from(pendingInflectionPoints),
             sourceAnchorUnit: sourceAnchorUnit,
@@ -1470,6 +1475,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             onLinkNameChanged: (link, newName) {
               setState(() {
                 link.name = newName;
+              });
+            },
+            onLinkLabelPositionChanged: (link, value) {
+              setState(() {
+                link.labelPosition = value;
               });
             },
             onReverseLink: _reverseLink,
