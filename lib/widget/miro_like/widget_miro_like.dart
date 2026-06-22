@@ -726,7 +726,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   List<Widget> _buildAnchorHandles() {
     final widgets = <Widget>[];
 
-    for (final link in links) {
+    for (var linkIndex = 0; linkIndex < links.length; linkIndex++) {
+      final link = links[linkIndex];
       final linkData = _resolveLinkAnchorsAndRects(link);
       if (linkData == null) {
         continue;
@@ -744,6 +745,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           child: MouseRegion(
             cursor: SystemMouseCursors.resizeUpLeftDownRight,
             child: GestureDetector(
+              onSecondaryTapDown: (_) {
+                setState(() {
+                  if (linkIndex >= 0 && linkIndex < links.length) {
+                    links.removeAt(linkIndex);
+                  }
+                });
+              },
               onPanUpdate: (details) {
                 setState(() {
                   final canvasPosition = _toCanvasLocal(details.globalPosition);
@@ -774,6 +782,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           child: MouseRegion(
             cursor: SystemMouseCursors.resizeUpLeftDownRight,
             child: GestureDetector(
+              onSecondaryTapDown: (_) {
+                setState(() {
+                  if (linkIndex >= 0 && linkIndex < links.length) {
+                    links.removeAt(linkIndex);
+                  }
+                });
+              },
               onPanUpdate: (details) {
                 setState(() {
                   final canvasPosition = _toCanvasLocal(details.globalPosition);
@@ -1079,7 +1094,19 @@ class MiroCanvasPainter extends CustomPainter {
           ? _borderPointFromUnit(toRect, link.targetAnchorUnit!)
           : _pointOnRectBorderTowards(toRect, toReference);
 
-      _drawArrow(canvas, fromEdge, toEdge, linkPaint, viaPoints: viaCanvas);
+      final startTangent = _axisNormalForBorderPoint(fromRect, fromEdge);
+      final targetOutward = _axisNormalForBorderPoint(toRect, toEdge);
+      final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
+
+      _drawArrow(
+        canvas,
+        fromEdge,
+        toEdge,
+        linkPaint,
+        viaPoints: viaCanvas,
+        startTangent: startTangent,
+        endTangent: endTangent,
+      );
     }
 
     // Dessiner le lien en cours de création
@@ -1103,6 +1130,10 @@ class MiroCanvasPainter extends CustomPainter {
         sourceRect,
         sourceReference,
       );
+      final startTangent = _axisNormalForBorderPoint(
+        sourceRect,
+        linkingFromCanvas,
+      );
 
       // Dessiner une petite flèche de prévisualisation
       _drawArrow(
@@ -1111,6 +1142,7 @@ class MiroCanvasPainter extends CustomPainter {
         currentMousePosition!,
         tempPaint,
         viaPoints: previewViaCanvas,
+        startTangent: startTangent,
       );
 
       for (final point in previewViaCanvas) {
@@ -1178,14 +1210,41 @@ class MiroCanvasPainter extends CustomPainter {
     );
   }
 
+  Offset _axisNormalForBorderPoint(Rect rect, Offset edgePoint) {
+    final vector = edgePoint - rect.center;
+    if (vector.distanceSquared == 0) {
+      return const Offset(1, 0);
+    }
+    if (vector.dx.abs() >= vector.dy.abs()) {
+      return Offset(vector.dx >= 0 ? 1 : -1, 0);
+    }
+    return Offset(0, vector.dy >= 0 ? 1 : -1);
+  }
+
+  Offset _unitOrFallback(Offset value, Offset fallback) {
+    final length = value.distance;
+    if (length == 0) {
+      return fallback;
+    }
+    return value / length;
+  }
+
   void _drawArrow(
     Canvas canvas,
     Offset from,
     Offset to,
     Paint paint, {
     List<Offset> viaPoints = const [],
+    Offset? startTangent,
+    Offset? endTangent,
   }) {
-    final path = _connectorPath(from, to, viaPoints: viaPoints);
+    final path = _connectorPath(
+      from,
+      to,
+      viaPoints: viaPoints,
+      startTangent: startTangent,
+      endTangent: endTangent,
+    );
     canvas.drawPath(path, paint);
     _drawFlowParticles(canvas, path, paint.color);
 
@@ -1201,6 +1260,8 @@ class MiroCanvasPainter extends CustomPainter {
     Offset from,
     Offset to, {
     List<Offset> viaPoints = const [],
+    Offset? startTangent,
+    Offset? endTangent,
   }) {
     final allPoints = <Offset>[from, ...viaPoints, to];
     if (allPoints.length < 2) {
@@ -1208,7 +1269,11 @@ class MiroCanvasPainter extends CustomPainter {
     }
 
     if (connectorType == ConnectorType.bezier) {
-      return _buildSmoothBezierPath(allPoints);
+      return _buildSmoothBezierPath(
+        allPoints,
+        startTangent: startTangent,
+        endTangent: endTangent,
+      );
     }
 
     final path = Path()..moveTo(allPoints.first.dx, allPoints.first.dy);
@@ -1218,10 +1283,19 @@ class MiroCanvasPainter extends CustomPainter {
     return path;
   }
 
-  Path _buildSmoothBezierPath(List<Offset> points) {
+  Path _buildSmoothBezierPath(
+    List<Offset> points, {
+    Offset? startTangent,
+    Offset? endTangent,
+  }) {
     final path = Path()..moveTo(points.first.dx, points.first.dy);
     if (points.length == 2) {
-      final controlPoints = _bezierControlPoints(points[0], points[1]);
+      final controlPoints = _bezierControlPoints(
+        points[0],
+        points[1],
+        startTangent: startTangent,
+        endTangent: endTangent,
+      );
       final c1 = controlPoints.$1;
       final c2 = controlPoints.$2;
       path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, points[1].dx, points[1].dy);
@@ -1235,8 +1309,21 @@ class MiroCanvasPainter extends CustomPainter {
       final p2 = points[i + 1];
       final p3 = i + 2 < points.length ? points[i + 2] : points[i + 1];
 
-      final c1 = p1 + ((p2 - p0) * (tension / 6));
-      final c2 = p2 - ((p3 - p1) * (tension / 6));
+      var c1 = p1 + ((p2 - p0) * (tension / 6));
+      var c2 = p2 - ((p3 - p1) * (tension / 6));
+
+      final segmentLength = (p2 - p1).distance;
+      final handleLength = math.max(24.0, segmentLength * 0.45);
+
+      if (i == 0 && startTangent != null) {
+        final dir = _unitOrFallback(startTangent, const Offset(1, 0));
+        c1 = p1 + dir * handleLength;
+      }
+      if (i == points.length - 2 && endTangent != null) {
+        final dir = _unitOrFallback(endTangent, const Offset(-1, 0));
+        c2 = p2 - dir * handleLength;
+      }
+
       path.cubicTo(c1.dx, c1.dy, c2.dx, c2.dy, p2.dx, p2.dy);
     }
 
@@ -1381,10 +1468,24 @@ class MiroCanvasPainter extends CustomPainter {
     path.quadraticBezierTo(corner.dx, corner.dy, arcEnd.dx, arcEnd.dy);
   }
 
-  (Offset, Offset) _bezierControlPoints(Offset from, Offset to) {
+  (Offset, Offset) _bezierControlPoints(
+    Offset from,
+    Offset to, {
+    Offset? startTangent,
+    Offset? endTangent,
+  }) {
     final delta = to - from;
     final distance = delta.distance;
     final curvature = math.max(40.0, distance * 0.35);
+
+    if (startTangent != null || endTangent != null) {
+      final startDir = _unitOrFallback(
+        startTangent ?? delta,
+        const Offset(1, 0),
+      );
+      final endDir = _unitOrFallback(endTangent ?? delta, const Offset(1, 0));
+      return (from + startDir * curvature, to - endDir * curvature);
+    }
 
     if (delta.dx.abs() >= delta.dy.abs()) {
       final dir = delta.dx >= 0 ? 1.0 : -1.0;
