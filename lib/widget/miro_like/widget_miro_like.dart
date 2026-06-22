@@ -485,6 +485,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   void _endLinking(Block targetBlock) {
     if (linkSourceBlock != null && linkSourceBlock!.id != targetBlock.id) {
+      final sourceRect = _blockRectCanvas(linkSourceBlock!);
+      final targetRect = _blockRectCanvas(targetBlock);
+
+      final sourceAnchorUnit = _calculateOptimalAnchorUnit(
+        sourceRect,
+        targetRect,
+      );
+      final targetAnchorUnit = _calculateOptimalAnchorUnit(
+        targetRect,
+        sourceRect,
+      );
+
       setState(() {
         links.add(
           BlockLink(
@@ -492,12 +504,34 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             toBlockId: targetBlock.id,
             connectorType: ConnectorType.bezier,
             inflectionPoints: List<Offset>.from(pendingInflectionPoints),
+            sourceAnchorUnit: sourceAnchorUnit,
+            targetAnchorUnit: targetAnchorUnit,
           ),
         );
         linkSourceBlock = null;
         linkingFromPoint = null;
         pendingInflectionPoints.clear();
       });
+    }
+  }
+
+  Offset _calculateOptimalAnchorUnit(Rect fromRect, Rect toRect) {
+    final fromCenter = fromRect.center;
+    final toCenter = toRect.center;
+    final direction = toCenter - fromCenter;
+
+    if (direction.distanceSquared == 0) {
+      return const Offset(1, 0);
+    }
+
+    final normalized = direction / direction.distance;
+    final absX = normalized.dx.abs();
+    final absY = normalized.dy.abs();
+
+    if (absX >= absY) {
+      return Offset(normalized.dx >= 0 ? 1 : -1, 0);
+    } else {
+      return Offset(0, normalized.dy >= 0 ? 1 : -1);
     }
   }
 
