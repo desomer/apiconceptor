@@ -128,6 +128,41 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _reverseLink(BlockLink link) {
+    setState(() {
+      // Swap source and target block IDs
+      final temp = link.fromBlockId;
+      link.fromBlockId = link.toBlockId;
+      link.toBlockId = temp;
+
+      // Swap anchor units
+      final tempAnchor = link.sourceAnchorUnit;
+      link.sourceAnchorUnit = link.targetAnchorUnit;
+      link.targetAnchorUnit = tempAnchor;
+
+      // Swap anchor order keys
+      final tempOrderKey = link.sourceAnchorOrderKey;
+      link.sourceAnchorOrderKey = link.targetAnchorOrderKey;
+      link.targetAnchorOrderKey = tempOrderKey;
+
+      // Swap lock flags
+      final tempLocked = link.isSourceAnchorLocked;
+      link.isSourceAnchorLocked = link.isTargetAnchorLocked;
+      link.isTargetAnchorLocked = tempLocked;
+
+      // Update anchors for the affected blocks
+      final fromIndex = blocks.indexWhere((b) => b.id == link.fromBlockId);
+      final toIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
+
+      if (fromIndex != -1) {
+        _ensureBlockHasSpaceForAnchors(blocks[fromIndex]);
+      }
+      if (toIndex != -1) {
+        _ensureBlockHasSpaceForAnchors(blocks[toIndex]);
+      }
+    });
+  }
+
   void _startLinking(Block block) {
     setState(() {
       linkSourceBlock = block;
@@ -1357,10 +1392,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             ),
             Text('Ancre cible: ${link.targetAnchorUnit?.toString() ?? 'auto'}'),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => _deleteLink(link),
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('Supprimer le lien'),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _reverseLink(link),
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('Inverser'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _deleteLink(link),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Supprimer'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1436,6 +1485,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   canvasOffset: canvasOffset,
                   zoomLevel: zoomLevel,
                   selectedBlock: selectedBlock,
+                  selectedLink: selectedLink,
                   linkingFromPoint: linkingFromPoint,
                   currentMousePosition: currentMousePosition,
                   linkSourceBlock: linkSourceBlock,
@@ -1568,9 +1618,9 @@ class BlockWidget extends StatelessWidget {
       width: block.size.width,
       height: block.size.height,
       decoration: BoxDecoration(
-        color: isSelected ? Colors.blue[100] : Colors.white,
+        color: isSelected ? Colors.orange[100] : Colors.white,
         border: Border.all(
-          color: isSelected ? Colors.blue : Colors.grey,
+          color: isSelected ? Colors.orange : Colors.grey,
           width: isSelected ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(8),
@@ -1598,6 +1648,7 @@ class MiroCanvasPainter extends CustomPainter {
   final Offset canvasOffset;
   final double zoomLevel;
   final Block? selectedBlock;
+  final BlockLink? selectedLink;
   final Offset? linkingFromPoint;
   final Offset? currentMousePosition;
   final Block? linkSourceBlock;
@@ -1610,6 +1661,7 @@ class MiroCanvasPainter extends CustomPainter {
     required this.canvasOffset,
     required this.zoomLevel,
     this.selectedBlock,
+    this.selectedLink,
     this.linkingFromPoint,
     this.currentMousePosition,
     this.linkSourceBlock,
@@ -1693,6 +1745,7 @@ class MiroCanvasPainter extends CustomPainter {
         viaPoints: viaCanvas,
         startTangent: startTangent,
         endTangent: endTangent,
+        isSelected: selectedLink == link,
       );
     }
 
@@ -1830,6 +1883,7 @@ class MiroCanvasPainter extends CustomPainter {
     List<Offset> viaPoints = const [],
     Offset? startTangent,
     Offset? endTangent,
+    bool isSelected = false,
   }) {
     final path = _connectorPath(
       from,
@@ -1840,11 +1894,16 @@ class MiroCanvasPainter extends CustomPainter {
       endTangent: endTangent,
     );
 
-    // Dessiner le tube néon avec effet de glow bleu
-    _drawNeonTube(canvas, path);
+    // Déterminer la couleur du tube (bleu par défaut, orange si sélectionné)
+    final tubeColor = isSelected
+        ? const Color.fromARGB(255, 255, 165, 0)
+        : const Color.fromARGB(255, 100, 200, 255);
+
+    // Dessiner le tube néon avec effet de glow
+    _drawNeonTube(canvas, path, tubeColor);
 
     // Dessiner les particules qui circulent dans le tube
-    _drawFlowParticles(canvas, path, const Color.fromARGB(255, 100, 200, 255));
+    _drawFlowParticles(canvas, path, tubeColor);
 
     final endAngle = _pathEndAngle(path);
     if (endAngle == null) {
@@ -1854,10 +1913,14 @@ class MiroCanvasPainter extends CustomPainter {
     _drawArrowHead(canvas, to, endAngle, paint);
   }
 
-  void _drawNeonTube(Canvas canvas, Path path) {
-    // Tube bleu
+  void _drawNeonTube(
+    Canvas canvas,
+    Path path, [
+    Color tubeColor = const Color.fromARGB(255, 100, 200, 255),
+  ]) {
+    // Tube avec couleur dynamique (bleu par défaut, orange si sélectionné)
     final tubePaint = Paint()
-      ..color = const Color.fromARGB(100, 100, 200, 255)
+      ..color = tubeColor.withValues(alpha: 0.4)
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
