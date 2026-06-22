@@ -3,7 +3,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/async_api/pan_attribut_editor_async.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
@@ -196,10 +196,9 @@ class InfoManagerAsync extends InfoManager with WidgetHelper {
       return;
     }
     if (['send', 'receive'].contains(attr.info.type)) {
-  
       return;
     }
-    if (['message'].contains(attr.info.type)) {
+    if (['message', 'flatfile'].contains(attr.info.type)) {
       row.add(SizedBox(width: 10));
       row.add(
         ElevatedButton(
@@ -276,13 +275,6 @@ class InfoManagerAsync extends InfoManager with WidgetHelper {
             icon: Icons.send_outlined,
             color: Colors.blueGrey,
           ),
-
-          // OptionSelect(
-          //   label: '\$type',
-          //   name: '\$type',
-          //   icon: Icons.type_specimen_outlined,
-          //   color: Colors.brown,
-          // ),
         ];
 
         // currentCompany.listModel?.mapInfoByTreePath.forEach((key, value) {
@@ -376,6 +368,12 @@ class InfoManagerAsync extends InfoManager with WidgetHelper {
       'message',
       'send',
       'receive',
+
+      'bucket',
+      // 'ftp',
+      'flatfile',
+
+      'scheduler',
     ].contains(type);
     if (!valid) {
       return InvalidInfo(color: Colors.red);
@@ -400,11 +398,15 @@ class InfoManagerAsync extends InfoManager with WidgetHelper {
     var isSend = attr.type == 'send';
     var isReceive = attr.type == 'receive';
 
+    var isFile = attr.type == 'flatfile';
+    var isScheduler = attr.type == 'scheduler';
+    var isBucket = attr.type == 'bucket';
+
     // var isAnyOf = attr.type == '\$anyOf';
     // var isOneOf = attr.type == '\$oneOf';
     // var isRef = attr.type == '\$ref';
     // var isType = attr.name == constType;
-    // var isArray = attr.type == 'Array' || attr.type.endsWith('[]');
+    // var isArray = attr.type == 'array' || attr.type.endsWith('[]');
     // var isInherit = attr.name == constInherit;
     String name = attr.name;
 
@@ -424,6 +426,14 @@ class InfoManagerAsync extends InfoManager with WidgetHelper {
       icon = Icon(Icons.send_outlined, color: iconColor, size: 20);
     } else if (isReceive) {
       icon = Icon(Icons.send_and_archive_outlined, color: iconColor, size: 20);
+    } else if (isFile) {
+      iconColor = Colors.orangeAccent;
+      icon = Icon(Icons.file_copy_outlined, color: iconColor, size: 20);
+    } else if (isScheduler) {
+      iconColor = Colors.teal;
+      icon = Icon(Icons.schedule, color: iconColor, size: 20);
+    } else if (isBucket) {
+      icon = Icon(Icons.storage_rounded, color: iconColor, size: 20);
     }
 
     // else if (isObject) {
@@ -571,7 +581,10 @@ class InfoManagerAsync extends InfoManager with WidgetHelper {
 
   Widget _getWidgetType(NodeAttribut attr, bool isRoot, BuildContext context) {
     if (isRoot) {
-      return Text('${modelSchema?.useAttributInfo.length} properties');
+      return Text(
+        '${modelSchema?.useAttributInfo.length} properties',
+        style: const TextStyle(fontSize: 14),
+      );
     }
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
@@ -594,7 +607,10 @@ class InfoManagerAsync extends InfoManager with WidgetHelper {
     var w = getChip(
       Row(
         spacing: 5,
-        children: [Text(type), Icon(Icons.arrow_drop_down, size: 15)],
+        children: [
+          Text(type, style: const TextStyle(fontSize: 14)),
+          Icon(Icons.arrow_drop_down, size: 15),
+        ],
       ),
       color: hasError ? Colors.redAccent : null,
     );

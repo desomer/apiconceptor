@@ -143,7 +143,7 @@ class Export2UI<T> extends JsonBrowser<T> {
   }
 
   NodeJson doAnyOf(String name, NodeAttribut node) {
-    bool mustChoise = node.parent?.info.type == 'Object';
+    bool mustChoise = node.parent?.info.type == 'object';
     if (mustChoise) {
       var obj = {};
       Map<String, dynamic> map = {
@@ -171,7 +171,7 @@ class Export2UI<T> extends JsonBrowser<T> {
 
     // bool parentAnyOf = node.parent?.info.name == constTypeAnyof;
     // if (parentAnyOf) {
-    //   bool mustChoise = node.parent?.parent?.info.type == 'Object';
+    //   bool mustChoise = node.parent?.parent?.info.type == 'object';
     // }
 
     return NodeJson(name: name, value: child);

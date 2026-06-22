@@ -7,7 +7,7 @@ import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/util.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 

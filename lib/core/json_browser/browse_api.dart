@@ -228,7 +228,7 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
     Widget? header = getHttpOpe(name);
 
     if (header == null) {
-      List<Widget> wpath = getHeaderPath(name, null);
+      List<Widget> wpath = getHeaderPath(name, TextStyle(fontSize: 14));
       header = Row(children: wpath);
     }
 
@@ -304,11 +304,11 @@ class InfoManagerAPI extends InfoManager with WidgetHelper {
             ? Row(
                 spacing: 5,
                 children: [
-                  Text(attr.info.type),
+                  Text(attr.info.type, style: TextStyle(fontSize: 14)),
                   const Icon(Icons.arrow_forward_ios, size: 10),
                 ],
               )
-            : Text(attr.info.type),
+            : Text(attr.info.type, style: TextStyle(fontSize: 14)),
         color: hasError ? Colors.redAccent : (isAPI ? Colors.blue : null),
       ),
     );
@@ -348,7 +348,7 @@ class InfoManagerTrash extends InfoManager with WidgetHelper {
   Widget getWidgetType(NodeAttribut attr, bool isRoot) {
     if (isRoot) return const SizedBox.shrink();
 
-    return getChip(Text(attr.info.type), color: null);
+    return getChip(Text(attr.info.type, style: TextStyle(fontSize: 14)), color: null);
   }
 
   @override

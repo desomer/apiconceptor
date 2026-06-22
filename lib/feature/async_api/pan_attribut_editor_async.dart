@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -34,6 +35,8 @@ class _EditorPropertiesState extends State<EditorProperties> {
     Widget infoForm = switch (info.info.type) {
       //'send' => getReceivePubInfoForm(model),
       'receive' => getReceivePubInfoForm(model),
+      'bucket' => getBucketInfoForm(model),
+      'scheduler' => getSchedulerInfoForm(model),
       _ => getInfoForm(model),
     };
 
@@ -78,14 +81,6 @@ class _EditorPropertiesState extends State<EditorProperties> {
     );
   }
 
-  // ackDeadline: 30
-  // retryPolicy:
-  //   minimumBackoff: 1s
-  //   maximumBackoff: 30s
-  // deadLetterPolicy:
-  //   deadLetterTopic: orders.dlq
-  //   maxDeliveryAttempts: 5
-
   Widget getReceivePubInfoForm(ModelSchema? model) {
     if (model?.selectedAttr == null) {
       return Container();
@@ -112,7 +107,15 @@ class _EditorPropertiesState extends State<EditorProperties> {
       ),
     ];
 
-    List<Widget> row = [];
+    return getListProp(listProp, info, model, <Widget>[]);
+  }
+
+  Widget getListProp(
+    List<AttributeEditorAsync> listProp,
+    NodeAttribut info,
+    ModelSchema model,
+    List<Widget> row,
+  ) {
     String? lastCat = "";
     for (AttributeEditorAsync prop in listProp) {
       String? propName = prop.name;
@@ -128,7 +131,7 @@ class _EditorPropertiesState extends State<EditorProperties> {
 
       row.add(
         CellEditor(
-          key: ValueKey('$propName#${info.hashCode}'),
+          key: ValueKey('${prop.name}#${info.hashCode}'),
           acces: ModelAccessorAttr(
             node: info,
             schema: model,
@@ -195,6 +198,63 @@ class _EditorPropertiesState extends State<EditorProperties> {
         ],
       ),
     );
+  }
+
+  Widget getSchedulerInfoForm(ModelSchema? model) {
+    /*  description: "Import quotidien des produits depuis un bucket"
+
+  schedule:
+    cron: "0 3 * * *"
+    timezone: "Europe/Paris"
+
+  task:
+    type: http*/
+    if (model?.selectedAttr == null) {
+      return Container();
+    }
+
+    var info = model!.selectedAttr!;
+    List<AttributeEditorAsync> listProp = [
+      AttributeEditorAsync(name: 'scheduler.type', type: 'string'),
+      AttributeEditorAsync(name: 'trigger.cron', type: 'string'),
+      AttributeEditorAsync(name: 'trigger.timezone', type: 'string'),
+      AttributeEditorAsync(name: 'taskrunner.type', type: 'string'),
+    ];
+
+    var row = <Widget>[];
+    row.add(
+      CellEditor(
+        key: ValueKey('description#${info.hashCode}'),
+        acces: ModelAccessorAttr(
+          node: info,
+          schema: model,
+          propName: 'description',
+        ),
+        line: 5,
+        inArray: false,
+      ),
+    );
+    row.add(SizedBox(height: 10));
+
+    return getListProp(listProp, info, model, row);
+  }
+
+  Widget getBucketInfoForm(ModelSchema? model) {
+    if (model?.selectedAttr == null) {
+      return Container();
+    }
+
+    var info = model!.selectedAttr!;
+    List<AttributeEditorAsync> listProp = [
+      AttributeEditorAsync(name: 'storageClass', type: 'string'),
+      AttributeEditorAsync(name: 'versioning', type: 'duration'),
+      AttributeEditorAsync(name: 'encryption.type', type: 'string'),
+      AttributeEditorAsync(name: 'encryption.key', type: 'string'),
+      AttributeEditorAsync(name: 'lifecycle.delete_Age', type: 'int'),
+      AttributeEditorAsync(name: 'lifecycle.coldline_Age', type: 'int'),
+    ];
+
+    return getListProp(listProp, info, model, <Widget>[]);
   }
 }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 
 import 'package:jsonschema/start_core.dart';

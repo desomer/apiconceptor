@@ -32,7 +32,7 @@ import 'package:jsonschema/widget/widget_keep_alive.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_scroller.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 
 import '../../core/designer/core/widget_catalog/export/export_csv.dart';
 import '../../pages/browse_api/browse_api_page.dart';

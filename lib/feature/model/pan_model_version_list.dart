@@ -73,10 +73,14 @@ class _PanModelVersionListState extends State<PanModelVersionList>
           spacing: 5,
           children: [
             //Text('draft'),
-            getChip(Text(version.data['versionTxt']), color: null),
+            getChip(
+              Text(version.data['versionTxt'], style: TextStyle(fontSize: 14)),
+              color: null,
+            ),
             Expanded(
               child: Text(
                 'by ${version.data['by']}',
+                style: TextStyle(fontSize: 12),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

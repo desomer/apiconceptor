@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/json_browser.dart';
 //import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/json_browser/browse_api.dart';
+import 'package:jsonschema/core/json_browser/browse_api.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;

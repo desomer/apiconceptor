@@ -105,10 +105,10 @@ class DesignModelDetailPage extends GenericPageStateless {
           ),
           CoachStep(
             targetKey: keys['zoom']!,
-            title: 'Zoom control',
+            title: 'Open control',
             description: [
-              'Permet de contrôler le facteur de zoom',
-              'Affecte l\'affichage des modèles',
+              'Permet de contrôler le facteur d\'ouverture du modèle',
+              'Affecte l\'affichage de l\'arbre des attributs du modèle',
             ],
           ),
           CoachStep(

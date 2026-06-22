@@ -131,7 +131,7 @@ class CellEditorState extends State<CellEditor> {
               ? const EdgeInsets.fromLTRB(5, 0, 5, 0)
               : null,
           border: const OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
+            borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
           labelText: !widget.inArray ? name : null,
           labelStyle: textStyleLabel,
@@ -150,7 +150,7 @@ class CellEditorState extends State<CellEditor> {
       border: Border.fromBorderSide(
         BorderSide(color: isEditable ? Colors.grey.shade600 : Colors.grey),
       ),
-      borderRadius: const BorderRadius.all(Radius.circular(12.0)),
+      borderRadius: const BorderRadius.all(Radius.circular(10.0)),
     );
 
     if (!isEditable) {
@@ -363,27 +363,71 @@ class CellCheckEditorState extends State<CellCheckEditor> {
 }
 
 class CellSelectEditor extends StatefulWidget {
-  const CellSelectEditor({super.key});
+  const CellSelectEditor({
+    super.key,
+    required this.options,
+    required this.acces,
+  });
+  final ValueAccessor acces;
+  final List<String> options;
 
   @override
   State<CellSelectEditor> createState() => _SingleChoiceState();
 }
 
 class _SingleChoiceState extends State<CellSelectEditor> {
-  String? calendarView;
+  String? choise;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncFromAccessor();
+  }
+
+  @override
+  void didUpdateWidget(covariant CellSelectEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.acces != widget.acces ||
+        oldWidget.options != widget.options) {
+      _syncFromAccessor();
+    }
+  }
+
+  void _syncFromAccessor() {
+    final current = widget.acces.get()?.toString();
+    if (current != null && widget.options.contains(current)) {
+      choise = current;
+    } else {
+      choise = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final current = widget.acces.get()?.toString();
+    final selected = (current != null && widget.options.contains(current))
+        ? <String>{current}
+        : <String>{};
+
     return SegmentedButton<String>(
       emptySelectionAllowed: true,
-      segments: const <ButtonSegment<String>>[
-        ButtonSegment<String>(value: "Fact", label: Text('Fact')),
-        ButtonSegment<String>(value: "Dim", label: Text('Dimension')),
-      ],
-      selected: calendarView != null ? <String>{calendarView!} : <String>{},
+      segments: widget.options
+          .map(
+            (value) => ButtonSegment<String>(value: value, label: Text(value)),
+          )
+          .toList(),
+      selected: selected,
       onSelectionChanged: (Set<String> newSelection) {
+        if (!widget.acces.isEditable()) return;
+
         setState(() {
-          calendarView = newSelection.first;
+          choise = newSelection.isEmpty ? null : newSelection.first;
+
+          if (choise == null) {
+            widget.acces.remove();
+          } else {
+            widget.acces.set(choise);
+          }
         });
       },
     );

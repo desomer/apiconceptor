@@ -5,7 +5,7 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';

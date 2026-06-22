@@ -9,7 +9,7 @@ import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/model/widget_example_choiser.dart';
 import 'package:jsonschema/feature/content_viewer/pan_response_viewer.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';
@@ -226,15 +226,15 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
       //   typeStr = 'Array';
       // } else {
       //   node.bgcolor = Colors.blueGrey.withAlpha(50);
-      //   typeStr = typeMD == TypeMD.listmodel ? 'folder' : 'Object';
+      //   typeStr = typeMD == TypeMD.listmodel ? 'folder' : 'object';
       // }
     } else if (type is List) {
       if (name.endsWith('[]')) {
-        typeStr = 'Array';
+        typeStr = 'array';
         node.bgcolor = Colors.blue.withAlpha(50);
       } else {
         node.bgcolor = Colors.blue.withAlpha(50);
-        typeStr = 'Array';
+        typeStr = 'array';
       }
     } else if (type is int) {
       typeStr = 'integer';
@@ -244,12 +244,12 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
       if (name.endsWith('[]')) {
         node.bgcolor = Colors.blue.withAlpha(50);
         if (type.startsWith('\$')) {
-          typeStr = 'Array';
+          typeStr = 'array';
         } else {
           typeStr = '$type[]';
         }
       } else if (type.startsWith('\$')) {
-        typeStr = 'Object';
+        typeStr = 'object';
       }
     }
     typeStr ??= '$type';
@@ -295,12 +295,12 @@ class InfoManagerContent extends InfoManager with WidgetHelper {
     var isFolder = node.data.info.type == 'folder';
     var isModel = node.data.info.type == 'model';
 
-    var isObject = node.data.info.type == 'Object';
+    var isObject = node.data.info.type == 'object';
     var isOneOf = node.data.info.type == '\$anyOf';
     var isRef = node.data.info.type == '\$ref';
     var isType = node.data.info.name == constType;
     var isArray =
-        node.data.info.type == 'Array' || node.data.info.type.endsWith('[]');
+        node.data.info.type == 'array' || node.data.info.type.endsWith('[]');
     String name = node.data.info.name;
 
     if (isRoot) {

@@ -7,7 +7,7 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_detail.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_layout.dart';
@@ -20,6 +20,7 @@ import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_comment.dart';
 import 'package:jsonschema/widget/widget_glasspan.dart';
 import 'package:jsonschema/widget/widget_glossary_indicator.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
@@ -28,24 +29,26 @@ import '../../widget/tree_editor/tree_view.dart';
 
 var withGlossaryIndicator = true;
 
-mixin PanModelEditorHelper {
-  Widget getChip(
-    Widget content, {
-    required Color? color,
-    double? height,
-    double? width,
-  }) {
-    var w = Chip(
-      labelPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 5),
-      color: WidgetStatePropertyAll(color),
-      padding: const EdgeInsets.all(0),
-      label: content, // SelectionArea(child: content),
-    );
-    if (height != null || width != null) {
-      return SizedBox(height: height, width: width, child: w);
-    }
-    return w;
-  }
+mixin PanModelEditorHelper implements WidgetHelper {
+  static const textStyle = TextStyle(fontSize: 14);
+
+  // Widget getChip(
+  //   Widget content, {
+  //   required Color? color,
+  //   double? height,
+  //   double? width,
+  // }) {
+  //   var w = Chip(
+  //     labelPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 5),
+  //     color: WidgetStatePropertyAll(color),
+  //     padding: const EdgeInsets.all(0),
+  //     label: content, // SelectionArea(child: content),
+  //   );
+  //   if (height != null || width != null) {
+  //     return SizedBox(height: height, width: width, child: w);
+  //   }
+  //   return w;
+  // }
 
   List<Widget> getTooltipFromProposal(ProposalInfo? info) {
     List<Widget> tooltip = [];
@@ -297,19 +300,22 @@ mixin PanModelEditorHelper {
         if (attr.info.properties?['required'] == true)
           const Icon(Icons.check_circle_outline),
         if (attr.info.properties?['#nullable'] == true)
-          getChip(const Text('nullable'), color: null),
+          getChip(const Text('nullable', style: textStyle), color: null),
         if (attr.info.properties?['const'] != null)
-          getChip(const Text('const'), color: null),
+          getChip(const Text('const', style: textStyle), color: null),
         if (attr.info.properties?['enum'] != null) const Icon(Icons.checklist),
         if (attr.info.properties?['pattern'] != null)
-          getChip(const Text('regex'), color: null),
+          getChip(const Text('regex', style: textStyle), color: null),
         if (attr.info.properties?['format'] != null)
-          getChip(Text(attr.info.properties?['format']), color: null),
+          getChip(
+            Text(attr.info.properties?['format'], style: textStyle),
+            color: null,
+          ),
         if (minmax) const Icon(Icons.tune),
         if (attr.info.properties?['#enumLabel'] != null)
           const Icon(Icons.label_outline),
         if (attr.info.properties?['#link'] != null)
-          getChip(const Text('link'), color: Colors.blue),
+          getChip(const Text('link', style: textStyle), color: Colors.blue),
       ]);
     } else {
       if (attr.info.properties?['#source'] != null) {
@@ -321,7 +327,7 @@ mixin PanModelEditorHelper {
             child: Align(
               alignment: Alignment.centerLeft,
               child: getChip(
-                Text(source),
+                Text(source, style: textStyle),
                 color: Colors.greenAccent.withAlpha(100),
               ),
             ),
@@ -333,16 +339,7 @@ mixin PanModelEditorHelper {
     if (attr.info.properties?['#tag'] != null) {
       List<dynamic> tags = attr.info.properties?['#tag'];
       for (var element in tags) {
-        rowIndicator.add(
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey, width: 1),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 8),
-            child: Text(element, style: const TextStyle(fontSize: 14)),
-          ),
-        );
+        rowIndicator.add(getChip(Text(element, style: textStyle), color: null));
       }
     }
 
@@ -561,7 +558,13 @@ class PanModelEditor extends PanYamlTree
         currentCompany.currentModelSel!.info.type.toLowerCase(),
       );
       row.add(
-        getChip(Text(currentCompany.currentModelSel!.info.type), color: color),
+        getChip(
+          Text(
+            currentCompany.currentModelSel!.info.type,
+            style: const TextStyle(fontSize: 14),
+          ),
+          color: color,
+        ),
       );
       row.add(const SizedBox(width: 5));
 
@@ -570,12 +573,16 @@ class PanModelEditor extends PanYamlTree
       row.add(buildStarsFromPercent(modelCompletude.completude));
       row.add(const SizedBox(width: 10));
       row.add(
-        Text('Completude ${modelCompletude.completude.toStringAsFixed(2)}%'),
+        Text(
+          'Completude ${modelCompletude.completude.toStringAsFixed(2)}%',
+          style: const TextStyle(fontSize: 14),
+        ),
       );
       row.add(const SizedBox(width: 10));
       row.add(
         Text(
           'Duplicate ${modelCompletude.wordDuplication.toString()} (${modelCompletude.wordDuplicationNumber.toStringAsFixed(2)})',
+          style: const TextStyle(fontSize: 14),
         ),
       );
       return;
@@ -797,98 +804,110 @@ class PanModelEditor extends PanYamlTree
 
     return Padding(
       padding: const EdgeInsets.all(10),
-      child: Column(
-        spacing: 10,
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CellSelectEditor(),
-          CellEditor(
-            key: ValueKey('description#${info.info.masterID}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: currentCompany.listModel!,
-              propName: 'description',
-            ),
-            line: 5,
-            inArray: false,
-          ),
-          CellEditor(
-            key: ValueKey('link#${info.info.masterID}'),
-            acces: ModelAccessorAttr(
-              node: info,
-              schema: currentCompany.listModel!,
-              propName: 'link',
-            ),
-            line: 3,
-            inArray: false,
-          ),
-          if (isFile)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(
-                'File properties',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+      child: SingleChildScrollView(
+        child: Column(
+          spacing: 10,
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isFile)
+              CellSelectEditor(
+                key: ValueKey('contentType#${info.info.masterID}'),
+                acces: ModelAccessorAttr(
+                  node: info,
+                  schema: currentCompany.listModel!,
+                  propName: 'contentType',
+                ),
+                options: const <String>['json', 'xml'],
               ),
-            ),
-          if (isFile)
             CellEditor(
-              key: ValueKey('filename#${info.info.masterID}'),
+              key: ValueKey('description#${info.info.masterID}'),
               acces: ModelAccessorAttr(
                 node: info,
                 schema: currentCompany.listModel!,
-                propName: 'filename',
+                propName: 'description',
               ),
-              line: 1,
+              line: 5,
               inArray: false,
             ),
-          //   encoding: UTF-8
-          if (isFile)
             CellEditor(
-              key: ValueKey('encoding#${info.info.masterID}'),
+              key: ValueKey('link#${info.info.masterID}'),
               acces: ModelAccessorAttr(
                 node: info,
                 schema: currentCompany.listModel!,
-                propName: 'encoding',
+                propName: 'link',
               ),
-              line: 1,
+              line: 3,
               inArray: false,
             ),
-          if (isFile)
-            CellEditor(
-              key: ValueKey('separator#${info.info.masterID}'),
-              acces: ModelAccessorAttr(
-                node: info,
-                schema: currentCompany.listModel!,
-                propName: 'separator',
+            // choix XML ou JSON
+            if (isFile)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  'File properties',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
-              line: 1,
-              inArray: false,
-            ),
-          if (isFile)
-            CellEditor(
-              key: ValueKey('quote#${info.info.masterID}'),
-              acces: ModelAccessorAttr(
-                node: info,
-                schema: currentCompany.listModel!,
-                propName: 'quote',
+            if (isFile)
+              CellEditor(
+                key: ValueKey('filename#${info.info.masterID}'),
+                acces: ModelAccessorAttr(
+                  node: info,
+                  schema: currentCompany.listModel!,
+                  propName: 'filename',
+                ),
+                line: 1,
+                inArray: false,
               ),
-              line: 1,
-              inArray: false,
-            ),
-          if (isFile)
-            CellEditor(
-              key: ValueKey('line_ending#${info.info.masterID}'),
-              acces: ModelAccessorAttr(
-                node: info,
-                schema: currentCompany.listModel!,
-                propName: 'line_ending',
+            //   encoding: UTF-8
+            if (isFile)
+              CellEditor(
+                key: ValueKey('encoding#${info.info.masterID}'),
+                acces: ModelAccessorAttr(
+                  node: info,
+                  schema: currentCompany.listModel!,
+                  propName: 'encoding',
+                ),
+                line: 1,
+                inArray: false,
               ),
-              line: 1,
-              inArray: false,
-            ),
-          //line_ending: "\n"
-        ],
+            if (isFile)
+              CellEditor(
+                key: ValueKey('separator#${info.info.masterID}'),
+                acces: ModelAccessorAttr(
+                  node: info,
+                  schema: currentCompany.listModel!,
+                  propName: 'separator',
+                ),
+                line: 1,
+                inArray: false,
+              ),
+            if (isFile)
+              CellEditor(
+                key: ValueKey('quote#${info.info.masterID}'),
+                acces: ModelAccessorAttr(
+                  node: info,
+                  schema: currentCompany.listModel!,
+                  propName: 'quote',
+                ),
+                line: 1,
+                inArray: false,
+              ),
+            if (isFile)
+              CellEditor(
+                key: ValueKey('line_ending#${info.info.masterID}'),
+                acces: ModelAccessorAttr(
+                  node: info,
+                  schema: currentCompany.listModel!,
+                  propName: 'line_ending',
+                ),
+                line: 1,
+                inArray: false,
+              ),
+            //line_ending: "\n"
+          ],
+        ),
       ),
     );
   }

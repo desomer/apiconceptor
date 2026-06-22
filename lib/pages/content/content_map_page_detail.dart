@@ -8,7 +8,7 @@ import 'package:jsonschema/core/transform/engine.dart';
 import 'package:jsonschema/core/transform/enrichment.dart';
 import 'package:jsonschema/feature/data_mapping/pan_dest_selector.dart';
 import 'package:jsonschema/feature/model/pan_model_selector.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/content/widget_derived_field.dart';
 import 'package:jsonschema/pages/content/widget_mapping_field.dart';
 import 'package:jsonschema/pages/model_design/design_model_page.dart';

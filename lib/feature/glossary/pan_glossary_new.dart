@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_model.dart';
-import 'package:jsonschema/json_browser/browse_glossary.dart';
+import 'package:jsonschema/core/json_browser/browse_glossary.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/core/json_browser.dart';

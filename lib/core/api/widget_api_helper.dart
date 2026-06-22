@@ -14,7 +14,7 @@ import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/feature/api/pan_api_doc_response.dart';
 import 'package:jsonschema/feature/api/pan_api_response_status.dart';
 import 'package:jsonschema/feature/api/widget_url.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/widget/widget_choise_env.dart';
 import 'package:jsonschema/widget/widget_float_dialog.dart';

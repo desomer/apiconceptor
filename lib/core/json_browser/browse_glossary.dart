@@ -267,7 +267,7 @@ class InfoManagerGlossary extends InfoManager with WidgetHelper {
   // Widget getAttributHeaderOLD(TreeNode<NodeAttribut> node) {
   //   Widget icon = Container();
   //   var isRoot = node.isRoot;
-  //   var isObject = node.data!.info.type == 'Object';
+  //   var isObject = node.data!.info.type == 'object';
   //   var isOneOf = node.data!.info.type == '\$anyOf';
   //   var isRef = node.data!.info.type == '\$ref';
   //   var isArray = node.data!.info.type == 'Array';

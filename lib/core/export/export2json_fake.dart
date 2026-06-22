@@ -89,7 +89,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
 
   @override
   NodeJson doAnyOf(String name, NodeAttribut node) {
-    bool mustChoise = node.parent?.info.type == 'Object';
+    bool mustChoise = node.parent?.info.type == 'object';
     if (mustChoise) {
       int i = faker.randomGenerator.integer(node.child.length);
       node.child[i].addInAttr = '##__choised__##';
@@ -126,7 +126,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     bool addName = true;
     bool parentChoise = node.parent?.info.name == constTypeAnyof;
     if (parentChoise) {
-      bool mustChoise = node.parent?.parent?.info.type == 'Object';
+      bool mustChoise = node.parent?.parent?.info.type == 'object';
       addName = !mustChoise;
       if (mustChoise && node.addInAttr != '##__choised__##') {
         // pas ajouter
@@ -336,7 +336,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     if (node.parent?.info.name == constTypeAnyof) {
       return doRef(name, node);
     } else if (node.parent?.info.name == constTypeOneof) {
-      bool mustChoise = node.parent?.parent?.info.type == 'Object';
+      bool mustChoise = node.parent?.parent?.info.type == 'object';
       //addName = !mustChoise;
       if (mustChoise && node.addInAttr != '##__choised__##') {
         // pas ajouter

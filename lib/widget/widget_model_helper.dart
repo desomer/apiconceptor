@@ -26,11 +26,11 @@ mixin class WidgetHelper {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text('No'),
+              child: const Text('No'),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
-              child: Text('Yes'),
+              child: const Text('Yes'),
             ),
           ],
         );
@@ -118,7 +118,7 @@ mixin class WidgetHelper {
         ),
       ),
       k,
-      Offset(-40, -20),
+      const Offset(-40, -20),
       (BuildContext ctx) {
         bCtx = ctx;
       },
@@ -155,7 +155,7 @@ mixin class WidgetHelper {
           children: [
             PositionedDialogBelow(
               hpopup: hpopup,
-              pos: offset ?? Offset(0, 0),
+              pos: offset ?? const Offset(0, 0),
               targetKey: targetKey,
               child: AlertDialog(
                 contentPadding: const EdgeInsets.all(5),
@@ -233,22 +233,42 @@ mixin class WidgetHelper {
   }
 
   Widget? getHttpOpe(String name) {
+    const fontSize = 13.0;
+
     if (name == 'get') {
-      return getChip(Text('GET'), color: Colors.green, height: 27);
+      return getChip(
+        Text('GET', style: const TextStyle(fontSize: fontSize)),
+        color: Colors.green.withAlpha(200),
+        height: 27,
+      );
     } else if (name == 'post') {
       return getChip(
-        Text('POST', style: TextStyle(color: Colors.black)),
-        color: Colors.yellow,
+        Text(
+          'POST',
+          style: const TextStyle(color: Colors.black, fontSize: fontSize),
+        ),
+        color: Colors.yellow.withAlpha(200),
         height: 27,
       );
     } else if (name == 'put') {
-      return getChip(Text('PUT'), color: Colors.blue, height: 27);
+      return getChip(
+        Text('PUT', style: const TextStyle(fontSize: fontSize)),
+        color: Colors.blue.withAlpha(200),
+        height: 27,
+      );
     } else if (name == 'patch') {
-      return getChip(Text('PATCH'), color: Colors.indigoAccent, height: 27);
+      return getChip(
+        Text('PATCH', style: const TextStyle(fontSize: fontSize)),
+        color: Colors.indigoAccent.withAlpha(200),
+        height: 27,
+      );
     } else if (name == 'delete') {
       return getChip(
-        Text('DELETE', style: TextStyle(color: Colors.black)),
-        color: Colors.redAccent.shade100,
+        Text(
+          'DELETE',
+          style: const TextStyle(color: Colors.black, fontSize: fontSize),
+        ),
+        color: Colors.redAccent.shade100.withAlpha(200),
         height: 27,
       );
     }
@@ -271,11 +291,14 @@ mixin class WidgetHelper {
   }
 
   Widget getChip(Widget content, {required Color? color, double? height}) {
-    var w = Chip(
-      labelPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 5),
-      color: WidgetStatePropertyAll(color),
-      padding: const EdgeInsets.all(0),
-      label: content, // SelectionArea(child: content),
+    var w = Container(
+      padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 5),
+      decoration:  BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blueGrey, width: 1),
+      ),
+      child: Center(child: content), // SelectionArea(child: content),
     );
     if (height != null) {
       return SizedBox(height: height, child: w);
@@ -346,7 +369,7 @@ mixin class WidgetHelper {
     }
 
     if (tooltip.isEmpty) {
-      tooltip.add(Text('No information'));
+      tooltip.add(const Text('No information'));
     }
     return tooltip;
   }

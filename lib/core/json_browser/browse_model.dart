@@ -10,7 +10,7 @@ import 'package:jsonschema/widget/widget_hover_underline_text.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
-import '../widget/widget_md_doc.dart';
+import '../../widget/widget_md_doc.dart';
 
 void validateJsonSchemas(
   JsonSchema validator,
@@ -125,7 +125,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
     String? typeStr;
     if (type is Map) {
       node.bgcolor = Colors.blueGrey.withAlpha(50);
-      typeStr = typeMD == TypeMD.listmodel ? 'folder' : 'Object';
+      typeStr = typeMD == TypeMD.listmodel ? 'folder' : 'object';
     }
 
     typeStr ??= '$type';
@@ -153,7 +153,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
       'xquerydto',
       'eventxpayloaddto',
       'eventxenvelopedto',
-      'flatfile'
+      'flatfile',
     ].contains(type);
     if (!valid) {
       return InvalidInfo(color: Colors.red);
@@ -263,7 +263,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
           ? Row(
               spacing: 5,
               children: [
-                Text(attr.info.type),
+                Text(attr.info.type, style: TextStyle(fontSize: 14)),
                 Icon(Icons.arrow_drop_down, size: 15),
               ],
             )
@@ -271,11 +271,11 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
           ? Row(
               spacing: 5,
               children: [
-                Text(attr.info.type),
+                Text(attr.info.type, style: TextStyle(fontSize: 14)),
                 Icon(Icons.arrow_drop_down, size: 15),
               ],
             )
-          : Text(attr.info.type),
+          : Text(attr.info.type, style: TextStyle(fontSize: 14)),
       color: hasError ? Colors.redAccent : getColorOfType(attr.info.type),
     );
 
@@ -311,7 +311,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
       case 'eventxenvelopedto':
         return Colors.indigoAccent;
       case 'flatfile':
-        return Colors.indigoAccent;        
+        return Colors.indigoAccent;
       default:
         return Colors.grey;
     }
@@ -454,18 +454,18 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
         node.bgcolor = Colors.orange.withAlpha(100);
       } else if (name.endsWith('[]')) {
         node.bgcolor = Colors.blue.withAlpha(100);
-        typeStr = 'Array';
+        typeStr = 'array';
       } else {
         node.bgcolor = Colors.blueGrey.withAlpha(50);
-        typeStr = typeMD == TypeMD.listmodel ? 'folder' : 'Object';
+        typeStr = typeMD == TypeMD.listmodel ? 'folder' : 'object';
       }
     } else if (type is List) {
       if (name.endsWith('[]')) {
-        typeStr = 'Array';
+        typeStr = 'array';
         node.bgcolor = Colors.blue.withAlpha(50);
       } else {
         node.bgcolor = Colors.blue.withAlpha(50);
-        typeStr = 'Object';
+        typeStr = 'object';
       }
     } else if (type is int) {
       typeStr = 'integer';
@@ -475,12 +475,12 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       if (name.endsWith('[]')) {
         node.bgcolor = Colors.blue.withAlpha(50);
         if (type.startsWith('\$')) {
-          typeStr = 'Array';
+          typeStr = 'array';
         } else {
           typeStr = '$type[]';
         }
       } else if (type.startsWith('\$')) {
-        typeStr = 'Object';
+        typeStr = 'object';
       }
     }
     typeStr ??= '$type';
@@ -526,7 +526,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
   //   var isFolder = node.data!.info.type == 'folder';
   //   var isModel = node.data!.info.type == 'model';
 
-  //   var isObject = node.data!.info.type == 'Object';
+  //   var isObject = node.data!.info.type == 'object';
   //   var isOneOf = node.data!.info.type == '\$anyOf';
   //   var isRef = node.data!.info.type == '\$ref';
   //   var isType = node.data!.info.name == constType;
@@ -575,12 +575,12 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
     // var isFolder = attr.type == 'folder';
     // var isModel = attr.type == 'model';
 
-    var isObject = attr.type == 'Object';
+    var isObject = attr.type == 'object';
     var isAnyOf = attr.type == '\$anyOf';
     var isOneOf = attr.type == '\$oneOf';
     var isRef = attr.type == '\$ref';
     var isType = attr.name == constType;
-    var isArray = attr.type == 'Array' || attr.type.endsWith('[]');
+    var isArray = attr.type == 'array' || attr.type.endsWith('[]');
     var isInherit = attr.name == constInherit;
     String name = attr.name;
 
@@ -746,7 +746,7 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
 
   Widget _getWidgetType(NodeAttribut attr, bool isRoot, BuildContext context) {
     if (isRoot) {
-      return Text('${modelSchema?.useAttributInfo.length} properties');
+      return Text('${modelSchema?.useAttributInfo.length} properties', style: const TextStyle(fontSize: 14));
     }
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;
@@ -762,17 +762,27 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
       return SizedBox.shrink();
     }
 
-    var w = getChip(
-      Row(
-        spacing: 5,
-        children: [Text(type), Icon(Icons.arrow_drop_down, size: 15)],
-      ),
-      color: hasError ? Colors.redAccent : null,
-    );
+    Widget w;
+    if (attr.info.type == 'object' || attr.info.type == 'array') {
+      w = getChip(Text(type, style: TextStyle(fontSize: 14)), color: null);
+    } else {
+      w = getChip(
+        Row(
+          spacing: 5,
+          children: [
+            Text(type, style: TextStyle(fontSize: 14)),
+            Icon(Icons.arrow_drop_down, size: 15),
+          ],
+        ),
+        color: hasError ? Colors.redAccent : null,
+      );
+    }
 
     bool canEditType =
         modelSchema?.isReadOnlyModel == false &&
         !isRoot &&
+        attr.info.type != 'object' &&
+        attr.info.type != 'array' &&
         !attr.info.isRefAttr() &&
         !attr.info.type.startsWith(r'$');
     if (canEditType) {

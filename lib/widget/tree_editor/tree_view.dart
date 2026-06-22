@@ -832,7 +832,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
             int indent = '>'.allMatches(path).length;
             String indentation = '\t' * indent;
             var type = attr.info.type;
-            if (type == 'Object' || type == 'Array') {
+            if (type == 'object' || type == 'array') {
               type = '';
             }
             sb.writeln("$indentation${attr.info.name} : $type");

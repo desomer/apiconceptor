@@ -5,7 +5,7 @@ import 'package:jsonschema/core/designer/editor/engine/widget_drag_utils.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 
 class WidgetChoiser extends StatefulWidget {

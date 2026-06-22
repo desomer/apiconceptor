@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/json_browser.dart';
-import 'package:jsonschema/json_browser/browse_glossary.dart';
+import 'package:jsonschema/core/json_browser/browse_glossary.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 

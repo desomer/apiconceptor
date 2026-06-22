@@ -133,7 +133,7 @@ class HomePage extends GenericPageStateless {
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['message'] = GlobalKey(),
-            label: 'Design Message',
+            label: 'Design Event',
             icon: Icons.message_outlined,
             route: Pages.asyncApi,
           ),

@@ -12,7 +12,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';
 import 'package:jsonschema/feature/content/pan_to_ui.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';
-import 'package:jsonschema/json_browser/browse_model.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';

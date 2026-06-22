@@ -6,7 +6,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_action_hub.dart';
 import 'package:jsonschema/feature/model/pan_model_selector.dart';
 import 'package:jsonschema/feature/model/pan_model_trashcan.dart';
-import 'package:jsonschema/json_browser/browse_api.dart';
+import 'package:jsonschema/core/json_browser/browse_api.dart';
 import 'package:jsonschema/pages/model_design/design_model_page.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
