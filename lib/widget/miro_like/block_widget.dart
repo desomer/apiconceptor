@@ -72,8 +72,8 @@ class BlockWidget extends StatelessWidget {
                       center: const Alignment(-0.55, -0.8),
                       radius: 1.05,
                       colors: [
-                        Colors.white.withValues(alpha: 0.20),
-                        Colors.white.withValues(alpha: 0.06),
+                        Colors.white.withValues(alpha: 0.14),
+                        Colors.white.withValues(alpha: 0.04),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.5, 1.0],

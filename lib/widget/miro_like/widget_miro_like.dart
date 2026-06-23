@@ -58,16 +58,16 @@ class MiroLikeWidget extends StatefulWidget {
   State<MiroLikeWidget> createState() => _MiroLikeWidgetState();
 }
 
+const double _linkHitTolerance = 24.0;
+const double _inflectionHandleRadius = 7.0;
+const double _anchorHandleRadius = 6.0;
+const double anchorSpacingDistance = 25.0;
+const double _anchorPaddingMargin = 50.0;
+const double _alignmentSnapCaptureDistance = 10.0;
+const double _alignmentSnapReleaseDistance = 24.0;
+
 class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
-  static const double _linkHitTolerance = 24.0;
-  static const double _inflectionHandleRadius = 7.0;
-  static const double _anchorHandleRadius = 6.0;
-  static const double _anchorSpacingDistance = 15.0;
-  static const double _anchorPaddingMargin = 50.0;
-  static const double _alignmentSnapCaptureDistance = 10.0;
-  static const double _alignmentSnapReleaseDistance = 24.0;
-
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
   final List<BlockLink> links = [];
@@ -864,7 +864,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     // Keep room for anchor handle diameter and edge breathing room.
     final sidePadding = (_anchorHandleRadius * 2) + 4.0;
-    return (count - 1) * _anchorSpacingDistance + (2 * sidePadding);
+    return (count - 1) * anchorSpacingDistance + (2 * sidePadding);
   }
 
   void _ensureBlockHasSpaceForAnchors(Block block) {
@@ -956,7 +956,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     Offset anchorUnit,
   ) {
     final side = _anchorSideUnit(anchorUnit);
-    final spacingDistance = _anchorSpacingDistance * zoomLevel;
+    final spacingDistance = anchorSpacingDistance * zoomLevel;
 
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {

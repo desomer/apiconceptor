@@ -12,6 +12,28 @@ extension on Offset {
   }
 }
 
+class _LabelLayout {
+  final bool isSelected;
+  final TextPainter textPainter;
+  final TextPainter? iconPainter;
+  final EdgeInsets padding;
+  final double iconSpacing;
+  final double contentHeight;
+  final Offset preferredCenter;
+  Rect rect;
+
+  _LabelLayout({
+    required this.isSelected,
+    required this.textPainter,
+    required this.iconPainter,
+    required this.padding,
+    required this.iconSpacing,
+    required this.contentHeight,
+    required this.preferredCenter,
+    required this.rect,
+  });
+}
+
 class MiroCanvasPainter extends CustomPainter {
   final List<Block> blocks;
   final List<BlockLink> links;
@@ -49,6 +71,19 @@ class MiroCanvasPainter extends CustomPainter {
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
+
+    final labelEntries =
+        <
+          ({
+            BlockLink link,
+            Offset fromEdge,
+            Offset toEdge,
+            List<Offset> viaCanvas,
+            Offset startTangent,
+            Offset endTangent,
+            bool isSelected,
+          })
+        >[];
 
     for (var link in links) {
       final fromIndex = blocks.indexWhere((b) => b.id == link.fromBlockId);
@@ -124,16 +159,36 @@ class MiroCanvasPainter extends CustomPainter {
         isSelected: selectedLink == link,
       );
 
-      _drawLinkLabel(
-        canvas,
-        link,
-        fromEdge,
-        toEdge,
-        viaCanvas,
+      labelEntries.add((
+        link: link,
+        fromEdge: fromEdge,
+        toEdge: toEdge,
+        viaCanvas: viaCanvas,
         startTangent: startTangent,
         endTangent: endTangent,
         isSelected: selectedLink == link,
+      ));
+    }
+
+    final labelLayouts = <_LabelLayout>[];
+    for (final entry in labelEntries) {
+      final layout = _buildLinkLabelLayout(
+        entry.link,
+        entry.fromEdge,
+        entry.toEdge,
+        entry.viaCanvas,
+        startTangent: entry.startTangent,
+        endTangent: entry.endTangent,
+        isSelected: entry.isSelected,
       );
+      if (layout != null) {
+        labelLayouts.add(layout);
+      }
+    }
+
+    _resolveLabelOverlaps(labelLayouts);
+    for (final layout in labelLayouts) {
+      _paintLinkLabelLayout(canvas, layout);
     }
 
     // Dessiner le lien en cours de création
@@ -622,8 +677,7 @@ class MiroCanvasPainter extends CustomPainter {
     } while (iterator.moveNext());
   }
 
-  void _drawLinkLabel(
-    Canvas canvas,
+  _LabelLayout? _buildLinkLabelLayout(
     BlockLink link,
     Offset from,
     Offset to,
@@ -634,7 +688,7 @@ class MiroCanvasPainter extends CustomPainter {
   }) {
     final label = link.name.trim();
     if (label.isEmpty) {
-      return;
+      return null;
     }
 
     final path = _connectorPath(
@@ -648,12 +702,12 @@ class MiroCanvasPainter extends CustomPainter {
 
     final iterator = path.computeMetrics().iterator;
     if (!iterator.moveNext()) {
-      return;
+      return null;
     }
 
     final metric = iterator.current;
     if (metric.length <= 0) {
-      return;
+      return null;
     }
 
     final offsetOnPath = (metric.length * link.labelPosition).clamp(
@@ -662,7 +716,7 @@ class MiroCanvasPainter extends CustomPainter {
     );
     final midpoint = metric.getTangentForOffset(offsetOnPath);
     if (midpoint == null) {
-      return;
+      return null;
     }
 
     final normal = Offset(-math.sin(midpoint.angle), math.cos(midpoint.angle));
@@ -721,8 +775,23 @@ class MiroCanvasPainter extends CustomPainter {
       height: contentHeight + padding.vertical,
     );
 
+    return _LabelLayout(
+      isSelected: isSelected,
+      textPainter: painter,
+      iconPainter: iconPainter,
+      padding: padding,
+      iconSpacing: iconSpacing,
+      contentHeight: contentHeight,
+      preferredCenter: labelCenter,
+      rect: rect,
+    );
+  }
+
+  void _paintLinkLabelLayout(Canvas canvas, _LabelLayout layout) {
+    final rect = layout.rect;
+
     final background = Paint()
-      ..color = isSelected
+      ..color = layout.isSelected
           ? colorLinkSelected.withValues(alpha: 0.16)
           : const Color.fromARGB(190, 18, 18, 24)
       ..style = PaintingStyle.fill;
@@ -732,19 +801,111 @@ class MiroCanvasPainter extends CustomPainter {
       background,
     );
 
-    var paintX = rect.left + padding.left;
-    final contentTop = rect.top + padding.top;
-    if (iconPainter != null) {
-      iconPainter.paint(
+    var paintX = rect.left + layout.padding.left;
+    final contentTop = rect.top + layout.padding.top;
+    if (layout.iconPainter != null) {
+      layout.iconPainter!.paint(
         canvas,
-        Offset(paintX, contentTop + (contentHeight - iconPainter.height) / 2),
+        Offset(
+          paintX,
+          contentTop + (layout.contentHeight - layout.iconPainter!.height) / 2,
+        ),
       );
-      paintX += iconPainter.width + iconSpacing;
+      paintX += layout.iconPainter!.width + layout.iconSpacing;
     }
 
-    painter.paint(
+    layout.textPainter.paint(
       canvas,
-      Offset(paintX, contentTop + (contentHeight - painter.height) / 2),
+      Offset(
+        paintX,
+        contentTop + (layout.contentHeight - layout.textPainter.height) / 2,
+      ),
+    );
+  }
+
+  void _resolveLabelOverlaps(List<_LabelLayout> layouts) {
+    if (layouts.length < 2) {
+      return;
+    }
+
+    const spacing = 6.0;
+    const maxIterations = 10;
+    const maxOffsetFromPreferred = 72.0;
+
+    for (int iteration = 0; iteration < maxIterations; iteration++) {
+      var changed = false;
+
+      for (int i = 0; i < layouts.length - 1; i++) {
+        for (int j = i + 1; j < layouts.length; j++) {
+          final a = layouts[i];
+          final b = layouts[j];
+
+          final dx = b.rect.center.dx - a.rect.center.dx;
+          final dy = b.rect.center.dy - a.rect.center.dy;
+          final overlapX =
+              (a.rect.width + b.rect.width) / 2 + spacing - dx.abs();
+          final overlapY =
+              (a.rect.height + b.rect.height) / 2 + spacing - dy.abs();
+
+          if (overlapX <= 0 || overlapY <= 0) {
+            continue;
+          }
+
+          changed = true;
+          if (overlapX < overlapY) {
+            final sign = dx >= 0 ? 1.0 : -1.0;
+            final shift = (overlapX / 2) + 0.5;
+            a.rect = a.rect.shift(Offset(-sign * shift, 0));
+            b.rect = b.rect.shift(Offset(sign * shift, 0));
+          } else {
+            final sign = dy >= 0 ? 1.0 : -1.0;
+            final shift = (overlapY / 2) + 0.5;
+            a.rect = a.rect.shift(Offset(0, -sign * shift));
+            b.rect = b.rect.shift(Offset(0, sign * shift));
+          }
+
+          a.rect = _clampRectAroundPreferred(
+            a.rect,
+            a.preferredCenter,
+            maxOffsetFromPreferred,
+          );
+          b.rect = _clampRectAroundPreferred(
+            b.rect,
+            b.preferredCenter,
+            maxOffsetFromPreferred,
+          );
+        }
+      }
+
+      if (!changed) {
+        break;
+      }
+    }
+  }
+
+  Rect _clampRectAroundPreferred(
+    Rect rect,
+    Offset preferredCenter,
+    double maxDistance,
+  ) {
+    var dx = rect.center.dx - preferredCenter.dx;
+    var dy = rect.center.dy - preferredCenter.dy;
+    final distance = math.sqrt((dx * dx) + (dy * dy));
+    if (distance <= maxDistance || distance == 0) {
+      return rect;
+    }
+
+    final ratio = maxDistance / distance;
+    dx *= ratio;
+    dy *= ratio;
+    final clampedCenter = Offset(
+      preferredCenter.dx + dx,
+      preferredCenter.dy + dy,
+    );
+    return Rect.fromCenter(
+      center: clampedCenter,
+      width: rect.width,
+      height: rect.height,
     );
   }
 
@@ -838,8 +999,7 @@ class MiroCanvasPainter extends CustomPainter {
     Offset anchorUnit,
   ) {
     final side = _anchorSideUnit(anchorUnit);
-    final spacingDistance =
-        15.0 * zoomLevel; // Distance between anchors (zoom-dependent)
+    final spacingDistance = anchorSpacingDistance * zoomLevel;
 
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {
@@ -884,12 +1044,9 @@ class MiroCanvasPainter extends CustomPainter {
     final centerOffset =
         (anchorIndex - (grouped.length - 1) / 2) * spacingDistance;
 
-    // Apply spacing parallel to the anchor side
     if (side.dx != 0) {
-      // Horizontal side (left/right) - space vertically
       return Offset(0, centerOffset);
     } else if (side.dy != 0) {
-      // Vertical side (top/bottom) - space horizontally
       return Offset(centerOffset, 0);
     }
     return Offset.zero;
