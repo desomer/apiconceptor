@@ -647,8 +647,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     List<String> nodeOrder,
     List<({String fromId, String toId, String label})> edgeData,
     String direction,
-    List<Block>? layoutBlocks,
-  ) {
+    List<Block>? layoutBlocks, {
+    Map<String, Offset>? seedPositions,
+  }) {
     if (nodeOrder.isEmpty) {
       return {};
     }
@@ -748,28 +749,22 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         return indexByNode[a]!.compareTo(indexByNode[b]!);
       });
 
+    final seedPositionsByNode = seedPositions ?? const <String, Offset>{};
     final positions = <String, Offset>{};
+    final cellTargets = <String, Offset>{};
     for (int i = 0; i < sortedByDegree.length; i++) {
       final nodeId = sortedByDegree[i];
       final col = i % cols;
       final row = i ~/ cols;
       final jitterX = ((i * 37) % 17 - 8) * 2.5;
       final jitterY = ((i * 53) % 19 - 9) * 2.0;
-      positions[nodeId] = Offset(
-        minX + (col + 0.5) * (areaW / cols) + jitterX,
-        minY + (row + 0.5) * (areaH / rows) + jitterY,
-      );
-    }
-
-    final cellTargets = <String, Offset>{};
-    for (int i = 0; i < nodeOrder.length; i++) {
-      final nodeId = nodeOrder[i];
-      final col = i % cols;
-      final row = i ~/ cols;
-      cellTargets[nodeId] = Offset(
+      final target = Offset(
         minX + (col + 0.5) * (areaW / cols),
         minY + (row + 0.5) * (areaH / rows),
       );
+      cellTargets[nodeId] = seedPositionsByNode[nodeId] ?? target;
+      positions[nodeId] =
+          seedPositionsByNode[nodeId] ?? target + Offset(jitterX, jitterY);
     }
 
     final isHorizontal = direction == 'LR' || direction == 'RL';
@@ -1359,7 +1354,560 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       }
     }
 
-    return packed;
+    final compacted = _compactPackedLayout(
+      packed,
+      components,
+      neighbors,
+      sizeByNode,
+      direction,
+    );
+    final packedScore = _layoutQualityScore(
+      packed,
+      nodeOrder,
+      neighbors,
+      sizeByNode,
+    );
+    final compactedScore = _layoutQualityScore(
+      compacted,
+      nodeOrder,
+      neighbors,
+      sizeByNode,
+    );
+    return compactedScore < packedScore ? compacted : packed;
+  }
+
+  Map<String, Offset> _compactPackedLayout(
+    Map<String, Offset> positions,
+    List<List<String>> components,
+    Map<String, Set<String>> neighbors,
+    Map<String, Size> sizeByNode,
+    String direction,
+  ) {
+    final quality = _placementQualityProfile();
+    final compacted = Map<String, Offset>.from(positions);
+    final shrink = (direction == 'LR' || direction == 'RL')
+        ? (0.94 - quality.channelPitch * 0.02).clamp(0.84, 0.95)
+        : (0.92 - quality.channelPitch * 0.02).clamp(0.82, 0.94);
+
+    final originalCenters = <int, Offset>{};
+    for (
+      int componentIndex = 0;
+      componentIndex < components.length;
+      componentIndex++
+    ) {
+      final component = components[componentIndex];
+      var sumX = 0.0;
+      var sumY = 0.0;
+      for (final nodeId in component) {
+        final point = compacted[nodeId] ?? Offset.zero;
+        sumX += point.dx;
+        sumY += point.dy;
+      }
+      originalCenters[componentIndex] = Offset(
+        sumX / math.max(1, component.length),
+        sumY / math.max(1, component.length),
+      );
+    }
+
+    for (int iteration = 0; iteration < 8; iteration++) {
+      final forces = <String, Offset>{
+        for (final id in compacted.keys) id: Offset.zero,
+      };
+
+      for (
+        int componentIndex = 0;
+        componentIndex < components.length;
+        componentIndex++
+      ) {
+        final component = components[componentIndex];
+        final componentSet = component.toSet();
+        final componentCenter = originalCenters[componentIndex] ?? Offset.zero;
+
+        for (final nodeId in component) {
+          final current = compacted[nodeId] ?? Offset.zero;
+          final neighborsInComponent =
+              neighbors[nodeId]
+                  ?.where(componentSet.contains)
+                  .toList(growable: false) ??
+              const <String>[];
+
+          if (neighborsInComponent.isNotEmpty) {
+            var medianX = 0.0;
+            var medianY = 0.0;
+            for (final neighbor in neighborsInComponent) {
+              final point = compacted[neighbor] ?? Offset.zero;
+              medianX += point.dx;
+              medianY += point.dy;
+            }
+            medianX /= neighborsInComponent.length;
+            medianY /= neighborsInComponent.length;
+            forces[nodeId] =
+                forces[nodeId]! +
+                Offset(
+                  (medianX - current.dx) * 0.022,
+                  (medianY - current.dy) * 0.022,
+                );
+          }
+
+          forces[nodeId] = forces[nodeId]! + (componentCenter - current) * 0.05;
+        }
+
+        for (int i = 0; i < component.length - 1; i++) {
+          final a = component[i];
+          final pa = compacted[a] ?? Offset.zero;
+          final sa = sizeByNode[a] ?? const Size(150, 100);
+          for (int j = i + 1; j < component.length; j++) {
+            final b = component[j];
+            final pb = compacted[b] ?? Offset.zero;
+            final sb = sizeByNode[b] ?? const Size(150, 100);
+            final dx = pa.dx - pb.dx;
+            final dy = pa.dy - pb.dy;
+            final overlapX = (sa.width + sb.width) / 2 + 18 - dx.abs();
+            final overlapY = (sa.height + sb.height) / 2 + 14 - dy.abs();
+            if (overlapX > 0 && overlapY > 0) {
+              if (overlapX < overlapY) {
+                final sx = dx >= 0 ? 1.0 : -1.0;
+                final push = sx * overlapX * 0.18;
+                forces[a] = forces[a]! + Offset(push, 0);
+                forces[b] = forces[b]! - Offset(push, 0);
+              } else {
+                final sy = dy >= 0 ? 1.0 : -1.0;
+                final push = sy * overlapY * 0.18;
+                forces[a] = forces[a]! + Offset(0, push);
+                forces[b] = forces[b]! - Offset(0, push);
+              }
+            }
+          }
+        }
+      }
+
+      for (final entry in forces.entries) {
+        compacted[entry.key] =
+            (compacted[entry.key] ?? Offset.zero) + entry.value * shrink;
+      }
+
+      for (
+        int componentIndex = 0;
+        componentIndex < components.length;
+        componentIndex++
+      ) {
+        final component = components[componentIndex];
+        var sumX = 0.0;
+        var sumY = 0.0;
+        for (final nodeId in component) {
+          final point = compacted[nodeId] ?? Offset.zero;
+          sumX += point.dx;
+          sumY += point.dy;
+        }
+        final currentCenter = Offset(
+          sumX / math.max(1, component.length),
+          sumY / math.max(1, component.length),
+        );
+        final desiredCenter = originalCenters[componentIndex] ?? currentCenter;
+        final correction = desiredCenter - currentCenter;
+        for (final nodeId in component) {
+          compacted[nodeId] = (compacted[nodeId] ?? Offset.zero) + correction;
+        }
+      }
+    }
+
+    return compacted;
+  }
+
+  double _layoutQualityScore(
+    Map<String, Offset> positions,
+    List<String> nodeOrder,
+    Map<String, Set<String>> neighbors,
+    Map<String, Size> sizeByNode,
+  ) {
+    if (positions.isEmpty) {
+      return 0;
+    }
+
+    var score = 0.0;
+    final rects = <String, Rect>{};
+    var minX = double.infinity;
+    var minY = double.infinity;
+    var maxX = -double.infinity;
+    var maxY = -double.infinity;
+
+    for (final nodeId in nodeOrder) {
+      final point = positions[nodeId];
+      if (point == null) {
+        continue;
+      }
+      final size = sizeByNode[nodeId] ?? const Size(150, 100);
+      final rect = Rect.fromCenter(
+        center: point,
+        width: size.width,
+        height: size.height,
+      );
+      rects[nodeId] = rect;
+      minX = math.min(minX, rect.left);
+      minY = math.min(minY, rect.top);
+      maxX = math.max(maxX, rect.right);
+      maxY = math.max(maxY, rect.bottom);
+    }
+
+    for (final nodeId in nodeOrder) {
+      final point = positions[nodeId];
+      if (point == null) {
+        continue;
+      }
+      for (final neighbor in neighbors[nodeId] ?? const <String>{}) {
+        if (nodeId.compareTo(neighbor) >= 0) {
+          continue;
+        }
+        final other = positions[neighbor];
+        if (other == null) {
+          continue;
+        }
+        score += (point - other).distance;
+      }
+    }
+
+    for (int i = 0; i < nodeOrder.length - 1; i++) {
+      final a = nodeOrder[i];
+      final rectA = rects[a];
+      if (rectA == null) {
+        continue;
+      }
+      for (int j = i + 1; j < nodeOrder.length; j++) {
+        final b = nodeOrder[j];
+        final rectB = rects[b];
+        if (rectB == null) {
+          continue;
+        }
+        final overlapX =
+            math.min(rectA.right, rectB.right) -
+            math.max(rectA.left, rectB.left);
+        final overlapY =
+            math.min(rectA.bottom, rectB.bottom) -
+            math.max(rectA.top, rectB.top);
+        if (overlapX > 0 && overlapY > 0) {
+          score += 120000 + (overlapX * overlapY * 450);
+        }
+      }
+    }
+
+    final area = math.max(1.0, maxX - minX) * math.max(1.0, maxY - minY);
+    score += area * 0.02;
+    return score;
+  }
+
+  Offset _chooseAnchorUnitTowardRect(
+    Rect fromRect,
+    Rect toRect, {
+    required Map<Offset, int> sideUsage,
+  }) {
+    final delta = toRect.center - fromRect.center;
+    final horizontalPreferred = delta.dx.abs() >= delta.dy.abs();
+    final candidates = <Offset>[
+      const Offset(-1, 0),
+      const Offset(1, 0),
+      const Offset(0, -1),
+      const Offset(0, 1),
+    ];
+
+    double anchorScore(Offset unit) {
+      final borderPoint = _borderPointFromUnit(fromRect, unit);
+      final approach = (toRect.center - borderPoint).distance;
+      final sideLoad = (sideUsage[unit] ?? 0) * 16.0;
+      final axisMismatch = horizontalPreferred
+          ? (unit.dx.abs() > 0 ? 0.0 : 26.0)
+          : (unit.dy.abs() > 0 ? 0.0 : 26.0);
+      final flowBias = horizontalPreferred
+          ? (delta.dx >= 0
+                ? (unit.dx > 0 ? 0.0 : (unit.dx < 0 ? 18.0 : 10.0))
+                : (unit.dx < 0 ? 0.0 : (unit.dx > 0 ? 18.0 : 10.0)))
+          : (delta.dy >= 0
+                ? (unit.dy > 0 ? 0.0 : (unit.dy < 0 ? 18.0 : 10.0))
+                : (unit.dy < 0 ? 0.0 : (unit.dy > 0 ? 18.0 : 10.0)));
+      return approach + axisMismatch + flowBias + sideLoad;
+    }
+
+    var bestUnit = candidates.first;
+    var bestScore = double.infinity;
+    for (final candidate in candidates) {
+      final score = anchorScore(candidate);
+      if (score < bestScore) {
+        bestScore = score;
+        bestUnit = candidate;
+      }
+    }
+
+    return bestUnit;
+  }
+
+  List<Offset> _routeLinkAroundObstacles({
+    required Rect fromRect,
+    required Rect toRect,
+    required Offset sourceAnchor,
+    required Offset targetAnchor,
+    required List<Rect> obstacleRects,
+  }) {
+    final clearance = 24.0;
+    final startEdge = _borderPointFromUnit(fromRect, sourceAnchor);
+    final endEdge = _borderPointFromUnit(toRect, targetAnchor);
+    final start = startEdge + _normalizeAnchorUnit(sourceAnchor) * clearance;
+    final end = endEdge + _normalizeAnchorUnit(targetAnchor) * clearance;
+
+    final inflatedObstacles = obstacleRects
+        .map((rect) => rect.inflate(clearance))
+        .toList(growable: false);
+    if (_segmentIntersectsAnyRect(start, end, inflatedObstacles)) {
+      // fall back to routing around the obstacles
+    } else {
+      return const [];
+    }
+
+    final xCoords = <double>{start.dx, end.dx};
+    final yCoords = <double>{start.dy, end.dy};
+    for (final rect in inflatedObstacles) {
+      xCoords
+        ..add(rect.left)
+        ..add(rect.right)
+        ..add(rect.center.dx);
+      yCoords
+        ..add(rect.top)
+        ..add(rect.bottom)
+        ..add(rect.center.dy);
+    }
+
+    final xs = xCoords.toList()..sort();
+    final ys = yCoords.toList()..sort();
+    if (xs.length < 2 || ys.length < 2) {
+      return const [];
+    }
+
+    String keyFor(Offset point) =>
+        '${point.dx.toStringAsFixed(2)}|${point.dy.toStringAsFixed(2)}';
+    final nodeByKey = <String, Offset>{};
+    final nodes = <Offset>[];
+
+    for (final x in xs) {
+      for (final y in ys) {
+        final point = Offset(x, y);
+        if (_pointInsideAnyRect(point, inflatedObstacles)) {
+          continue;
+        }
+        final key = keyFor(point);
+        nodeByKey[key] = point;
+        nodes.add(point);
+      }
+    }
+
+    final startKey = keyFor(start);
+    final endKey = keyFor(end);
+    nodeByKey[startKey] = start;
+    nodeByKey[endKey] = end;
+    if (!nodes.any((p) => p == start)) {
+      nodes.add(start);
+    }
+    if (!nodes.any((p) => p == end)) {
+      nodes.add(end);
+    }
+
+    final adjacency = <String, List<(String, double)>>{
+      for (final point in nodes) keyFor(point): <(String, double)>[],
+    };
+
+    double segmentPenalty(Offset a, Offset b) {
+      final length = (a - b).distance;
+      final midpoint = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+      var penalty = 0.0;
+      for (final rect in inflatedObstacles) {
+        final distance = _distancePointToRect(midpoint, rect);
+        if (distance < 0) {
+          return double.infinity;
+        }
+        if (distance < 52.0) {
+          penalty += (52.0 - distance) * 5.0;
+        }
+      }
+      return length + penalty;
+    }
+
+    bool clearSegment(Offset a, Offset b) {
+      for (final rect in inflatedObstacles) {
+        if (_segmentIntersectsRect(a, b, rect)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    for (int yIndex = 0; yIndex < ys.length; yIndex++) {
+      for (int xIndex = 0; xIndex < xs.length - 1; xIndex++) {
+        final left = Offset(xs[xIndex], ys[yIndex]);
+        final right = Offset(xs[xIndex + 1], ys[yIndex]);
+        final leftKey = keyFor(left);
+        final rightKey = keyFor(right);
+        if (nodeByKey[leftKey] == null || nodeByKey[rightKey] == null) {
+          continue;
+        }
+        if (!clearSegment(left, right)) {
+          continue;
+        }
+        final cost = segmentPenalty(left, right);
+        if (!cost.isFinite) {
+          continue;
+        }
+        adjacency[leftKey]!.add((rightKey, cost));
+        adjacency[rightKey]!.add((leftKey, cost));
+      }
+    }
+
+    for (int xIndex = 0; xIndex < xs.length; xIndex++) {
+      for (int yIndex = 0; yIndex < ys.length - 1; yIndex++) {
+        final top = Offset(xs[xIndex], ys[yIndex]);
+        final bottom = Offset(xs[xIndex], ys[yIndex + 1]);
+        final topKey = keyFor(top);
+        final bottomKey = keyFor(bottom);
+        if (nodeByKey[topKey] == null || nodeByKey[bottomKey] == null) {
+          continue;
+        }
+        if (!clearSegment(top, bottom)) {
+          continue;
+        }
+        final cost = segmentPenalty(top, bottom);
+        if (!cost.isFinite) {
+          continue;
+        }
+        adjacency[topKey]!.add((bottomKey, cost));
+        adjacency[bottomKey]!.add((topKey, cost));
+      }
+    }
+
+    final frontier = <(String, double)>[(startKey, 0.0)];
+    final cameFrom = <String, String>{};
+    final gScore = <String, double>{startKey: 0.0};
+
+    double heuristic(String key) {
+      final point = nodeByKey[key];
+      if (point == null) {
+        return double.infinity;
+      }
+      return (point - end).distance;
+    }
+
+    while (frontier.isNotEmpty) {
+      frontier.sort((a, b) => a.$2.compareTo(b.$2));
+      final current = frontier.removeAt(0).$1;
+      if (current == endKey) {
+        break;
+      }
+
+      for (final neighbor in adjacency[current] ?? const <(String, double)>[]) {
+        final tentative = (gScore[current] ?? double.infinity) + neighbor.$2;
+        if (tentative >= (gScore[neighbor.$1] ?? double.infinity)) {
+          continue;
+        }
+        cameFrom[neighbor.$1] = current;
+        gScore[neighbor.$1] = tentative;
+        frontier.add((neighbor.$1, tentative + heuristic(neighbor.$1)));
+      }
+    }
+
+    if (!cameFrom.containsKey(endKey)) {
+      return const [];
+    }
+
+    final route = <Offset>[end];
+    var currentKey = endKey;
+    while (currentKey != startKey) {
+      currentKey = cameFrom[currentKey]!;
+      route.add(nodeByKey[currentKey]!);
+    }
+    route.add(start);
+    final ordered = route.reversed.toList();
+    final simplified = _simplifyRoutedPath(ordered);
+    if (simplified.length <= 2) {
+      return const [];
+    }
+    return simplified.sublist(1, simplified.length - 1);
+  }
+
+  bool _segmentIntersectsRect(Offset a, Offset b, Rect rect) {
+    if (a.dx == b.dx) {
+      final x = a.dx;
+      if (x < rect.left || x > rect.right) {
+        return false;
+      }
+      final minY = math.min(a.dy, b.dy);
+      final maxY = math.max(a.dy, b.dy);
+      return maxY > rect.top && minY < rect.bottom;
+    }
+
+    if (a.dy == b.dy) {
+      final y = a.dy;
+      if (y < rect.top || y > rect.bottom) {
+        return false;
+      }
+      final minX = math.min(a.dx, b.dx);
+      final maxX = math.max(a.dx, b.dx);
+      return maxX > rect.left && minX < rect.right;
+    }
+
+    return false;
+  }
+
+  bool _pointInsideAnyRect(Offset point, List<Rect> rects) {
+    for (final rect in rects) {
+      if (rect.contains(point)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  double _distancePointToRect(Offset point, Rect rect) {
+    if (rect.contains(point)) {
+      return -1;
+    }
+    final dx = math.max(
+      0.0,
+      math.max(rect.left - point.dx, point.dx - rect.right),
+    );
+    final dy = math.max(
+      0.0,
+      math.max(rect.top - point.dy, point.dy - rect.bottom),
+    );
+    return math.sqrt(dx * dx + dy * dy);
+  }
+
+  bool _segmentIntersectsAnyRect(Offset a, Offset b, List<Rect> rects) {
+    for (final rect in rects) {
+      if (_segmentIntersectsRect(a, b, rect)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  List<Offset> _simplifyRoutedPath(List<Offset> points) {
+    if (points.length <= 2) {
+      return points;
+    }
+
+    final simplified = <Offset>[points.first];
+    for (int i = 1; i < points.length - 1; i++) {
+      final prev = simplified.last;
+      final current = points[i];
+      final next = points[i + 1];
+      final sameX =
+          (prev.dx - current.dx).abs() < 0.5 &&
+          (current.dx - next.dx).abs() < 0.5;
+      final sameY =
+          (prev.dy - current.dy).abs() < 0.5 &&
+          (current.dy - next.dy).abs() < 0.5;
+      if (sameX || sameY) {
+        continue;
+      }
+      simplified.add(current);
+    }
+    simplified.add(points.last);
+    return simplified;
   }
 
   bool _segmentsIntersect(Offset a, Offset b, Offset c, Offset d) {
@@ -1410,7 +1958,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     }
 
     setState(() {
-      _runAutoLayoutOnGraph(blocks, links, _mermaidLayoutDirection);
+      _runAutoLayoutOnGraph(
+        blocks,
+        links,
+        _mermaidLayoutDirection,
+        preserveCurrentPositions: true,
+      );
     });
   }
 
@@ -1421,6 +1974,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     final blockById = <String, Block>{
       for (final block in targetBlocks) block.id: block,
     };
+    final rectById = <String, Rect>{
+      for (final block in targetBlocks)
+        block.id: Rect.fromLTWH(
+          block.position.dx,
+          block.position.dy,
+          block.size.width,
+          block.size.height,
+        ),
+    };
+    final sideUsageByBlock = <String, Map<Offset, int>>{};
 
     double orderKeyForSide(Offset side, Offset otherCenter) {
       if (side.dx.abs() >= side.dy.abs()) {
@@ -1432,28 +1995,64 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     for (final link in targetLinks) {
       final fromBlock = blockById[link.fromBlockId];
       final toBlock = blockById[link.toBlockId];
-      if (fromBlock == null || toBlock == null) {
+      final fromRect = rectById[link.fromBlockId];
+      final toRect = rectById[link.toBlockId];
+      if (fromBlock == null ||
+          toBlock == null ||
+          fromRect == null ||
+          toRect == null) {
         continue;
       }
 
-      final fromRect = Rect.fromLTWH(
-        fromBlock.position.dx,
-        fromBlock.position.dy,
-        fromBlock.size.width,
-        fromBlock.size.height,
+      final sourceUsage = sideUsageByBlock.putIfAbsent(
+        fromBlock.id,
+        () => <Offset, int>{},
       );
-      final toRect = Rect.fromLTWH(
-        toBlock.position.dx,
-        toBlock.position.dy,
-        toBlock.size.width,
-        toBlock.size.height,
+      final targetUsage = sideUsageByBlock.putIfAbsent(
+        toBlock.id,
+        () => <Offset, int>{},
       );
 
-      final sourceAnchor = _calculateOptimalAnchorUnit(fromRect, toRect);
-      final targetAnchor = _calculateOptimalAnchorUnit(toRect, fromRect);
+      final sourceAnchor =
+          link.isSourceAnchorLocked && link.sourceAnchorUnit != null
+          ? _normalizeAnchorUnit(link.sourceAnchorUnit!)
+          : _chooseAnchorUnitTowardRect(
+              fromRect,
+              toRect,
+              sideUsage: sourceUsage,
+            );
+      final targetAnchor =
+          link.isTargetAnchorLocked && link.targetAnchorUnit != null
+          ? _normalizeAnchorUnit(link.targetAnchorUnit!)
+          : _chooseAnchorUnitTowardRect(
+              toRect,
+              fromRect,
+              sideUsage: targetUsage,
+            );
+
+      final obstacleRects = <Rect>[
+        for (final block in targetBlocks)
+          if (block.id != fromBlock.id && block.id != toBlock.id)
+            Rect.fromLTWH(
+              block.position.dx,
+              block.position.dy,
+              block.size.width,
+              block.size.height,
+            ).inflate(20.0),
+      ];
+
+      final routedInflections = _routeLinkAroundObstacles(
+        fromRect: fromRect,
+        toRect: toRect,
+        sourceAnchor: sourceAnchor,
+        targetAnchor: targetAnchor,
+        obstacleRects: obstacleRects,
+      );
 
       link.connectorType = ConnectorType.bezier;
-      link.inflectionPoints.clear();
+      link.inflectionPoints
+        ..clear()
+        ..addAll(routedInflections);
       link.isSourceAnchorLocked = false;
       link.isTargetAnchorLocked = false;
       link.sourceAnchorUnit = sourceAnchor;
@@ -1463,6 +2062,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         targetAnchor,
         fromRect.center,
       );
+
+      sourceUsage[sourceAnchor] = (sourceUsage[sourceAnchor] ?? 0) + 1;
+      targetUsage[targetAnchor] = (targetUsage[targetAnchor] ?? 0) + 1;
     }
   }
 
@@ -1533,8 +2135,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   void _runAutoLayoutOnGraph(
     List<Block> targetBlocks,
     List<BlockLink> targetLinks,
-    String direction,
-  ) {
+    String direction, {
+    bool preserveCurrentPositions = false,
+  }) {
     if (targetBlocks.isEmpty) {
       return;
     }
@@ -1553,6 +2156,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       edgeData,
       direction,
       targetBlocks,
+      seedPositions: preserveCurrentPositions
+          ? {for (final block in targetBlocks) block.id: block.position}
+          : null,
     );
 
     for (final block in targetBlocks) {
