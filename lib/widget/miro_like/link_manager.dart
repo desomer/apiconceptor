@@ -54,6 +54,9 @@ class LinkManager {
     String fromBlockId,
     String toBlockId,
     String name,
+    String? labelIconKey,
+    double particleDensity,
+    double particleSpeed,
     double labelPosition,
     Offset labelOffset,
     ConnectorType connectorType,
@@ -65,6 +68,9 @@ class LinkManager {
       fromBlockId: fromBlockId,
       toBlockId: toBlockId,
       name: name,
+      labelIconKey: labelIconKey,
+      particleDensity: particleDensity,
+      particleSpeed: particleSpeed,
       labelPosition: labelPosition,
       labelOffset: labelOffset,
       connectorType: connectorType,
@@ -96,6 +102,9 @@ class LinkManager {
       'from': link.fromBlockId,
       'to': link.toBlockId,
       'name': link.name,
+      'labelIconKey': link.labelIconKey,
+      'particleDensity': link.particleDensity,
+      'particleSpeed': link.particleSpeed,
       'labelPosition': link.labelPosition,
       'labelOffset': {'dx': link.labelOffset.dx, 'dy': link.labelOffset.dy},
       'type': link.connectorType == ConnectorType.bezier
@@ -157,6 +166,13 @@ class LinkManager {
           fromBlockId: from,
           toBlockId: to,
           name: item['name']?.toString() ?? '',
+          labelIconKey: item['labelIconKey']?.toString(),
+          particleDensity: (item['particleDensity'] is num)
+              ? (item['particleDensity'] as num).toDouble().clamp(0.2, 3.0)
+              : 1.0,
+          particleSpeed: (item['particleSpeed'] is num)
+              ? (item['particleSpeed'] as num).toDouble().clamp(0.2, 3.0)
+              : 1.0,
           labelPosition: (item['labelPosition'] is num)
               ? (item['labelPosition'] as num).toDouble().clamp(0.0, 1.0)
               : 0.75,

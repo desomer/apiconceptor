@@ -15,6 +15,9 @@ class PropertiesPanel extends StatefulWidget {
   final BlockLink? selectedLink;
   final Function(String, String)? onBlockTitleChanged;
   final Function(BlockLink, String)? onLinkNameChanged;
+  final Function(BlockLink, String?)? onLinkLabelIconChanged;
+  final Function(BlockLink, double)? onLinkParticleDensityChanged;
+  final Function(BlockLink, double)? onLinkParticleSpeedChanged;
   final Function(BlockLink, double)? onLinkLabelPositionChanged;
   final Function(BlockLink, Offset)? onLinkLabelOffsetChanged;
   final Function(BlockLink)? onReverseLink;
@@ -27,6 +30,9 @@ class PropertiesPanel extends StatefulWidget {
     this.selectedLink,
     this.onBlockTitleChanged,
     this.onLinkNameChanged,
+    this.onLinkLabelIconChanged,
+    this.onLinkParticleDensityChanged,
+    this.onLinkParticleSpeedChanged,
     this.onLinkLabelPositionChanged,
     this.onLinkLabelOffsetChanged,
     this.onReverseLink,
@@ -204,6 +210,78 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             },
           ),
           const SizedBox(height: 12),
+          DropdownButtonFormField<String?>(
+            initialValue: link.labelIconKey,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Icone du label',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text(
+                  'Aucune',
+                  style: TextStyle(color: colorTextPrimary),
+                ),
+              ),
+              ...kLinkLabelIconMap.entries.map((entry) {
+                final label = kLinkLabelIconLabelMap[entry.key] ?? entry.key;
+                return DropdownMenuItem<String?>(
+                  value: entry.key,
+                  child: Row(
+                    children: [
+                      Icon(entry.value, size: 16, color: colorTextPrimary),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: const TextStyle(color: colorTextPrimary),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            onChanged: (value) {
+              widget.onLinkLabelIconChanged?.call(link, value);
+            },
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Densité particules: ${(link.particleDensity * 100).round()}%',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          Slider(
+            value: link.particleDensity.clamp(0.2, 3.0),
+            min: 0.2,
+            max: 3.0,
+            divisions: 28,
+            label: '${(link.particleDensity * 100).round()}%',
+            onChanged: (value) {
+              widget.onLinkParticleDensityChanged?.call(link, value);
+            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Vitesse particules: ${(link.particleSpeed * 100).round()}%',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          Slider(
+            value: link.particleSpeed.clamp(0.2, 3.0),
+            min: 0.2,
+            max: 3.0,
+            divisions: 28,
+            label: '${(link.particleSpeed * 100).round()}%',
+            onChanged: (value) {
+              widget.onLinkParticleSpeedChanged?.call(link, value);
+            },
+          ),
+          const SizedBox(height: 8),
           Text(
             'Position du label: ${(link.labelPosition * 100).round()}%',
             style: const TextStyle(color: colorTextSecondary),

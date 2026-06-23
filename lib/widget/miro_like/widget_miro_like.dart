@@ -175,6 +175,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _handleLinkLabelIconChanged(BlockLink link, String? iconKey) {
+    setState(() {
+      link.labelIconKey = iconKey;
+    });
+  }
+
+  void _handleLinkParticleDensityChanged(BlockLink link, double value) {
+    setState(() {
+      link.particleDensity = value.clamp(0.2, 3.0);
+    });
+  }
+
+  void _handleLinkParticleSpeedChanged(BlockLink link, double value) {
+    setState(() {
+      link.particleSpeed = value.clamp(0.2, 3.0);
+    });
+  }
+
   void _handleLinkLabelPositionChanged(BlockLink link, double value) {
     setState(() {
       link.labelPosition = value;
@@ -345,6 +363,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'fromBlockId': link.fromBlockId,
       'toBlockId': link.toBlockId,
       'name': link.name,
+      'labelIconKey': link.labelIconKey,
+      'particleDensity': link.particleDensity,
+      'particleSpeed': link.particleSpeed,
       'labelPosition': link.labelPosition,
       'labelOffset': _offsetToJson(link.labelOffset),
       'connectorType': link.connectorType.name,
@@ -444,6 +465,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           fromBlockId: fromId,
           toBlockId: toId,
           name: item['name']?.toString() ?? '',
+          labelIconKey: item['labelIconKey']?.toString(),
+          particleDensity: item['particleDensity'] is num
+              ? (item['particleDensity'] as num).toDouble().clamp(0.2, 3.0)
+              : 1.0,
+          particleSpeed: item['particleSpeed'] is num
+              ? (item['particleSpeed'] as num).toDouble().clamp(0.2, 3.0)
+              : 1.0,
           labelPosition: item['labelPosition'] is num
               ? (item['labelPosition'] as num).toDouble().clamp(0.0, 1.0)
               : 0.75,
@@ -533,6 +561,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             name: 'Lien ${links.length + 1}',
             labelPosition: 0.75,
             labelOffset: Offset.zero,
+            particleDensity: 1.0,
+            particleSpeed: 1.0,
             connectorType: ConnectorType.bezier,
             inflectionPoints: List<Offset>.from(pendingInflectionPoints),
             sourceAnchorUnit: sourceAnchorUnit,
@@ -1301,7 +1331,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         continue;
       }
 
-      final width = math.max(90.0, link.name.length * 8.0 + 28.0);
+      final iconExtraWidth = link.labelIconKey == null ? 0.0 : 20.0;
+      final width = math.max(
+        90.0,
+        link.name.length * 8.0 + 28.0 + iconExtraWidth,
+      );
       const height = 32.0;
 
       widgets.add(
@@ -1673,6 +1707,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             selectedLink: selectedLink,
             onBlockTitleChanged: _handleBlockTitleChanged,
             onLinkNameChanged: _handleLinkNameChanged,
+            onLinkLabelIconChanged: _handleLinkLabelIconChanged,
+            onLinkParticleDensityChanged: _handleLinkParticleDensityChanged,
+            onLinkParticleSpeedChanged: _handleLinkParticleSpeedChanged,
             onLinkLabelPositionChanged: _handleLinkLabelPositionChanged,
             onLinkLabelOffsetChanged: _handleLinkLabelOffsetChanged,
             onReverseLink: _reverseLink,

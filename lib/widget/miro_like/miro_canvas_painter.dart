@@ -113,6 +113,7 @@ class MiroCanvasPainter extends CustomPainter {
         fromEdge,
         toEdge,
         linkPaint,
+        link: link,
         connectorType: link.connectorType,
         viaPoints: viaCanvas,
         startTangent: startTangent,
@@ -283,6 +284,7 @@ class MiroCanvasPainter extends CustomPainter {
     Offset from,
     Offset to,
     Paint paint, {
+    BlockLink? link,
     required ConnectorType connectorType,
     List<Offset> viaPoints = const [],
     Offset? startTangent,
@@ -305,7 +307,7 @@ class MiroCanvasPainter extends CustomPainter {
     _drawNeonTube(canvas, path, tubeColor);
 
     // Dessiner les particules qui circulent dans le tube
-    _drawFlowParticles(canvas, path, tubeColor);
+    _drawFlowParticles(canvas, path, tubeColor, link: link);
 
     final endAngle = _pathEndAngle(path);
     if (endAngle == null) {
@@ -537,16 +539,27 @@ class MiroCanvasPainter extends CustomPainter {
     return direction.direction;
   }
 
-  void _drawFlowParticles(Canvas canvas, Path path, Color color) {
+  void _drawFlowParticles(
+    Canvas canvas,
+    Path path,
+    Color color, {
+    BlockLink? link,
+  }) {
     final metrics = path.computeMetrics();
     final iterator = metrics.iterator;
     if (!iterator.moveNext()) {
       return;
     }
 
-    const spacing = 34.0;
-    const speedPx = 170.0;
-    final travel = (flowAnimation?.value ?? 0.0) * speedPx;
+    final density = (link?.particleDensity ?? 1.0).clamp(0.2, 3.0);
+    final speed = (link?.particleSpeed ?? 1.0).clamp(0.2, 3.0);
+    final spacing = (34.0 / density).clamp(12.0, 90.0);
+    final speedPx = 170.0 * speed;
+    // Use a continuous time source so particle motion does not jump when
+    // the repeating animation cycles back from 1.0 to 0.0.
+    final elapsedSeconds =
+        DateTime.now().microsecondsSinceEpoch / Duration.microsecondsPerSecond;
+    final travel = elapsedSeconds * speedPx;
 
     do {
       final metric = iterator.current;
@@ -642,6 +655,8 @@ class MiroCanvasPainter extends CustomPainter {
     final labelCenter =
         midpoint.position + normal * 18 + link.labelOffset * zoomLevel;
 
+    final iconData = kLinkLabelIconMap[link.labelIconKey];
+
     final painter = TextPainter(
       text: TextSpan(
         text: label,
@@ -657,10 +672,36 @@ class MiroCanvasPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: 220);
 
+    TextPainter? iconPainter;
+    if (iconData != null) {
+      iconPainter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(iconData.codePoint),
+          style: TextStyle(
+            fontSize: 14,
+            color: isSelected ? colorLinkSelected : Colors.white,
+            fontFamily: iconData.fontFamily,
+            package: iconData.fontPackage,
+            shadows: const [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+    }
+
     final padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
+    final iconSpacing = iconPainter == null ? 0.0 : 6.0;
+    final contentWidth =
+        (iconPainter?.width ?? 0.0) + iconSpacing + painter.width;
     final rect = Rect.fromCenter(
       center: labelCenter,
-      width: painter.width + padding.horizontal,
+      width: contentWidth + padding.horizontal,
       height: painter.height + padding.vertical,
     );
 
@@ -675,10 +716,17 @@ class MiroCanvasPainter extends CustomPainter {
       background,
     );
 
-    painter.paint(
-      canvas,
-      rect.topLeft + Offset(padding.left / 2, padding.top / 2),
-    );
+    var paintX = rect.left + (padding.left / 2);
+    final paintY = rect.top + (padding.top / 2);
+    if (iconPainter != null) {
+      iconPainter.paint(
+        canvas,
+        Offset(paintX, paintY + (painter.height - iconPainter.height) / 2),
+      );
+      paintX += iconPainter.width + iconSpacing;
+    }
+
+    painter.paint(canvas, Offset(paintX, paintY));
   }
 
   void _lineOrArcTo(
