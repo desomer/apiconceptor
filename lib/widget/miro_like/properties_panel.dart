@@ -514,13 +514,10 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         color: colorPropertiesPanelBg,
         border: Border(left: BorderSide(color: colorPanelBorder)),
       ),
-      child: Scrollbar(
-        thumbVisibility: true,
-        child: SingleChildScrollView(
+      child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: child,
         ),
-      ),
     );
   }
 }

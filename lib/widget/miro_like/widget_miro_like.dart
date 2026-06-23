@@ -98,6 +98,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       context: context,
       generateBoardJson: _generateBoardJson,
       importBoard: _importBoard,
+      generateMermaid: _generateMermaid,
+      importMermaid: _importMermaid,
     );
     _flowController = AnimationController(
       vsync: this,
@@ -409,6 +411,48 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return const JsonEncoder.withIndent('  ').convert(_boardToJson());
   }
 
+  String _escapeMermaidText(String text) {
+    return text
+        .replaceAll('\\', r'\\')
+        .replaceAll('"', r'\"')
+        .replaceAll('\n', ' ')
+        .replaceAll('\r', ' ')
+        .trim();
+  }
+
+  String _generateMermaid() {
+    final blockIds = <String, String>{};
+    for (var i = 0; i < blocks.length; i++) {
+      blockIds[blocks[i].id] = 'm$i';
+    }
+
+    final buffer = StringBuffer('flowchart TD\n');
+    for (final block in blocks) {
+      final nodeId = blockIds[block.id];
+      if (nodeId == null) {
+        continue;
+      }
+      buffer.writeln('  $nodeId["${_escapeMermaidText(block.title)}"]');
+    }
+
+    for (final link in links) {
+      final fromId = blockIds[link.fromBlockId];
+      final toId = blockIds[link.toBlockId];
+      if (fromId == null || toId == null) {
+        continue;
+      }
+
+      final label = link.name.trim();
+      if (label.isEmpty) {
+        buffer.writeln('  $fromId --> $toId');
+      } else {
+        buffer.writeln('  $fromId -->|${_escapeMermaidText(label)}| $toId');
+      }
+    }
+
+    return buffer.toString().trimRight();
+  }
+
   ConnectorType _connectorTypeFromName(dynamic value) {
     final raw = value?.toString() ?? '';
     if (raw == ConnectorType.orthogonal.name) {
@@ -517,6 +561,121 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       }
     }
     return parsed;
+  }
+
+  String _extractMermaidSource(String text) {
+    final fenced = RegExp(
+      r'```(?:mermaid)?\s*([\s\S]*?)```',
+      caseSensitive: false,
+      multiLine: true,
+    ).firstMatch(text);
+    if (fenced != null) {
+      return fenced.group(1)?.trim() ?? '';
+    }
+    return text.trim();
+  }
+
+  void _importMermaid(String text) {
+    final source = _extractMermaidSource(text);
+    if (source.isEmpty) {
+      throw const FormatException('Le code Mermaid est vide');
+    }
+
+    final lines = source.split(RegExp(r'\r?\n'));
+    final nodeTitles = <String, String>{};
+    final nodeOrder = <String>[];
+    final edgeData = <({String fromId, String toId, String label})>[];
+
+    void registerNode(String nodeId, [String? title]) {
+      if (!nodeOrder.contains(nodeId)) {
+        nodeOrder.add(nodeId);
+      }
+      if (title != null && title.isNotEmpty) {
+        nodeTitles[nodeId] = title;
+      } else {
+        nodeTitles.putIfAbsent(nodeId, () => nodeId);
+      }
+    }
+
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (line.isEmpty || line.startsWith('%%')) {
+        continue;
+      }
+
+      if (line.startsWith('flowchart ') || line.startsWith('graph ')) {
+        continue;
+      }
+
+      final nodeMatch = RegExp(
+        r'^([A-Za-z_][A-Za-z0-9_-]*)\s*\[\s*(?:"([^"]*)"|([^\]]*))\s*\]\s*$',
+      ).firstMatch(line);
+      if (nodeMatch != null) {
+        final nodeId = nodeMatch.group(1)!;
+        final title = nodeMatch.group(2) ?? nodeMatch.group(3) ?? nodeId;
+        registerNode(nodeId, title);
+        continue;
+      }
+
+      final edgeMatch = RegExp(
+        r'^([A-Za-z_][A-Za-z0-9_-]*)\s*--?>\s*(?:\|([^|]*)\|\s*)?([A-Za-z_][A-Za-z0-9_-]*)\s*$',
+      ).firstMatch(line);
+      if (edgeMatch != null) {
+        final fromId = edgeMatch.group(1)!;
+        final label = (edgeMatch.group(2) ?? '').trim();
+        final toId = edgeMatch.group(3)!;
+        registerNode(fromId);
+        registerNode(toId);
+        edgeData.add((fromId: fromId, toId: toId, label: label));
+      }
+    }
+
+    if (nodeOrder.isEmpty) {
+      throw const FormatException('Aucun bloc Mermaid reconnu');
+    }
+
+    final importedBlocks = <Block>[];
+    for (var i = 0; i < nodeOrder.length; i++) {
+      final nodeId = nodeOrder[i];
+      importedBlocks.add(
+        Block(
+          id: nodeId,
+          title: nodeTitles[nodeId] ?? nodeId,
+          position: Offset(80 + (i % 4) * 220, 80 + (i ~/ 4) * 160),
+        ),
+      );
+    }
+
+    final importedLinks = <BlockLink>[];
+    for (final edge in edgeData) {
+      importedLinks.add(
+        BlockLink(
+          fromBlockId: edge.fromId,
+          toBlockId: edge.toId,
+          name: edge.label,
+        ),
+      );
+    }
+
+    setState(() {
+      blocks
+        ..clear()
+        ..addAll(importedBlocks);
+      links
+        ..clear()
+        ..addAll(importedLinks);
+      selectedBlock = null;
+      selectedLink = null;
+      linkSourceBlock = null;
+      linkingFromPoint = null;
+      currentMousePosition = null;
+      pendingInflectionPoints.clear();
+      canvasOffset = Offset.zero;
+      zoomLevel = 1.0;
+      _snapLeftModel = null;
+      _snapTopModel = null;
+      _dragFreePositionModel = null;
+    });
   }
 
   void _importBoard(Map<String, dynamic> decoded) {
@@ -1526,6 +1685,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             icon: const Icon(Icons.file_download_outlined),
             tooltip: 'Import JSON',
             onPressed: () => importExportManager.showImportDialog(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.account_tree_outlined),
+            tooltip: 'Export Mermaid',
+            onPressed: () => importExportManager.showExportMermaidDialog(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.schema_outlined),
+            tooltip: 'Import Mermaid',
+            onPressed: () => importExportManager.showImportMermaidDialog(),
           ),
           IconButton(
             icon: const Icon(Icons.fit_screen),
