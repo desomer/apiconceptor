@@ -15,6 +15,7 @@ class PropertiesPanel extends StatefulWidget {
   final BlockLink? selectedLink;
   final Function(String, String)? onBlockTitleChanged;
   final Function(Block, String?)? onBlockColorChanged;
+  final Function(Block, List<String>)? onBlockTagsChanged;
   final Function(BlockLink, String)? onLinkNameChanged;
   final Function(BlockLink, String?)? onLinkColorChanged;
   final Function(BlockLink, String?)? onLinkLabelIconChanged;
@@ -32,6 +33,7 @@ class PropertiesPanel extends StatefulWidget {
     this.selectedLink,
     this.onBlockTitleChanged,
     this.onBlockColorChanged,
+    this.onBlockTagsChanged,
     this.onLinkNameChanged,
     this.onLinkColorChanged,
     this.onLinkLabelIconChanged,
@@ -187,6 +189,80 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             onChanged: (value) {
               widget.onBlockColorChanged?.call(block, value);
             },
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Tags colorés',
+            style: TextStyle(
+              color: colorTextPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: kBlockTagColorMap.entries.map((entry) {
+              final key = entry.key;
+              final color = entry.value;
+              final label = kBlockTagColorLabelMap[key] ?? key;
+              final isSelected = block.tagColorKeys.contains(key);
+
+              return InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () {
+                  final updated = List<String>.from(block.tagColorKeys);
+                  if (isSelected) {
+                    updated.remove(key);
+                  } else {
+                    updated.add(key);
+                  }
+                  widget.onBlockTagsChanged?.call(block, updated);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? color.withValues(alpha: 0.28)
+                        : colorBlockBackground,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isSelected ? color : colorPanelBorder,
+                      width: isSelected ? 1.4 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(1.5),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: colorTextPrimary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tags sélectionnés: ${block.tagColorKeys.length}',
+            style: const TextStyle(color: colorTextSecondary),
           ),
           const SizedBox(height: 12),
           Text(

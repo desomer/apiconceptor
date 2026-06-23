@@ -14,6 +14,68 @@ class BlockWidget extends StatelessWidget {
     return hsl.withLightness(shifted).toColor();
   }
 
+  Widget _buildTagIndicators() {
+    final validTagKeys = block.tagColorKeys
+        .where((key) => kBlockTagColorMap.containsKey(key))
+        .toList(growable: false);
+    if (validTagKeys.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    const indicatorSize = 9.0;
+    const spacing = 5.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxByHeight =
+            ((constraints.maxHeight - 18) / (indicatorSize + spacing))
+                .floor()
+                .clamp(1, validTagKeys.length);
+        final visibleTags = validTagKeys.take(maxByHeight).toList();
+        final hiddenCount = validTagKeys.length - visibleTags.length;
+
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ...visibleTags.map((key) {
+                  final color = kBlockTagColorMap[key] ?? Colors.white;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: spacing),
+                    child: Container(
+                      width: indicatorSize,
+                      height: indicatorSize,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(1.5),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          width: 0.8,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                if (hiddenCount > 0)
+                  Text(
+                    '+$hiddenCount',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final paletteColor = kBlockColorMap[block.colorKey] ?? colorBlockBackground;
@@ -84,7 +146,10 @@ class BlockWidget extends StatelessWidget {
             ),
             Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                padding: EdgeInsets.only(
+                  left: 10,
+                  right: block.tagColorKeys.isEmpty ? 10 : 30,
+                ),
                 child: Text(
                   block.title,
                   textAlign: TextAlign.center,
@@ -105,6 +170,7 @@ class BlockWidget extends StatelessWidget {
                 ),
               ),
             ),
+            _buildTagIndicators(),
           ],
         ),
       ),

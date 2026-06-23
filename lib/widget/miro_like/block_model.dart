@@ -18,11 +18,34 @@ const Map<String, String> kBlockColorLabelMap = {
   'rose': 'Rose',
 };
 
+const Map<String, Color> kBlockTagColorMap = {
+  'red': Color(0xFFEF4444),
+  'orange': Color(0xFFF97316),
+  'yellow': Color(0xFFEAB308),
+  'green': Color(0xFF22C55E),
+  'cyan': Color(0xFF06B6D4),
+  'blue': Color(0xFF3B82F6),
+  'purple': Color(0xFFA855F7),
+  'pink': Color(0xFFEC4899),
+};
+
+const Map<String, String> kBlockTagColorLabelMap = {
+  'red': 'Red',
+  'orange': 'Orange',
+  'yellow': 'Yellow',
+  'green': 'Green',
+  'cyan': 'Cyan',
+  'blue': 'Blue',
+  'purple': 'Purple',
+  'pink': 'Pink',
+};
+
 /// Represents a block in the Miro-like diagram
 class Block {
   String id;
   String title;
   String? colorKey;
+  List<String> tagColorKeys;
   Offset position;
   Size size;
 
@@ -30,7 +53,8 @@ class Block {
     required this.id,
     required this.title,
     this.colorKey,
+    List<String>? tagColorKeys,
     this.position = const Offset(0, 0),
     this.size = const Size(150, 100),
-  });
+  }) : tagColorKeys = List<String>.from(tagColorKeys ?? const <String>[]);
 }

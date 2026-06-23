@@ -235,6 +235,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _handleBlockTagsChanged(Block block, List<String> tagColorKeys) {
+    setState(() {
+      block.tagColorKeys
+        ..clear()
+        ..addAll(
+          tagColorKeys.where((key) => kBlockTagColorMap.containsKey(key)),
+        );
+    });
+  }
+
   void _handleLinkNameChanged(BlockLink link, String newName) {
     setState(() {
       link.name = newName;
@@ -426,6 +436,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'id': block.id,
       'title': block.title,
       'colorKey': block.colorKey,
+      'tagColorKeys': block.tagColorKeys,
       'position': _offsetToJson(block.position),
       'size': _sizeToJson(block.size),
     };
@@ -546,11 +557,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final title = _normalizeBlockTitleLineBreaks(
         item['title']?.toString() ?? 'Block',
       );
+      final parsedTagColorKeys = <String>[];
+      final rawTagColorKeys = item['tagColorKeys'];
+      if (rawTagColorKeys is List) {
+        for (final key in rawTagColorKeys) {
+          final keyString = key?.toString() ?? '';
+          if (kBlockTagColorMap.containsKey(keyString)) {
+            parsedTagColorKeys.add(keyString);
+          }
+        }
+      }
+
       parsed.add(
         Block(
           id: id,
           title: title,
           colorKey: item['colorKey']?.toString(),
+          tagColorKeys: parsedTagColorKeys,
           position: _offsetFromJson(item['position']),
           size: _sizeFromJson(item['size']),
         ),
@@ -1599,6 +1622,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     Rect fromRect,
     Rect toRect, {
     required Map<Offset, int> sideUsage,
+    bool isHub = false,
   }) {
     final delta = toRect.center - fromRect.center;
     final horizontalPreferred = delta.dx.abs() >= delta.dy.abs();
@@ -1612,17 +1636,28 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     double anchorScore(Offset unit) {
       final borderPoint = _borderPointFromUnit(fromRect, unit);
       final approach = (toRect.center - borderPoint).distance;
-      final sideLoad = (sideUsage[unit] ?? 0) * 16.0;
+      final baseSideLoad = (sideUsage[unit] ?? 0);
+      final sideLoad = isHub
+          ? baseSideLoad * 6.0 + (baseSideLoad > 0 ? 8.0 : 0.0)
+          : baseSideLoad * 16.0;
       final axisMismatch = horizontalPreferred
           ? (unit.dx.abs() > 0 ? 0.0 : 26.0)
           : (unit.dy.abs() > 0 ? 0.0 : 26.0);
       final flowBias = horizontalPreferred
           ? (delta.dx >= 0
-                ? (unit.dx > 0 ? 0.0 : (unit.dx < 0 ? 18.0 : 10.0))
-                : (unit.dx < 0 ? 0.0 : (unit.dx > 0 ? 18.0 : 10.0)))
+                ? (unit.dx > 0
+                      ? (isHub ? 4.0 : 0.0)
+                      : (unit.dx < 0 ? (isHub ? 16.0 : 18.0) : 10.0))
+                : (unit.dx < 0
+                      ? (isHub ? 4.0 : 0.0)
+                      : (unit.dx > 0 ? (isHub ? 16.0 : 18.0) : 10.0)))
           : (delta.dy >= 0
-                ? (unit.dy > 0 ? 0.0 : (unit.dy < 0 ? 18.0 : 10.0))
-                : (unit.dy < 0 ? 0.0 : (unit.dy > 0 ? 18.0 : 10.0)));
+                ? (unit.dy > 0
+                      ? (isHub ? 4.0 : 0.0)
+                      : (unit.dy < 0 ? (isHub ? 16.0 : 18.0) : 10.0))
+                : (unit.dy < 0
+                      ? (isHub ? 4.0 : 0.0)
+                      : (unit.dy > 0 ? (isHub ? 16.0 : 18.0) : 10.0)));
       return approach + axisMismatch + flowBias + sideLoad;
     }
 
@@ -1904,10 +1939,74 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       if (sameX || sameY) {
         continue;
       }
+
+      final isColinear = _isColinear(prev, current, next, tolerance: 1.5);
+      if (isColinear) {
+        continue;
+      }
+
       simplified.add(current);
     }
     simplified.add(points.last);
-    return simplified;
+    return _mergeOscillatingSegments(simplified);
+  }
+
+  bool _isColinear(Offset a, Offset b, Offset c, {double tolerance = 0.5}) {
+    final ab = b - a;
+    final ac = c - a;
+    if (ab.distanceSquared == 0 || ac.distanceSquared == 0) {
+      return true;
+    }
+
+    final crossProduct = (ab.dx * ac.dy - ab.dy * ac.dx).abs();
+    final combinedLength = ab.distance * ac.distance;
+    if (combinedLength == 0) {
+      return true;
+    }
+
+    return (crossProduct / combinedLength) < tolerance;
+  }
+
+  List<Offset> _mergeOscillatingSegments(List<Offset> points) {
+    if (points.length <= 3) {
+      return points;
+    }
+
+    final merged = <Offset>[points.first];
+    for (int i = 1; i < points.length; i++) {
+      final current = points[i];
+      if (merged.length < 2) {
+        merged.add(current);
+        continue;
+      }
+
+      final prev = merged.last;
+      final prevPrev = merged[merged.length - 2];
+      final distCurrentPrev = (current - prev).distance;
+      final distPrevPrevPrev = (prev - prevPrev).distance;
+
+      if (distCurrentPrev < 8.0 || distPrevPrevPrev < 8.0) {
+        final dirPrevPrev = math.atan2(
+          prev.dy - prevPrev.dy,
+          prev.dx - prevPrev.dx,
+        );
+        final dirCurrent = math.atan2(
+          current.dy - prev.dy,
+          current.dx - prev.dx,
+        );
+        final angleDiff = (dirCurrent - dirPrevPrev).abs();
+        final normalizedDiff = math.min(angleDiff, 2 * math.pi - angleDiff);
+
+        if (normalizedDiff < 0.3 || normalizedDiff > math.pi - 0.3) {
+          merged[merged.length - 1] = current;
+          continue;
+        }
+      }
+
+      merged.add(current);
+    }
+
+    return merged;
   }
 
   bool _segmentsIntersect(Offset a, Offset b, Offset c, Offset d) {
@@ -1983,7 +2082,46 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           block.size.height,
         ),
     };
+
+    final degreeByNode = <String, int>{
+      for (final block in targetBlocks) block.id: 0,
+    };
+    for (final link in targetLinks) {
+      degreeByNode[link.fromBlockId] =
+          (degreeByNode[link.fromBlockId] ?? 0) + 1;
+      degreeByNode[link.toBlockId] = (degreeByNode[link.toBlockId] ?? 0) + 1;
+    }
+
+    final hubThreshold = math.max(
+      2,
+      (targetLinks.length / targetBlocks.length).ceil(),
+    );
+    final hubs = <String>{
+      for (final entry in degreeByNode.entries)
+        if (entry.value >= hubThreshold) entry.key,
+    };
+
     final sideUsageByBlock = <String, Map<Offset, int>>{};
+    final sortedLinksForBlock = <String, List<BlockLink>>{
+      for (final block in targetBlocks) block.id: <BlockLink>[],
+    };
+
+    for (final link in targetLinks) {
+      sortedLinksForBlock[link.fromBlockId]!.add(link);
+      sortedLinksForBlock[link.toBlockId]!.add(link);
+    }
+
+    for (final entry in sortedLinksForBlock.entries) {
+      entry.value.sort((a, b) {
+        final aOtherId = a.fromBlockId == entry.key
+            ? a.toBlockId
+            : a.fromBlockId;
+        final bOtherId = b.fromBlockId == entry.key
+            ? b.toBlockId
+            : b.fromBlockId;
+        return aOtherId.compareTo(bOtherId);
+      });
+    }
 
     double orderKeyForSide(Offset side, Offset otherCenter) {
       if (side.dx.abs() >= side.dy.abs()) {
@@ -2013,6 +2151,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         () => <Offset, int>{},
       );
 
+      final isSourceHub = hubs.contains(fromBlock.id);
+      final isTargetHub = hubs.contains(toBlock.id);
+
       final sourceAnchor =
           link.isSourceAnchorLocked && link.sourceAnchorUnit != null
           ? _normalizeAnchorUnit(link.sourceAnchorUnit!)
@@ -2020,6 +2161,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               fromRect,
               toRect,
               sideUsage: sourceUsage,
+              isHub: isSourceHub,
             );
       final targetAnchor =
           link.isTargetAnchorLocked && link.targetAnchorUnit != null
@@ -2028,6 +2170,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               toRect,
               fromRect,
               sideUsage: targetUsage,
+              isHub: isTargetHub,
             );
 
       final obstacleRects = <Rect>[
@@ -3545,6 +3688,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             selectedLink: selectedLink,
             onBlockTitleChanged: _handleBlockTitleChanged,
             onBlockColorChanged: _handleBlockColorChanged,
+            onBlockTagsChanged: _handleBlockTagsChanged,
             onLinkNameChanged: _handleLinkNameChanged,
             onLinkColorChanged: _handleLinkColorChanged,
             onLinkLabelIconChanged: _handleLinkLabelIconChanged,
