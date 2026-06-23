@@ -1159,67 +1159,68 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   List<Widget> _buildInflectionHandles() {
     final widgets = <Widget>[];
+    final link = selectedLink;
+    if (link == null || !links.contains(link)) {
+      return widgets;
+    }
 
-    for (var linkIndex = 0; linkIndex < links.length; linkIndex++) {
-      final link = links[linkIndex];
-      for (
-        var pointIndex = 0;
-        pointIndex < link.inflectionPoints.length;
-        pointIndex++
-      ) {
-        final modelPoint = link.inflectionPoints[pointIndex];
-        final canvasPoint = _modelToCanvas(modelPoint);
+    for (
+      var pointIndex = 0;
+      pointIndex < link.inflectionPoints.length;
+      pointIndex++
+    ) {
+      final modelPoint = link.inflectionPoints[pointIndex];
+      final canvasPoint = _modelToCanvas(modelPoint);
 
-        widgets.add(
-          Positioned(
-            left: canvasPoint.dx - _inflectionHandleRadius,
-            top: canvasPoint.dy - _inflectionHandleRadius,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.move,
-              child: GestureDetector(
-                onTapDown: (_) {
-                  setState(() {
-                    selectedLink = link;
-                    selectedBlock = null;
-                  });
-                },
-                onSecondaryTapDown: (_) {
-                  setState(() {
-                    if (pointIndex >= 0 &&
-                        pointIndex < link.inflectionPoints.length) {
-                      link.inflectionPoints.removeAt(pointIndex);
-                    }
-                  });
-                },
-                onPanUpdate: (details) {
-                  setState(() {
-                    selectedLink = link;
-                    selectedBlock = null;
-                    link.inflectionPoints[pointIndex] +=
-                        details.delta / zoomLevel;
-                  });
-                },
-                child: Container(
-                  width: _inflectionHandleRadius * 2,
-                  height: _inflectionHandleRadius * 2,
-                  decoration: BoxDecoration(
-                    color: colorInflectionPoint,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: colorAnchorBorder, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorShadow2,
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
+      widgets.add(
+        Positioned(
+          left: canvasPoint.dx - _inflectionHandleRadius,
+          top: canvasPoint.dy - _inflectionHandleRadius,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.move,
+            child: GestureDetector(
+              onTapDown: (_) {
+                setState(() {
+                  selectedLink = link;
+                  selectedBlock = null;
+                });
+              },
+              onSecondaryTapDown: (_) {
+                setState(() {
+                  if (pointIndex >= 0 &&
+                      pointIndex < link.inflectionPoints.length) {
+                    link.inflectionPoints.removeAt(pointIndex);
+                  }
+                });
+              },
+              onPanUpdate: (details) {
+                setState(() {
+                  selectedLink = link;
+                  selectedBlock = null;
+                  link.inflectionPoints[pointIndex] +=
+                      details.delta / zoomLevel;
+                });
+              },
+              child: Container(
+                width: _inflectionHandleRadius * 2,
+                height: _inflectionHandleRadius * 2,
+                decoration: BoxDecoration(
+                  color: colorInflectionPoint,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colorAnchorBorder, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorShadow2,
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        );
-      }
+        ),
+      );
     }
 
     return widgets;
