@@ -90,8 +90,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset canvasOffset = Offset.zero;
   double zoomLevel = 1.0;
   bool isPanning = false;
-  String _mermaidLayoutDirection = 'TB';
-  String _placementQuality = 'Equilibre';
+  String _mermaidLayoutDirection = 'LR';
+  String _placementQuality = 'Dense';
   double? _snapLeftModel;
   double? _snapTopModel;
   Offset? _dragFreePositionModel;
@@ -224,7 +224,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     setState(() {
       final blockIndex = blocks.indexWhere((b) => b.id == blockId);
       if (blockIndex != -1) {
-        blocks[blockIndex].title = newTitle;
+        blocks[blockIndex].title = _normalizeBlockTitleLineBreaks(newTitle);
       }
     });
   }
@@ -469,12 +469,20 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return const JsonEncoder.withIndent('  ').convert(_boardToJson());
   }
 
-  String _escapeMermaidText(String text) {
+  String _normalizeBlockTitleLineBreaks(String text) {
     return text
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .replaceAll(r'\n', '\n')
+        .replaceAll('/n', '\n');
+  }
+
+  String _escapeMermaidText(String text) {
+    final normalized = _normalizeBlockTitleLineBreaks(text);
+    return normalized
         .replaceAll('\\', r'\\')
         .replaceAll('"', r'\"')
-        .replaceAll('\n', ' ')
-        .replaceAll('\r', ' ')
+        .replaceAll('\n', r'\n')
         .trim();
   }
 
@@ -535,7 +543,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         continue;
       }
 
-      final title = item['title']?.toString() ?? 'Block';
+      final title = _normalizeBlockTitleLineBreaks(
+        item['title']?.toString() ?? 'Block',
+      );
       parsed.add(
         Block(
           id: id,
@@ -637,11 +647,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     List<String> nodeOrder,
     List<({String fromId, String toId, String label})> edgeData,
     String direction,
+    List<Block>? layoutBlocks,
   ) {
     if (nodeOrder.isEmpty) {
       return {};
     }
 
+    final effectiveBlocks = layoutBlocks ?? blocks;
     final nodeSet = nodeOrder.toSet();
     final indexByNode = <String, int>{
       for (int i = 0; i < nodeOrder.length; i++) nodeOrder[i]: i,
@@ -677,12 +689,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     }
 
     final count = nodeOrder.length;
-    final maxBlockW = blocks.isEmpty
+    final maxBlockW = effectiveBlocks.isEmpty
         ? 150.0
-        : blocks.map((b) => b.size.width).fold<double>(150.0, math.max);
-    final maxBlockH = blocks.isEmpty
+        : effectiveBlocks
+              .map((b) => b.size.width)
+              .fold<double>(150.0, math.max);
+    final maxBlockH = effectiveBlocks.isEmpty
         ? 100.0
-        : blocks.map((b) => b.size.height).fold<double>(100.0, math.max);
+        : effectiveBlocks
+              .map((b) => b.size.height)
+              .fold<double>(100.0, math.max);
 
     final quality = _placementQualityProfile();
     final channelPitch = quality.channelPitch.clamp(1, 3);
@@ -762,7 +778,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     final sizeByNode = <String, Size>{
       for (final id in nodeOrder)
         id:
-            blocks.where((b) => b.id == id).map((b) => b.size).firstOrNull ??
+            effectiveBlocks
+                .where((b) => b.id == id)
+                .map((b) => b.size)
+                .firstOrNull ??
             const Size(150, 100),
     };
 
@@ -1191,7 +1210,156 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       ..clear()
       ..addAll(strictSnapped);
 
-    return positions;
+    return _packAutoLayoutComponents(
+      positions,
+      nodeOrder,
+      neighbors,
+      sizeByNode,
+      indexByNode,
+      direction,
+    );
+  }
+
+  Map<String, Offset> _packAutoLayoutComponents(
+    Map<String, Offset> positions,
+    List<String> nodeOrder,
+    Map<String, Set<String>> neighbors,
+    Map<String, Size> sizeByNode,
+    Map<String, int> indexByNode,
+    String direction,
+  ) {
+    if (positions.isEmpty) {
+      return positions;
+    }
+
+    final orderedNodes = [...nodeOrder]
+      ..sort((a, b) => indexByNode[a]!.compareTo(indexByNode[b]!));
+
+    final visited = <String>{};
+    final components = <List<String>>[];
+    for (final start in orderedNodes) {
+      if (!visited.add(start)) {
+        continue;
+      }
+
+      final stack = <String>[start];
+      final component = <String>[];
+      while (stack.isNotEmpty) {
+        final nodeId = stack.removeLast();
+        component.add(nodeId);
+        for (final neighbor in neighbors[nodeId] ?? const <String>{}) {
+          if (visited.add(neighbor)) {
+            stack.add(neighbor);
+          }
+        }
+      }
+
+      component.sort((a, b) {
+        final byDegree = (neighbors[b]?.length ?? 0).compareTo(
+          neighbors[a]?.length ?? 0,
+        );
+        if (byDegree != 0) {
+          return byDegree;
+        }
+        return indexByNode[a]!.compareTo(indexByNode[b]!);
+      });
+      components.add(component);
+    }
+
+    if (components.length <= 1) {
+      return positions;
+    }
+
+    final quality = _placementQualityProfile();
+    final isHorizontal = direction == 'LR' || direction == 'RL';
+    final aspectHint = isHorizontal ? 1.38 : 0.82;
+    final macroCols = math.max(
+      1,
+      math.sqrt(components.length * aspectHint).ceil(),
+    );
+
+    final componentInfos =
+        <
+          ({
+            List<String> nodes,
+            Rect bounds,
+            double width,
+            double height,
+            Offset center,
+          })
+        >[];
+    var widest = 0.0;
+    var tallest = 0.0;
+
+    for (final component in components) {
+      var minX = double.infinity;
+      var minY = double.infinity;
+      var maxX = -double.infinity;
+      var maxY = -double.infinity;
+      var maxNodeW = 150.0;
+      var maxNodeH = 100.0;
+
+      for (final nodeId in component) {
+        final point = positions[nodeId] ?? Offset.zero;
+        final size = sizeByNode[nodeId] ?? const Size(150, 100);
+        final halfW = size.width / 2;
+        final halfH = size.height / 2;
+        minX = math.min(minX, point.dx - halfW);
+        minY = math.min(minY, point.dy - halfH);
+        maxX = math.max(maxX, point.dx + halfW);
+        maxY = math.max(maxY, point.dy + halfH);
+        maxNodeW = math.max(maxNodeW, size.width);
+        maxNodeH = math.max(maxNodeH, size.height);
+      }
+
+      final componentPaddingX = 54.0 + quality.channelPitch * 8.0;
+      final componentPaddingY = 42.0 + quality.channelPitch * 6.0;
+      final width = math.max(
+        360.0,
+        (maxX - minX) + maxNodeW + componentPaddingX,
+      );
+      final height = math.max(
+        260.0,
+        (maxY - minY) + maxNodeH + componentPaddingY,
+      );
+      final bounds = Rect.fromLTWH(0, 0, width, height);
+      componentInfos.add((
+        nodes: component,
+        bounds: bounds,
+        width: width,
+        height: height,
+        center: Offset((minX + maxX) / 2, (minY + maxY) / 2),
+      ));
+      widest = math.max(widest, width);
+      tallest = math.max(tallest, height);
+    }
+
+    final cellW = math.max(420.0, widest + 72.0);
+    final cellH = math.max(300.0, tallest + 72.0);
+    final baseX = positions.values
+        .map((p) => p.dx)
+        .fold<double>(120.0, math.min);
+    final baseY = positions.values
+        .map((p) => p.dy)
+        .fold<double>(90.0, math.min);
+
+    final packed = Map<String, Offset>.from(positions);
+    for (int index = 0; index < componentInfos.length; index++) {
+      final info = componentInfos[index];
+      final targetCol = index % macroCols;
+      final targetRow = index ~/ macroCols;
+      final targetCenter = Offset(
+        baseX + targetCol * cellW + cellW / 2,
+        baseY + targetRow * cellH + cellH / 2,
+      );
+      final translation = targetCenter - info.center;
+
+      for (final nodeId in info.nodes) {
+        packed[nodeId] = (packed[nodeId] ?? Offset.zero) + translation;
+      }
+    }
+
+    return packed;
   }
 
   bool _segmentsIntersect(Offset a, Offset b, Offset c, Offset d) {
@@ -1241,41 +1409,17 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       return;
     }
 
-    for (final block in blocks) {
-      _ensureBlockHasSpaceForAnchors(block);
-    }
-
-    final nodeOrder = blocks.map((b) => b.id).toList();
-    final edgeData = links
-        .map((l) => (fromId: l.fromBlockId, toId: l.toBlockId, label: l.name))
-        .toList();
-    final positions = _computeMermaidAutoLayout(
-      nodeOrder,
-      edgeData,
-      _mermaidLayoutDirection,
-    );
-
     setState(() {
-      for (final block in blocks) {
-        final position = positions[block.id];
-        if (position != null) {
-          block.position = position;
-        }
-      }
-
-      _applyImportedCircuitLinkLayout(blocks, links);
-      for (final block in blocks) {
-        _ensureBlockHasSpaceForAnchors(block);
-      }
+      _runAutoLayoutOnGraph(blocks, links, _mermaidLayoutDirection);
     });
   }
 
-  void _applyImportedCircuitLinkLayout(
-    List<Block> importedBlocks,
-    List<BlockLink> importedLinks,
+  void _applyAutoLayoutLinkGeometry(
+    List<Block> targetBlocks,
+    List<BlockLink> targetLinks,
   ) {
     final blockById = <String, Block>{
-      for (final block in importedBlocks) block.id: block,
+      for (final block in targetBlocks) block.id: block,
     };
 
     double orderKeyForSide(Offset side, Offset otherCenter) {
@@ -1285,7 +1429,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       return otherCenter.dx;
     }
 
-    for (final link in importedLinks) {
+    for (final link in targetLinks) {
       final fromBlock = blockById[link.fromBlockId];
       final toBlock = blockById[link.toBlockId];
       if (fromBlock == null || toBlock == null) {
@@ -1308,7 +1452,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final sourceAnchor = _calculateOptimalAnchorUnit(fromRect, toRect);
       final targetAnchor = _calculateOptimalAnchorUnit(toRect, fromRect);
 
-      link.connectorType = ConnectorType.orthogonal;
+      link.connectorType = ConnectorType.bezier;
       link.inflectionPoints.clear();
       link.isSourceAnchorLocked = false;
       link.isTargetAnchorLocked = false;
@@ -1319,6 +1463,108 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         targetAnchor,
         fromRect.center,
       );
+    }
+  }
+
+  void _ensureBlockHasSpaceForAnchorsInGraph(
+    Block block,
+    List<BlockLink> graphLinks,
+  ) {
+    int leftCount = 0;
+    int rightCount = 0;
+    int topCount = 0;
+    int bottomCount = 0;
+
+    for (final link in graphLinks) {
+      if (link.fromBlockId == block.id && link.sourceAnchorUnit != null) {
+        final side = _anchorSideUnit(link.sourceAnchorUnit!);
+        if (side.dx < 0) {
+          leftCount++;
+        } else if (side.dx > 0) {
+          rightCount++;
+        } else if (side.dy < 0) {
+          topCount++;
+        } else if (side.dy > 0) {
+          bottomCount++;
+        }
+      }
+
+      if (link.toBlockId == block.id && link.targetAnchorUnit != null) {
+        final side = _anchorSideUnit(link.targetAnchorUnit!);
+        if (side.dx < 0) {
+          leftCount++;
+        } else if (side.dx > 0) {
+          rightCount++;
+        } else if (side.dy < 0) {
+          topCount++;
+        } else if (side.dy > 0) {
+          bottomCount++;
+        }
+      }
+    }
+
+    final maxVerticalAnchors = math.max(leftCount, rightCount);
+    final maxHorizontalAnchors = math.max(topCount, bottomCount);
+
+    final requiredCanvasHeight = _requiredCanvasExtentForAnchorCount(
+      maxVerticalAnchors,
+    );
+    final requiredCanvasWidth = _requiredCanvasExtentForAnchorCount(
+      maxHorizontalAnchors,
+    );
+
+    final requiredModelHeight = requiredCanvasHeight / zoomLevel;
+    final requiredModelWidth = requiredCanvasWidth / zoomLevel;
+    final paddingMargin = _anchorPaddingMargin / zoomLevel;
+    final newWidth = math.max(
+      block.size.width,
+      requiredModelWidth + paddingMargin,
+    );
+    final newHeight = math.max(
+      block.size.height,
+      requiredModelHeight + paddingMargin,
+    );
+
+    if (newWidth != block.size.width || newHeight != block.size.height) {
+      block.size = Size(newWidth, newHeight);
+    }
+  }
+
+  void _runAutoLayoutOnGraph(
+    List<Block> targetBlocks,
+    List<BlockLink> targetLinks,
+    String direction,
+  ) {
+    if (targetBlocks.isEmpty) {
+      return;
+    }
+
+    _applyAutoLayoutLinkGeometry(targetBlocks, targetLinks);
+    for (final block in targetBlocks) {
+      _ensureBlockHasSpaceForAnchorsInGraph(block, targetLinks);
+    }
+
+    final nodeOrder = targetBlocks.map((b) => b.id).toList();
+    final edgeData = targetLinks
+        .map((l) => (fromId: l.fromBlockId, toId: l.toBlockId, label: l.name))
+        .toList();
+    final positions = _computeMermaidAutoLayout(
+      nodeOrder,
+      edgeData,
+      direction,
+      targetBlocks,
+    );
+
+    for (final block in targetBlocks) {
+      final position = positions[block.id];
+      if (position != null) {
+        block.position = position;
+      }
+    }
+
+    _applyAutoLayoutLinkGeometry(targetBlocks, targetLinks);
+    for (final block in targetBlocks) {
+      _ensureBlockHasSpaceForAnchorsInGraph(block, targetLinks);
     }
   }
 
@@ -1339,7 +1585,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         nodeOrder.add(nodeId);
       }
       if (title != null && title.isNotEmpty) {
-        nodeTitles[nodeId] = title;
+        nodeTitles[nodeId] = _normalizeBlockTitleLineBreaks(title);
       } else {
         nodeTitles.putIfAbsent(nodeId, () => nodeId);
       }
@@ -1382,12 +1628,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       throw const FormatException('Aucun bloc Mermaid reconnu');
     }
 
-    final autoLayoutPositions = _computeMermaidAutoLayout(
-      nodeOrder,
-      edgeData,
-      layoutDirection,
-    );
-
     final importedBlocks = <Block>[];
     for (var i = 0; i < nodeOrder.length; i++) {
       final nodeId = nodeOrder[i];
@@ -1395,9 +1635,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         Block(
           id: nodeId,
           title: nodeTitles[nodeId] ?? nodeId,
-          position:
-              autoLayoutPositions[nodeId] ??
-              Offset(120 + (i % 4) * 240, 100 + (i ~/ 4) * 170),
+          position: Offset(120 + (i % 4) * 240, 100 + (i ~/ 4) * 170),
         ),
       );
     }
@@ -1413,7 +1651,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       );
     }
 
-    _applyImportedCircuitLinkLayout(importedBlocks, importedLinks);
+    _runAutoLayoutOnGraph(importedBlocks, importedLinks, layoutDirection);
 
     setState(() {
       blocks
@@ -1439,8 +1677,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         _ensureBlockHasSpaceForAnchors(block);
       }
     });
-
-    _reorganizeGraphLayout();
   }
 
   void _importBoard(Map<String, dynamic> decoded) {
