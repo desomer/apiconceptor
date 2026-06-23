@@ -404,12 +404,12 @@ class TreeViewState<T> extends State<TreeView<T>> {
         }
       }
 
-      if (noDisplayNodeButKeepChildren) {
-        // on affiche pas le noeud $ref mais on affiche directement ses attributs
-        noTab = true;
-      } else {
+      // if (noDisplayNodeButKeepChildren) {
+      //   // on affiche pas le noeud $ref mais on affiche directement ses attributs
+      //   noTab = true;
+      // } else {
         result.add(node);
-      }
+      //}
 
       var r = <bool>[];
       for (var i = 0; i < stackLevelIndicator.stack.length; i++) {

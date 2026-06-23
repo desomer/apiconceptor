@@ -68,6 +68,13 @@ const double _alignmentSnapReleaseDistance = 24.0;
 
 class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
+  static const List<String> _mermaidDirections = ['LR', 'TB', 'RL', 'BT'];
+  static const List<String> _placementQualities = [
+    'Rapide',
+    'Equilibre',
+    'Dense',
+  ];
+
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
   final List<BlockLink> links = [];
@@ -83,9 +90,60 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset canvasOffset = Offset.zero;
   double zoomLevel = 1.0;
   bool isPanning = false;
+  String _mermaidLayoutDirection = 'TB';
+  String _placementQuality = 'Equilibre';
   double? _snapLeftModel;
   double? _snapTopModel;
   Offset? _dragFreePositionModel;
+
+  ({
+    double iterationMul,
+    double repulsionMul,
+    double springMul,
+    double overlapMul,
+    double hpwlMul,
+    double crossingMul,
+    int channelPitch,
+    double snapTargetWeight,
+  })
+  _placementQualityProfile() {
+    switch (_placementQuality) {
+      case 'Rapide':
+        return (
+          iterationMul: 0.72,
+          repulsionMul: 0.90,
+          springMul: 0.92,
+          overlapMul: 0.92,
+          hpwlMul: 0.75,
+          crossingMul: 0.78,
+          channelPitch: 1,
+          snapTargetWeight: 0.32,
+        );
+      case 'Dense':
+        return (
+          iterationMul: 1.38,
+          repulsionMul: 1.14,
+          springMul: 1.08,
+          overlapMul: 1.14,
+          hpwlMul: 1.25,
+          crossingMul: 1.28,
+          channelPitch: 3,
+          snapTargetWeight: 0.56,
+        );
+      case 'Equilibre':
+      default:
+        return (
+          iterationMul: 1.0,
+          repulsionMul: 1.0,
+          springMul: 1.0,
+          overlapMul: 1.0,
+          hpwlMul: 1.0,
+          crossingMul: 1.0,
+          channelPitch: 2,
+          snapTargetWeight: 0.45,
+        );
+    }
+  }
 
   @override
   void initState() {
@@ -426,7 +484,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       blockIds[blocks[i].id] = 'm$i';
     }
 
-    final buffer = StringBuffer('flowchart TD\n');
+    final buffer = StringBuffer('flowchart $_mermaidLayoutDirection\n');
     for (final block in blocks) {
       final nodeId = blockIds[block.id];
       if (nodeId == null) {
@@ -575,11 +633,701 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return text.trim();
   }
 
+  Map<String, Offset> _computeMermaidAutoLayout(
+    List<String> nodeOrder,
+    List<({String fromId, String toId, String label})> edgeData,
+    String direction,
+  ) {
+    if (nodeOrder.isEmpty) {
+      return {};
+    }
+
+    final nodeSet = nodeOrder.toSet();
+    final indexByNode = <String, int>{
+      for (int i = 0; i < nodeOrder.length; i++) nodeOrder[i]: i,
+    };
+
+    final directedEdges = <(String, String)>[];
+    final undirectedEdges = <(String, String)>[];
+    final undirectedSeen = <String>{};
+    final degree = <String, int>{for (final id in nodeOrder) id: 0};
+    final neighbors = <String, Set<String>>{
+      for (final id in nodeOrder) id: <String>{},
+    };
+
+    for (final edge in edgeData) {
+      if (!nodeSet.contains(edge.fromId) || !nodeSet.contains(edge.toId)) {
+        continue;
+      }
+      if (edge.fromId == edge.toId) {
+        continue;
+      }
+      directedEdges.add((edge.fromId, edge.toId));
+
+      final a = edge.fromId;
+      final b = edge.toId;
+      final key = (a.compareTo(b) <= 0) ? '$a|$b' : '$b|$a';
+      if (undirectedSeen.add(key)) {
+        undirectedEdges.add((a, b));
+        degree[a] = (degree[a] ?? 0) + 1;
+        degree[b] = (degree[b] ?? 0) + 1;
+        neighbors[a]!.add(b);
+        neighbors[b]!.add(a);
+      }
+    }
+
+    final count = nodeOrder.length;
+    final maxBlockW = blocks.isEmpty
+        ? 150.0
+        : blocks.map((b) => b.size.width).fold<double>(150.0, math.max);
+    final maxBlockH = blocks.isEmpty
+        ? 100.0
+        : blocks.map((b) => b.size.height).fold<double>(100.0, math.max);
+
+    final quality = _placementQualityProfile();
+    final channelPitch = quality.channelPitch.clamp(1, 3);
+    final aspectHint = direction == 'LR' || direction == 'RL' ? 1.45 : 0.82;
+    final rawCols = math.sqrt(count * aspectHint);
+    final cols = math.max(2, rawCols.ceil());
+    final rows = math.max(2, (count / cols).ceil());
+    final placementCols = cols + 1;
+    final placementRows = math.max(
+      rows + 1,
+      (count / placementCols).ceil() + 1,
+    );
+
+    const baseX = 120.0;
+    const baseY = 90.0;
+    final cellW = math.max(210.0, maxBlockW + 110.0);
+    final cellH = math.max(150.0, maxBlockH + 90.0);
+    final areaWBase = math.max(760.0, cols * cellW);
+    final areaHBase = math.max(560.0, rows * cellH);
+    final minPlacementPitchX =
+        maxBlockW +
+        70 +
+        (channelPitch == 3 ? 24 : (channelPitch == 2 ? 16 : 8));
+    final minPlacementPitchY =
+        maxBlockH +
+        56 +
+        (channelPitch == 3 ? 20 : (channelPitch == 2 ? 14 : 8));
+    final requiredAreaW =
+        maxBlockW + 20 + (placementCols - 1) * minPlacementPitchX;
+    final requiredAreaH =
+        maxBlockH + 20 + (placementRows - 1) * minPlacementPitchY;
+    final areaW = math.max(areaWBase, requiredAreaW);
+    final areaH = math.max(areaHBase, requiredAreaH);
+
+    final minX = baseX;
+    final minY = baseY;
+    final maxX = baseX + areaW;
+    final maxY = baseY + areaH;
+    final center = Offset((minX + maxX) / 2, (minY + maxY) / 2);
+
+    final sortedByDegree = [...nodeOrder]
+      ..sort((a, b) {
+        final byDegree = (degree[b] ?? 0).compareTo(degree[a] ?? 0);
+        if (byDegree != 0) {
+          return byDegree;
+        }
+        return indexByNode[a]!.compareTo(indexByNode[b]!);
+      });
+
+    final positions = <String, Offset>{};
+    for (int i = 0; i < sortedByDegree.length; i++) {
+      final nodeId = sortedByDegree[i];
+      final col = i % cols;
+      final row = i ~/ cols;
+      final jitterX = ((i * 37) % 17 - 8) * 2.5;
+      final jitterY = ((i * 53) % 19 - 9) * 2.0;
+      positions[nodeId] = Offset(
+        minX + (col + 0.5) * (areaW / cols) + jitterX,
+        minY + (row + 0.5) * (areaH / rows) + jitterY,
+      );
+    }
+
+    final cellTargets = <String, Offset>{};
+    for (int i = 0; i < nodeOrder.length; i++) {
+      final nodeId = nodeOrder[i];
+      final col = i % cols;
+      final row = i ~/ cols;
+      cellTargets[nodeId] = Offset(
+        minX + (col + 0.5) * (areaW / cols),
+        minY + (row + 0.5) * (areaH / rows),
+      );
+    }
+
+    final isHorizontal = direction == 'LR' || direction == 'RL';
+    final isReverse = direction == 'RL' || direction == 'BT';
+    final flowSign = isReverse ? -1.0 : 1.0;
+    final sizeByNode = <String, Size>{
+      for (final id in nodeOrder)
+        id:
+            blocks.where((b) => b.id == id).map((b) => b.size).firstOrNull ??
+            const Size(150, 100),
+    };
+
+    final edgeDensity = undirectedEdges.length / math.max(1, count);
+    final averagePitch = math.sqrt((areaW * areaH) / math.max(1, count));
+    final iterationCount = ((150 + count * 3) * quality.iterationMul)
+        .round()
+        .clamp(120, 420);
+
+    final forces = <String, Offset>{
+      for (final id in nodeOrder) id: Offset.zero,
+    };
+    final repulsion = (22000.0 + 16000.0 * edgeDensity) * quality.repulsionMul;
+    final springRest = (averagePitch * (0.82 + 0.18 * edgeDensity)).clamp(
+      150.0,
+      300.0,
+    );
+    final springK =
+        (0.020 + 0.008 * edgeDensity).clamp(0.018, 0.032) * quality.springMul;
+    final overlapK =
+        (0.30 + 0.06 * edgeDensity).clamp(0.30, 0.42) * quality.overlapMul;
+    const boundaryK = 0.36;
+    const targetK = 0.012;
+    const centerK = 0.004;
+    const directionK = 0.030;
+    final hpwlK =
+        (0.040 + 0.020 * edgeDensity).clamp(0.040, 0.075) * quality.hpwlMul;
+
+    for (int iteration = 0; iteration < iterationCount; iteration++) {
+      final cooling = 1.0 - (iteration / (iterationCount + 12.0));
+      for (final id in nodeOrder) {
+        forces[id] = Offset.zero;
+      }
+
+      // Repulsion + overlap handling between all node pairs.
+      for (int i = 0; i < nodeOrder.length - 1; i++) {
+        final a = nodeOrder[i];
+        final pa = positions[a]!;
+        final sa = sizeByNode[a]!;
+        for (int j = i + 1; j < nodeOrder.length; j++) {
+          final b = nodeOrder[j];
+          final pb = positions[b]!;
+          final sb = sizeByNode[b]!;
+
+          final delta = pa - pb;
+          final dist2 = math.max(
+            36.0,
+            delta.dx * delta.dx + delta.dy * delta.dy,
+          );
+          final dist = math.sqrt(dist2);
+          final dir = dist > 1e-6 ? delta / dist : const Offset(1, 0);
+          final push = dir * (repulsion / dist2);
+          forces[a] = forces[a]! + push;
+          forces[b] = forces[b]! - push;
+
+          final overlapX =
+              (sa.width + sb.width) / 2 + 26 - (pa.dx - pb.dx).abs();
+          final overlapY =
+              (sa.height + sb.height) / 2 + 22 - (pa.dy - pb.dy).abs();
+          if (overlapX > 0 && overlapY > 0) {
+            if (overlapX < overlapY) {
+              final sx = pa.dx >= pb.dx ? 1.0 : -1.0;
+              final correction = Offset(sx * overlapX * overlapK, 0);
+              forces[a] = forces[a]! + correction;
+              forces[b] = forces[b]! - correction;
+            } else {
+              final sy = pa.dy >= pb.dy ? 1.0 : -1.0;
+              final correction = Offset(0, sy * overlapY * overlapK);
+              forces[a] = forces[a]! + correction;
+              forces[b] = forces[b]! - correction;
+            }
+          }
+        }
+      }
+
+      // Springs on graph links keep related nodes close.
+      for (final edge in undirectedEdges) {
+        final a = edge.$1;
+        final b = edge.$2;
+        final pa = positions[a]!;
+        final pb = positions[b]!;
+        final delta = pb - pa;
+        final dist = math.max(1.0, delta.distance);
+        final dir = delta / dist;
+        final spring = dir * ((dist - springRest) * springK);
+        forces[a] = forces[a]! + spring;
+        forces[b] = forces[b]! - spring;
+      }
+
+      // Preferred direction bias (soft constraint only).
+      for (final edge in directedEdges) {
+        final fromId = edge.$1;
+        final toId = edge.$2;
+        final from = positions[fromId]!;
+        final to = positions[toId]!;
+
+        final primaryDelta = isHorizontal
+            ? (to.dx - from.dx)
+            : (to.dy - from.dy);
+        final missing = (170.0 - flowSign * primaryDelta).clamp(0.0, 320.0);
+        if (missing <= 0) {
+          continue;
+        }
+
+        final f = missing * directionK;
+        if (isHorizontal) {
+          final dirForce = Offset(flowSign * f, 0);
+          forces[fromId] = forces[fromId]! - dirForce;
+          forces[toId] = forces[toId]! + dirForce;
+        } else {
+          final dirForce = Offset(0, flowSign * f);
+          forces[fromId] = forces[fromId]! - dirForce;
+          forces[toId] = forces[toId]! + dirForce;
+        }
+      }
+
+      // HPWL-style pull: attract each node toward median neighbor coordinates (Manhattan objective surrogate).
+      for (final nodeId in nodeOrder) {
+        final linked = neighbors[nodeId]!;
+        if (linked.isEmpty) {
+          continue;
+        }
+
+        final xs = <double>[];
+        final ys = <double>[];
+        for (final n in linked) {
+          final p = positions[n];
+          if (p == null) {
+            continue;
+          }
+          xs.add(p.dx);
+          ys.add(p.dy);
+        }
+        if (xs.isEmpty) {
+          continue;
+        }
+        xs.sort();
+        ys.sort();
+        final medX = xs[xs.length ~/ 2];
+        final medY = ys[ys.length ~/ 2];
+        final current = positions[nodeId]!;
+        forces[nodeId] =
+            forces[nodeId]! +
+            Offset((medX - current.dx) * hpwlK, (medY - current.dy) * hpwlK);
+      }
+
+      // Crossing minimization with orthogonal pushes on intersecting links.
+      if (iteration % 3 == 0 && directedEdges.length > 1) {
+        for (int i = 0; i < directedEdges.length - 1; i++) {
+          final e1 = directedEdges[i];
+          for (int j = i + 1; j < directedEdges.length; j++) {
+            final e2 = directedEdges[j];
+
+            final shared =
+                e1.$1 == e2.$1 ||
+                e1.$1 == e2.$2 ||
+                e1.$2 == e2.$1 ||
+                e1.$2 == e2.$2;
+            if (shared) {
+              continue;
+            }
+
+            final p1 = positions[e1.$1]!;
+            final p2 = positions[e1.$2]!;
+            final p3 = positions[e2.$1]!;
+            final p4 = positions[e2.$2]!;
+            if (!_segmentsIntersect(p1, p2, p3, p4)) {
+              continue;
+            }
+
+            final d1 = p2 - p1;
+            final d2 = p4 - p3;
+            final n1 = d1.distance > 1e-6
+                ? Offset(-d1.dy, d1.dx) / d1.distance
+                : const Offset(0, 1);
+            final n2 = d2.distance > 1e-6
+                ? Offset(-d2.dy, d2.dx) / d2.distance
+                : const Offset(0, -1);
+            final crossPush = (12.0 + 8.0 * cooling) * quality.crossingMul;
+
+            forces[e1.$1] = forces[e1.$1]! + n1 * crossPush;
+            forces[e1.$2] = forces[e1.$2]! + n1 * crossPush;
+            forces[e2.$1] = forces[e2.$1]! + n2 * crossPush;
+            forces[e2.$2] = forces[e2.$2]! + n2 * crossPush;
+          }
+        }
+      }
+
+      // Keep nodes spread in a rectangle and avoid drifting away.
+      for (final id in nodeOrder) {
+        final current = positions[id]!;
+        final target = cellTargets[id]!;
+        var force = forces[id]!;
+
+        force += (target - current) * targetK;
+        force += (center - current) * centerK;
+
+        final halfW = sizeByNode[id]!.width / 2;
+        final halfH = sizeByNode[id]!.height / 2;
+        final safeMinX = minX + halfW;
+        final safeMaxX = maxX - halfW;
+        final safeMinY = minY + halfH;
+        final safeMaxY = maxY - halfH;
+
+        if (current.dx < safeMinX) {
+          force += Offset((safeMinX - current.dx) * boundaryK, 0);
+        } else if (current.dx > safeMaxX) {
+          force += Offset((safeMaxX - current.dx) * boundaryK, 0);
+        }
+        if (current.dy < safeMinY) {
+          force += Offset(0, (safeMinY - current.dy) * boundaryK);
+        } else if (current.dy > safeMaxY) {
+          force += Offset(0, (safeMaxY - current.dy) * boundaryK);
+        }
+
+        final step = force * (0.10 * cooling);
+        final next = current + step;
+        positions[id] = Offset(
+          next.dx.clamp(safeMinX, safeMaxX),
+          next.dy.clamp(safeMinY, safeMaxY),
+        );
+      }
+    }
+
+    // Legalization phase: assign nodes to a rectangular slot grid, similar to EDA row/slot legalization.
+    final slotCols = placementCols * channelPitch - (channelPitch - 1);
+    final slotRows = placementRows * channelPitch - (channelPitch - 1);
+    final safeSlots = <Offset>[];
+    final slotMinX = minX + maxBlockW / 2 + 10;
+    final slotMaxX = maxX - maxBlockW / 2 - 10;
+    final slotMinY = minY + maxBlockH / 2 + 10;
+    final slotMaxY = maxY - maxBlockH / 2 - 10;
+    final pitchX = slotCols <= 1 ? 0.0 : (slotMaxX - slotMinX) / (slotCols - 1);
+    final pitchY = slotRows <= 1 ? 0.0 : (slotMaxY - slotMinY) / (slotRows - 1);
+    // Use sparse indices for block slots; skipped indices become routing channels.
+    for (int r = 0; r < slotRows; r += channelPitch) {
+      for (int c = 0; c < slotCols; c += channelPitch) {
+        safeSlots.add(Offset(slotMinX + c * pitchX, slotMinY + r * pitchY));
+      }
+    }
+
+    final freeSlotIndices = <int>{for (int i = 0; i < safeSlots.length; i++) i};
+    final legalized = <String, Offset>{};
+    final placementOrder = [...nodeOrder]
+      ..sort((a, b) {
+        final byDegree = (degree[b] ?? 0).compareTo(degree[a] ?? 0);
+        if (byDegree != 0) {
+          return byDegree;
+        }
+        return indexByNode[a]!.compareTo(indexByNode[b]!);
+      });
+
+    double directionalPenalty(Offset nodePos, Offset slotPos) {
+      if (directedEdges.isEmpty) {
+        return 0;
+      }
+
+      // Keep slot selection biased toward the chosen Mermaid direction.
+      final dirAxis = isHorizontal
+          ? (slotPos.dx - nodePos.dx)
+          : (slotPos.dy - nodePos.dy);
+      final wrongWay = (-flowSign * dirAxis).clamp(0.0, 220.0);
+      return wrongWay * 0.08;
+    }
+
+    double overlapPenaltyForCandidate(
+      String nodeId,
+      Offset candidate,
+      Map<String, Offset> assigned,
+    ) {
+      final size = sizeByNode[nodeId] ?? const Size(150, 100);
+      var penalty = 0.0;
+      for (final entry in assigned.entries) {
+        final otherSize = sizeByNode[entry.key] ?? const Size(150, 100);
+        final other = entry.value;
+        final dx = (candidate.dx - other.dx).abs();
+        final dy = (candidate.dy - other.dy).abs();
+        final requiredX = (size.width + otherSize.width) / 2 + 14;
+        final requiredY = (size.height + otherSize.height) / 2 + 12;
+        if (dx < requiredX && dy < requiredY) {
+          final ox = requiredX - dx;
+          final oy = requiredY - dy;
+          penalty += 120000 + (ox * ox + oy * oy) * 320;
+        }
+      }
+      return penalty;
+    }
+
+    for (final nodeId in placementOrder) {
+      final current = positions[nodeId]!;
+      int? bestSlot;
+      double bestScore = double.infinity;
+      for (final slotIndex in freeSlotIndices) {
+        final slot = safeSlots[slotIndex];
+        final distanceScore = (current - slot).distanceSquared;
+        final targetScore =
+            (slot - cellTargets[nodeId]!).distanceSquared * 0.35;
+        final score =
+            distanceScore +
+            targetScore +
+            directionalPenalty(current, slot) +
+            overlapPenaltyForCandidate(nodeId, slot, legalized);
+        if (score < bestScore) {
+          bestScore = score;
+          bestSlot = slotIndex;
+        }
+      }
+
+      if (bestSlot == null) {
+        legalized[nodeId] = current;
+      } else {
+        freeSlotIndices.remove(bestSlot);
+        legalized[nodeId] = safeSlots[bestSlot];
+      }
+    }
+
+    positions
+      ..clear()
+      ..addAll(legalized);
+
+    // Short post-legalization relax: preserve slots while shortening wires and reducing crossings.
+    for (int iteration = 0; iteration < 28; iteration++) {
+      final cooling = 1.0 - (iteration / 32.0);
+      for (final id in nodeOrder) {
+        forces[id] = Offset.zero;
+      }
+
+      for (final edge in undirectedEdges) {
+        final a = edge.$1;
+        final b = edge.$2;
+        final pa = positions[a]!;
+        final pb = positions[b]!;
+        final delta = pb - pa;
+        final dist = math.max(1.0, delta.distance);
+        final dir = delta / dist;
+        final spring = dir * ((dist - springRest) * (springK * 1.2));
+        forces[a] = forces[a]! + spring;
+        forces[b] = forces[b]! - spring;
+      }
+
+      if (iteration % 2 == 0 && directedEdges.length > 1) {
+        for (int i = 0; i < directedEdges.length - 1; i++) {
+          final e1 = directedEdges[i];
+          for (int j = i + 1; j < directedEdges.length; j++) {
+            final e2 = directedEdges[j];
+            final shared =
+                e1.$1 == e2.$1 ||
+                e1.$1 == e2.$2 ||
+                e1.$2 == e2.$1 ||
+                e1.$2 == e2.$2;
+            if (shared) {
+              continue;
+            }
+
+            final p1 = positions[e1.$1]!;
+            final p2 = positions[e1.$2]!;
+            final p3 = positions[e2.$1]!;
+            final p4 = positions[e2.$2]!;
+            if (!_segmentsIntersect(p1, p2, p3, p4)) {
+              continue;
+            }
+
+            final d1 = p2 - p1;
+            final d2 = p4 - p3;
+            final n1 = d1.distance > 1e-6
+                ? Offset(-d1.dy, d1.dx) / d1.distance
+                : const Offset(0, 1);
+            final n2 = d2.distance > 1e-6
+                ? Offset(-d2.dy, d2.dx) / d2.distance
+                : const Offset(0, -1);
+            final crossPush = 8.0 * quality.crossingMul;
+
+            forces[e1.$1] = forces[e1.$1]! + n1 * crossPush;
+            forces[e1.$2] = forces[e1.$2]! + n1 * crossPush;
+            forces[e2.$1] = forces[e2.$1]! + n2 * crossPush;
+            forces[e2.$2] = forces[e2.$2]! + n2 * crossPush;
+          }
+        }
+      }
+
+      for (final id in nodeOrder) {
+        final anchor = legalized[id]!;
+        final current = positions[id]!;
+        final force = forces[id]! + (anchor - current) * 0.22;
+        final next = current + force * (0.08 * cooling);
+        positions[id] = Offset(
+          next.dx.clamp(slotMinX, slotMaxX),
+          next.dy.clamp(slotMinY, slotMaxY),
+        );
+      }
+    }
+
+    // Final strict snap to unique placement slots for deterministic PCB-like grid alignment.
+    final strictSnapped = <String, Offset>{};
+    final freeFinalSlots = <int>{for (int i = 0; i < safeSlots.length; i++) i};
+    for (final nodeId in placementOrder) {
+      final current = positions[nodeId]!;
+      int? bestSlot;
+      double bestScore = double.infinity;
+      for (final slotIndex in freeFinalSlots) {
+        final slot = safeSlots[slotIndex];
+        final distanceScore = (current - slot).distanceSquared;
+        final targetScore =
+            (slot - cellTargets[nodeId]!).distanceSquared *
+            quality.snapTargetWeight;
+        final score =
+            distanceScore +
+            targetScore +
+            directionalPenalty(current, slot) +
+            overlapPenaltyForCandidate(nodeId, slot, strictSnapped);
+        if (score < bestScore) {
+          bestScore = score;
+          bestSlot = slotIndex;
+        }
+      }
+
+      if (bestSlot == null) {
+        strictSnapped[nodeId] = current;
+      } else {
+        freeFinalSlots.remove(bestSlot);
+        strictSnapped[nodeId] = safeSlots[bestSlot];
+      }
+    }
+
+    positions
+      ..clear()
+      ..addAll(strictSnapped);
+
+    return positions;
+  }
+
+  bool _segmentsIntersect(Offset a, Offset b, Offset c, Offset d) {
+    double cross(Offset u, Offset v) => u.dx * v.dy - u.dy * v.dx;
+
+    final ab = b - a;
+    final ac = c - a;
+    final ad = d - a;
+    final cd = d - c;
+    final ca = a - c;
+    final cb = b - c;
+
+    final o1 = cross(ab, ac);
+    final o2 = cross(ab, ad);
+    final o3 = cross(cd, ca);
+    final o4 = cross(cd, cb);
+
+    const eps = 1e-8;
+    final proper =
+        ((o1 > eps && o2 < -eps) || (o1 < -eps && o2 > eps)) &&
+        ((o3 > eps && o4 < -eps) || (o3 < -eps && o4 > eps));
+    return proper;
+  }
+
+  String _extractMermaidDirection(String source) {
+    final match = RegExp(
+      r'^(?:flowchart|graph)\s+([A-Za-z]{2})\b',
+      caseSensitive: false,
+      multiLine: true,
+    ).firstMatch(source);
+    if (match == null) {
+      return _mermaidLayoutDirection;
+    }
+
+    final parsed = (match.group(1) ?? '').toUpperCase();
+    if (parsed == 'TD') {
+      return 'TB';
+    }
+    if (_mermaidDirections.contains(parsed)) {
+      return parsed;
+    }
+    return _mermaidLayoutDirection;
+  }
+
+  void _reorganizeGraphLayout() {
+    if (blocks.isEmpty) {
+      return;
+    }
+
+    for (final block in blocks) {
+      _ensureBlockHasSpaceForAnchors(block);
+    }
+
+    final nodeOrder = blocks.map((b) => b.id).toList();
+    final edgeData = links
+        .map((l) => (fromId: l.fromBlockId, toId: l.toBlockId, label: l.name))
+        .toList();
+    final positions = _computeMermaidAutoLayout(
+      nodeOrder,
+      edgeData,
+      _mermaidLayoutDirection,
+    );
+
+    setState(() {
+      for (final block in blocks) {
+        final position = positions[block.id];
+        if (position != null) {
+          block.position = position;
+        }
+      }
+
+      _applyImportedCircuitLinkLayout(blocks, links);
+      for (final block in blocks) {
+        _ensureBlockHasSpaceForAnchors(block);
+      }
+    });
+  }
+
+  void _applyImportedCircuitLinkLayout(
+    List<Block> importedBlocks,
+    List<BlockLink> importedLinks,
+  ) {
+    final blockById = <String, Block>{
+      for (final block in importedBlocks) block.id: block,
+    };
+
+    double orderKeyForSide(Offset side, Offset otherCenter) {
+      if (side.dx.abs() >= side.dy.abs()) {
+        return otherCenter.dy;
+      }
+      return otherCenter.dx;
+    }
+
+    for (final link in importedLinks) {
+      final fromBlock = blockById[link.fromBlockId];
+      final toBlock = blockById[link.toBlockId];
+      if (fromBlock == null || toBlock == null) {
+        continue;
+      }
+
+      final fromRect = Rect.fromLTWH(
+        fromBlock.position.dx,
+        fromBlock.position.dy,
+        fromBlock.size.width,
+        fromBlock.size.height,
+      );
+      final toRect = Rect.fromLTWH(
+        toBlock.position.dx,
+        toBlock.position.dy,
+        toBlock.size.width,
+        toBlock.size.height,
+      );
+
+      final sourceAnchor = _calculateOptimalAnchorUnit(fromRect, toRect);
+      final targetAnchor = _calculateOptimalAnchorUnit(toRect, fromRect);
+
+      link.connectorType = ConnectorType.orthogonal;
+      link.inflectionPoints.clear();
+      link.isSourceAnchorLocked = false;
+      link.isTargetAnchorLocked = false;
+      link.sourceAnchorUnit = sourceAnchor;
+      link.targetAnchorUnit = targetAnchor;
+      link.sourceAnchorOrderKey = orderKeyForSide(sourceAnchor, toRect.center);
+      link.targetAnchorOrderKey = orderKeyForSide(
+        targetAnchor,
+        fromRect.center,
+      );
+    }
+  }
+
   void _importMermaid(String text) {
     final source = _extractMermaidSource(text);
     if (source.isEmpty) {
       throw const FormatException('Le code Mermaid est vide');
     }
+    final layoutDirection = _extractMermaidDirection(source);
 
     final lines = source.split(RegExp(r'\r?\n'));
     final nodeTitles = <String, String>{};
@@ -634,6 +1382,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       throw const FormatException('Aucun bloc Mermaid reconnu');
     }
 
+    final autoLayoutPositions = _computeMermaidAutoLayout(
+      nodeOrder,
+      edgeData,
+      layoutDirection,
+    );
+
     final importedBlocks = <Block>[];
     for (var i = 0; i < nodeOrder.length; i++) {
       final nodeId = nodeOrder[i];
@@ -641,7 +1395,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         Block(
           id: nodeId,
           title: nodeTitles[nodeId] ?? nodeId,
-          position: Offset(80 + (i % 4) * 220, 80 + (i ~/ 4) * 160),
+          position:
+              autoLayoutPositions[nodeId] ??
+              Offset(120 + (i % 4) * 240, 100 + (i ~/ 4) * 170),
         ),
       );
     }
@@ -656,6 +1412,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         ),
       );
     }
+
+    _applyImportedCircuitLinkLayout(importedBlocks, importedLinks);
 
     setState(() {
       blocks
@@ -675,7 +1433,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       _snapLeftModel = null;
       _snapTopModel = null;
       _dragFreePositionModel = null;
+      _mermaidLayoutDirection = layoutDirection;
+
+      for (final block in blocks) {
+        _ensureBlockHasSpaceForAnchors(block);
+      }
     });
+
+    _reorganizeGraphLayout();
   }
 
   void _importBoard(Map<String, dynamic> decoded) {
@@ -1695,6 +2460,51 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             icon: const Icon(Icons.schema_outlined),
             tooltip: 'Import Mermaid',
             onPressed: () => importExportManager.showImportMermaidDialog(),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Direction Mermaid ($_mermaidLayoutDirection)',
+            onSelected: (value) {
+              setState(() {
+                _mermaidLayoutDirection = value;
+              });
+            },
+            itemBuilder: (context) {
+              return _mermaidDirections
+                  .map(
+                    (direction) => CheckedPopupMenuItem<String>(
+                      value: direction,
+                      checked: _mermaidLayoutDirection == direction,
+                      child: Text('Direction $direction'),
+                    ),
+                  )
+                  .toList();
+            },
+            icon: const Icon(Icons.swap_horiz),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Qualite placement ($_placementQuality)',
+            onSelected: (value) {
+              setState(() {
+                _placementQuality = value;
+              });
+            },
+            itemBuilder: (context) {
+              return _placementQualities
+                  .map(
+                    (quality) => CheckedPopupMenuItem<String>(
+                      value: quality,
+                      checked: _placementQuality == quality,
+                      child: Text(quality),
+                    ),
+                  )
+                  .toList();
+            },
+            icon: const Icon(Icons.tune),
+          ),
+          IconButton(
+            icon: const Icon(Icons.auto_fix_high),
+            tooltip: 'Réorganiser le graphe',
+            onPressed: _reorganizeGraphLayout,
           ),
           IconButton(
             icon: const Icon(Icons.fit_screen),
