@@ -108,11 +108,14 @@ class MiroCanvasPainter extends CustomPainter {
       final targetOutward = _axisNormalForBorderPoint(toRect, toEdge);
       final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
 
+      final linkBaseColor = kLinkColorMap[link.colorKey] ?? colorLinkDefault;
+
       _drawArrow(
         canvas,
         fromEdge,
         toEdge,
         linkPaint,
+        tubeColor: linkBaseColor,
         link: link,
         connectorType: link.connectorType,
         viaPoints: viaCanvas,
@@ -165,6 +168,7 @@ class MiroCanvasPainter extends CustomPainter {
         linkingFromCanvas,
         currentMousePosition!,
         tempPaint,
+        tubeColor: colorLinkCreation,
         connectorType: ConnectorType.bezier,
         viaPoints: previewViaCanvas,
         startTangent: startTangent,
@@ -284,6 +288,7 @@ class MiroCanvasPainter extends CustomPainter {
     Offset from,
     Offset to,
     Paint paint, {
+    required Color tubeColor,
     BlockLink? link,
     required ConnectorType connectorType,
     List<Offset> viaPoints = const [],
@@ -300,21 +305,21 @@ class MiroCanvasPainter extends CustomPainter {
       endTangent: endTangent,
     );
 
-    // Déterminer la couleur du tube (bleu par défaut, orange si sélectionné)
-    final tubeColor = isSelected ? colorLinkSelected : colorLinkDefault;
+    // Use per-link color, but keep selection highlight color for clarity.
+    final effectiveTubeColor = isSelected ? colorLinkSelected : tubeColor;
 
     // Dessiner le tube néon avec effet de glow
-    _drawNeonTube(canvas, path, tubeColor);
+    _drawNeonTube(canvas, path, effectiveTubeColor);
 
     // Dessiner les particules qui circulent dans le tube
-    _drawFlowParticles(canvas, path, tubeColor, link: link);
+    _drawFlowParticles(canvas, path, effectiveTubeColor, link: link);
 
     final endAngle = _pathEndAngle(path);
     if (endAngle == null) {
       return;
     }
 
-    _drawArrowHead(canvas, to, endAngle, paint);
+    _drawArrowHead(canvas, to, endAngle, paint, effectiveTubeColor);
   }
 
   void _drawNeonTube(
@@ -486,10 +491,16 @@ class MiroCanvasPainter extends CustomPainter {
     return path;
   }
 
-  void _drawArrowHead(Canvas canvas, Offset to, double angle, Paint paint) {
+  void _drawArrowHead(
+    Canvas canvas,
+    Offset to,
+    double angle,
+    Paint paint,
+    Color color,
+  ) {
     const arrowSize = 15.0;
     final arrowPaint = Paint()
-      ..color = paint.color
+      ..color = color
       ..strokeWidth = paint.strokeWidth
       ..style = PaintingStyle.fill;
 
@@ -700,12 +711,14 @@ class MiroCanvasPainter extends CustomPainter {
 
     final padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
     final iconSpacing = iconPainter == null ? 0.0 : 6.0;
-    final contentWidth =
-        (iconPainter?.width ?? 0.0) + iconSpacing + painter.width;
+    final iconWidth = iconPainter?.width ?? 0.0;
+    final iconHeight = iconPainter?.height ?? 0.0;
+    final contentWidth = iconWidth + iconSpacing + painter.width;
+    final contentHeight = math.max(painter.height, iconHeight);
     final rect = Rect.fromCenter(
       center: labelCenter,
       width: contentWidth + padding.horizontal,
-      height: painter.height + padding.vertical,
+      height: contentHeight + padding.vertical,
     );
 
     final background = Paint()
@@ -719,17 +732,20 @@ class MiroCanvasPainter extends CustomPainter {
       background,
     );
 
-    var paintX = rect.left + (padding.left / 2);
-    final paintY = rect.top + (padding.top / 2);
+    var paintX = rect.left + padding.left;
+    final contentTop = rect.top + padding.top;
     if (iconPainter != null) {
       iconPainter.paint(
         canvas,
-        Offset(paintX, paintY + (painter.height - iconPainter.height) / 2),
+        Offset(paintX, contentTop + (contentHeight - iconPainter.height) / 2),
       );
       paintX += iconPainter.width + iconSpacing;
     }
 
-    painter.paint(canvas, Offset(paintX, paintY));
+    painter.paint(
+      canvas,
+      Offset(paintX, contentTop + (contentHeight - painter.height) / 2),
+    );
   }
 
   void _lineOrArcTo(

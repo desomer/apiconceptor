@@ -14,7 +14,9 @@ class PropertiesPanel extends StatefulWidget {
   final Block? selectedBlock;
   final BlockLink? selectedLink;
   final Function(String, String)? onBlockTitleChanged;
+  final Function(Block, String?)? onBlockColorChanged;
   final Function(BlockLink, String)? onLinkNameChanged;
+  final Function(BlockLink, String?)? onLinkColorChanged;
   final Function(BlockLink, String?)? onLinkLabelIconChanged;
   final Function(BlockLink, double)? onLinkParticleDensityChanged;
   final Function(BlockLink, double)? onLinkParticleSpeedChanged;
@@ -29,7 +31,9 @@ class PropertiesPanel extends StatefulWidget {
     this.selectedBlock,
     this.selectedLink,
     this.onBlockTitleChanged,
+    this.onBlockColorChanged,
     this.onLinkNameChanged,
+    this.onLinkColorChanged,
     this.onLinkLabelIconChanged,
     this.onLinkParticleDensityChanged,
     this.onLinkParticleSpeedChanged,
@@ -101,13 +105,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   }
 
   Widget _buildBlockProperties(Block block) {
-    return Container(
-      width: 320,
-      decoration: BoxDecoration(
-        color: colorPropertiesPanelBg,
-        border: Border(left: BorderSide(color: colorPanelBorder)),
-      ),
-      padding: const EdgeInsets.all(16),
+    return _buildPanelContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -142,6 +140,55 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             },
           ),
           const SizedBox(height: 12),
+          DropdownButtonFormField<String?>(
+            initialValue: block.colorKey,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Couleur du bloc',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text(
+                  'Par défaut',
+                  style: TextStyle(color: colorTextPrimary),
+                ),
+              ),
+              ...kBlockColorMap.entries.map((entry) {
+                final label = kBlockColorLabelMap[entry.key] ?? entry.key;
+                return DropdownMenuItem<String?>(
+                  value: entry.key,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: entry.value,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: const TextStyle(color: colorTextPrimary),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            onChanged: (value) {
+              widget.onBlockColorChanged?.call(block, value);
+            },
+          ),
+          const SizedBox(height: 12),
           Text(
             'Position X: ${block.position.dx.toStringAsFixed(1)}',
             style: const TextStyle(color: colorTextSecondary),
@@ -165,13 +212,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   }
 
   Widget _buildLinkProperties(BlockLink link) {
-    return Container(
-      width: 320,
-      decoration: BoxDecoration(
-        color: colorPropertiesPanelBg,
-        border: Border(left: BorderSide(color: colorPanelBorder)),
-      ),
-      padding: const EdgeInsets.all(16),
+    return _buildPanelContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -207,6 +248,55 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
             onChanged: (value) {
               widget.onLinkNameChanged?.call(link, value);
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String?>(
+            initialValue: link.colorKey,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Couleur du lien',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text(
+                  'Par défaut',
+                  style: TextStyle(color: colorTextPrimary),
+                ),
+              ),
+              ...kLinkColorMap.entries.map((entry) {
+                final label = kLinkColorLabelMap[entry.key] ?? entry.key;
+                return DropdownMenuItem<String?>(
+                  value: entry.key,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: entry.value,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: const TextStyle(color: colorTextPrimary),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            onChanged: (value) {
+              widget.onLinkColorChanged?.call(link, value);
             },
           ),
           const SizedBox(height: 12),
@@ -393,13 +483,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   }
 
   Widget _buildEmptyProperties() {
-    return Container(
-      width: 320,
-      decoration: BoxDecoration(
-        color: colorPropertiesPanelBg,
-        border: Border(left: BorderSide(color: colorPanelBorder)),
-      ),
-      padding: const EdgeInsets.all(16),
+    return _buildPanelContainer(
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -417,6 +501,25 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             style: TextStyle(color: colorTextSecondary),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPanelContainer({required Widget child}) {
+    return Container(
+      width: 320,
+      height: double.infinity,
+      alignment: Alignment.topLeft,
+      decoration: BoxDecoration(
+        color: colorPropertiesPanelBg,
+        border: Border(left: BorderSide(color: colorPanelBorder)),
+      ),
+      child: Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: child,
+        ),
       ),
     );
   }

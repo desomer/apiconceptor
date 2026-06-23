@@ -169,9 +169,21 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _handleBlockColorChanged(Block block, String? colorKey) {
+    setState(() {
+      block.colorKey = colorKey;
+    });
+  }
+
   void _handleLinkNameChanged(BlockLink link, String newName) {
     setState(() {
       link.name = newName;
+    });
+  }
+
+  void _handleLinkColorChanged(BlockLink link, String? colorKey) {
+    setState(() {
+      link.colorKey = colorKey;
     });
   }
 
@@ -353,6 +365,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return {
       'id': block.id,
       'title': block.title,
+      'colorKey': block.colorKey,
       'position': _offsetToJson(block.position),
       'size': _sizeToJson(block.size),
     };
@@ -363,6 +376,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'fromBlockId': link.fromBlockId,
       'toBlockId': link.toBlockId,
       'name': link.name,
+      'colorKey': link.colorKey,
       'labelIconKey': link.labelIconKey,
       'particleDensity': link.particleDensity,
       'particleSpeed': link.particleSpeed,
@@ -424,6 +438,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         Block(
           id: id,
           title: title,
+          colorKey: item['colorKey']?.toString(),
           position: _offsetFromJson(item['position']),
           size: _sizeFromJson(item['size']),
         ),
@@ -465,6 +480,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           fromBlockId: fromId,
           toBlockId: toId,
           name: item['name']?.toString() ?? '',
+          colorKey: item['colorKey']?.toString(),
           labelIconKey: item['labelIconKey']?.toString(),
           particleDensity: item['particleDensity'] is num
               ? (item['particleDensity'] as num).toDouble().clamp(0.2, 3.0)
@@ -559,6 +575,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             fromBlockId: linkSourceBlock!.id,
             toBlockId: targetBlock.id,
             name: 'Lien ${links.length + 1}',
+            colorKey: null,
             labelPosition: 0.75,
             labelOffset: Offset.zero,
             particleDensity: 1.0,
@@ -1706,7 +1723,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             selectedBlock: selectedBlock,
             selectedLink: selectedLink,
             onBlockTitleChanged: _handleBlockTitleChanged,
+            onBlockColorChanged: _handleBlockColorChanged,
             onLinkNameChanged: _handleLinkNameChanged,
+            onLinkColorChanged: _handleLinkColorChanged,
             onLinkLabelIconChanged: _handleLinkLabelIconChanged,
             onLinkParticleDensityChanged: _handleLinkParticleDensityChanged,
             onLinkParticleSpeedChanged: _handleLinkParticleSpeedChanged,

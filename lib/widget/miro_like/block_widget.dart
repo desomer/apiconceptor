@@ -10,11 +10,13 @@ class BlockWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final blockFillColor =
+        kBlockColorMap[block.colorKey] ?? colorBlockBackground;
     return Container(
       width: block.size.width,
       height: block.size.height,
       decoration: BoxDecoration(
-        color: isSelected ? colorBlockBackgroundSelected : colorBlockBackground,
+        color: isSelected ? colorBlockBackgroundSelected : blockFillColor,
         border: Border.all(
           color: isSelected ? colorBlockBorderSelected : colorBlockBorder,
           width: isSelected ? 2 : 1,
@@ -41,5 +43,3 @@ class BlockWidget extends StatelessWidget {
     );
   }
 }
-
-

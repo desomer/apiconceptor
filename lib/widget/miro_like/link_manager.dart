@@ -54,6 +54,7 @@ class LinkManager {
     String fromBlockId,
     String toBlockId,
     String name,
+    String? colorKey,
     String? labelIconKey,
     double particleDensity,
     double particleSpeed,
@@ -68,6 +69,7 @@ class LinkManager {
       fromBlockId: fromBlockId,
       toBlockId: toBlockId,
       name: name,
+      colorKey: colorKey,
       labelIconKey: labelIconKey,
       particleDensity: particleDensity,
       particleSpeed: particleSpeed,
@@ -102,6 +104,7 @@ class LinkManager {
       'from': link.fromBlockId,
       'to': link.toBlockId,
       'name': link.name,
+      'colorKey': link.colorKey,
       'labelIconKey': link.labelIconKey,
       'particleDensity': link.particleDensity,
       'particleSpeed': link.particleSpeed,
@@ -166,6 +169,7 @@ class LinkManager {
           fromBlockId: from,
           toBlockId: to,
           name: item['name']?.toString() ?? '',
+          colorKey: item['colorKey']?.toString(),
           labelIconKey: item['labelIconKey']?.toString(),
           particleDensity: (item['particleDensity'] is num)
               ? (item['particleDensity'] as num).toDouble().clamp(0.2, 3.0)
