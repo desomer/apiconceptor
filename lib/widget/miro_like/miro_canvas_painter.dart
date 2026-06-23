@@ -568,15 +568,18 @@ class MiroCanvasPainter extends CustomPainter {
         continue;
       }
 
-      final phase = travel % spacing;
-      for (double d = phase; d < length + spacing; d += spacing) {
+      final particleCount = math.max(1, (length / spacing).floor());
+      final effectiveSpacing = length / particleCount;
+      final phase = travel % effectiveSpacing;
+      for (int i = 0; i < particleCount; i++) {
+        final d = i * effectiveSpacing + phase;
         final offsetOnPath = d % length;
         final tangent = metric.getTangentForOffset(offsetOnPath);
         if (tangent == null) {
           continue;
         }
         final progress = offsetOnPath / length;
-        final radius = 1.8 + (0.8 * progress);
+        final radius = 2.0 + (0.25 * progress);
 
         // Effet de lueur néon - couches multiples pour l'effet glow
         final neonColor = color.withValues(alpha: 0.15);
@@ -595,7 +598,7 @@ class MiroCanvasPainter extends CustomPainter {
 
         // Couche principale avec lueur plus intense
         final flowPaint = Paint()
-          ..color = color.withValues(alpha: 0.65 + (0.35 * progress))
+          ..color = color.withValues(alpha: 0.75 + (0.20 * progress))
           ..style = PaintingStyle.fill;
         canvas.drawCircle(tangent.position, radius, flowPaint);
 
