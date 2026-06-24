@@ -62,7 +62,8 @@ class MiroLikeWidget extends StatefulWidget {
 const double _linkHitTolerance = 24.0;
 const double _inflectionHandleRadius = 7.0;
 const double _anchorHandleRadius = 6.0;
-const double anchorSpacingDistance = 25.0;
+const double anchorSpacingDistance = 35.0;
+const double anchorBorderMarginDistance = 50.0;
 const double _minBlockWidth = 200.0;
 const double _minBlockHeight = 150.0;
 const double _alignmentSnapCaptureDistance = 10.0;
@@ -2126,7 +2127,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     // Compute in canvas units so converting back to model stays zoom-invariant.
     final spacingDistance = anchorSpacingDistance * zoomLevel;
-    final sidePadding = spacingDistance;
+    final sidePadding = anchorBorderMarginDistance * zoomLevel;
     return (count - 1) * spacingDistance + (2 * sidePadding);
   }
 
