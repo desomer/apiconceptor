@@ -2157,7 +2157,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     BlockLink link,
     String blockId,
     Offset anchorUnit,
-    int linkIndex,
+    int _,
   ) {
     final side = _anchorSideUnit(anchorUnit);
     if (link.fromBlockId == blockId && link.sourceAnchorUnit != null) {
