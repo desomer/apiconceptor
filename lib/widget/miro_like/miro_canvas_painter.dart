@@ -4,6 +4,8 @@ import 'package:jsonschema/widget/miro_like/block_model.dart';
 import 'package:jsonschema/widget/miro_like/link_model.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 
+const double _painterAnchorHandleRadius = 6.0;
+
 extension on Offset {
   Offset rotate(double angle) {
     final cos = math.cos(angle);
@@ -1009,13 +1011,18 @@ class MiroCanvasPainter extends CustomPainter {
   ) {
     final side = _anchorSideUnit(anchorUnit);
     final spacingDistance = anchorSpacingDistance * zoomLevel;
+    final blockIndex = blocks.indexWhere((b) => b.id == blockId);
+    if (blockIndex == -1) {
+      return Offset.zero;
+    }
+    final rect = _blockRectCanvas(blocks[blockIndex]);
 
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {
       return Offset.zero;
     }
 
-    final grouped = <(int, double)>[];
+    final sameSideEntries = <(int linkIndex, double key)>[];
     for (int i = 0; i < links.length; i++) {
       final link = links[i];
       final isSameSide =
@@ -1028,14 +1035,16 @@ class MiroCanvasPainter extends CustomPainter {
       if (!isSameSide) {
         continue;
       }
-      grouped.add((i, _anchorOrderKeyForLinkSide(link, blockId, side, i)));
+      sameSideEntries.add((
+        i,
+        _anchorOrderKeyForLinkSide(link, blockId, side, i),
+      ));
     }
-
-    if (grouped.isEmpty) {
+    if (sameSideEntries.isEmpty) {
       return Offset.zero;
     }
 
-    grouped.sort((a, b) {
+    sameSideEntries.sort((a, b) {
       final byKey = a.$2.compareTo(b.$2);
       if (byKey != 0) {
         return byKey;
@@ -1043,20 +1052,40 @@ class MiroCanvasPainter extends CustomPainter {
       return a.$1.compareTo(b.$1);
     });
 
-    final anchorIndex = grouped.indexWhere(
-      (entry) => entry.$1 == currentLinkIndex,
-    );
-    if (anchorIndex == -1) {
-      return Offset.zero;
+    final rawKeys = sameSideEntries.map((e) => e.$2).toList(growable: false);
+    final separatedKeys = List<double>.from(rawKeys);
+    for (int i = 1; i < separatedKeys.length; i++) {
+      final minNext = separatedKeys[i - 1] + spacingDistance;
+      if (separatedKeys[i] < minNext) {
+        separatedKeys[i] = minNext;
+      }
     }
 
-    final centerOffset =
-        (anchorIndex - (grouped.length - 1) / 2) * spacingDistance;
+    final rawCenter = rawKeys.fold(0.0, (acc, v) => acc + v) / rawKeys.length;
+    final separatedCenter =
+        separatedKeys.fold(0.0, (acc, v) => acc + v) / separatedKeys.length;
+    var centerOffset =
+        separatedKeys[sameSideEntries.indexWhere(
+          (e) => e.$1 == currentLinkIndex,
+        )] +
+        (rawCenter - separatedCenter);
+
+    final edgeMargin = (_painterAnchorHandleRadius * zoomLevel).clamp(
+      3.0,
+      _painterAnchorHandleRadius,
+    );
+    final halfExtent = side.dx != 0 ? rect.height / 2 : rect.width / 2;
+    final clampedCenterOffset = centerOffset
+        .clamp(
+          -math.max(0.0, halfExtent - edgeMargin),
+          math.max(0.0, halfExtent - edgeMargin),
+        )
+        .toDouble();
 
     if (side.dx != 0) {
-      return Offset(0, centerOffset);
+      return Offset(0, clampedCenterOffset);
     } else if (side.dy != 0) {
-      return Offset(centerOffset, 0);
+      return Offset(clampedCenterOffset, 0);
     }
     return Offset.zero;
   }

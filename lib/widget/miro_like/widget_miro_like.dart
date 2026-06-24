@@ -2094,6 +2094,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return 0;
   }
 
+  double _stabilizeDraggedOrderKey({
+    required double rawKey,
+    required double? previousKey,
+  }) {
+    final spacingDistance = anchorSpacingDistance * zoomLevel;
+    if (spacingDistance <= 0) {
+      return rawKey;
+    }
+
+    // Keep a small dead zone to avoid jittery neighbor swaps while dragging.
+    final hysteresis = spacingDistance * 0.35;
+    if (previousKey != null && (rawKey - previousKey).abs() < hysteresis) {
+      return previousKey;
+    }
+    return rawKey;
+  }
+
   Offset _anchorSideUnit(Offset unit) {
     final normalized = _normalizeAnchorUnit(unit);
     if (normalized.dx.abs() >= normalized.dy.abs()) {
@@ -2194,13 +2211,17 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   ) {
     final side = _anchorSideUnit(anchorUnit);
     final spacingDistance = anchorSpacingDistance * zoomLevel;
-
+    final blockIndex = blocks.indexWhere((b) => b.id == blockId);
+    if (blockIndex == -1) {
+      return Offset.zero;
+    }
+    final rect = _blockRectCanvas(blocks[blockIndex]);
     final currentLinkIndex = links.indexOf(currentLink);
     if (currentLinkIndex == -1) {
       return Offset.zero;
     }
 
-    final grouped = <(int, double)>[];
+    final sameSideEntries = <(int linkIndex, double key)>[];
     for (int i = 0; i < links.length; i++) {
       final link = links[i];
       final isSameSide =
@@ -2213,14 +2234,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       if (!isSameSide) {
         continue;
       }
-      grouped.add((i, _anchorOrderKeyForLinkSide(link, blockId, side, i)));
+      sameSideEntries.add((
+        i,
+        _anchorOrderKeyForLinkSide(link, blockId, side, i),
+      ));
     }
-
-    if (grouped.isEmpty) {
+    if (sameSideEntries.isEmpty) {
       return Offset.zero;
     }
 
-    grouped.sort((a, b) {
+    sameSideEntries.sort((a, b) {
       final byKey = a.$2.compareTo(b.$2);
       if (byKey != 0) {
         return byKey;
@@ -2228,23 +2251,43 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       return a.$1.compareTo(b.$1);
     });
 
-    final anchorIndex = grouped.indexWhere(
-      (entry) => entry.$1 == currentLinkIndex,
-    );
-    if (anchorIndex == -1) {
-      return Offset.zero;
+    final rawKeys = sameSideEntries.map((e) => e.$2).toList(growable: false);
+    final separatedKeys = List<double>.from(rawKeys);
+    for (int i = 1; i < separatedKeys.length; i++) {
+      final minNext = separatedKeys[i - 1] + spacingDistance;
+      if (separatedKeys[i] < minNext) {
+        separatedKeys[i] = minNext;
+      }
     }
 
-    final centerOffset =
-        (anchorIndex - (grouped.length - 1) / 2) * spacingDistance;
+    final rawCenter = rawKeys.fold(0.0, (acc, v) => acc + v) / rawKeys.length;
+    final separatedCenter =
+        separatedKeys.fold(0.0, (acc, v) => acc + v) / separatedKeys.length;
+    var centerOffset =
+        separatedKeys[sameSideEntries.indexWhere(
+          (e) => e.$1 == currentLinkIndex,
+        )] +
+        (rawCenter - separatedCenter);
+
+    final edgeMargin = (_anchorHandleRadius * zoomLevel).clamp(
+      3.0,
+      _anchorHandleRadius,
+    );
+    final halfExtent = side.dx != 0 ? rect.height / 2 : rect.width / 2;
+    final clampedCenterOffset = centerOffset
+        .clamp(
+          -math.max(0.0, halfExtent - edgeMargin),
+          math.max(0.0, halfExtent - edgeMargin),
+        )
+        .toDouble();
 
     // Apply spacing parallel to the anchor side
     if (side.dx != 0) {
       // Horizontal side (left/right) - space vertically
-      return Offset(0, centerOffset);
+      return Offset(0, clampedCenterOffset);
     } else if (side.dy != 0) {
       // Vertical side (top/bottom) - space horizontally
-      return Offset(centerOffset, 0);
+      return Offset(clampedCenterOffset, 0);
     }
     return Offset.zero;
   }
@@ -2668,14 +2711,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               selectedLink = link;
               selectedBlock = null;
               final canvasPosition = _toCanvasLocal(details.globalPosition);
-              link.sourceAnchorUnit = _anchorUnitFromCanvasPoint(
+              final snappedSide = _anchorSideUnit(
+                _anchorUnitFromCanvasPoint(fromRect, canvasPosition),
+              );
+              link.sourceAnchorUnit = snappedSide;
+              final rawKey = _anchorOrderKeyFromCanvasPoint(
                 fromRect,
+                snappedSide,
                 canvasPosition,
               );
-              link.sourceAnchorOrderKey = _anchorOrderKeyFromCanvasPoint(
-                fromRect,
-                link.sourceAnchorUnit!,
-                canvasPosition,
+              link.sourceAnchorOrderKey = _stabilizeDraggedOrderKey(
+                rawKey: rawKey,
+                previousKey: link.sourceAnchorOrderKey,
               );
               final fromIndex = blocks.indexWhere(
                 (b) => b.id == link.fromBlockId,
@@ -2715,14 +2762,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               selectedLink = link;
               selectedBlock = null;
               final canvasPosition = _toCanvasLocal(details.globalPosition);
-              link.targetAnchorUnit = _anchorUnitFromCanvasPoint(
+              final snappedSide = _anchorSideUnit(
+                _anchorUnitFromCanvasPoint(toRect, canvasPosition),
+              );
+              link.targetAnchorUnit = snappedSide;
+              final rawKey = _anchorOrderKeyFromCanvasPoint(
                 toRect,
+                snappedSide,
                 canvasPosition,
               );
-              link.targetAnchorOrderKey = _anchorOrderKeyFromCanvasPoint(
-                toRect,
-                link.targetAnchorUnit!,
-                canvasPosition,
+              link.targetAnchorOrderKey = _stabilizeDraggedOrderKey(
+                rawKey: rawKey,
+                previousKey: link.targetAnchorOrderKey,
               );
               final toIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
               if (toIndex != -1) {
