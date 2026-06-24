@@ -63,8 +63,8 @@ const double _linkHitTolerance = 24.0;
 const double _inflectionHandleRadius = 7.0;
 const double _anchorHandleRadius = 6.0;
 const double anchorSpacingDistance = 25.0;
-const double _minBlockWidth = 400.0;
-const double _minBlockHeight = 300.0;
+const double _minBlockWidth = 200.0;
+const double _minBlockHeight = 150.0;
 const double _alignmentSnapCaptureDistance = 10.0;
 const double _alignmentSnapReleaseDistance = 24.0;
 
@@ -125,7 +125,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   double _alignmentPriorityMultiplier() {
     switch (_alignmentPriorityMode) {
       case 'Normal':
-        return 0.0;
+        return 0;
       case 'Fort':
         return 1.0;
       case 'Extreme':
@@ -212,9 +212,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   void _initializeSampleBlocks() {
     blocks.addAll([
-      Block(id: '1', title: 'Block 1', position: const Offset(100, 100)),
-      Block(id: '2', title: 'Block 2', position: const Offset(350, 100)),
-      Block(id: '3', title: 'Block 3', position: const Offset(225, 300)),
+      Block(
+        id: '1',
+        title: 'Block 1',
+        position: const Offset(100, 100),
+        size: const Size(_minBlockWidth, _minBlockHeight),
+      ),
+      Block(
+        id: '2',
+        title: 'Block 2',
+        position: const Offset(350, 100),
+        size: const Size(_minBlockWidth, _minBlockHeight),
+      ),
+      Block(
+        id: '3',
+        title: 'Block 3',
+        position: const Offset(225, 300),
+        size: const Size(_minBlockWidth, _minBlockHeight),
+      ),
     ]);
   }
 
@@ -225,6 +240,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           title: 'Block ${blocks.length + 1}',
           position: (position - canvasOffset) / zoomLevel,
+          size: const Size(_minBlockWidth, _minBlockHeight),
         ),
       );
     });
@@ -1589,6 +1605,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           id: nodeId,
           title: nodeTitles[nodeId] ?? nodeId,
           position: Offset(120 + (i % 4) * 240, 100 + (i ~/ 4) * 170),
+          size: const Size(_minBlockWidth, _minBlockHeight),
         ),
       );
     }
@@ -2543,6 +2560,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   List<Widget> _buildLinkLabelHandles() {
     final widgets = <Widget>[];
+    final textScale = zoomLevel;
 
     for (final link in links) {
       if (link.name.trim().isEmpty) {
@@ -2554,12 +2572,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         continue;
       }
 
-      final iconExtraWidth = link.labelIconKey == null ? 0.0 : 20.0;
+      final iconExtraWidth = link.labelIconKey == null ? 0.0 : 20.0 * textScale;
       final width = math.max(
-        90.0,
-        link.name.length * 8.0 + 28.0 + iconExtraWidth,
+        90.0 * textScale,
+        link.name.length * 8.0 * textScale + 28.0 * textScale + iconExtraWidth,
       );
-      const height = 32.0;
+      final height = 32.0 * textScale;
 
       widgets.add(
         LinkLabelHandleWidget(

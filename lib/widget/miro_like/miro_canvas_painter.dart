@@ -722,6 +722,7 @@ class MiroCanvasPainter extends CustomPainter {
     final normal = Offset(-math.sin(midpoint.angle), math.cos(midpoint.angle));
     final labelCenter =
         midpoint.position + normal * 18 + link.labelOffset * zoomLevel;
+    final textScale = zoomLevel;
 
     final iconData = kLinkLabelIconMap[link.labelIconKey];
 
@@ -730,7 +731,7 @@ class MiroCanvasPainter extends CustomPainter {
         text: label,
         style: TextStyle(
           color: isSelected ? colorLinkSelected : Colors.white,
-          fontSize: 12,
+          fontSize: (12.0 * textScale).clamp(7.0, 36.0),
           fontWeight: FontWeight.w600,
           shadows: const [
             Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
@@ -738,7 +739,7 @@ class MiroCanvasPainter extends CustomPainter {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: 220);
+    )..layout(maxWidth: 220 * textScale);
 
     TextPainter? iconPainter;
     if (iconData != null) {
@@ -746,7 +747,7 @@ class MiroCanvasPainter extends CustomPainter {
         text: TextSpan(
           text: String.fromCharCode(iconData.codePoint),
           style: TextStyle(
-            fontSize: 14,
+            fontSize: (14.0 * textScale).clamp(8.0, 42.0),
             color: isSelected ? colorLinkSelected : Colors.white,
             fontFamily: iconData.fontFamily,
             package: iconData.fontPackage,
@@ -763,8 +764,13 @@ class MiroCanvasPainter extends CustomPainter {
       )..layout();
     }
 
-    final padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
-    final iconSpacing = iconPainter == null ? 0.0 : 6.0;
+    final padding = EdgeInsets.symmetric(
+      horizontal: (8.0 * textScale).clamp(4.0, 20.0),
+      vertical: (4.0 * textScale).clamp(2.0, 12.0),
+    );
+    final iconSpacing = iconPainter == null
+        ? 0.0
+        : (6.0 * textScale).clamp(3.0, 16.0);
     final iconWidth = iconPainter?.width ?? 0.0;
     final iconHeight = iconPainter?.height ?? 0.0;
     final contentWidth = iconWidth + iconSpacing + painter.width;
@@ -797,7 +803,10 @@ class MiroCanvasPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(8)),
+      RRect.fromRectAndRadius(
+        rect,
+        Radius.circular((8.0 * zoomLevel).clamp(4.0, 18.0)),
+      ),
       background,
     );
 

@@ -5,8 +5,14 @@ import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 class BlockWidget extends StatelessWidget {
   final Block block;
   final bool isSelected;
+  final double zoomLevel;
 
-  const BlockWidget({super.key, required this.block, required this.isSelected});
+  const BlockWidget({
+    super.key,
+    required this.block,
+    required this.isSelected,
+    required this.zoomLevel,
+  });
 
   Color _shiftLightness(Color color, double amount) {
     final hsl = HSLColor.fromColor(color);
@@ -22,8 +28,10 @@ class BlockWidget extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    const indicatorSize = 9.0;
-    const spacing = 5.0;
+    final textScale = zoomLevel;
+    final indicatorSize = (9.0 * textScale).clamp(4.0, 22.0);
+    final spacing = (5.0 * textScale).clamp(2.0, 12.0);
+    final indicatorTextSize = (9.0 * textScale).clamp(6.0, 22.0);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -44,7 +52,7 @@ class BlockWidget extends StatelessWidget {
                 ...visibleTags.map((key) {
                   final color = kBlockTagColorMap[key] ?? Colors.white;
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: spacing),
+                    padding: EdgeInsets.only(bottom: spacing),
                     child: Container(
                       width: indicatorSize,
                       height: indicatorSize,
@@ -64,7 +72,7 @@ class BlockWidget extends StatelessWidget {
                     '+$hiddenCount',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: 9,
+                      fontSize: indicatorTextSize,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -78,6 +86,8 @@ class BlockWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = zoomLevel;
+    final titleFontSize = (14.0 * textScale).clamp(8.0, 44.0);
     final paletteColor = kBlockColorMap[block.colorKey] ?? colorBlockBackground;
     final baseColor = isSelected
         ? Color.alphaBlend(colorBlockBackgroundSelected, paletteColor)
@@ -156,7 +166,7 @@ class BlockWidget extends StatelessWidget {
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: titleFontSize,
                     fontWeight: FontWeight.w600,
                     color: isSelected ? colorBlockTextSelected : colorBlockText,
                     shadows: [

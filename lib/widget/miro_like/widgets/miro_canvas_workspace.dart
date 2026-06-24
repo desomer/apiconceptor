@@ -112,6 +112,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
                         child: BlockWidget(
                           block: block,
                           isSelected: selectedBlock == block,
+                          zoomLevel: zoomLevel,
                         ),
                       ),
                     ),
