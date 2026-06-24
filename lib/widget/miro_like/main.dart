@@ -12,6 +12,7 @@ class MiroLikeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Miro Like',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
         primaryColor: Colors.blue,
@@ -37,9 +38,6 @@ class MiroLikeScreen extends StatefulWidget {
 class _MiroLikeScreenState extends State<MiroLikeScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Miro Like Board')),
-      body: const Center(child: MiroLikeWidget()),
-    );
+    return const Center(child: MiroLikeWidget());
   }
 }

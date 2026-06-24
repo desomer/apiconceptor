@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'link_manager.dart';
 import 'link_model.dart';
 import 'block_model.dart';
+import 'auto_layout_engine.dart';
 import 'import_export_manager.dart';
 import 'widgets/anchor_handle_widget.dart';
 import 'widgets/inflection_handle_widget.dart';
@@ -62,7 +63,8 @@ const double _linkHitTolerance = 24.0;
 const double _inflectionHandleRadius = 7.0;
 const double _anchorHandleRadius = 6.0;
 const double anchorSpacingDistance = 25.0;
-const double _anchorPaddingMargin = 50.0;
+const double _minBlockWidth = 400.0;
+const double _minBlockHeight = 300.0;
 const double _alignmentSnapCaptureDistance = 10.0;
 const double _alignmentSnapReleaseDistance = 24.0;
 
@@ -73,6 +75,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     'Rapide',
     'Equilibre',
     'Dense',
+  ];
+  static const List<String> _blockSpacingModes = [
+    'Dense',
+    'Normal',
+    'Plus ecarte',
   ];
 
   final GlobalKey _canvasKey = GlobalKey();
@@ -92,9 +99,22 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   bool isPanning = false;
   String _mermaidLayoutDirection = 'LR';
   String _placementQuality = 'Dense';
+  String _blockSpacingMode = 'Normal';
   double? _snapLeftModel;
   double? _snapTopModel;
   Offset? _dragFreePositionModel;
+
+  double _blockSpacingMultiplier() {
+    switch (_blockSpacingMode) {
+      case 'Dense':
+        return 0.78;
+      case 'Plus ecarte':
+        return 1.35;
+      case 'Normal':
+      default:
+        return 1.0;
+    }
+  }
 
   ({
     double iterationMul,
@@ -421,14 +441,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   Size _sizeFromJson(dynamic value, {Size fallback = const Size(150, 100)}) {
     if (value is! Map) {
-      return fallback;
+      return Size(
+        math.max(fallback.width, _minBlockWidth),
+        math.max(fallback.height, _minBlockHeight),
+      );
     }
     final width = value['width'];
     final height = value['height'];
     if (width is num && height is num) {
-      return Size(width.toDouble(), height.toDouble());
+      return Size(
+        math.max(width.toDouble(), _minBlockWidth),
+        math.max(height.toDouble(), _minBlockHeight),
+      );
     }
-    return fallback;
+    return Size(
+      math.max(fallback.width, _minBlockWidth),
+      math.max(fallback.height, _minBlockHeight),
+    );
   }
 
   Map<String, dynamic> _blockToJson(Block block) {
@@ -673,949 +702,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     List<Block>? layoutBlocks, {
     Map<String, Offset>? seedPositions,
   }) {
-    if (nodeOrder.isEmpty) {
-      return {};
-    }
-
     final effectiveBlocks = layoutBlocks ?? blocks;
-    final nodeSet = nodeOrder.toSet();
-    final indexByNode = <String, int>{
-      for (int i = 0; i < nodeOrder.length; i++) nodeOrder[i]: i,
-    };
-
-    final directedEdges = <(String, String)>[];
-    final undirectedEdges = <(String, String)>[];
-    final undirectedSeen = <String>{};
-    final degree = <String, int>{for (final id in nodeOrder) id: 0};
-    final neighbors = <String, Set<String>>{
-      for (final id in nodeOrder) id: <String>{},
-    };
-
-    for (final edge in edgeData) {
-      if (!nodeSet.contains(edge.fromId) || !nodeSet.contains(edge.toId)) {
-        continue;
-      }
-      if (edge.fromId == edge.toId) {
-        continue;
-      }
-      directedEdges.add((edge.fromId, edge.toId));
-
-      final a = edge.fromId;
-      final b = edge.toId;
-      final key = (a.compareTo(b) <= 0) ? '$a|$b' : '$b|$a';
-      if (undirectedSeen.add(key)) {
-        undirectedEdges.add((a, b));
-        degree[a] = (degree[a] ?? 0) + 1;
-        degree[b] = (degree[b] ?? 0) + 1;
-        neighbors[a]!.add(b);
-        neighbors[b]!.add(a);
-      }
-    }
-
-    final count = nodeOrder.length;
-    final maxBlockW = effectiveBlocks.isEmpty
-        ? 150.0
-        : effectiveBlocks
-              .map((b) => b.size.width)
-              .fold<double>(150.0, math.max);
-    final maxBlockH = effectiveBlocks.isEmpty
-        ? 100.0
-        : effectiveBlocks
-              .map((b) => b.size.height)
-              .fold<double>(100.0, math.max);
-
     final quality = _placementQualityProfile();
-    final channelPitch = quality.channelPitch.clamp(1, 3);
-    final aspectHint = direction == 'LR' || direction == 'RL' ? 1.45 : 0.82;
-    final rawCols = math.sqrt(count * aspectHint);
-    final cols = math.max(2, rawCols.ceil());
-    final rows = math.max(2, (count / cols).ceil());
-    final placementCols = cols + 1;
-    final placementRows = math.max(
-      rows + 1,
-      (count / placementCols).ceil() + 1,
+    return AutoLayoutEngine.computeMermaidAutoLayout(
+      nodeOrder: nodeOrder,
+      edgeData: edgeData,
+      direction: direction,
+      effectiveBlocks: effectiveBlocks,
+      quality: AutoLayoutQualityProfile(
+        iterationMul: quality.iterationMul,
+        repulsionMul: quality.repulsionMul,
+        springMul: quality.springMul,
+        overlapMul: quality.overlapMul,
+        hpwlMul: quality.hpwlMul,
+        crossingMul: quality.crossingMul,
+        spacingMul: _blockSpacingMultiplier(),
+        channelPitch: quality.channelPitch,
+        snapTargetWeight: quality.snapTargetWeight,
+      ),
+      seedPositions: seedPositions,
     );
-
-    const baseX = 120.0;
-    const baseY = 90.0;
-    final cellW = math.max(210.0, maxBlockW + 110.0);
-    final cellH = math.max(150.0, maxBlockH + 90.0);
-    final areaWBase = math.max(760.0, cols * cellW);
-    final areaHBase = math.max(560.0, rows * cellH);
-    final minPlacementPitchX =
-        maxBlockW +
-        70 +
-        (channelPitch == 3 ? 24 : (channelPitch == 2 ? 16 : 8));
-    final minPlacementPitchY =
-        maxBlockH +
-        56 +
-        (channelPitch == 3 ? 20 : (channelPitch == 2 ? 14 : 8));
-    final requiredAreaW =
-        maxBlockW + 20 + (placementCols - 1) * minPlacementPitchX;
-    final requiredAreaH =
-        maxBlockH + 20 + (placementRows - 1) * minPlacementPitchY;
-    final areaW = math.max(areaWBase, requiredAreaW);
-    final areaH = math.max(areaHBase, requiredAreaH);
-
-    final minX = baseX;
-    final minY = baseY;
-    final maxX = baseX + areaW;
-    final maxY = baseY + areaH;
-    final center = Offset((minX + maxX) / 2, (minY + maxY) / 2);
-
-    final sortedByDegree = [...nodeOrder]
-      ..sort((a, b) {
-        final byDegree = (degree[b] ?? 0).compareTo(degree[a] ?? 0);
-        if (byDegree != 0) {
-          return byDegree;
-        }
-        return indexByNode[a]!.compareTo(indexByNode[b]!);
-      });
-
-    final seedPositionsByNode = seedPositions ?? const <String, Offset>{};
-    final positions = <String, Offset>{};
-    final cellTargets = <String, Offset>{};
-    for (int i = 0; i < sortedByDegree.length; i++) {
-      final nodeId = sortedByDegree[i];
-      final col = i % cols;
-      final row = i ~/ cols;
-      final jitterX = ((i * 37) % 17 - 8) * 2.5;
-      final jitterY = ((i * 53) % 19 - 9) * 2.0;
-      final target = Offset(
-        minX + (col + 0.5) * (areaW / cols),
-        minY + (row + 0.5) * (areaH / rows),
-      );
-      cellTargets[nodeId] = seedPositionsByNode[nodeId] ?? target;
-      positions[nodeId] =
-          seedPositionsByNode[nodeId] ?? target + Offset(jitterX, jitterY);
-    }
-
-    final isHorizontal = direction == 'LR' || direction == 'RL';
-    final isReverse = direction == 'RL' || direction == 'BT';
-    final flowSign = isReverse ? -1.0 : 1.0;
-    final sizeByNode = <String, Size>{
-      for (final id in nodeOrder)
-        id:
-            effectiveBlocks
-                .where((b) => b.id == id)
-                .map((b) => b.size)
-                .firstOrNull ??
-            const Size(150, 100),
-    };
-
-    final edgeDensity = undirectedEdges.length / math.max(1, count);
-    final averagePitch = math.sqrt((areaW * areaH) / math.max(1, count));
-    final iterationCount = ((150 + count * 3) * quality.iterationMul)
-        .round()
-        .clamp(120, 420);
-
-    final forces = <String, Offset>{
-      for (final id in nodeOrder) id: Offset.zero,
-    };
-    final repulsion = (22000.0 + 16000.0 * edgeDensity) * quality.repulsionMul;
-    final springRest = (averagePitch * (0.82 + 0.18 * edgeDensity)).clamp(
-      150.0,
-      300.0,
-    );
-    final springK =
-        (0.020 + 0.008 * edgeDensity).clamp(0.018, 0.032) * quality.springMul;
-    final overlapK =
-        (0.30 + 0.06 * edgeDensity).clamp(0.30, 0.42) * quality.overlapMul;
-    const boundaryK = 0.36;
-    const targetK = 0.012;
-    const centerK = 0.004;
-    const directionK = 0.030;
-    final hpwlK =
-        (0.040 + 0.020 * edgeDensity).clamp(0.040, 0.075) * quality.hpwlMul;
-
-    for (int iteration = 0; iteration < iterationCount; iteration++) {
-      final cooling = 1.0 - (iteration / (iterationCount + 12.0));
-      for (final id in nodeOrder) {
-        forces[id] = Offset.zero;
-      }
-
-      // Repulsion + overlap handling between all node pairs.
-      for (int i = 0; i < nodeOrder.length - 1; i++) {
-        final a = nodeOrder[i];
-        final pa = positions[a]!;
-        final sa = sizeByNode[a]!;
-        for (int j = i + 1; j < nodeOrder.length; j++) {
-          final b = nodeOrder[j];
-          final pb = positions[b]!;
-          final sb = sizeByNode[b]!;
-
-          final delta = pa - pb;
-          final dist2 = math.max(
-            36.0,
-            delta.dx * delta.dx + delta.dy * delta.dy,
-          );
-          final dist = math.sqrt(dist2);
-          final dir = dist > 1e-6 ? delta / dist : const Offset(1, 0);
-          final push = dir * (repulsion / dist2);
-          forces[a] = forces[a]! + push;
-          forces[b] = forces[b]! - push;
-
-          final overlapX =
-              (sa.width + sb.width) / 2 + 26 - (pa.dx - pb.dx).abs();
-          final overlapY =
-              (sa.height + sb.height) / 2 + 22 - (pa.dy - pb.dy).abs();
-          if (overlapX > 0 && overlapY > 0) {
-            if (overlapX < overlapY) {
-              final sx = pa.dx >= pb.dx ? 1.0 : -1.0;
-              final correction = Offset(sx * overlapX * overlapK, 0);
-              forces[a] = forces[a]! + correction;
-              forces[b] = forces[b]! - correction;
-            } else {
-              final sy = pa.dy >= pb.dy ? 1.0 : -1.0;
-              final correction = Offset(0, sy * overlapY * overlapK);
-              forces[a] = forces[a]! + correction;
-              forces[b] = forces[b]! - correction;
-            }
-          }
-        }
-      }
-
-      // Springs on graph links keep related nodes close.
-      for (final edge in undirectedEdges) {
-        final a = edge.$1;
-        final b = edge.$2;
-        final pa = positions[a]!;
-        final pb = positions[b]!;
-        final delta = pb - pa;
-        final dist = math.max(1.0, delta.distance);
-        final dir = delta / dist;
-        final spring = dir * ((dist - springRest) * springK);
-        forces[a] = forces[a]! + spring;
-        forces[b] = forces[b]! - spring;
-      }
-
-      // Preferred direction bias (soft constraint only).
-      for (final edge in directedEdges) {
-        final fromId = edge.$1;
-        final toId = edge.$2;
-        final from = positions[fromId]!;
-        final to = positions[toId]!;
-
-        final primaryDelta = isHorizontal
-            ? (to.dx - from.dx)
-            : (to.dy - from.dy);
-        final missing = (170.0 - flowSign * primaryDelta).clamp(0.0, 320.0);
-        if (missing <= 0) {
-          continue;
-        }
-
-        final f = missing * directionK;
-        if (isHorizontal) {
-          final dirForce = Offset(flowSign * f, 0);
-          forces[fromId] = forces[fromId]! - dirForce;
-          forces[toId] = forces[toId]! + dirForce;
-        } else {
-          final dirForce = Offset(0, flowSign * f);
-          forces[fromId] = forces[fromId]! - dirForce;
-          forces[toId] = forces[toId]! + dirForce;
-        }
-      }
-
-      // HPWL-style pull: attract each node toward median neighbor coordinates (Manhattan objective surrogate).
-      for (final nodeId in nodeOrder) {
-        final linked = neighbors[nodeId]!;
-        if (linked.isEmpty) {
-          continue;
-        }
-
-        final xs = <double>[];
-        final ys = <double>[];
-        for (final n in linked) {
-          final p = positions[n];
-          if (p == null) {
-            continue;
-          }
-          xs.add(p.dx);
-          ys.add(p.dy);
-        }
-        if (xs.isEmpty) {
-          continue;
-        }
-        xs.sort();
-        ys.sort();
-        final medX = xs[xs.length ~/ 2];
-        final medY = ys[ys.length ~/ 2];
-        final current = positions[nodeId]!;
-        forces[nodeId] =
-            forces[nodeId]! +
-            Offset((medX - current.dx) * hpwlK, (medY - current.dy) * hpwlK);
-      }
-
-      // Crossing minimization with orthogonal pushes on intersecting links.
-      if (iteration % 3 == 0 && directedEdges.length > 1) {
-        for (int i = 0; i < directedEdges.length - 1; i++) {
-          final e1 = directedEdges[i];
-          for (int j = i + 1; j < directedEdges.length; j++) {
-            final e2 = directedEdges[j];
-
-            final shared =
-                e1.$1 == e2.$1 ||
-                e1.$1 == e2.$2 ||
-                e1.$2 == e2.$1 ||
-                e1.$2 == e2.$2;
-            if (shared) {
-              continue;
-            }
-
-            final p1 = positions[e1.$1]!;
-            final p2 = positions[e1.$2]!;
-            final p3 = positions[e2.$1]!;
-            final p4 = positions[e2.$2]!;
-            if (!_segmentsIntersect(p1, p2, p3, p4)) {
-              continue;
-            }
-
-            final d1 = p2 - p1;
-            final d2 = p4 - p3;
-            final n1 = d1.distance > 1e-6
-                ? Offset(-d1.dy, d1.dx) / d1.distance
-                : const Offset(0, 1);
-            final n2 = d2.distance > 1e-6
-                ? Offset(-d2.dy, d2.dx) / d2.distance
-                : const Offset(0, -1);
-            final crossPush = (12.0 + 8.0 * cooling) * quality.crossingMul;
-
-            forces[e1.$1] = forces[e1.$1]! + n1 * crossPush;
-            forces[e1.$2] = forces[e1.$2]! + n1 * crossPush;
-            forces[e2.$1] = forces[e2.$1]! + n2 * crossPush;
-            forces[e2.$2] = forces[e2.$2]! + n2 * crossPush;
-          }
-        }
-      }
-
-      // Keep nodes spread in a rectangle and avoid drifting away.
-      for (final id in nodeOrder) {
-        final current = positions[id]!;
-        final target = cellTargets[id]!;
-        var force = forces[id]!;
-
-        force += (target - current) * targetK;
-        force += (center - current) * centerK;
-
-        final halfW = sizeByNode[id]!.width / 2;
-        final halfH = sizeByNode[id]!.height / 2;
-        final safeMinX = minX + halfW;
-        final safeMaxX = maxX - halfW;
-        final safeMinY = minY + halfH;
-        final safeMaxY = maxY - halfH;
-
-        if (current.dx < safeMinX) {
-          force += Offset((safeMinX - current.dx) * boundaryK, 0);
-        } else if (current.dx > safeMaxX) {
-          force += Offset((safeMaxX - current.dx) * boundaryK, 0);
-        }
-        if (current.dy < safeMinY) {
-          force += Offset(0, (safeMinY - current.dy) * boundaryK);
-        } else if (current.dy > safeMaxY) {
-          force += Offset(0, (safeMaxY - current.dy) * boundaryK);
-        }
-
-        final step = force * (0.10 * cooling);
-        final next = current + step;
-        positions[id] = Offset(
-          next.dx.clamp(safeMinX, safeMaxX),
-          next.dy.clamp(safeMinY, safeMaxY),
-        );
-      }
-    }
-
-    // Legalization phase: assign nodes to a rectangular slot grid, similar to EDA row/slot legalization.
-    final slotCols = placementCols * channelPitch - (channelPitch - 1);
-    final slotRows = placementRows * channelPitch - (channelPitch - 1);
-    final safeSlots = <Offset>[];
-    final slotMinX = minX + maxBlockW / 2 + 10;
-    final slotMaxX = maxX - maxBlockW / 2 - 10;
-    final slotMinY = minY + maxBlockH / 2 + 10;
-    final slotMaxY = maxY - maxBlockH / 2 - 10;
-    final pitchX = slotCols <= 1 ? 0.0 : (slotMaxX - slotMinX) / (slotCols - 1);
-    final pitchY = slotRows <= 1 ? 0.0 : (slotMaxY - slotMinY) / (slotRows - 1);
-    // Use sparse indices for block slots; skipped indices become routing channels.
-    for (int r = 0; r < slotRows; r += channelPitch) {
-      for (int c = 0; c < slotCols; c += channelPitch) {
-        safeSlots.add(Offset(slotMinX + c * pitchX, slotMinY + r * pitchY));
-      }
-    }
-
-    final freeSlotIndices = <int>{for (int i = 0; i < safeSlots.length; i++) i};
-    final legalized = <String, Offset>{};
-    final placementOrder = [...nodeOrder]
-      ..sort((a, b) {
-        final byDegree = (degree[b] ?? 0).compareTo(degree[a] ?? 0);
-        if (byDegree != 0) {
-          return byDegree;
-        }
-        return indexByNode[a]!.compareTo(indexByNode[b]!);
-      });
-
-    double directionalPenalty(Offset nodePos, Offset slotPos) {
-      if (directedEdges.isEmpty) {
-        return 0;
-      }
-
-      // Keep slot selection biased toward the chosen Mermaid direction.
-      final dirAxis = isHorizontal
-          ? (slotPos.dx - nodePos.dx)
-          : (slotPos.dy - nodePos.dy);
-      final wrongWay = (-flowSign * dirAxis).clamp(0.0, 220.0);
-      return wrongWay * 0.08;
-    }
-
-    double overlapPenaltyForCandidate(
-      String nodeId,
-      Offset candidate,
-      Map<String, Offset> assigned,
-    ) {
-      final size = sizeByNode[nodeId] ?? const Size(150, 100);
-      var penalty = 0.0;
-      for (final entry in assigned.entries) {
-        final otherSize = sizeByNode[entry.key] ?? const Size(150, 100);
-        final other = entry.value;
-        final dx = (candidate.dx - other.dx).abs();
-        final dy = (candidate.dy - other.dy).abs();
-        final requiredX = (size.width + otherSize.width) / 2 + 14;
-        final requiredY = (size.height + otherSize.height) / 2 + 12;
-        if (dx < requiredX && dy < requiredY) {
-          final ox = requiredX - dx;
-          final oy = requiredY - dy;
-          penalty += 120000 + (ox * ox + oy * oy) * 320;
-        }
-      }
-      return penalty;
-    }
-
-    for (final nodeId in placementOrder) {
-      final current = positions[nodeId]!;
-      int? bestSlot;
-      double bestScore = double.infinity;
-      for (final slotIndex in freeSlotIndices) {
-        final slot = safeSlots[slotIndex];
-        final distanceScore = (current - slot).distanceSquared;
-        final targetScore =
-            (slot - cellTargets[nodeId]!).distanceSquared * 0.35;
-        final score =
-            distanceScore +
-            targetScore +
-            directionalPenalty(current, slot) +
-            overlapPenaltyForCandidate(nodeId, slot, legalized);
-        if (score < bestScore) {
-          bestScore = score;
-          bestSlot = slotIndex;
-        }
-      }
-
-      if (bestSlot == null) {
-        legalized[nodeId] = current;
-      } else {
-        freeSlotIndices.remove(bestSlot);
-        legalized[nodeId] = safeSlots[bestSlot];
-      }
-    }
-
-    positions
-      ..clear()
-      ..addAll(legalized);
-
-    // Short post-legalization relax: preserve slots while shortening wires and reducing crossings.
-    for (int iteration = 0; iteration < 28; iteration++) {
-      final cooling = 1.0 - (iteration / 32.0);
-      for (final id in nodeOrder) {
-        forces[id] = Offset.zero;
-      }
-
-      for (final edge in undirectedEdges) {
-        final a = edge.$1;
-        final b = edge.$2;
-        final pa = positions[a]!;
-        final pb = positions[b]!;
-        final delta = pb - pa;
-        final dist = math.max(1.0, delta.distance);
-        final dir = delta / dist;
-        final spring = dir * ((dist - springRest) * (springK * 1.2));
-        forces[a] = forces[a]! + spring;
-        forces[b] = forces[b]! - spring;
-      }
-
-      if (iteration % 2 == 0 && directedEdges.length > 1) {
-        for (int i = 0; i < directedEdges.length - 1; i++) {
-          final e1 = directedEdges[i];
-          for (int j = i + 1; j < directedEdges.length; j++) {
-            final e2 = directedEdges[j];
-            final shared =
-                e1.$1 == e2.$1 ||
-                e1.$1 == e2.$2 ||
-                e1.$2 == e2.$1 ||
-                e1.$2 == e2.$2;
-            if (shared) {
-              continue;
-            }
-
-            final p1 = positions[e1.$1]!;
-            final p2 = positions[e1.$2]!;
-            final p3 = positions[e2.$1]!;
-            final p4 = positions[e2.$2]!;
-            if (!_segmentsIntersect(p1, p2, p3, p4)) {
-              continue;
-            }
-
-            final d1 = p2 - p1;
-            final d2 = p4 - p3;
-            final n1 = d1.distance > 1e-6
-                ? Offset(-d1.dy, d1.dx) / d1.distance
-                : const Offset(0, 1);
-            final n2 = d2.distance > 1e-6
-                ? Offset(-d2.dy, d2.dx) / d2.distance
-                : const Offset(0, -1);
-            final crossPush = 8.0 * quality.crossingMul;
-
-            forces[e1.$1] = forces[e1.$1]! + n1 * crossPush;
-            forces[e1.$2] = forces[e1.$2]! + n1 * crossPush;
-            forces[e2.$1] = forces[e2.$1]! + n2 * crossPush;
-            forces[e2.$2] = forces[e2.$2]! + n2 * crossPush;
-          }
-        }
-      }
-
-      for (final id in nodeOrder) {
-        final anchor = legalized[id]!;
-        final current = positions[id]!;
-        final force = forces[id]! + (anchor - current) * 0.22;
-        final next = current + force * (0.08 * cooling);
-        positions[id] = Offset(
-          next.dx.clamp(slotMinX, slotMaxX),
-          next.dy.clamp(slotMinY, slotMaxY),
-        );
-      }
-    }
-
-    // Final strict snap to unique placement slots for deterministic PCB-like grid alignment.
-    final strictSnapped = <String, Offset>{};
-    final freeFinalSlots = <int>{for (int i = 0; i < safeSlots.length; i++) i};
-    for (final nodeId in placementOrder) {
-      final current = positions[nodeId]!;
-      int? bestSlot;
-      double bestScore = double.infinity;
-      for (final slotIndex in freeFinalSlots) {
-        final slot = safeSlots[slotIndex];
-        final distanceScore = (current - slot).distanceSquared;
-        final targetScore =
-            (slot - cellTargets[nodeId]!).distanceSquared *
-            quality.snapTargetWeight;
-        final score =
-            distanceScore +
-            targetScore +
-            directionalPenalty(current, slot) +
-            overlapPenaltyForCandidate(nodeId, slot, strictSnapped);
-        if (score < bestScore) {
-          bestScore = score;
-          bestSlot = slotIndex;
-        }
-      }
-
-      if (bestSlot == null) {
-        strictSnapped[nodeId] = current;
-      } else {
-        freeFinalSlots.remove(bestSlot);
-        strictSnapped[nodeId] = safeSlots[bestSlot];
-      }
-    }
-
-    positions
-      ..clear()
-      ..addAll(strictSnapped);
-
-    return _packAutoLayoutComponents(
-      positions,
-      nodeOrder,
-      neighbors,
-      sizeByNode,
-      indexByNode,
-      direction,
-    );
-  }
-
-  Map<String, Offset> _packAutoLayoutComponents(
-    Map<String, Offset> positions,
-    List<String> nodeOrder,
-    Map<String, Set<String>> neighbors,
-    Map<String, Size> sizeByNode,
-    Map<String, int> indexByNode,
-    String direction,
-  ) {
-    if (positions.isEmpty) {
-      return positions;
-    }
-
-    final orderedNodes = [...nodeOrder]
-      ..sort((a, b) => indexByNode[a]!.compareTo(indexByNode[b]!));
-
-    final visited = <String>{};
-    final components = <List<String>>[];
-    for (final start in orderedNodes) {
-      if (!visited.add(start)) {
-        continue;
-      }
-
-      final stack = <String>[start];
-      final component = <String>[];
-      while (stack.isNotEmpty) {
-        final nodeId = stack.removeLast();
-        component.add(nodeId);
-        for (final neighbor in neighbors[nodeId] ?? const <String>{}) {
-          if (visited.add(neighbor)) {
-            stack.add(neighbor);
-          }
-        }
-      }
-
-      component.sort((a, b) {
-        final byDegree = (neighbors[b]?.length ?? 0).compareTo(
-          neighbors[a]?.length ?? 0,
-        );
-        if (byDegree != 0) {
-          return byDegree;
-        }
-        return indexByNode[a]!.compareTo(indexByNode[b]!);
-      });
-      components.add(component);
-    }
-
-    if (components.length <= 1) {
-      return positions;
-    }
-
-    final quality = _placementQualityProfile();
-    final isHorizontal = direction == 'LR' || direction == 'RL';
-    final aspectHint = isHorizontal ? 1.38 : 0.82;
-    final macroCols = math.max(
-      1,
-      math.sqrt(components.length * aspectHint).ceil(),
-    );
-
-    final componentInfos =
-        <
-          ({
-            List<String> nodes,
-            Rect bounds,
-            double width,
-            double height,
-            Offset center,
-          })
-        >[];
-    var widest = 0.0;
-    var tallest = 0.0;
-
-    for (final component in components) {
-      var minX = double.infinity;
-      var minY = double.infinity;
-      var maxX = -double.infinity;
-      var maxY = -double.infinity;
-      var maxNodeW = 150.0;
-      var maxNodeH = 100.0;
-
-      for (final nodeId in component) {
-        final point = positions[nodeId] ?? Offset.zero;
-        final size = sizeByNode[nodeId] ?? const Size(150, 100);
-        final halfW = size.width / 2;
-        final halfH = size.height / 2;
-        minX = math.min(minX, point.dx - halfW);
-        minY = math.min(minY, point.dy - halfH);
-        maxX = math.max(maxX, point.dx + halfW);
-        maxY = math.max(maxY, point.dy + halfH);
-        maxNodeW = math.max(maxNodeW, size.width);
-        maxNodeH = math.max(maxNodeH, size.height);
-      }
-
-      final componentPaddingX = 54.0 + quality.channelPitch * 8.0;
-      final componentPaddingY = 42.0 + quality.channelPitch * 6.0;
-      final width = math.max(
-        360.0,
-        (maxX - minX) + maxNodeW + componentPaddingX,
-      );
-      final height = math.max(
-        260.0,
-        (maxY - minY) + maxNodeH + componentPaddingY,
-      );
-      final bounds = Rect.fromLTWH(0, 0, width, height);
-      componentInfos.add((
-        nodes: component,
-        bounds: bounds,
-        width: width,
-        height: height,
-        center: Offset((minX + maxX) / 2, (minY + maxY) / 2),
-      ));
-      widest = math.max(widest, width);
-      tallest = math.max(tallest, height);
-    }
-
-    final cellW = math.max(420.0, widest + 72.0);
-    final cellH = math.max(300.0, tallest + 72.0);
-    final baseX = positions.values
-        .map((p) => p.dx)
-        .fold<double>(120.0, math.min);
-    final baseY = positions.values
-        .map((p) => p.dy)
-        .fold<double>(90.0, math.min);
-
-    final packed = Map<String, Offset>.from(positions);
-    for (int index = 0; index < componentInfos.length; index++) {
-      final info = componentInfos[index];
-      final targetCol = index % macroCols;
-      final targetRow = index ~/ macroCols;
-      final targetCenter = Offset(
-        baseX + targetCol * cellW + cellW / 2,
-        baseY + targetRow * cellH + cellH / 2,
-      );
-      final translation = targetCenter - info.center;
-
-      for (final nodeId in info.nodes) {
-        packed[nodeId] = (packed[nodeId] ?? Offset.zero) + translation;
-      }
-    }
-
-    final compacted = _compactPackedLayout(
-      packed,
-      components,
-      neighbors,
-      sizeByNode,
-      direction,
-    );
-    final packedScore = _layoutQualityScore(
-      packed,
-      nodeOrder,
-      neighbors,
-      sizeByNode,
-    );
-    final compactedScore = _layoutQualityScore(
-      compacted,
-      nodeOrder,
-      neighbors,
-      sizeByNode,
-    );
-    return compactedScore < packedScore ? compacted : packed;
-  }
-
-  Map<String, Offset> _compactPackedLayout(
-    Map<String, Offset> positions,
-    List<List<String>> components,
-    Map<String, Set<String>> neighbors,
-    Map<String, Size> sizeByNode,
-    String direction,
-  ) {
-    final quality = _placementQualityProfile();
-    final compacted = Map<String, Offset>.from(positions);
-    final shrink = (direction == 'LR' || direction == 'RL')
-        ? (0.94 - quality.channelPitch * 0.02).clamp(0.84, 0.95)
-        : (0.92 - quality.channelPitch * 0.02).clamp(0.82, 0.94);
-
-    final originalCenters = <int, Offset>{};
-    for (
-      int componentIndex = 0;
-      componentIndex < components.length;
-      componentIndex++
-    ) {
-      final component = components[componentIndex];
-      var sumX = 0.0;
-      var sumY = 0.0;
-      for (final nodeId in component) {
-        final point = compacted[nodeId] ?? Offset.zero;
-        sumX += point.dx;
-        sumY += point.dy;
-      }
-      originalCenters[componentIndex] = Offset(
-        sumX / math.max(1, component.length),
-        sumY / math.max(1, component.length),
-      );
-    }
-
-    for (int iteration = 0; iteration < 8; iteration++) {
-      final forces = <String, Offset>{
-        for (final id in compacted.keys) id: Offset.zero,
-      };
-
-      for (
-        int componentIndex = 0;
-        componentIndex < components.length;
-        componentIndex++
-      ) {
-        final component = components[componentIndex];
-        final componentSet = component.toSet();
-        final componentCenter = originalCenters[componentIndex] ?? Offset.zero;
-
-        for (final nodeId in component) {
-          final current = compacted[nodeId] ?? Offset.zero;
-          final neighborsInComponent =
-              neighbors[nodeId]
-                  ?.where(componentSet.contains)
-                  .toList(growable: false) ??
-              const <String>[];
-
-          if (neighborsInComponent.isNotEmpty) {
-            var medianX = 0.0;
-            var medianY = 0.0;
-            for (final neighbor in neighborsInComponent) {
-              final point = compacted[neighbor] ?? Offset.zero;
-              medianX += point.dx;
-              medianY += point.dy;
-            }
-            medianX /= neighborsInComponent.length;
-            medianY /= neighborsInComponent.length;
-            forces[nodeId] =
-                forces[nodeId]! +
-                Offset(
-                  (medianX - current.dx) * 0.022,
-                  (medianY - current.dy) * 0.022,
-                );
-          }
-
-          forces[nodeId] = forces[nodeId]! + (componentCenter - current) * 0.05;
-        }
-
-        for (int i = 0; i < component.length - 1; i++) {
-          final a = component[i];
-          final pa = compacted[a] ?? Offset.zero;
-          final sa = sizeByNode[a] ?? const Size(150, 100);
-          for (int j = i + 1; j < component.length; j++) {
-            final b = component[j];
-            final pb = compacted[b] ?? Offset.zero;
-            final sb = sizeByNode[b] ?? const Size(150, 100);
-            final dx = pa.dx - pb.dx;
-            final dy = pa.dy - pb.dy;
-            final overlapX = (sa.width + sb.width) / 2 + 18 - dx.abs();
-            final overlapY = (sa.height + sb.height) / 2 + 14 - dy.abs();
-            if (overlapX > 0 && overlapY > 0) {
-              if (overlapX < overlapY) {
-                final sx = dx >= 0 ? 1.0 : -1.0;
-                final push = sx * overlapX * 0.18;
-                forces[a] = forces[a]! + Offset(push, 0);
-                forces[b] = forces[b]! - Offset(push, 0);
-              } else {
-                final sy = dy >= 0 ? 1.0 : -1.0;
-                final push = sy * overlapY * 0.18;
-                forces[a] = forces[a]! + Offset(0, push);
-                forces[b] = forces[b]! - Offset(0, push);
-              }
-            }
-          }
-        }
-      }
-
-      for (final entry in forces.entries) {
-        compacted[entry.key] =
-            (compacted[entry.key] ?? Offset.zero) + entry.value * shrink;
-      }
-
-      for (
-        int componentIndex = 0;
-        componentIndex < components.length;
-        componentIndex++
-      ) {
-        final component = components[componentIndex];
-        var sumX = 0.0;
-        var sumY = 0.0;
-        for (final nodeId in component) {
-          final point = compacted[nodeId] ?? Offset.zero;
-          sumX += point.dx;
-          sumY += point.dy;
-        }
-        final currentCenter = Offset(
-          sumX / math.max(1, component.length),
-          sumY / math.max(1, component.length),
-        );
-        final desiredCenter = originalCenters[componentIndex] ?? currentCenter;
-        final correction = desiredCenter - currentCenter;
-        for (final nodeId in component) {
-          compacted[nodeId] = (compacted[nodeId] ?? Offset.zero) + correction;
-        }
-      }
-    }
-
-    return compacted;
-  }
-
-  double _layoutQualityScore(
-    Map<String, Offset> positions,
-    List<String> nodeOrder,
-    Map<String, Set<String>> neighbors,
-    Map<String, Size> sizeByNode,
-  ) {
-    if (positions.isEmpty) {
-      return 0;
-    }
-
-    var score = 0.0;
-    final rects = <String, Rect>{};
-    var minX = double.infinity;
-    var minY = double.infinity;
-    var maxX = -double.infinity;
-    var maxY = -double.infinity;
-
-    for (final nodeId in nodeOrder) {
-      final point = positions[nodeId];
-      if (point == null) {
-        continue;
-      }
-      final size = sizeByNode[nodeId] ?? const Size(150, 100);
-      final rect = Rect.fromCenter(
-        center: point,
-        width: size.width,
-        height: size.height,
-      );
-      rects[nodeId] = rect;
-      minX = math.min(minX, rect.left);
-      minY = math.min(minY, rect.top);
-      maxX = math.max(maxX, rect.right);
-      maxY = math.max(maxY, rect.bottom);
-    }
-
-    for (final nodeId in nodeOrder) {
-      final point = positions[nodeId];
-      if (point == null) {
-        continue;
-      }
-      for (final neighbor in neighbors[nodeId] ?? const <String>{}) {
-        if (nodeId.compareTo(neighbor) >= 0) {
-          continue;
-        }
-        final other = positions[neighbor];
-        if (other == null) {
-          continue;
-        }
-        score += (point - other).distance;
-      }
-    }
-
-    for (int i = 0; i < nodeOrder.length - 1; i++) {
-      final a = nodeOrder[i];
-      final rectA = rects[a];
-      if (rectA == null) {
-        continue;
-      }
-      for (int j = i + 1; j < nodeOrder.length; j++) {
-        final b = nodeOrder[j];
-        final rectB = rects[b];
-        if (rectB == null) {
-          continue;
-        }
-        final overlapX =
-            math.min(rectA.right, rectB.right) -
-            math.max(rectA.left, rectB.left);
-        final overlapY =
-            math.min(rectA.bottom, rectB.bottom) -
-            math.max(rectA.top, rectB.top);
-        if (overlapX > 0 && overlapY > 0) {
-          score += 120000 + (overlapX * overlapY * 450);
-        }
-      }
-    }
-
-    final area = math.max(1.0, maxX - minX) * math.max(1.0, maxY - minY);
-    score += area * 0.02;
-    return score;
   }
 
   Offset _chooseAnchorUnitTowardRect(
@@ -2009,28 +1115,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return merged;
   }
 
-  bool _segmentsIntersect(Offset a, Offset b, Offset c, Offset d) {
-    double cross(Offset u, Offset v) => u.dx * v.dy - u.dy * v.dx;
-
-    final ab = b - a;
-    final ac = c - a;
-    final ad = d - a;
-    final cd = d - c;
-    final ca = a - c;
-    final cb = b - c;
-
-    final o1 = cross(ab, ac);
-    final o2 = cross(ab, ad);
-    final o3 = cross(cd, ca);
-    final o4 = cross(cd, cb);
-
-    const eps = 1e-8;
-    final proper =
-        ((o1 > eps && o2 < -eps) || (o1 < -eps && o2 > eps)) &&
-        ((o3 > eps && o4 < -eps) || (o3 < -eps && o4 > eps));
-    return proper;
-  }
-
   String _extractMermaidDirection(String source) {
     final match = RegExp(
       r'^(?:flowchart|graph)\s+([A-Za-z]{2})\b',
@@ -2209,6 +1293,114 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       sourceUsage[sourceAnchor] = (sourceUsage[sourceAnchor] ?? 0) + 1;
       targetUsage[targetAnchor] = (targetUsage[targetAnchor] ?? 0) + 1;
     }
+
+    _recomputeAutoLayoutAnchorOrderKeys(targetBlocks, targetLinks);
+  }
+
+  void _recomputeAutoLayoutAnchorOrderKeys(
+    List<Block> targetBlocks,
+    List<BlockLink> targetLinks,
+  ) {
+    final blockById = <String, Block>{
+      for (final block in targetBlocks) block.id: block,
+    };
+
+    final groups =
+        <
+          String,
+          List<
+            ({BlockLink link, bool isSource, double projection, int tieBreak})
+          >
+        >{};
+
+    void pushGroup(
+      String blockId,
+      Offset side,
+      BlockLink link,
+      bool isSource,
+      double projection,
+      int tieBreak,
+    ) {
+      final key =
+          '${blockId}|${side.dx.toStringAsFixed(0)}|${side.dy.toStringAsFixed(0)}';
+      groups.putIfAbsent(
+        key,
+        () =>
+            <
+              ({BlockLink link, bool isSource, double projection, int tieBreak})
+            >[],
+      );
+      groups[key]!.add((
+        link: link,
+        isSource: isSource,
+        projection: projection,
+        tieBreak: tieBreak,
+      ));
+    }
+
+    double sideProjection(Offset side, Offset ownCenter, Offset otherCenter) {
+      final delta = otherCenter - ownCenter;
+      if (side.dx != 0) {
+        return delta.dy;
+      }
+      return delta.dx;
+    }
+
+    Offset centerOf(Block block) {
+      return Offset(
+        block.position.dx + block.size.width / 2,
+        block.position.dy + block.size.height / 2,
+      );
+    }
+
+    for (int i = 0; i < targetLinks.length; i++) {
+      final link = targetLinks[i];
+      final fromBlock = blockById[link.fromBlockId];
+      final toBlock = blockById[link.toBlockId];
+      if (fromBlock == null || toBlock == null) {
+        continue;
+      }
+
+      if (link.sourceAnchorUnit != null) {
+        final side = _anchorSideUnit(link.sourceAnchorUnit!);
+        final projection = sideProjection(
+          side,
+          centerOf(fromBlock),
+          centerOf(toBlock),
+        );
+        pushGroup(link.fromBlockId, side, link, true, projection, i);
+      }
+
+      if (link.targetAnchorUnit != null) {
+        final side = _anchorSideUnit(link.targetAnchorUnit!);
+        final projection = sideProjection(
+          side,
+          centerOf(toBlock),
+          centerOf(fromBlock),
+        );
+        pushGroup(link.toBlockId, side, link, false, projection, i);
+      }
+    }
+
+    for (final entries in groups.values) {
+      entries.sort((a, b) {
+        final byProjection = a.projection.compareTo(b.projection);
+        if (byProjection != 0) {
+          return byProjection;
+        }
+        return a.tieBreak.compareTo(b.tieBreak);
+      });
+
+      for (int idx = 0; idx < entries.length; idx++) {
+        final entry = entries[idx];
+        final key = idx.toDouble();
+        if (entry.isSource) {
+          entry.link.sourceAnchorOrderKey = key;
+        } else {
+          entry.link.targetAnchorOrderKey = key;
+        }
+      }
+    }
   }
 
   void _ensureBlockHasSpaceForAnchorsInGraph(
@@ -2260,15 +1452,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     final requiredModelHeight = requiredCanvasHeight / zoomLevel;
     final requiredModelWidth = requiredCanvasWidth / zoomLevel;
-    final paddingMargin = _anchorPaddingMargin / zoomLevel;
-    final newWidth = math.max(
-      block.size.width,
-      requiredModelWidth + paddingMargin,
-    );
-    final newHeight = math.max(
-      block.size.height,
-      requiredModelHeight + paddingMargin,
-    );
+    final newWidth = math.max(_minBlockWidth, requiredModelWidth);
+    final newHeight = math.max(_minBlockHeight, requiredModelHeight);
 
     if (newWidth != block.size.width || newHeight != block.size.height) {
       block.size = Size(newWidth, newHeight);
@@ -2527,6 +1712,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   void _updateLinksAnchorsForBlock(Block block) {
     // Find all blocks connected to this block
     final connectedBlockIds = <String>{};
+    final dirtyAnchorSideKeys = <String>{};
+
+    void markDirtySide(String blockId, Offset side) {
+      dirtyAnchorSideKeys.add(
+        '${blockId}|${side.dx.toStringAsFixed(0)}|${side.dy.toStringAsFixed(0)}',
+      );
+    }
+
     for (var link in links) {
       if (link.fromBlockId == block.id) {
         connectedBlockIds.add(link.toBlockId);
@@ -2552,16 +1745,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           if (sourceIndex != -1 && targetIndex != -1) {
             final sourceRect = _blockRectCanvas(blocks[sourceIndex]);
             final targetRect = _blockRectCanvas(blocks[targetIndex]);
+            final previousSourceSide = link.sourceAnchorUnit == null
+                ? null
+                : _anchorSideUnit(link.sourceAnchorUnit!);
             final newAnchor = _calculateOptimalAnchorUnit(
               sourceRect,
               targetRect,
             );
-            // Only update if the new anchor is truly opposite to the current one
-            if (link.sourceAnchorUnit != null &&
-                _areAnchorsTrulyOpposite(link.sourceAnchorUnit!, newAnchor)) {
-              link.sourceAnchorUnit = newAnchor;
-            } else {
-              link.sourceAnchorUnit ??= newAnchor;
+            link.sourceAnchorUnit = newAnchor;
+            final newSourceSide = _anchorSideUnit(newAnchor);
+            if (previousSourceSide == null ||
+                previousSourceSide != newSourceSide) {
+              markDirtySide(link.fromBlockId, newSourceSide);
+              if (link.targetAnchorUnit != null) {
+                markDirtySide(
+                  link.toBlockId,
+                  _anchorSideUnit(link.targetAnchorUnit!),
+                );
+              }
             }
           }
         }
@@ -2574,16 +1775,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           if (sourceIndex != -1 && targetIndex != -1) {
             final sourceRect = _blockRectCanvas(blocks[sourceIndex]);
             final targetRect = _blockRectCanvas(blocks[targetIndex]);
+            final previousTargetSide = link.targetAnchorUnit == null
+                ? null
+                : _anchorSideUnit(link.targetAnchorUnit!);
             final newAnchor = _calculateOptimalAnchorUnit(
               targetRect,
               sourceRect,
             );
-            // Only update if the new anchor is truly opposite to the current one
-            if (link.targetAnchorUnit != null &&
-                _areAnchorsTrulyOpposite(link.targetAnchorUnit!, newAnchor)) {
-              link.targetAnchorUnit = newAnchor;
-            } else {
-              link.targetAnchorUnit ??= newAnchor;
+            link.targetAnchorUnit = newAnchor;
+            final newTargetSide = _anchorSideUnit(newAnchor);
+            if (previousTargetSide == null ||
+                previousTargetSide != newTargetSide) {
+              markDirtySide(link.toBlockId, newTargetSide);
+              if (link.sourceAnchorUnit != null) {
+                markDirtySide(
+                  link.fromBlockId,
+                  _anchorSideUnit(link.sourceAnchorUnit!),
+                );
+              }
             }
           }
         }
@@ -2594,14 +1803,92 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         _ensureBlockHasSpaceForAnchors(blocks[blockIndex]);
       }
     }
+
+    for (final dirtyKey in dirtyAnchorSideKeys) {
+      final parts = dirtyKey.split('|');
+      if (parts.length != 3) {
+        continue;
+      }
+      final blockId = parts[0];
+      final side = Offset(
+        double.tryParse(parts[1]) ?? 0,
+        double.tryParse(parts[2]) ?? 0,
+      );
+      final anchorBlockIndex = blocks.indexWhere((b) => b.id == blockId);
+      if (anchorBlockIndex == -1) {
+        continue;
+      }
+      _recomputeAnchorOrderKeysForBlockSide(blocks[anchorBlockIndex], side);
+    }
   }
 
-  /// Check if two anchor units are truly opposite (e.g., left vs right, top vs bottom)
-  bool _areAnchorsTrulyOpposite(Offset current, Offset newAnchor) {
-    // Two anchors are truly opposite if their dot product is -1
-    final dotProduct = current.dx * newAnchor.dx + current.dy * newAnchor.dy;
-    return dotProduct <
-        -0.5; // Less than -0.5 to account for floating point precision
+  void _recomputeAnchorOrderKeysForBlockSide(Block block, Offset side) {
+    final sideAnchors =
+        <({BlockLink link, bool isSource, double sortKey, int linkIndex})>[];
+
+    double orderKeyFromOtherBlockCenter(Offset otherCenter) {
+      if (side.dx.abs() >= side.dy.abs()) {
+        return otherCenter.dy;
+      }
+      return otherCenter.dx;
+    }
+
+    for (int i = 0; i < links.length; i++) {
+      final link = links[i];
+      if (link.fromBlockId == block.id && link.sourceAnchorUnit != null) {
+        final currentSide = _anchorSideUnit(link.sourceAnchorUnit!);
+        if (currentSide == side) {
+          final otherIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
+          if (otherIndex == -1) {
+            continue;
+          }
+          sideAnchors.add((
+            link: link,
+            isSource: true,
+            sortKey: orderKeyFromOtherBlockCenter(
+              _blockRectCanvas(blocks[otherIndex]).center,
+            ),
+            linkIndex: i,
+          ));
+        }
+      }
+
+      if (link.toBlockId == block.id && link.targetAnchorUnit != null) {
+        final currentSide = _anchorSideUnit(link.targetAnchorUnit!);
+        if (currentSide == side) {
+          final otherIndex = blocks.indexWhere((b) => b.id == link.fromBlockId);
+          if (otherIndex == -1) {
+            continue;
+          }
+          sideAnchors.add((
+            link: link,
+            isSource: false,
+            sortKey: orderKeyFromOtherBlockCenter(
+              _blockRectCanvas(blocks[otherIndex]).center,
+            ),
+            linkIndex: i,
+          ));
+        }
+      }
+    }
+
+    sideAnchors.sort((a, b) {
+      final bySortKey = a.sortKey.compareTo(b.sortKey);
+      if (bySortKey != 0) {
+        return bySortKey;
+      }
+      return a.linkIndex.compareTo(b.linkIndex);
+    });
+
+    for (int i = 0; i < sideAnchors.length; i++) {
+      final entry = sideAnchors[i];
+      final orderKey = i.toDouble();
+      if (entry.isSource) {
+        entry.link.sourceAnchorOrderKey = orderKey;
+      } else {
+        entry.link.targetAnchorOrderKey = orderKey;
+      }
+    }
   }
 
   Offset _getBlockCenter(Block block) {
@@ -2822,17 +2109,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     final requiredModelHeight = requiredCanvasHeight / zoomLevel;
     final requiredModelWidth = requiredCanvasWidth / zoomLevel;
-
-    // Add padding margin to allow easy addition of new anchors
-    final paddingMargin = _anchorPaddingMargin / zoomLevel;
-    final newWidth = math.max(
-      block.size.width,
-      requiredModelWidth + paddingMargin,
-    );
-    final newHeight = math.max(
-      block.size.height,
-      requiredModelHeight + paddingMargin,
-    );
+    final newWidth = math.max(_minBlockWidth, requiredModelWidth);
+    final newHeight = math.max(_minBlockHeight, requiredModelHeight);
 
     if (newWidth != block.size.width || newHeight != block.size.height) {
       block.size = Size(newWidth, newHeight);
@@ -3485,6 +2763,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   .toList();
             },
             icon: const Icon(Icons.tune),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Ecart blocs ($_blockSpacingMode)',
+            onSelected: (value) {
+              setState(() {
+                _blockSpacingMode = value;
+              });
+            },
+            itemBuilder: (context) {
+              return _blockSpacingModes
+                  .map(
+                    (spacing) => CheckedPopupMenuItem<String>(
+                      value: spacing,
+                      checked: _blockSpacingMode == spacing,
+                      child: Text(spacing),
+                    ),
+                  )
+                  .toList();
+            },
+            icon: const Icon(Icons.space_bar),
           ),
           IconButton(
             icon: const Icon(Icons.auto_fix_high),
