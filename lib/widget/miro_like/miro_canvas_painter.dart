@@ -141,8 +141,18 @@ class MiroCanvasPainter extends CustomPainter {
             )
           : _pointOnRectBorderTowards(toRect, toReference);
 
-      final startTangent = _axisNormalForBorderPoint(fromRect, fromEdge);
-      final targetOutward = _axisNormalForBorderPoint(toRect, toEdge);
+      final startTangent = _outwardTangentForLinkEndpoint(
+        link,
+        isSource: true,
+        rect: fromRect,
+        edgePoint: fromEdge,
+      );
+      final targetOutward = _outwardTangentForLinkEndpoint(
+        link,
+        isSource: false,
+        rect: toRect,
+        edgePoint: toEdge,
+      );
       final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
 
       final linkBaseColor = kLinkColorMap[link.colorKey] ?? colorLinkDefault;
@@ -330,6 +340,19 @@ class MiroCanvasPainter extends CustomPainter {
       return Offset(vector.dx >= 0 ? 1 : -1, 0);
     }
     return Offset(0, vector.dy >= 0 ? 1 : -1);
+  }
+
+  Offset _outwardTangentForLinkEndpoint(
+    BlockLink link, {
+    required bool isSource,
+    required Rect rect,
+    required Offset edgePoint,
+  }) {
+    final anchorUnit = isSource ? link.sourceAnchorUnit : link.targetAnchorUnit;
+    if (anchorUnit != null) {
+      return _anchorSideUnit(anchorUnit);
+    }
+    return _axisNormalForBorderPoint(rect, edgePoint);
   }
 
   Offset _unitOrFallback(Offset value, Offset fallback) {

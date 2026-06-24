@@ -2386,8 +2386,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     final fromRect = linkData.$4;
     final toRect = linkData.$5;
 
-    final startTangent = axisNormalForBorderPoint(fromRect, fromEdge);
-    final targetOutward = axisNormalForBorderPoint(toRect, toEdge);
+    final startTangent = _outwardTangentForLinkEndpoint(
+      link,
+      isSource: true,
+      rect: fromRect,
+      edgePoint: fromEdge,
+    );
+    final targetOutward = _outwardTangentForLinkEndpoint(
+      link,
+      isSource: false,
+      rect: toRect,
+      edgePoint: toEdge,
+    );
     final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
 
     final path = buildConnectorPath(
@@ -2400,6 +2410,19 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     );
 
     return path;
+  }
+
+  Offset _outwardTangentForLinkEndpoint(
+    BlockLink link, {
+    required bool isSource,
+    required Rect rect,
+    required Offset edgePoint,
+  }) {
+    final anchorUnit = isSource ? link.sourceAnchorUnit : link.targetAnchorUnit;
+    if (anchorUnit != null) {
+      return _anchorSideUnit(anchorUnit);
+    }
+    return axisNormalForBorderPoint(rect, edgePoint);
   }
 
   (double, Offset)? _closestDistanceAndPointOnPath(
@@ -2585,8 +2608,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     final toRect = linkData.$5;
 
     // Compute tangents the same way the painter does
-    final startTangent = axisNormalForBorderPoint(fromRect, fromEdge);
-    final targetOutward = axisNormalForBorderPoint(toRect, toEdge);
+    final startTangent = _outwardTangentForLinkEndpoint(
+      link,
+      isSource: true,
+      rect: fromRect,
+      edgePoint: fromEdge,
+    );
+    final targetOutward = _outwardTangentForLinkEndpoint(
+      link,
+      isSource: false,
+      rect: toRect,
+      edgePoint: toEdge,
+    );
     final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
 
     // Build the exact same path as the painter so the hit area matches
