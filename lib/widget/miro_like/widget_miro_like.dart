@@ -81,6 +81,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     'Normal',
     'Plus ecarte',
   ];
+  static const List<String> _alignmentPriorityModes = [
+    'Normal',
+    'Fort',
+    'Extreme',
+  ];
 
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
@@ -100,6 +105,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   String _mermaidLayoutDirection = 'LR';
   String _placementQuality = 'Dense';
   String _blockSpacingMode = 'Normal';
+  String _alignmentPriorityMode = 'Normal';
   double? _snapLeftModel;
   double? _snapTopModel;
   Offset? _dragFreePositionModel;
@@ -113,6 +119,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       case 'Normal':
       default:
         return 1.0;
+    }
+  }
+
+  double _alignmentPriorityMultiplier() {
+    switch (_alignmentPriorityMode) {
+      case 'Normal':
+        return 0.0;
+      case 'Fort':
+        return 1.0;
+      case 'Extreme':
+      default:
+        return 2.0;
     }
   }
 
@@ -719,6 +737,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         spacingMul: _blockSpacingMultiplier(),
         channelPitch: quality.channelPitch,
         snapTargetWeight: quality.snapTargetWeight,
+        alignmentPriority: _alignmentPriorityMultiplier(),
       ),
       seedPositions: seedPositions,
     );
@@ -2783,6 +2802,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   .toList();
             },
             icon: const Icon(Icons.space_bar),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Priorite alignement ($_alignmentPriorityMode)',
+            onSelected: (value) {
+              setState(() {
+                _alignmentPriorityMode = value;
+              });
+            },
+            itemBuilder: (context) {
+              return _alignmentPriorityModes
+                  .map(
+                    (mode) => CheckedPopupMenuItem<String>(
+                      value: mode,
+                      checked: _alignmentPriorityMode == mode,
+                      child: Text(mode),
+                    ),
+                  )
+                  .toList();
+            },
+            icon: const Icon(Icons.align_horizontal_left),
           ),
           IconButton(
             icon: const Icon(Icons.auto_fix_high),

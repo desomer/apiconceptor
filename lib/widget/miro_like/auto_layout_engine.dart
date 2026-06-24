@@ -14,6 +14,7 @@ class AutoLayoutQualityProfile {
   final double spacingMul;
   final int channelPitch;
   final double snapTargetWeight;
+  final double alignmentPriority;
 
   const AutoLayoutQualityProfile({
     required this.iterationMul,
@@ -25,6 +26,7 @@ class AutoLayoutQualityProfile {
     required this.spacingMul,
     required this.channelPitch,
     required this.snapTargetWeight,
+    required this.alignmentPriority,
   });
 }
 
@@ -112,6 +114,10 @@ class AutoLayoutEngine {
     final crossingK = 34.0 * quality.crossingMul;
     final blockCutK = 44.0 * quality.hpwlMul;
     final medianK = 0.018 * quality.hpwlMul;
+    final alignPriority = quality.alignmentPriority.clamp(0.0, 2.0);
+    final edgeAlignK =
+        (0.036 + 0.028 * alignPriority) *
+        (1.0 + (1.2 + 0.8 * alignPriority) * quality.snapTargetWeight);
     final anchorK = hasSeeds ? (0.12 + 0.16 * quality.snapTargetWeight) : 0.0;
     final preserveDistanceK = hasSeeds ? 0.11 : 0.0;
 
@@ -257,6 +263,66 @@ class AutoLayoutEngine {
         }
       }
 
+      final earlyAlignBoost =
+          iter < (iterations * (0.62 + 0.22 * alignPriority))
+          ? (2.2 + 2.8 * alignPriority)
+          : (1.0 + 0.25 * alignPriority);
+      final alignBand = isHorizontal
+          ? (130.0 + 60.0 * alignPriority)
+          : (110.0 + 50.0 * alignPriority);
+      final pairDistanceLimit = 950.0 + 500.0 * alignPriority;
+      final coolingAlignScale = 0.35 + 0.20 * alignPriority;
+      for (int i = 0; i < nodeOrder.length - 1; i++) {
+        final a = nodeOrder[i];
+        final pa = positions[a]!;
+        final sa = sizeByNode[a]!;
+        final ca = _nodeCenter(pa, sa);
+        final topA = pa.dy;
+        final rightA = pa.dx + sa.width;
+
+        for (int j = i + 1; j < nodeOrder.length; j++) {
+          final b = nodeOrder[j];
+          final pb = positions[b]!;
+          final sb = sizeByNode[b]!;
+          final cb = _nodeCenter(pb, sb);
+
+          final pairDist = (ca - cb).distance;
+          if (pairDist > pairDistanceLimit) {
+            continue;
+          }
+
+          final topB = pb.dy;
+          final dTop = topB - topA;
+          final absTop = dTop.abs();
+          if (absTop <= alignBand) {
+            final normalized = 1.0 - (absTop / alignBand);
+            final k =
+                edgeAlignK *
+                earlyAlignBoost *
+                normalized *
+                (coolingAlignScale + cooling);
+            final fy = dTop * k;
+            forces[a] = forces[a]! + Offset(0, fy);
+            forces[b] = forces[b]! - Offset(0, fy);
+          }
+
+          final rightB = pb.dx + sb.width;
+          final dRight = rightB - rightA;
+          final absRight = dRight.abs();
+          if (absRight <= alignBand) {
+            final normalized = 1.0 - (absRight / alignBand);
+            final k =
+                edgeAlignK *
+                earlyAlignBoost *
+                normalized *
+                (coolingAlignScale + cooling);
+            final fx = dRight * k;
+            forces[a] = forces[a]! + Offset(fx, 0);
+            forces[b] = forces[b]! - Offset(fx, 0);
+          }
+        }
+      }
+
       if (allEdges.length > 1) {
         for (int i = 0; i < allEdges.length - 1; i++) {
           final e1 = allEdges[i];
@@ -368,7 +434,7 @@ class AutoLayoutEngine {
       final baseStep = (0.16 * cooling).clamp(0.018, 0.16);
       for (final id in nodeOrder) {
         final conflict = conflictScore[id] ?? 0.0;
-        final stableMul = hasSeeds ? (conflict > 0.05 ? 1.0 : 0.12) : 1.0;
+        final stableMul = hasSeeds ? (conflict > 0.05 ? 1.0 : 0.28) : 1.0;
         var step = forces[id]! * (baseStep * stableMul);
 
         final maxStep = 34.0 * (0.35 + cooling);
@@ -379,7 +445,7 @@ class AutoLayoutEngine {
         var next = positions[id]! + step;
         if (hasSeeds && seeded.containsKey(id)) {
           final anchor = seeded[id]!;
-          final maxRadius = conflict > 0.05 ? 260.0 : 20.0;
+          final maxRadius = conflict > 0.05 ? 340.0 : 110.0;
           final delta = next - anchor;
           if (delta.distance > maxRadius) {
             next = anchor + (delta / delta.distance) * maxRadius;
@@ -404,6 +470,7 @@ class AutoLayoutEngine {
       neighbors: neighbors,
       direction: direction,
       minGap: blockGap,
+      alignmentPriority: alignPriority,
     );
 
     _snapSeedJitterIfSafe(
@@ -440,12 +507,20 @@ class AutoLayoutEngine {
         sizeByNode,
         allEdges,
       );
+      final finalAlignment = _edgeAlignmentScore(positions, sizeByNode);
+      final seedAlignment = _edgeAlignmentScore(seededPositions, sizeByNode);
 
       final betterPenalty = finalPenalty + 1e-6 < seedPenalty;
       final equalPenalty = (finalPenalty - seedPenalty).abs() <= 1e-6;
       final betterLength = finalLength < seedLength * 0.995;
+      final betterAlignment =
+          finalAlignment > seedAlignment + (2.2 - 0.7 * alignPriority);
+      final keepsHardConstraints = finalPenalty <= seedPenalty + 1e-6;
 
-      if (!(betterPenalty || (equalPenalty && betterLength))) {
+      if (!(keepsHardConstraints &&
+          (betterPenalty ||
+              betterAlignment ||
+              (equalPenalty && betterLength)))) {
         return seededPositions;
       }
     }
@@ -461,12 +536,16 @@ class AutoLayoutEngine {
     required Map<String, Set<String>> neighbors,
     required String direction,
     required double minGap,
+    required double alignmentPriority,
   }) {
     if (nodeOrder.length < 2) {
       return;
     }
 
-    final alignTolerance = direction == 'LR' || direction == 'RL' ? 46.0 : 38.0;
+    final clampedPriority = alignmentPriority.clamp(0.0, 2.0);
+    final alignTolerance = direction == 'LR' || direction == 'RL'
+        ? (86.0 + 34.0 * clampedPriority)
+        : (68.0 + 28.0 * clampedPriority);
     const minUsefulShift = 1.0;
 
     final baselinePenalty = _hardConstraintPenalty(
@@ -478,6 +557,7 @@ class AutoLayoutEngine {
     );
     var currentPenalty = baselinePenalty;
     var currentLength = _totalEdgeLength(positions, sizeByNode, allEdges);
+    var currentAlignment = _edgeAlignmentScore(positions, sizeByNode);
 
     Map<String, Offset> buildAlignedCandidate({
       required Map<String, Offset> source,
@@ -537,34 +617,45 @@ class AutoLayoutEngine {
         minGap: minGap,
       );
       final length = _totalEdgeLength(candidate, sizeByNode, allEdges);
+      final alignment = _edgeAlignmentScore(candidate, sizeByNode);
       final keepsHardConstraints = penalty <= currentPenalty + 1e-6;
-      final keepsLengthReasonable = length <= currentLength * 1.03;
-      if (keepsHardConstraints && keepsLengthReasonable) {
+      final improvesAlignment =
+          alignment > currentAlignment + (0.8 - 0.25 * clampedPriority);
+      final keepsLengthReasonable =
+          length <= currentLength * (1.22 + 0.08 * clampedPriority);
+      final acceptsTradeoff =
+          improvesAlignment &&
+          length <= currentLength * (1.35 + 0.20 * clampedPriority);
+      if (keepsHardConstraints && (keepsLengthReasonable || acceptsTradeoff)) {
         positions
           ..clear()
           ..addAll(candidate);
         currentPenalty = penalty;
         currentLength = length;
+        currentAlignment = alignment;
         return true;
       }
       return false;
     }
 
-    final topCandidate = buildAlignedCandidate(
-      source: positions,
-      alignTop: true,
-    );
-    tryAccept(topCandidate);
-    final rightCandidate = buildAlignedCandidate(
-      source: positions,
-      alignTop: false,
-    );
-    tryAccept(rightCandidate);
-    final bothCandidate = buildAlignedCandidate(
-      source: buildAlignedCandidate(source: positions, alignTop: true),
-      alignTop: false,
-    );
-    tryAccept(bothCandidate);
+    final passCount = (3 + clampedPriority.round()).clamp(3, 5);
+    for (int pass = 0; pass < passCount; pass++) {
+      final topCandidate = buildAlignedCandidate(
+        source: positions,
+        alignTop: true,
+      );
+      tryAccept(topCandidate);
+      final rightCandidate = buildAlignedCandidate(
+        source: positions,
+        alignTop: false,
+      );
+      tryAccept(rightCandidate);
+      final bothCandidate = buildAlignedCandidate(
+        source: buildAlignedCandidate(source: positions, alignTop: true),
+        alignTop: false,
+      );
+      tryAccept(bothCandidate);
+    }
   }
 
   static void _snapSeedJitterIfSafe({
@@ -634,6 +725,53 @@ class AutoLayoutEngine {
       total += (_nodeCenter(pa, sa) - _nodeCenter(pb, sb)).distance;
     }
     return total;
+  }
+
+  static double _edgeAlignmentScore(
+    Map<String, Offset> positions,
+    Map<String, Size> sizeByNode,
+  ) {
+    final ids = positions.keys.toList();
+    var score = 0.0;
+
+    for (int i = 0; i < ids.length - 1; i++) {
+      final a = ids[i];
+      final pa = positions[a];
+      final sa = sizeByNode[a];
+      if (pa == null || sa == null) {
+        continue;
+      }
+      final aTop = pa.dy;
+      final aRight = pa.dx + sa.width;
+
+      for (int j = i + 1; j < ids.length; j++) {
+        final b = ids[j];
+        final pb = positions[b];
+        final sb = sizeByNode[b];
+        if (pb == null || sb == null) {
+          continue;
+        }
+        final bTop = pb.dy;
+        final bRight = pb.dx + sb.width;
+
+        final dTop = (aTop - bTop).abs();
+        final dRight = (aRight - bRight).abs();
+
+        if (dTop <= 2.0) {
+          score += 2.2;
+        } else if (dTop <= 8.0) {
+          score += 0.9;
+        }
+
+        if (dRight <= 2.0) {
+          score += 2.2;
+        } else if (dRight <= 8.0) {
+          score += 0.9;
+        }
+      }
+    }
+
+    return score;
   }
 
   static double _hardConstraintPenalty({
