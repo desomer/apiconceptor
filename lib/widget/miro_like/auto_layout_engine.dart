@@ -100,10 +100,11 @@ class AutoLayoutEngine {
           (sum, size) => sum + size.height,
         ) /
         math.max(1, sizeByNode.length);
+    final spacingStrength = quality.spacingMul.clamp(0.55, 2.0);
     final scaledGap =
-        (((avgWidth + avgHeight) * 0.07) + quality.channelPitch * 8.0) *
-        quality.spacingMul;
-    final blockGap = scaledGap.clamp(42.0, 140.0);
+        (((avgWidth + avgHeight) * 0.060) + quality.channelPitch * 7.0) *
+        (0.72 + 0.62 * spacingStrength);
+    final blockGap = scaledGap.clamp(24.0, 200.0);
     final iterations = ((190 + nodeOrder.length * 8) * quality.iterationMul)
         .round()
         .clamp(180, 1000);

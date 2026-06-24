@@ -104,8 +104,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   bool isPanning = false;
   String _mermaidLayoutDirection = 'LR';
   String _placementQuality = 'Dense';
-  String _blockSpacingMode = 'Normal';
-  String _alignmentPriorityMode = 'Normal';
+  String _blockSpacingMode = 'Dense';
+  String _alignmentPriorityMode = 'Fort';
   double? _snapLeftModel;
   double? _snapTopModel;
   Offset? _dragFreePositionModel;
@@ -113,12 +113,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   double _blockSpacingMultiplier() {
     switch (_blockSpacingMode) {
       case 'Dense':
-        return 0.78;
+        return 0.30;
       case 'Plus ecarte':
-        return 1.35;
+        return 1.55;
       case 'Normal':
       default:
-        return 1.0;
+        return 0.70;
     }
   }
 
@@ -127,7 +127,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       case 'Normal':
         return 0;
       case 'Fort':
-        return 1.0;
+        return 0.5;
       case 'Extreme':
       default:
         return 2.0;
@@ -397,6 +397,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         centeredX - minX * zoomLevel,
         centeredY - minY * zoomLevel,
       );
+    });
+  }
+
+  void _fitToViewAfterNextFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _fitToView();
     });
   }
 
@@ -1647,6 +1656,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         _ensureBlockHasSpaceForAnchors(block);
       }
     });
+
+    _fitToViewAfterNextFrame();
   }
 
   void _importBoard(Map<String, dynamic> decoded) {
@@ -1683,6 +1694,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       currentMousePosition = null;
       pendingInflectionPoints.clear();
     });
+
+    _fitToViewAfterNextFrame();
   }
 
   void _endLinking(Block targetBlock) {
@@ -2094,9 +2107,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       return 0;
     }
 
-    // Keep room for anchor handle diameter and edge breathing room.
-    final sidePadding = (_anchorHandleRadius * 2) + 4.0;
-    return (count - 1) * anchorSpacingDistance + (2 * sidePadding);
+    // Compute in canvas units so converting back to model stays zoom-invariant.
+    final spacingDistance = anchorSpacingDistance * zoomLevel;
+    final sidePadding = spacingDistance;
+    return (count - 1) * spacingDistance + (2 * sidePadding);
   }
 
   void _ensureBlockHasSpaceForAnchors(Block block) {
@@ -2157,7 +2171,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     BlockLink link,
     String blockId,
     Offset anchorUnit,
-    int _,
+    int linkIndex,
   ) {
     final side = _anchorSideUnit(anchorUnit);
     if (link.fromBlockId == blockId && link.sourceAnchorUnit != null) {
