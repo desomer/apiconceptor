@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:jsonschema/widget/miro_like/block_model.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 
@@ -6,6 +8,9 @@ class BlockWidget extends StatelessWidget {
   final Block block;
   final bool isSelected;
   final double zoomLevel;
+
+  static final Map<String, Uint8List?> _decodedIconCache =
+      <String, Uint8List?>{};
 
   const BlockWidget({
     super.key,
@@ -84,6 +89,25 @@ class BlockWidget extends StatelessWidget {
     );
   }
 
+  Uint8List? _iconBytes() {
+    final raw = (block.iconBase64 ?? '').trim();
+    if (raw.isEmpty) {
+      return null;
+    }
+    if (_decodedIconCache.containsKey(raw)) {
+      return _decodedIconCache[raw];
+    }
+
+    try {
+      final decoded = base64Decode(raw);
+      _decodedIconCache[raw] = decoded;
+      return decoded;
+    } catch (_) {
+      _decodedIconCache[raw] = null;
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final textScale = zoomLevel;
@@ -96,6 +120,8 @@ class BlockWidget extends StatelessWidget {
         ? colorBlockBorderSelected
         : colorBlockBorder;
     final radius = BorderRadius.circular(18);
+    final iconBytes = _iconBytes();
+    final iconSize = (32.0 * textScale).clamp(22.0, 64.0);
 
     return Container(
       width: block.size.width,
@@ -181,6 +207,30 @@ class BlockWidget extends StatelessWidget {
               ),
             ),
             _buildTagIndicators(),
+            if (iconBytes != null)
+              Positioned(
+                left: 8,
+                top: 8,
+                child: Container(
+                  width: iconSize,
+                  height: iconSize,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      width: 0.9,
+                    ),
+                    color: Colors.black.withValues(alpha: 0.12),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.memory(
+                    iconBytes,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                    gaplessPlayback: true,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

@@ -24,7 +24,8 @@ class ImageUrlToBase64Widget extends StatefulWidget {
 }
 
 class _ImageUrlToBase64WidgetState extends State<ImageUrlToBase64Widget> {
-  static const double _targetIconSize = 50;
+  static const double _previewIconSize = 50;
+  static const int _outputIconSize = 96;
 
   final TextEditingController _urlController = TextEditingController();
   final Dio _dio = Dio();
@@ -126,7 +127,7 @@ class _ImageUrlToBase64WidgetState extends State<ImageUrlToBase64Widget> {
 
       final resized = await _resizeToSquarePng(
         Uint8List.fromList(downloaded),
-        _targetIconSize.toInt(),
+        _outputIconSize,
       );
 
       final base64Value = base64Encode(resized);
@@ -242,8 +243,8 @@ class _ImageUrlToBase64WidgetState extends State<ImageUrlToBase64Widget> {
                 const SizedBox(width: 12),
                 if (_previewBytes != null)
                   Container(
-                    width: _targetIconSize,
-                    height: _targetIconSize,
+                    width: _previewIconSize,
+                    height: _previewIconSize,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFF4A4A55)),
@@ -252,8 +253,8 @@ class _ImageUrlToBase64WidgetState extends State<ImageUrlToBase64Widget> {
                     child: Image.memory(
                       _previewBytes!,
                       fit: BoxFit.cover,
-                      width: _targetIconSize,
-                      height: _targetIconSize,
+                      width: _previewIconSize,
+                      height: _previewIconSize,
                     ),
                   ),
               ],

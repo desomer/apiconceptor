@@ -300,6 +300,78 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _handleBlockIconBase64Changed(Block block, String value) {
+    setState(() {
+      final trimmed = value.trim();
+      block.iconBase64 = trimmed.isEmpty ? null : trimmed;
+    });
+  }
+
+  void _handleBlockPropertiesJsonChanged(Block block, String rawJson) {
+    setState(() {
+      final trimmed = rawJson.trim();
+      if (trimmed.isEmpty) {
+        block.propertiesJson = null;
+        return;
+      }
+
+      final decoded = jsonDecode(trimmed);
+      if (decoded is! Map<String, dynamic>) {
+        return;
+      }
+
+      block.propertiesJson = trimmed;
+
+      final title = decoded['title'];
+      if (title is String) {
+        block.title = _normalizeBlockTitleLineBreaks(title);
+      }
+
+      if (decoded.containsKey('colorKey')) {
+        final dynamicColor = decoded['colorKey'];
+        if (dynamicColor == null) {
+          block.colorKey = null;
+        } else {
+          final colorKey = dynamicColor.toString();
+          if (kBlockColorMap.containsKey(colorKey)) {
+            block.colorKey = colorKey;
+          }
+        }
+      }
+
+      final dynamicTags = decoded['tagColorKeys'];
+      if (dynamicTags is List) {
+        block.tagColorKeys
+          ..clear()
+          ..addAll(
+            dynamicTags
+                .map((e) => e?.toString() ?? '')
+                .where((key) => kBlockTagColorMap.containsKey(key)),
+          );
+      }
+
+      if (decoded.containsKey('iconBase64')) {
+        final dynamicIcon = decoded['iconBase64'];
+        if (dynamicIcon == null) {
+          block.iconBase64 = null;
+        } else {
+          final iconBase64 = dynamicIcon.toString().trim();
+          block.iconBase64 = iconBase64.isEmpty ? null : iconBase64;
+        }
+      }
+
+      final positionRaw = decoded['position'];
+      if (positionRaw is Map) {
+        block.position = _offsetFromJson(positionRaw, fallback: block.position);
+      }
+
+      final sizeRaw = decoded['size'];
+      if (sizeRaw is Map) {
+        block.size = _sizeFromJson(sizeRaw, fallback: block.size);
+      }
+    });
+  }
+
   void _handleLinkNameChanged(BlockLink link, String newName) {
     setState(() {
       link.name = newName;
@@ -510,6 +582,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'title': block.title,
       'colorKey': block.colorKey,
       'tagColorKeys': block.tagColorKeys,
+      'iconBase64': block.iconBase64,
+      'propertiesJson': block.propertiesJson,
       'position': _offsetToJson(block.position),
       'size': _sizeToJson(block.size),
     };
@@ -647,6 +721,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           title: title,
           colorKey: item['colorKey']?.toString(),
           tagColorKeys: parsedTagColorKeys,
+          iconBase64: item['iconBase64']?.toString(),
+          propertiesJson: item['propertiesJson']?.toString(),
           position: _offsetFromJson(item['position']),
           size: _sizeFromJson(item['size']),
         ),
@@ -3143,6 +3219,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             onBlockTitleChanged: _handleBlockTitleChanged,
             onBlockColorChanged: _handleBlockColorChanged,
             onBlockTagsChanged: _handleBlockTagsChanged,
+            onBlockIconBase64Changed: _handleBlockIconBase64Changed,
+            onBlockPropertiesJsonChanged: _handleBlockPropertiesJsonChanged,
             onLinkNameChanged: _handleLinkNameChanged,
             onLinkColorChanged: _handleLinkColorChanged,
             onLinkLabelIconChanged: _handleLinkLabelIconChanged,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'block_model.dart';
 import 'link_model.dart';
+import 'widgets/image2base64_widget.dart';
 
 // Theme colors (same as in widget_miro_like.dart)
 const Color colorPropertiesPanelBg = Color.fromARGB(255, 24, 24, 27);
@@ -16,6 +18,8 @@ class PropertiesPanel extends StatefulWidget {
   final Function(String, String)? onBlockTitleChanged;
   final Function(Block, String?)? onBlockColorChanged;
   final Function(Block, List<String>)? onBlockTagsChanged;
+  final Function(Block, String)? onBlockIconBase64Changed;
+  final Function(Block, String)? onBlockPropertiesJsonChanged;
   final Function(BlockLink, String)? onLinkNameChanged;
   final Function(BlockLink, String?)? onLinkColorChanged;
   final Function(BlockLink, String?)? onLinkLabelIconChanged;
@@ -34,6 +38,8 @@ class PropertiesPanel extends StatefulWidget {
     this.onBlockTitleChanged,
     this.onBlockColorChanged,
     this.onBlockTagsChanged,
+    this.onBlockIconBase64Changed,
+    this.onBlockPropertiesJsonChanged,
     this.onLinkNameChanged,
     this.onLinkColorChanged,
     this.onLinkLabelIconChanged,
@@ -52,15 +58,19 @@ class PropertiesPanel extends StatefulWidget {
 
 class _PropertiesPanelState extends State<PropertiesPanel> {
   late TextEditingController _blockTitleController;
+  late TextEditingController _blockJsonController;
   late TextEditingController _linkNameController;
+  String? _blockJsonError;
 
   @override
   void initState() {
     super.initState();
     _blockTitleController = TextEditingController();
+    _blockJsonController = TextEditingController();
     _linkNameController = TextEditingController();
     if (widget.selectedBlock != null) {
       _blockTitleController.text = widget.selectedBlock!.title;
+      _blockJsonController.text = widget.selectedBlock!.propertiesJson ?? '';
     }
     if (widget.selectedLink != null) {
       _linkNameController.text = widget.selectedLink!.name;
@@ -73,6 +83,8 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     if (widget.selectedBlock != null &&
         oldWidget.selectedBlock?.id != widget.selectedBlock?.id) {
       _blockTitleController.text = widget.selectedBlock!.title;
+      _blockJsonController.text = widget.selectedBlock!.propertiesJson ?? '';
+      _blockJsonError = null;
     }
     if (widget.selectedLink != null &&
         (oldWidget.selectedLink?.fromBlockId !=
@@ -86,8 +98,39 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   @override
   void dispose() {
     _blockTitleController.dispose();
+    _blockJsonController.dispose();
     _linkNameController.dispose();
     super.dispose();
+  }
+
+  void _applyBlockPropertiesJson(Block block) {
+    final raw = _blockJsonController.text.trim();
+    if (raw.isEmpty) {
+      setState(() {
+        _blockJsonError = null;
+      });
+      widget.onBlockPropertiesJsonChanged?.call(block, '');
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        setState(() {
+          _blockJsonError = 'Le JSON doit être un objet (clé/valeur).';
+        });
+        return;
+      }
+
+      setState(() {
+        _blockJsonError = null;
+      });
+      widget.onBlockPropertiesJsonChanged?.call(block, raw);
+    } catch (_) {
+      setState(() {
+        _blockJsonError = 'JSON invalide.';
+      });
+    }
   }
 
   @override
@@ -263,6 +306,78 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           Text(
             'Tags sélectionnés: ${block.tagColorKeys.length}',
             style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 12),
+          ImageUrlToBase64Widget(
+            initialBase64: block.iconBase64,
+            showBase64Text: false,
+            onBase64Changed: (value) {
+              widget.onBlockIconBase64Changed?.call(block, value);
+            },
+          ),
+          const SizedBox(height: 8),
+          if ((block.iconBase64 ?? '').trim().isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () {
+                  widget.onBlockIconBase64Changed?.call(block, '');
+                },
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: const Text('Retirer l\'icône'),
+              ),
+            ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _blockJsonController,
+            minLines: 4,
+            maxLines: 10,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'JSON propriétés bloc',
+              alignLabelWithHint: true,
+              hintText:
+                  '{"title":"Service API","colorKey":"blue","tagColorKeys":["green"],"position":{"dx":120,"dy":80},"size":{"width":240,"height":180}}',
+              hintStyle: const TextStyle(color: colorTextSecondary),
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+            ),
+            onChanged: (_) {
+              if (_blockJsonError != null) {
+                setState(() {
+                  _blockJsonError = null;
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 2,
+            children: const [
+              Text(
+                'Clés supportées: title, colorKey, tagColorKeys, iconBase64, position, size',
+                style: TextStyle(color: colorTextSecondary, fontSize: 12),
+              ),
+            ],
+          ),
+          if (_blockJsonError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _blockJsonError!,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              onPressed: () => _applyBlockPropertiesJson(block),
+              icon: const Icon(Icons.data_object),
+              label: const Text('Appliquer JSON'),
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -591,9 +706,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         border: Border(left: BorderSide(color: colorPanelBorder)),
       ),
       child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: child,
-        ),
+        padding: const EdgeInsets.all(16),
+        child: child,
+      ),
     );
   }
 }

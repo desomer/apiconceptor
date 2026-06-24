@@ -46,6 +46,8 @@ class Block {
   String title;
   String? colorKey;
   List<String> tagColorKeys;
+  String? iconBase64;
+  String? propertiesJson;
   Offset position;
   Size size;
 
@@ -54,6 +56,8 @@ class Block {
     required this.title,
     this.colorKey,
     List<String>? tagColorKeys,
+    this.iconBase64,
+    this.propertiesJson,
     this.position = const Offset(0, 0),
     this.size = const Size(150, 100),
   }) : tagColorKeys = List<String>.from(tagColorKeys ?? const <String>[]);
