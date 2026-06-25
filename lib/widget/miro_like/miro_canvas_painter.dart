@@ -63,6 +63,14 @@ class MiroCanvasPainter extends CustomPainter {
     this.pendingInflectionPoints = const [],
   }) : super(repaint: flowAnimation);
 
+  double _linkStrokeWidth() {
+    return (3.0 * zoomLevel).clamp(0.8, 9.0);
+  }
+
+  double _arrowHeadSize() {
+    return (15.0 * zoomLevel).clamp(4.0, 34.0);
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     _drawDottedGrid(canvas, size);
@@ -70,7 +78,7 @@ class MiroCanvasPainter extends CustomPainter {
     // Dessiner les liens
     final linkPaint = Paint()
       ..color = colorLinkDefault
-      ..strokeWidth = 3
+      ..strokeWidth = _linkStrokeWidth()
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
@@ -209,7 +217,7 @@ class MiroCanvasPainter extends CustomPainter {
         currentMousePosition != null) {
       final tempPaint = Paint()
         ..color = colorLinkCreation
-        ..strokeWidth = 3
+        ..strokeWidth = _linkStrokeWidth()
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
 
@@ -389,7 +397,7 @@ class MiroCanvasPainter extends CustomPainter {
     final effectiveTubeColor = isSelected ? colorLinkSelected : tubeColor;
 
     // Dessiner le tube néon avec effet de glow
-    _drawNeonTube(canvas, path, effectiveTubeColor);
+    _drawNeonTube(canvas, path, effectiveTubeColor, paint.strokeWidth);
 
     // Dessiner les particules qui circulent dans le tube
     _drawFlowParticles(canvas, path, effectiveTubeColor, link: link);
@@ -406,11 +414,12 @@ class MiroCanvasPainter extends CustomPainter {
     Canvas canvas,
     Path path, [
     Color tubeColor = colorLinkDefault,
+    double strokeWidth = 3.0,
   ]) {
     // Tube avec couleur dynamique (bleu par défaut, orange si sélectionné)
     final tubePaint = Paint()
       ..color = tubeColor.withValues(alpha: 0.4)
-      ..strokeWidth = 3
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
@@ -578,7 +587,7 @@ class MiroCanvasPainter extends CustomPainter {
     Paint paint,
     Color color,
   ) {
-    const arrowSize = 15.0;
+    final arrowSize = _arrowHeadSize();
     final arrowPaint = Paint()
       ..color = color
       ..strokeWidth = paint.strokeWidth
@@ -756,7 +765,7 @@ class MiroCanvasPainter extends CustomPainter {
         text: label,
         style: TextStyle(
           color: isSelected ? colorLinkSelected : Colors.white,
-          fontSize: (12.0 * textScale).clamp(7.0, 36.0),
+          fontSize: (12.0 * textScale).clamp(1.0, 36.0),
           fontWeight: FontWeight.w600,
           shadows: const [
             Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
@@ -772,7 +781,7 @@ class MiroCanvasPainter extends CustomPainter {
         text: TextSpan(
           text: String.fromCharCode(iconData.codePoint),
           style: TextStyle(
-            fontSize: (14.0 * textScale).clamp(8.0, 42.0),
+            fontSize: (14.0 * textScale).clamp(1.0, 42.0),
             color: isSelected ? colorLinkSelected : Colors.white,
             fontFamily: iconData.fontFamily,
             package: iconData.fontPackage,

@@ -130,7 +130,7 @@ class BlockWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textScale = zoomLevel;
-    final titleFontSize = (14.0 * textScale).clamp(8.0, 44.0);
+    final titleFontSize = (14.0 * textScale).clamp(1.0, 44.0);
     final paletteColor = kBlockColorMap[block.colorKey] ?? colorBlockBackground;
     final baseColor = isSelected
         ? Color.alphaBlend(colorBlockBackgroundSelected, paletteColor)
