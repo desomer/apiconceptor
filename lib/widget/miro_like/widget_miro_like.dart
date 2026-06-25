@@ -358,6 +358,41 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _reorderZonesOnly(Block zone, {required bool bringToFront}) {
+    if (!zone.isZone) {
+      return;
+    }
+
+    setState(() {
+      final zones = blocks.where((b) => b.isZone).toList(growable: true);
+      final normals = blocks.where((b) => !b.isZone).toList(growable: false);
+      final index = zones.indexWhere((z) => z.id == zone.id);
+      if (index == -1 || zones.length <= 1) {
+        return;
+      }
+
+      final moving = zones.removeAt(index);
+      if (bringToFront) {
+        zones.add(moving);
+      } else {
+        zones.insert(0, moving);
+      }
+
+      blocks
+        ..clear()
+        ..addAll(zones)
+        ..addAll(normals);
+    });
+  }
+
+  void _handleZoneBringToFront(Block zone) {
+    _reorderZonesOnly(zone, bringToFront: true);
+  }
+
+  void _handleZoneSendToBack(Block zone) {
+    _reorderZonesOnly(zone, bringToFront: false);
+  }
+
   void _handleBlockTagsChanged(Block block, List<String> tagColorKeys) {
     setState(() {
       block.tagColorKeys
@@ -3907,6 +3942,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             onBlockTagsChanged: _handleBlockTagsChanged,
             onBlockIconBase64Changed: _handleBlockIconBase64Changed,
             onBlockPropertiesJsonChanged: _handleBlockPropertiesJsonChanged,
+            onZoneBringToFront: _handleZoneBringToFront,
+            onZoneSendToBack: _handleZoneSendToBack,
             onLinkNameChanged: _handleLinkNameChanged,
             onLinkColorChanged: _handleLinkColorChanged,
             onLinkLabelIconChanged: _handleLinkLabelIconChanged,

@@ -20,6 +20,8 @@ class PropertiesPanel extends StatefulWidget {
   final Function(Block, List<String>)? onBlockTagsChanged;
   final Function(Block, String)? onBlockIconBase64Changed;
   final Function(Block, String)? onBlockPropertiesJsonChanged;
+  final Function(Block)? onZoneBringToFront;
+  final Function(Block)? onZoneSendToBack;
   final Function(BlockLink, String)? onLinkNameChanged;
   final Function(BlockLink, String?)? onLinkColorChanged;
   final Function(BlockLink, String?)? onLinkLabelIconChanged;
@@ -41,6 +43,8 @@ class PropertiesPanel extends StatefulWidget {
     this.onBlockTagsChanged,
     this.onBlockIconBase64Changed,
     this.onBlockPropertiesJsonChanged,
+    this.onZoneBringToFront,
+    this.onZoneSendToBack,
     this.onLinkNameChanged,
     this.onLinkColorChanged,
     this.onLinkLabelIconChanged,
@@ -538,6 +542,34 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             onChanged: (value) {
               widget.onBlockColorChanged?.call(block, value);
             },
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () {
+                    widget.onZoneBringToFront?.call(block);
+                  },
+                  icon: const Icon(Icons.flip_to_front),
+                  label: const Text('Mettre au premier plan'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () {
+                    widget.onZoneSendToBack?.call(block);
+                  },
+                  icon: const Icon(Icons.flip_to_back),
+                  label: const Text('Mettre au dernier plan'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
