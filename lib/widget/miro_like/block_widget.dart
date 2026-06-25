@@ -131,6 +131,55 @@ class BlockWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final textScale = zoomLevel;
     final titleFontSize = (14.0 * textScale).clamp(1.0, 44.0);
+    if (block.isZone) {
+      final zoneBaseColor =
+          kBlockColorMap[block.colorKey] ?? colorBlockBackground;
+      final zoneBorderBase = _shiftLightness(zoneBaseColor, 0.20);
+      final zoneBorder = isSelected
+          ? colorBlockBorderSelected.withValues(alpha: 0.95)
+          : zoneBorderBase.withValues(alpha: 0.80);
+      final zoneFill = isSelected
+          ? Color.alphaBlend(
+              colorBlockBackgroundSelected.withValues(alpha: 0.45),
+              zoneBaseColor.withValues(alpha: 0.22),
+            )
+          : zoneBaseColor.withValues(alpha: 0.18);
+      final radius = BorderRadius.circular(14);
+
+      return Container(
+        width: block.size.width,
+        height: block.size.height,
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          color: zoneFill,
+          border: Border.all(color: zoneBorder, width: isSelected ? 2.0 : 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Text(
+              block.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: (13.0 * textScale).clamp(1.0, 34.0),
+                fontWeight: FontWeight.w700,
+                color: Colors.white.withValues(alpha: 0.95),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     final paletteColor = kBlockColorMap[block.colorKey] ?? colorBlockBackground;
     final baseColor = isSelected
         ? Color.alphaBlend(colorBlockBackgroundSelected, paletteColor)

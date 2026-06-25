@@ -193,6 +193,10 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   }
 
   Widget _buildBlockProperties(Block block) {
+    if (block.isZone) {
+      return _buildZoneBlockProperties(block);
+    }
+
     return _buildPanelContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -450,6 +454,90 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           Text(
             'Hauteur: ${block.size.height.toStringAsFixed(1)}',
             style: const TextStyle(color: colorTextSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildZoneBlockProperties(Block block) {
+    return _buildPanelContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Proprietes de la zone',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: colorTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: ValueKey('zone-title-${block.id}'),
+            controller: _blockTitleController,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Nom',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            onChanged: (value) {
+              widget.onBlockTitleChanged?.call(block.id, value);
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String?>(
+            initialValue: block.colorKey,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Couleur',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text(
+                  'Par défaut',
+                  style: TextStyle(color: colorTextPrimary),
+                ),
+              ),
+              ...kBlockColorMap.entries.map((entry) {
+                final label = kBlockColorLabelMap[entry.key] ?? entry.key;
+                return DropdownMenuItem<String?>(
+                  value: entry.key,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: entry.value,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: const TextStyle(color: colorTextPrimary),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            onChanged: (value) {
+              widget.onBlockColorChanged?.call(block, value);
+            },
           ),
         ],
       ),

@@ -69,6 +69,11 @@ const double _minBlockWidth = 200.0;
 const double _minBlockHeight = 150.0;
 const double _alignmentSnapCaptureDistance = 10.0;
 const double _alignmentSnapReleaseDistance = 24.0;
+const double _minZoneWidth = 180.0;
+const double _minZoneHeight = 120.0;
+const double _zoneHandleSize = 14.0;
+
+enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
 
 class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
@@ -253,6 +258,21 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           title: 'Block ${blocks.length + 1}',
           position: (position - canvasOffset) / zoomLevel,
           size: const Size(_minBlockWidth, _minBlockHeight),
+        ),
+      );
+    });
+  }
+
+  void _addZoneBlock(Offset position) {
+    setState(() {
+      final zoneCount = blocks.where((b) => b.isZone).length;
+      blocks.add(
+        Block(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          title: 'Zone ${zoneCount + 1}',
+          kind: BlockKind.zone,
+          position: (position - canvasOffset) / zoomLevel,
+          size: const Size(420, 280),
         ),
       );
     });
@@ -527,6 +547,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _startLinking(Block block) {
+    if (block.isZone) {
+      return;
+    }
     setState(() {
       linkSourceBlock = block;
       linkingFromPoint = _getBlockCenter(block);
@@ -559,6 +582,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     final modelPosition = _toModelPosition(globalPosition);
     for (var b in blocks) {
+      if (b.isZone) {
+        continue;
+      }
       final blockBounds = Rect.fromLTWH(
         b.position.dx,
         b.position.dy,
@@ -630,6 +656,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return {
       'id': block.id,
       'title': block.title,
+      'kind': block.kind.name,
       'colorKey': block.colorKey,
       'tagColorKeys': block.tagColorKeys,
       'iconBase64': block.iconBase64,
@@ -696,13 +723,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   String _generateMermaid() {
+    final exportBlocks = blocks.where((b) => !b.isZone).toList(growable: false);
     final blockIds = <String, String>{};
-    for (var i = 0; i < blocks.length; i++) {
-      blockIds[blocks[i].id] = 'm$i';
+    for (var i = 0; i < exportBlocks.length; i++) {
+      blockIds[exportBlocks[i].id] = 'm$i';
     }
 
     final buffer = StringBuffer('flowchart $_mermaidLayoutDirection\n');
-    for (final block in blocks) {
+    for (final block in exportBlocks) {
       final nodeId = blockIds[block.id];
       if (nodeId == null) {
         continue;
@@ -770,6 +798,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         Block(
           id: id,
           title: title,
+          kind:
+              item['kind']?.toString() == BlockKind.zone.name ||
+                  item['isZone'] == true
+              ? BlockKind.zone
+              : BlockKind.normal,
           colorKey: item['colorKey']?.toString(),
           tagColorKeys: parsedTagColorKeys,
           iconBase64: item['iconBase64']?.toString(),
@@ -1311,14 +1344,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _reorganizeGraphLayout() {
-    if (blocks.isEmpty) {
+    final layoutBlocks = blocks.where((b) => !b.isZone).toList(growable: false);
+    if (layoutBlocks.isEmpty) {
       return;
     }
 
+    final layoutBlockIds = layoutBlocks.map((b) => b.id).toSet();
+    final layoutLinks = links
+        .where(
+          (l) =>
+              layoutBlockIds.contains(l.fromBlockId) &&
+              layoutBlockIds.contains(l.toBlockId),
+        )
+        .toList(growable: false);
+
     setState(() {
       _runAutoLayoutOnGraph(
-        blocks,
-        links,
+        layoutBlocks,
+        layoutLinks,
         _mermaidLayoutDirection,
         preserveCurrentPositions: true,
       );
@@ -1649,39 +1692,51 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     String direction, {
     bool preserveCurrentPositions = false,
   }) {
-    if (targetBlocks.isEmpty) {
+    final layoutBlocks = targetBlocks
+        .where((b) => !b.isZone)
+        .toList(growable: false);
+    if (layoutBlocks.isEmpty) {
       return;
     }
 
-    _applyAutoLayoutLinkGeometry(targetBlocks, targetLinks);
-    for (final block in targetBlocks) {
-      _ensureBlockHasSpaceForAnchorsInGraph(block, targetLinks);
+    final layoutBlockIds = layoutBlocks.map((b) => b.id).toSet();
+    final layoutLinks = targetLinks
+        .where(
+          (l) =>
+              layoutBlockIds.contains(l.fromBlockId) &&
+              layoutBlockIds.contains(l.toBlockId),
+        )
+        .toList(growable: false);
+
+    _applyAutoLayoutLinkGeometry(layoutBlocks, layoutLinks);
+    for (final block in layoutBlocks) {
+      _ensureBlockHasSpaceForAnchorsInGraph(block, layoutLinks);
     }
 
-    final nodeOrder = targetBlocks.map((b) => b.id).toList();
-    final edgeData = targetLinks
+    final nodeOrder = layoutBlocks.map((b) => b.id).toList();
+    final edgeData = layoutLinks
         .map((l) => (fromId: l.fromBlockId, toId: l.toBlockId, label: l.name))
         .toList();
     final positions = _computeMermaidAutoLayout(
       nodeOrder,
       edgeData,
       direction,
-      targetBlocks,
+      layoutBlocks,
       seedPositions: preserveCurrentPositions
-          ? {for (final block in targetBlocks) block.id: block.position}
+          ? {for (final block in layoutBlocks) block.id: block.position}
           : null,
     );
 
-    for (final block in targetBlocks) {
+    for (final block in layoutBlocks) {
       final position = positions[block.id];
       if (position != null) {
         block.position = position;
       }
     }
 
-    _applyAutoLayoutLinkGeometry(targetBlocks, targetLinks);
-    for (final block in targetBlocks) {
-      _ensureBlockHasSpaceForAnchorsInGraph(block, targetLinks);
+    _applyAutoLayoutLinkGeometry(layoutBlocks, layoutLinks);
+    for (final block in layoutBlocks) {
+      _ensureBlockHasSpaceForAnchorsInGraph(block, layoutLinks);
     }
   }
 
@@ -2371,6 +2426,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _ensureBlockHasSpaceForAnchors(Block block) {
+    if (block.isZone) {
+      return;
+    }
+
     int leftCount = 0;
     int rightCount = 0;
     int topCount = 0;
@@ -3061,6 +3120,109 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return widgets;
   }
 
+  void _resizeZoneFromHandle(
+    Block zone,
+    _ZoneResizeHandle handle,
+    DragUpdateDetails details,
+  ) {
+    final delta = Offset(
+      details.delta.dx / zoomLevel,
+      details.delta.dy / zoomLevel,
+    );
+
+    double left = zone.position.dx;
+    double top = zone.position.dy;
+    double right = zone.position.dx + zone.size.width;
+    double bottom = zone.position.dy + zone.size.height;
+
+    switch (handle) {
+      case _ZoneResizeHandle.topLeft:
+        left += delta.dx;
+        top += delta.dy;
+        break;
+      case _ZoneResizeHandle.topRight:
+        right += delta.dx;
+        top += delta.dy;
+        break;
+      case _ZoneResizeHandle.bottomLeft:
+        left += delta.dx;
+        bottom += delta.dy;
+        break;
+      case _ZoneResizeHandle.bottomRight:
+        right += delta.dx;
+        bottom += delta.dy;
+        break;
+    }
+
+    if (right - left < _minZoneWidth) {
+      if (handle == _ZoneResizeHandle.topLeft ||
+          handle == _ZoneResizeHandle.bottomLeft) {
+        left = right - _minZoneWidth;
+      } else {
+        right = left + _minZoneWidth;
+      }
+    }
+    if (bottom - top < _minZoneHeight) {
+      if (handle == _ZoneResizeHandle.topLeft ||
+          handle == _ZoneResizeHandle.topRight) {
+        top = bottom - _minZoneHeight;
+      } else {
+        bottom = top + _minZoneHeight;
+      }
+    }
+
+    zone.position = Offset(left, top);
+    zone.size = Size(right - left, bottom - top);
+  }
+
+  List<Widget> _buildZoneResizeHandles() {
+    final zone = selectedBlock;
+    if (zone == null || !zone.isZone || _selectedBlockIds.length != 1) {
+      return const [];
+    }
+
+    final rect = _blockRectCanvas(zone);
+    final size = (_zoneHandleSize * zoomLevel).clamp(8.0, 20.0);
+    final half = size / 2;
+
+    Widget handle(Offset center, _ZoneResizeHandle type) {
+      return Positioned(
+        left: center.dx - half,
+        top: center.dy - half,
+        width: size,
+        height: size,
+        child: GestureDetector(
+          onPanUpdate: (details) {
+            setState(() {
+              _resizeZoneFromHandle(zone, type, details);
+            });
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.95),
+              border: Border.all(color: Colors.white, width: 1),
+              borderRadius: BorderRadius.circular(3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return [
+      handle(rect.topLeft, _ZoneResizeHandle.topLeft),
+      handle(rect.topRight, _ZoneResizeHandle.topRight),
+      handle(rect.bottomLeft, _ZoneResizeHandle.bottomLeft),
+      handle(rect.bottomRight, _ZoneResizeHandle.bottomRight),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -3071,6 +3233,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             icon: const Icon(Icons.add),
             onPressed: () => _addBlock(Offset(200, 200)),
             tooltip: 'Ajouter un bloc',
+          ),
+          IconButton(
+            icon: const Icon(Icons.crop_square),
+            onPressed: () => _addZoneBlock(Offset(140, 140)),
+            tooltip: 'Ajouter une zone',
           ),
           IconButton(
             icon: const Icon(Icons.delete),
@@ -3237,6 +3404,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               ),
               overlayWidgets: [
                 ..._buildSelectionOverlay(),
+                ..._buildZoneResizeHandles(),
                 ..._buildAnchorHandles(),
                 ..._buildInflectionHandles(),
                 ..._buildLinkLabelHandles(),
@@ -3284,7 +3452,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 setState(() {
                   final modelPosition = _toModelPosition(event.position);
                   bool isOnBlock = false;
-                  for (var block in blocks) {
+                  for (final block in blocks.reversed) {
                     final blockRect = Rect.fromLTWH(
                       block.position.dx,
                       block.position.dy,
@@ -3322,7 +3490,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     return;
                   }
 
-                  for (var block in blocks) {
+                  for (final block in blocks.reversed) {
                     final blockRect = Rect.fromLTWH(
                       block.position.dx,
                       block.position.dy,
@@ -3431,7 +3599,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                           continue;
                         }
                         blocks[idx].position += deltaModel;
-                        _updateLinksAnchorsForBlock(blocks[idx]);
+                        if (!blocks[idx].isZone) {
+                          _updateLinksAnchorsForBlock(blocks[idx]);
+                        }
                       }
                     } else {
                       final proposedPosition =
@@ -3442,7 +3612,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         block,
                         proposedPosition,
                       );
-                      _updateLinksAnchorsForBlock(block);
+                      if (!block.isZone) {
+                        _updateLinksAnchorsForBlock(block);
+                      }
                     }
                   });
                 }

@@ -67,6 +67,11 @@ class MiroCanvasWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final paintOrderedBlocks = <Block>[
+      ...blocks.where((b) => b.isZone),
+      ...blocks.where((b) => !b.isZone),
+    ];
+
     return MouseRegion(
       key: canvasKey,
       cursor: SystemMouseCursors.grab,
@@ -99,7 +104,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
                   onTapDown: onCanvasTapDown,
                   onSecondaryTapDown: onCanvasSecondaryTapDown,
                 ),
-                ...blocks.map((block) {
+                ...paintOrderedBlocks.map((block) {
                   return Positioned(
                     left: block.position.dx * zoomLevel + canvasOffset.dx,
                     top: block.position.dy * zoomLevel + canvasOffset.dy,

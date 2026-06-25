@@ -41,9 +41,12 @@ const Map<String, String> kBlockTagColorLabelMap = {
 };
 
 /// Represents a block in the Miro-like diagram
+enum BlockKind { normal, zone }
+
 class Block {
   String id;
   String title;
+  BlockKind kind;
   String? colorKey;
   List<String> tagColorKeys;
   String? iconBase64;
@@ -54,6 +57,7 @@ class Block {
   Block({
     required this.id,
     required this.title,
+    this.kind = BlockKind.normal,
     this.colorKey,
     List<String>? tagColorKeys,
     this.iconBase64,
@@ -61,4 +65,6 @@ class Block {
     this.position = const Offset(0, 0),
     this.size = const Size(150, 100),
   }) : tagColorKeys = List<String>.from(tagColorKeys ?? const <String>[]);
+
+  bool get isZone => kind == BlockKind.zone;
 }
