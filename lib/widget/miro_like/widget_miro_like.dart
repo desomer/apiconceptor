@@ -126,6 +126,40 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   bool _consumeNextCanvasTap = false;
   DateTime? _lastSecondaryTapTime;
   Offset? _lastSecondaryTapCanvasPosition;
+  String? _draggedZoneId;
+
+  Block? _findTopBlockAtModelPosition(Offset modelPosition) {
+    for (final block in blocks.reversed) {
+      final blockRect = Rect.fromLTWH(
+        block.position.dx,
+        block.position.dy,
+        block.size.width,
+        block.size.height,
+      );
+      if (blockRect.contains(modelPosition)) {
+        return block;
+      }
+    }
+    return null;
+  }
+
+  bool _isInsideStandardBlockAtModelPosition(Offset modelPosition) {
+    for (final block in blocks.reversed) {
+      if (block.isZone) {
+        continue;
+      }
+      final blockRect = Rect.fromLTWH(
+        block.position.dx,
+        block.position.dy,
+        block.size.width,
+        block.size.height,
+      );
+      if (blockRect.contains(modelPosition)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   double _blockSpacingMultiplier() {
     switch (_blockSpacingMode) {
@@ -2262,7 +2296,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           block.size.width,
           block.size.height,
         );
-        if (selectionModelRect.overlaps(blockRect)) {
+        final isSelectedByLasso = block.isZone
+            ? selectionModelRect.contains(blockRect.topLeft) &&
+                  selectionModelRect.contains(blockRect.topRight) &&
+                  selectionModelRect.contains(blockRect.bottomLeft) &&
+                  selectionModelRect.contains(blockRect.bottomRight)
+            : selectionModelRect.overlaps(blockRect);
+        if (isSelectedByLasso) {
           selectedIds.add(block.id);
         }
       }
@@ -3565,23 +3605,44 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               onCanvasSecondaryDragStart: (event) {
                 setState(() {
                   final modelPosition = _toModelPosition(event.position);
-                  bool isOnBlock = false;
-                  for (final block in blocks.reversed) {
-                    final blockRect = Rect.fromLTWH(
-                      block.position.dx,
-                      block.position.dy,
-                      block.size.width,
-                      block.size.height,
-                    );
-                    if (blockRect.contains(modelPosition)) {
-                      isOnBlock = true;
-                      break;
-                    }
+                  if (_isInsideStandardBlockAtModelPosition(modelPosition)) {
+                    _draggedZoneId = null;
+                    isPanning = false;
+                    return;
                   }
-                  isPanning = !isOnBlock;
+
+                  final hitBlock = _findTopBlockAtModelPosition(modelPosition);
+                  if (hitBlock != null && hitBlock.isZone) {
+                    _draggedZoneId = hitBlock.id;
+                    selectedBlock = hitBlock;
+                    _selectedBlockIds
+                      ..clear()
+                      ..add(hitBlock.id);
+                    selectedLink = null;
+                    isPanning = false;
+                    return;
+                  }
+                  _draggedZoneId = null;
+                  isPanning = hitBlock == null;
                 });
               },
               onCanvasSecondaryDragUpdate: (event) {
+                if (_draggedZoneId != null) {
+                  setState(() {
+                    final zoneIndex = blocks.indexWhere(
+                      (b) => b.id == _draggedZoneId,
+                    );
+                    if (zoneIndex == -1) {
+                      return;
+                    }
+                    final zone = blocks[zoneIndex];
+                    zone.position += Offset(
+                      event.delta.dx / zoomLevel,
+                      event.delta.dy / zoomLevel,
+                    );
+                  });
+                  return;
+                }
                 if (isPanning) {
                   setState(() {
                     canvasOffset += event.delta;
@@ -3590,6 +3651,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               },
               onCanvasSecondaryDragEnd: (_) {
                 setState(() {
+                  _draggedZoneId = null;
                   isPanning = false;
                 });
               },
@@ -3618,6 +3680,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   }
 
                   for (final block in blocks.reversed) {
+                    if (block.isZone) {
+                      continue;
+                    }
                     final blockRect = Rect.fromLTWH(
                       block.position.dx,
                       block.position.dy,

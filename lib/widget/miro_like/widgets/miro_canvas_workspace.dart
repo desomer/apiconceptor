@@ -107,6 +107,26 @@ class MiroCanvasWorkspace extends StatelessWidget {
                   onSecondaryTapDown: onCanvasSecondaryTapDown,
                 ),
                 ...paintOrderedBlocks.map((block) {
+                  if (block.isZone) {
+                    return Positioned(
+                      left: block.position.dx * zoomLevel + canvasOffset.dx,
+                      top: block.position.dy * zoomLevel + canvasOffset.dy,
+                      width: block.size.width * zoomLevel,
+                      height: block.size.height * zoomLevel,
+                      child: IgnorePointer(
+                        ignoring: true,
+                        child: BlockWidget(
+                          block: block,
+                          isSelected:
+                              selectedBlock == block ||
+                              selectedBlockIds.contains(block.id),
+                          zoomLevel: zoomLevel,
+                          onInfoTap: null,
+                        ),
+                      ),
+                    );
+                  }
+
                   return Positioned(
                     left: block.position.dx * zoomLevel + canvasOffset.dx,
                     top: block.position.dy * zoomLevel + canvasOffset.dy,
@@ -121,8 +141,10 @@ class MiroCanvasWorkspace extends StatelessWidget {
                         }
                       },
                       onPointerMove: (event) {
-                        if (linkSourceBlock != null &&
-                            isSecondaryButtonPressed(event.buttons)) {
+                        if (!isSecondaryButtonPressed(event.buttons)) {
+                          return;
+                        }
+                        if (linkSourceBlock != null) {
                           onUpdateLinkPreviewFromGlobal(event.position);
                         }
                       },
@@ -143,9 +165,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
                               selectedBlock == block ||
                               selectedBlockIds.contains(block.id),
                           zoomLevel: zoomLevel,
-                          onInfoTap: block.isZone
-                              ? null
-                              : () => onBlockInfoTap(block),
+                          onInfoTap: () => onBlockInfoTap(block),
                         ),
                       ),
                     ),
