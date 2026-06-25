@@ -487,6 +487,42 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _showBlockInfoDialog(Block block) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Info bloc'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Nom: ${block.title}'),
+              const SizedBox(height: 6),
+              Text('ID: ${block.id}'),
+              const SizedBox(height: 6),
+              Text('Couleur: ${block.colorKey ?? 'Par défaut'}'),
+              const SizedBox(height: 6),
+              Text(
+                'Position: ${block.position.dx.toStringAsFixed(1)}, ${block.position.dy.toStringAsFixed(1)}',
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Taille: ${block.size.width.toStringAsFixed(1)} x ${block.size.height.toStringAsFixed(1)}',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Fermer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _fitToView() {
     if (blocks.isEmpty) {
       return;
@@ -3644,6 +3680,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   selectedLink = null;
                   _resetBlockDragSnap();
                 });
+              },
+              onBlockInfoTap: (block) {
+                _showBlockInfoDialog(block);
               },
               selectedBlockIds: _selectedBlockIds,
             ),

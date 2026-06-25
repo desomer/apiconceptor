@@ -8,6 +8,7 @@ class BlockWidget extends StatelessWidget {
   final Block block;
   final bool isSelected;
   final double zoomLevel;
+  final VoidCallback? onInfoTap;
 
   static final Map<String, Uint8List?> _decodedIconCache =
       <String, Uint8List?>{};
@@ -17,6 +18,7 @@ class BlockWidget extends StatelessWidget {
     required this.block,
     required this.isSelected,
     required this.zoomLevel,
+    this.onInfoTap,
   });
 
   Color _shiftLightness(Color color, double amount) {
@@ -190,6 +192,7 @@ class BlockWidget extends StatelessWidget {
     final radius = BorderRadius.circular(18);
     final iconBytes = _iconBytes();
     final iconSize = (42.0 * textScale).clamp(30.0, 92.0);
+    final infoIconSize = (15.0 * textScale).clamp(1.0, 22.0);
 
     return Container(
       width: block.size.width,
@@ -295,6 +298,19 @@ class BlockWidget extends StatelessWidget {
                   ),
                 ),
               ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: GestureDetector(
+                onTap: onInfoTap,
+                behavior: HitTestBehavior.opaque,
+                child: Icon(
+                  Icons.info_outline,
+                  color: Colors.white.withValues(alpha: 0.95),
+                  size: infoIconSize,
+                ),
+              ),
+            ),
           ],
         ),
       ),

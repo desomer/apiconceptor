@@ -32,6 +32,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
   final void Function(Block block, DragUpdateDetails details) onBlockPanUpdate;
   final void Function(Block block) onBlockPanEnd;
   final void Function(Block block) onBlockTapDown;
+  final void Function(Block block) onBlockInfoTap;
 
   const MiroCanvasWorkspace({
     super.key,
@@ -63,6 +64,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
     required this.onBlockPanUpdate,
     required this.onBlockPanEnd,
     required this.onBlockTapDown,
+    required this.onBlockInfoTap,
   });
 
   @override
@@ -141,6 +143,9 @@ class MiroCanvasWorkspace extends StatelessWidget {
                               selectedBlock == block ||
                               selectedBlockIds.contains(block.id),
                           zoomLevel: zoomLevel,
+                          onInfoTap: block.isZone
+                              ? null
+                              : () => onBlockInfoTap(block),
                         ),
                       ),
                     ),
