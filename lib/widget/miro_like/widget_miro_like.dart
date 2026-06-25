@@ -123,6 +123,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset? _selectionStartCanvas;
   Offset? _selectionCurrentCanvas;
   bool _isBoxSelecting = false;
+  DateTime? _lastSecondaryTapTime;
+  Offset? _lastSecondaryTapCanvasPosition;
 
   double _blockSpacingMultiplier() {
     switch (_blockSpacingMode) {
@@ -2880,6 +2882,60 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return null;
   }
 
+  Block? _findBlockNearModelPosition(Offset modelPosition) {
+    final modelTolerance = 10.0 / zoomLevel;
+    for (final block in blocks.reversed) {
+      final blockRect = Rect.fromLTWH(
+        block.position.dx,
+        block.position.dy,
+        block.size.width,
+        block.size.height,
+      ).inflate(modelTolerance);
+      if (blockRect.contains(modelPosition)) {
+        return block;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _showCanvasCreationMenu(Offset globalPosition) async {
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlayBox == null) {
+      return;
+    }
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0),
+        Offset.zero & overlayBox.size,
+      ),
+      items: const [
+        PopupMenuItem<String>(
+          value: 'add_block',
+          child: Text('Ajouter un bloc'),
+        ),
+        PopupMenuItem<String>(
+          value: 'add_zone',
+          child: Text('Ajouter une zone'),
+        ),
+      ],
+    );
+
+    if (!mounted || selected == null) {
+      return;
+    }
+
+    if (selected == 'add_block') {
+      _addBlock(globalPosition);
+      return;
+    }
+    if (selected == 'add_zone') {
+      _addZoneBlock(globalPosition);
+    }
+  }
+
   List<Widget> _buildInflectionHandles() {
     final widgets = <Widget>[];
     final link = selectedLink;
@@ -3276,7 +3332,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             tooltip: 'Ajouter une zone',
           ),
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: Icon(
+              Icons.delete,
+              color: selectedBlock != null ? Colors.redAccent : null,
+            ),
             onPressed: selectedBlock != null
                 ? () => _deleteBlock(selectedBlock!)
                 : null,
@@ -3570,32 +3629,63 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 });
               },
               onCanvasSecondaryTapDown: (details) {
-                setState(() {
-                  final canvasPosition = _toCanvasLocal(details.globalPosition);
+                final canvasPosition = _toCanvasLocal(details.globalPosition);
+                final modelPosition = _toModelPosition(details.globalPosition);
 
-                  if (linkSourceBlock != null) {
-                    return;
-                  }
+                if (linkSourceBlock != null) {
+                  return;
+                }
 
-                  final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                  if (hitLink == null) {
-                    return;
-                  }
+                final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                if (hitLink != null) {
+                  setState(() {
+                    selectedBlock = null;
+                    _selectedBlockIds.clear();
+                    if (selectedLink != hitLink) {
+                      selectedLink = hitLink;
+                      return;
+                    }
 
-                  selectedBlock = null;
-                  _selectedBlockIds.clear();
-                  if (selectedLink != hitLink) {
-                    selectedLink = hitLink;
-                    return;
-                  }
+                    final pointAdded = _insertInflectionPointOnLink(
+                      canvasPosition,
+                    );
+                    if (!pointAdded) {
+                      selectedLink = hitLink;
+                    }
+                  });
+                  _lastSecondaryTapTime = null;
+                  _lastSecondaryTapCanvasPosition = null;
+                  return;
+                }
 
-                  final pointAdded = _insertInflectionPointOnLink(
-                    canvasPosition,
-                  );
-                  if (!pointAdded) {
-                    selectedLink = hitLink;
-                  }
-                });
+                final nearBlock = _findBlockNearModelPosition(modelPosition);
+                if (nearBlock != null) {
+                  _lastSecondaryTapTime = null;
+                  _lastSecondaryTapCanvasPosition = null;
+                  return;
+                }
+
+                final now = DateTime.now();
+                final isDoubleSecondaryTap =
+                    _lastSecondaryTapTime != null &&
+                    now.difference(_lastSecondaryTapTime!) <=
+                        const Duration(milliseconds: 350) &&
+                    _lastSecondaryTapCanvasPosition != null &&
+                    (canvasPosition - _lastSecondaryTapCanvasPosition!)
+                            .distance <=
+                        18.0;
+
+                _lastSecondaryTapTime = now;
+                _lastSecondaryTapCanvasPosition = canvasPosition;
+
+                if (!isDoubleSecondaryTap) {
+                  return;
+                }
+
+                _lastSecondaryTapTime = null;
+                _lastSecondaryTapCanvasPosition = null;
+
+                _showCanvasCreationMenu(details.globalPosition);
               },
               isSecondaryButtonPressed: _isSecondaryButtonPressed,
               onStartLinkingForBlock: _startLinking,
@@ -3660,6 +3750,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               },
               onBlockTapDown: (block) {
                 setState(() {
+                  _lastSecondaryTapTime = null;
+                  _lastSecondaryTapCanvasPosition = null;
                   if (_isCtrlPressed()) {
                     if (_selectedBlockIds.contains(block.id)) {
                       _selectedBlockIds.remove(block.id);
