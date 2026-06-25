@@ -30,6 +30,7 @@ class PropertiesPanel extends StatefulWidget {
   final Function(BlockLink)? onReverseLink;
   final Function(BlockLink)? onDeleteLink;
   final Function(BlockLink, ConnectorType)? onConnectorTypeChanged;
+  final Function(BlockLink, bool)? onLinkAutoLayoutLockChanged;
 
   const PropertiesPanel({
     super.key,
@@ -50,6 +51,7 @@ class PropertiesPanel extends StatefulWidget {
     this.onReverseLink,
     this.onDeleteLink,
     this.onConnectorTypeChanged,
+    this.onLinkAutoLayoutLockChanged,
   });
 
   @override
@@ -685,6 +687,26 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                 widget.onConnectorTypeChanged?.call(link, value);
               }
             },
+          ),
+          const SizedBox(height: 8),
+          Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              value: link.autoLayoutLock,
+              onChanged: (value) {
+                widget.onLinkAutoLayoutLockChanged?.call(link, value);
+              },
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'Lock auto-layout (Conserver)',
+                style: TextStyle(color: colorTextPrimary),
+              ),
+              subtitle: const Text(
+                'Force le mode Conserver sur ce lien même si le mode global est Auto.',
+                style: TextStyle(color: colorTextSecondary, fontSize: 12),
+              ),
+              activeThumbColor: Colors.orange,
+            ),
           ),
           const SizedBox(height: 8),
           Text(

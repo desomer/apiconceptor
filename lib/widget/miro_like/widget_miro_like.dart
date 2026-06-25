@@ -88,6 +88,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     'Fort',
     'Extreme',
   ];
+  static const List<String> _autoLayoutAnchorSideModes = ['Auto', 'Conserver'];
 
   final GlobalKey _canvasKey = GlobalKey();
   final List<Block> blocks = [];
@@ -108,6 +109,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   String _placementQuality = 'Dense';
   String _blockSpacingMode = 'Dense';
   String _alignmentPriorityMode = 'Fort';
+  String _autoLayoutAnchorSideMode = 'Auto';
   double? _snapLeftModel;
   double? _snapTopModel;
   Offset? _dragFreePositionModel;
@@ -454,6 +456,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _handleLinkAutoLayoutLockChanged(BlockLink link, bool value) {
+    setState(() {
+      link.autoLayoutLock = value;
+    });
+  }
+
   void _fitToView() {
     if (blocks.isEmpty) {
       return;
@@ -639,6 +647,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'targetAnchorUnit': link.targetAnchorUnit == null
           ? null
           : _offsetToJson(link.targetAnchorUnit!),
+      'autoLayoutLock': link.autoLayoutLock,
       'sourceAnchorOrderKey': link.sourceAnchorOrderKey,
       'targetAnchorOrderKey': link.targetAnchorOrderKey,
     };
@@ -819,6 +828,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           targetAnchorUnit: item['targetAnchorUnit'] == null
               ? null
               : _offsetFromJson(item['targetAnchorUnit']),
+          autoLayoutLock: item['autoLayoutLock'] == true,
         ),
       );
       final sourceOrderKey = item['sourceAnchorOrderKey'];
@@ -1308,6 +1318,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     List<Block> targetBlocks,
     List<BlockLink> targetLinks,
   ) {
+    final preserveAnchorSide = _autoLayoutAnchorSideMode == 'Conserver';
     final blockById = <String, Block>{
       for (final block in targetBlocks) block.id: block,
     };
@@ -1369,6 +1380,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     }
 
     for (final link in targetLinks) {
+      final preserveThisLink = preserveAnchorSide || link.autoLayoutLock;
       final fromBlock = blockById[link.fromBlockId];
       final toBlock = blockById[link.toBlockId];
       final fromRect = rectById[link.fromBlockId];
@@ -1395,6 +1407,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final sourceAnchor =
           link.isSourceAnchorLocked && link.sourceAnchorUnit != null
           ? _normalizeAnchorUnit(link.sourceAnchorUnit!)
+          : preserveThisLink && link.sourceAnchorUnit != null
+          ? _anchorSideUnit(link.sourceAnchorUnit!)
           : _chooseAnchorUnitTowardRect(
               fromRect,
               toRect,
@@ -1404,6 +1418,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final targetAnchor =
           link.isTargetAnchorLocked && link.targetAnchorUnit != null
           ? _normalizeAnchorUnit(link.targetAnchorUnit!)
+          : preserveThisLink && link.targetAnchorUnit != null
+          ? _anchorSideUnit(link.targetAnchorUnit!)
           : _chooseAnchorUnitTowardRect(
               toRect,
               fromRect,
@@ -1422,13 +1438,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             ).inflate(20.0),
       ];
 
-      final routedInflections = _routeLinkAroundObstacles(
-        fromRect: fromRect,
-        toRect: toRect,
-        sourceAnchor: sourceAnchor,
-        targetAnchor: targetAnchor,
-        obstacleRects: obstacleRects,
-      );
+      final routedInflections = preserveThisLink
+          ? List<Offset>.from(link.inflectionPoints)
+          : _routeLinkAroundObstacles(
+              fromRect: fromRect,
+              toRect: toRect,
+              sourceAnchor: sourceAnchor,
+              targetAnchor: targetAnchor,
+              obstacleRects: obstacleRects,
+            );
 
       link.connectorType = ConnectorType.bezier;
       link.inflectionPoints
@@ -3049,6 +3067,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             },
             icon: const Icon(Icons.align_horizontal_left),
           ),
+          PopupMenuButton<String>(
+            tooltip: 'Cote ancres auto-layout ($_autoLayoutAnchorSideMode)',
+            onSelected: (value) {
+              setState(() {
+                _autoLayoutAnchorSideMode = value;
+              });
+            },
+            itemBuilder: (context) {
+              return _autoLayoutAnchorSideModes
+                  .map(
+                    (mode) => CheckedPopupMenuItem<String>(
+                      value: mode,
+                      checked: _autoLayoutAnchorSideMode == mode,
+                      child: Text(mode),
+                    ),
+                  )
+                  .toList();
+            },
+            icon: const Icon(Icons.settings_input_component),
+          ),
           IconButton(
             icon: const Icon(Icons.auto_fix_high),
             tooltip: 'Réorganiser le graphe',
@@ -3264,6 +3302,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             onReverseLink: _reverseLink,
             onDeleteLink: _deleteLink,
             onConnectorTypeChanged: _handleConnectorTypeChanged,
+            onLinkAutoLayoutLockChanged: _handleLinkAutoLayoutLockChanged,
           ),
         ],
       ),

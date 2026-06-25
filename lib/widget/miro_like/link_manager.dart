@@ -123,6 +123,7 @@ class LinkManager {
       'targetAnchorOrderKey': link.targetAnchorOrderKey,
       'sourceAnchorLocked': link.isSourceAnchorLocked,
       'targetAnchorLocked': link.isTargetAnchorLocked,
+      'autoLayoutLock': link.autoLayoutLock,
       'inflectionPoints': link.inflectionPoints
           .map((p) => {'dx': p.dx, 'dy': p.dy})
           .toList(),
@@ -214,6 +215,11 @@ class LinkManager {
       final targetAnchorLocked = item['targetAnchorLocked'];
       if (targetAnchorLocked is bool) {
         parsed.last.isTargetAnchorLocked = targetAnchorLocked;
+      }
+
+      final autoLayoutLock = item['autoLayoutLock'];
+      if (autoLayoutLock is bool) {
+        parsed.last.autoLayoutLock = autoLayoutLock;
       }
 
       if (item['connectorType'] == null) {

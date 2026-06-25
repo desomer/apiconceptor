@@ -64,6 +64,7 @@ class BlockLink {
   Offset? targetAnchorUnit;
   bool isSourceAnchorLocked = false;
   bool isTargetAnchorLocked = false;
+  bool autoLayoutLock = false;
   double? sourceAnchorOrderKey;
   double? targetAnchorOrderKey;
 
@@ -81,5 +82,6 @@ class BlockLink {
     List<Offset>? inflectionPoints,
     this.sourceAnchorUnit,
     this.targetAnchorUnit,
+    this.autoLayoutLock = false,
   }) : inflectionPoints = inflectionPoints ?? [];
 }
