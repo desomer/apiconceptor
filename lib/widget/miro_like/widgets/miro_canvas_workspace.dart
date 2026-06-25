@@ -10,6 +10,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
   final Offset canvasOffset;
   final double zoomLevel;
   final Block? selectedBlock;
+  final Set<String> selectedBlockIds;
   final Block? linkSourceBlock;
   final CustomPainter foregroundPainter;
   final List<Widget> overlayWidgets;
@@ -18,6 +19,9 @@ class MiroCanvasWorkspace extends StatelessWidget {
   final ValueChanged<PointerDownEvent> onCanvasSecondaryDragStart;
   final ValueChanged<PointerMoveEvent> onCanvasSecondaryDragUpdate;
   final ValueChanged<PointerUpEvent> onCanvasSecondaryDragEnd;
+  final GestureDragStartCallback onCanvasPrimaryDragStart;
+  final GestureDragUpdateCallback onCanvasPrimaryDragUpdate;
+  final GestureDragEndCallback onCanvasPrimaryDragEnd;
   final GestureTapDownCallback onCanvasTapDown;
   final GestureTapDownCallback onCanvasSecondaryTapDown;
   final bool Function(int buttons) isSecondaryButtonPressed;
@@ -37,6 +41,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
     required this.canvasOffset,
     required this.zoomLevel,
     required this.selectedBlock,
+    required this.selectedBlockIds,
     required this.linkSourceBlock,
     required this.foregroundPainter,
     required this.overlayWidgets,
@@ -45,6 +50,9 @@ class MiroCanvasWorkspace extends StatelessWidget {
     required this.onCanvasSecondaryDragStart,
     required this.onCanvasSecondaryDragUpdate,
     required this.onCanvasSecondaryDragEnd,
+    required this.onCanvasPrimaryDragStart,
+    required this.onCanvasPrimaryDragUpdate,
+    required this.onCanvasPrimaryDragEnd,
     required this.onCanvasTapDown,
     required this.onCanvasSecondaryTapDown,
     required this.isSecondaryButtonPressed,
@@ -85,6 +93,9 @@ class MiroCanvasWorkspace extends StatelessWidget {
             child: Stack(
               children: [
                 GestureDetector(
+                  onPanStart: onCanvasPrimaryDragStart,
+                  onPanUpdate: onCanvasPrimaryDragUpdate,
+                  onPanEnd: onCanvasPrimaryDragEnd,
                   onTapDown: onCanvasTapDown,
                   onSecondaryTapDown: onCanvasSecondaryTapDown,
                 ),
@@ -121,7 +132,9 @@ class MiroCanvasWorkspace extends StatelessWidget {
                         onTapDown: (_) => onBlockTapDown(block),
                         child: BlockWidget(
                           block: block,
-                          isSelected: selectedBlock == block,
+                          isSelected:
+                              selectedBlock == block ||
+                              selectedBlockIds.contains(block.id),
                           zoomLevel: zoomLevel,
                         ),
                       ),

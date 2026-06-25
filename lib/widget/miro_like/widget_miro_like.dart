@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:jsonschema/widget/miro_like/miro_canvas_painter.dart';
 import 'package:jsonschema/widget/miro_like/connector_path_utils.dart';
 import 'package:jsonschema/widget/miro_like/properties_panel.dart';
@@ -97,6 +98,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   late final LinkManager linkManager;
   late final ImportExportManager importExportManager;
   Block? selectedBlock;
+  final Set<String> _selectedBlockIds = <String>{};
   BlockLink? selectedLink;
   Block? linkSourceBlock;
   Offset? linkingFromPoint;
@@ -113,6 +115,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   double? _snapLeftModel;
   double? _snapTopModel;
   Offset? _dragFreePositionModel;
+  Offset? _selectionStartCanvas;
+  Offset? _selectionCurrentCanvas;
+  bool _isBoxSelecting = false;
 
   double _blockSpacingMultiplier() {
     switch (_blockSpacingMode) {
@@ -572,6 +577,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   bool _isSecondaryButtonPressed(int buttons) {
     return (buttons & kSecondaryMouseButton) != 0;
+  }
+
+  bool _isCtrlPressed() {
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    return keys.contains(LogicalKeyboardKey.controlLeft) ||
+        keys.contains(LogicalKeyboardKey.controlRight);
   }
 
   Map<String, dynamic> _offsetToJson(Offset offset) {
@@ -2096,6 +2107,107 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     );
   }
 
+  Rect _selectionRectFromCanvasPoints(Offset a, Offset b) {
+    return Rect.fromLTRB(
+      math.min(a.dx, b.dx),
+      math.min(a.dy, b.dy),
+      math.max(a.dx, b.dx),
+      math.max(a.dy, b.dy),
+    );
+  }
+
+  Rect _canvasRectToModelRect(Rect canvasRect) {
+    return Rect.fromLTRB(
+      (canvasRect.left - canvasOffset.dx) / zoomLevel,
+      (canvasRect.top - canvasOffset.dy) / zoomLevel,
+      (canvasRect.right - canvasOffset.dx) / zoomLevel,
+      (canvasRect.bottom - canvasOffset.dy) / zoomLevel,
+    );
+  }
+
+  void _startBoxSelection(Offset canvasPosition) {
+    _isBoxSelecting = true;
+    _selectionStartCanvas = canvasPosition;
+    _selectionCurrentCanvas = canvasPosition;
+    selectedLink = null;
+  }
+
+  void _updateBoxSelection(Offset canvasPosition) {
+    if (!_isBoxSelecting) {
+      return;
+    }
+    _selectionCurrentCanvas = canvasPosition;
+  }
+
+  void _finishBoxSelection() {
+    final start = _selectionStartCanvas;
+    final end = _selectionCurrentCanvas;
+    if (!_isBoxSelecting || start == null || end == null) {
+      _isBoxSelecting = false;
+      _selectionStartCanvas = null;
+      _selectionCurrentCanvas = null;
+      return;
+    }
+
+    final selectionCanvasRect = _selectionRectFromCanvasPoints(start, end);
+    final isClickLike =
+        selectionCanvasRect.width < 4.0 && selectionCanvasRect.height < 4.0;
+
+    if (!isClickLike) {
+      final selectionModelRect = _canvasRectToModelRect(selectionCanvasRect);
+      final selectedIds = <String>{};
+      for (final block in blocks) {
+        final blockRect = Rect.fromLTWH(
+          block.position.dx,
+          block.position.dy,
+          block.size.width,
+          block.size.height,
+        );
+        if (selectionModelRect.overlaps(blockRect)) {
+          selectedIds.add(block.id);
+        }
+      }
+
+      _selectedBlockIds
+        ..clear()
+        ..addAll(selectedIds);
+      selectedBlock = selectedIds.length == 1
+          ? blocks.firstWhere((b) => b.id == selectedIds.first)
+          : null;
+      selectedLink = null;
+    }
+
+    _isBoxSelecting = false;
+    _selectionStartCanvas = null;
+    _selectionCurrentCanvas = null;
+  }
+
+  List<Widget> _buildSelectionOverlay() {
+    final start = _selectionStartCanvas;
+    final end = _selectionCurrentCanvas;
+    if (!_isBoxSelecting || start == null || end == null) {
+      return const [];
+    }
+
+    final rect = _selectionRectFromCanvasPoints(start, end);
+    return [
+      Positioned.fromRect(
+        rect: rect,
+        child: IgnorePointer(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.10),
+              border: Border.all(
+                color: Colors.orange.withValues(alpha: 0.85),
+                width: 1.3,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
   void _resetBlockDragSnap() {
     _snapLeftModel = null;
     _snapTopModel = null;
@@ -3124,10 +3236,32 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 pendingInflectionPoints: pendingInflectionPoints,
               ),
               overlayWidgets: [
+                ..._buildSelectionOverlay(),
                 ..._buildAnchorHandles(),
                 ..._buildInflectionHandles(),
                 ..._buildLinkLabelHandles(),
               ],
+              onCanvasPrimaryDragStart: (details) {
+                setState(() {
+                  if (linkSourceBlock != null) {
+                    return;
+                  }
+                  _startBoxSelection(details.localPosition);
+                });
+              },
+              onCanvasPrimaryDragUpdate: (details) {
+                setState(() {
+                  if (linkSourceBlock != null) {
+                    return;
+                  }
+                  _updateBoxSelection(details.localPosition);
+                });
+              },
+              onCanvasPrimaryDragEnd: (_) {
+                setState(() {
+                  _finishBoxSelection();
+                });
+              },
               onHover: (event) {
                 setState(() {
                   currentMousePosition = event.localPosition;
@@ -3196,7 +3330,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       block.size.height,
                     );
                     if (blockRect.contains(modelPosition)) {
-                      selectedBlock = block;
+                      if (_isCtrlPressed()) {
+                        if (_selectedBlockIds.contains(block.id)) {
+                          _selectedBlockIds.remove(block.id);
+                        } else {
+                          _selectedBlockIds.add(block.id);
+                        }
+                        selectedBlock = _selectedBlockIds.length == 1
+                            ? blocks.firstWhere(
+                                (b) => b.id == _selectedBlockIds.first,
+                              )
+                            : null;
+                      } else {
+                        selectedBlock = block;
+                        _selectedBlockIds
+                          ..clear()
+                          ..add(block.id);
+                      }
                       selectedLink = null;
                       return;
                     }
@@ -3205,11 +3355,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   final hitLink = _findLinkAtCanvasPosition(canvasPosition);
                   if (hitLink != null) {
                     selectedBlock = null;
+                    _selectedBlockIds.clear();
                     selectedLink = hitLink;
                     return;
                   }
 
                   selectedBlock = null;
+                  _selectedBlockIds.clear();
                   selectedLink = null;
                 });
               },
@@ -3227,6 +3379,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   }
 
                   selectedBlock = null;
+                  _selectedBlockIds.clear();
                   if (selectedLink != hitLink) {
                     selectedLink = hitLink;
                     return;
@@ -3246,27 +3399,51 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               onFinishLinkingAtGlobal: _finishLinkingAtGlobal,
               onBlockPanDown: (block) {
                 setState(() {
-                  selectedBlock = block;
+                  if (!_isCtrlPressed()) {
+                    if (!(_selectedBlockIds.length > 1 &&
+                        _selectedBlockIds.contains(block.id))) {
+                      _selectedBlockIds
+                        ..clear()
+                        ..add(block.id);
+                      selectedBlock = block;
+                    }
+                  }
                   selectedLink = null;
                   _resetBlockDragSnap();
-                  _dragFreePositionModel = block.position;
+                  _dragFreePositionModel = _selectedBlockIds.length == 1
+                      ? block.position
+                      : null;
                 });
               },
               onBlockPanUpdate: (block, details) {
-                if (selectedBlock == block) {
+                if (_selectedBlockIds.contains(block.id)) {
                   setState(() {
                     final deltaModel = Offset(
                       details.delta.dx / zoomLevel,
                       details.delta.dy / zoomLevel,
                     );
-                    final proposedPosition =
-                        (_dragFreePositionModel ?? block.position) + deltaModel;
-                    _dragFreePositionModel = proposedPosition;
-                    block.position = _applyBlockAlignmentSnap(
-                      block,
-                      proposedPosition,
-                    );
-                    _updateLinksAnchorsForBlock(block);
+                    if (_selectedBlockIds.length > 1) {
+                      for (final selectedId in _selectedBlockIds) {
+                        final idx = blocks.indexWhere(
+                          (b) => b.id == selectedId,
+                        );
+                        if (idx == -1) {
+                          continue;
+                        }
+                        blocks[idx].position += deltaModel;
+                        _updateLinksAnchorsForBlock(blocks[idx]);
+                      }
+                    } else {
+                      final proposedPosition =
+                          (_dragFreePositionModel ?? block.position) +
+                          deltaModel;
+                      _dragFreePositionModel = proposedPosition;
+                      block.position = _applyBlockAlignmentSnap(
+                        block,
+                        proposedPosition,
+                      );
+                      _updateLinksAnchorsForBlock(block);
+                    }
                   });
                 }
               },
@@ -3275,11 +3452,28 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               },
               onBlockTapDown: (block) {
                 setState(() {
-                  selectedBlock = block;
+                  if (_isCtrlPressed()) {
+                    if (_selectedBlockIds.contains(block.id)) {
+                      _selectedBlockIds.remove(block.id);
+                    } else {
+                      _selectedBlockIds.add(block.id);
+                    }
+                    selectedBlock = _selectedBlockIds.length == 1
+                        ? blocks.firstWhere(
+                            (b) => b.id == _selectedBlockIds.first,
+                          )
+                        : null;
+                  } else {
+                    selectedBlock = block;
+                    _selectedBlockIds
+                      ..clear()
+                      ..add(block.id);
+                  }
                   selectedLink = null;
                   _resetBlockDragSnap();
                 });
               },
+              selectedBlockIds: _selectedBlockIds,
             ),
           ),
           PropertiesPanel(
