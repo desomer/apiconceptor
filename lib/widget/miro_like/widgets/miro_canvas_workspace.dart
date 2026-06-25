@@ -28,10 +28,10 @@ class MiroCanvasWorkspace extends StatelessWidget {
   final void Function(Block block) onStartLinkingForBlock;
   final ValueChanged<Offset> onUpdateLinkPreviewFromGlobal;
   final ValueChanged<Offset> onFinishLinkingAtGlobal;
-  final void Function(Block block) onBlockPanDown;
+  final void Function(Block block, DragDownDetails details) onBlockPanDown;
   final void Function(Block block, DragUpdateDetails details) onBlockPanUpdate;
   final void Function(Block block) onBlockPanEnd;
-  final void Function(Block block) onBlockTapDown;
+  final void Function(Block block, TapDownDetails details) onBlockTapDown;
   final void Function(Block block) onBlockInfoTap;
 
   const MiroCanvasWorkspace({
@@ -132,11 +132,11 @@ class MiroCanvasWorkspace extends StatelessWidget {
                         }
                       },
                       child: GestureDetector(
-                        onPanDown: (_) => onBlockPanDown(block),
+                        onPanDown: (details) => onBlockPanDown(block, details),
                         onPanUpdate: (details) =>
                             onBlockPanUpdate(block, details),
                         onPanEnd: (_) => onBlockPanEnd(block),
-                        onTapDown: (_) => onBlockTapDown(block),
+                        onTapDown: (details) => onBlockTapDown(block, details),
                         child: BlockWidget(
                           block: block,
                           isSelected:

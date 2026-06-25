@@ -123,6 +123,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset? _selectionStartCanvas;
   Offset? _selectionCurrentCanvas;
   bool _isBoxSelecting = false;
+  bool _consumeNextCanvasTap = false;
   DateTime? _lastSecondaryTapTime;
   Offset? _lastSecondaryTapCanvasPosition;
 
@@ -2015,6 +2016,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     for (var blockId in blockIdsToUpdate) {
       for (var link in links) {
+        if (link.autoLayoutLock) {
+          // Locked links must keep their current geometry while blocks move.
+          continue;
+        }
+
         final isSource = link.fromBlockId == blockId;
         final isTarget = link.toBlockId == blockId;
 
@@ -3589,12 +3595,25 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               },
               onCanvasTapDown: (details) {
                 setState(() {
+                  if (_consumeNextCanvasTap) {
+                    _consumeNextCanvasTap = false;
+                    return;
+                  }
+
                   final canvasPosition = _toCanvasLocal(details.globalPosition);
                   final modelPosition = _toModelPosition(
                     details.globalPosition,
                   );
 
                   if (linkSourceBlock != null) {
+                    return;
+                  }
+
+                  final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                  if (hitLink != null) {
+                    selectedBlock = null;
+                    _selectedBlockIds.clear();
+                    selectedLink = hitLink;
                     return;
                   }
 
@@ -3626,14 +3645,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       selectedLink = null;
                       return;
                     }
-                  }
-
-                  final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                  if (hitLink != null) {
-                    selectedBlock = null;
-                    _selectedBlockIds.clear();
-                    selectedLink = hitLink;
-                    return;
                   }
 
                   selectedBlock = null;
@@ -3704,8 +3715,19 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               onStartLinkingForBlock: _startLinking,
               onUpdateLinkPreviewFromGlobal: _updateLinkPreviewFromGlobal,
               onFinishLinkingAtGlobal: _finishLinkingAtGlobal,
-              onBlockPanDown: (block) {
+              onBlockPanDown: (block, details) {
                 setState(() {
+                  final canvasPosition = _toCanvasLocal(details.globalPosition);
+                  final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                  if (hitLink != null) {
+                    selectedBlock = null;
+                    _selectedBlockIds.clear();
+                    selectedLink = hitLink;
+                    _resetBlockDragSnap();
+                    _dragFreePositionModel = null;
+                    return;
+                  }
+
                   if (!_isCtrlPressed()) {
                     if (!(_selectedBlockIds.length > 1 &&
                         _selectedBlockIds.contains(block.id))) {
@@ -3771,8 +3793,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               onBlockPanEnd: (_) {
                 _resetBlockDragSnap();
               },
-              onBlockTapDown: (block) {
+              onBlockTapDown: (block, details) {
                 setState(() {
+                  _consumeNextCanvasTap = true;
+                  final canvasPosition = _toCanvasLocal(details.globalPosition);
+                  final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                  if (hitLink != null) {
+                    selectedBlock = null;
+                    _selectedBlockIds.clear();
+                    selectedLink = hitLink;
+                    return;
+                  }
+
                   _lastSecondaryTapTime = null;
                   _lastSecondaryTapCanvasPosition = null;
                   if (_isCtrlPressed()) {
