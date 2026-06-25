@@ -115,10 +115,14 @@ class AutoLayoutEngine {
     final crossingK = 34.0 * quality.crossingMul;
     final blockCutK = 44.0 * quality.hpwlMul;
     final medianK = 0.018 * quality.hpwlMul;
-    final alignPriority = quality.alignmentPriority.clamp(0.0, 2.0);
-    final edgeAlignK =
-        (0.036 + 0.028 * alignPriority) *
-        (1.0 + (1.2 + 0.8 * alignPriority) * quality.snapTargetWeight);
+    final alignDisabled = quality.alignmentPriority < 0;
+    final alignPriority = alignDisabled
+        ? 0.0
+        : quality.alignmentPriority.clamp(0.0, 2.0);
+    final edgeAlignK = alignDisabled
+        ? 0.0
+        : (0.036 + 0.028 * alignPriority) *
+              (1.0 + (1.2 + 0.8 * alignPriority) * quality.snapTargetWeight);
     final anchorK = hasSeeds ? (0.12 + 0.16 * quality.snapTargetWeight) : 0.0;
     final preserveDistanceK = hasSeeds ? 0.11 : 0.0;
 
@@ -264,62 +268,64 @@ class AutoLayoutEngine {
         }
       }
 
-      final earlyAlignBoost =
-          iter < (iterations * (0.62 + 0.22 * alignPriority))
-          ? (2.2 + 2.8 * alignPriority)
-          : (1.0 + 0.25 * alignPriority);
-      final alignBand = isHorizontal
-          ? (130.0 + 60.0 * alignPriority)
-          : (110.0 + 50.0 * alignPriority);
-      final pairDistanceLimit = 950.0 + 500.0 * alignPriority;
-      final coolingAlignScale = 0.35 + 0.20 * alignPriority;
-      for (int i = 0; i < nodeOrder.length - 1; i++) {
-        final a = nodeOrder[i];
-        final pa = positions[a]!;
-        final sa = sizeByNode[a]!;
-        final ca = _nodeCenter(pa, sa);
-        final topA = pa.dy;
-        final rightA = pa.dx + sa.width;
+      if (!alignDisabled) {
+        final earlyAlignBoost =
+            iter < (iterations * (0.62 + 0.22 * alignPriority))
+            ? (2.2 + 2.8 * alignPriority)
+            : (1.0 + 0.25 * alignPriority);
+        final alignBand = isHorizontal
+            ? (130.0 + 60.0 * alignPriority)
+            : (110.0 + 50.0 * alignPriority);
+        final pairDistanceLimit = 950.0 + 500.0 * alignPriority;
+        final coolingAlignScale = 0.35 + 0.20 * alignPriority;
+        for (int i = 0; i < nodeOrder.length - 1; i++) {
+          final a = nodeOrder[i];
+          final pa = positions[a]!;
+          final sa = sizeByNode[a]!;
+          final ca = _nodeCenter(pa, sa);
+          final topA = pa.dy;
+          final rightA = pa.dx + sa.width;
 
-        for (int j = i + 1; j < nodeOrder.length; j++) {
-          final b = nodeOrder[j];
-          final pb = positions[b]!;
-          final sb = sizeByNode[b]!;
-          final cb = _nodeCenter(pb, sb);
+          for (int j = i + 1; j < nodeOrder.length; j++) {
+            final b = nodeOrder[j];
+            final pb = positions[b]!;
+            final sb = sizeByNode[b]!;
+            final cb = _nodeCenter(pb, sb);
 
-          final pairDist = (ca - cb).distance;
-          if (pairDist > pairDistanceLimit) {
-            continue;
-          }
+            final pairDist = (ca - cb).distance;
+            if (pairDist > pairDistanceLimit) {
+              continue;
+            }
 
-          final topB = pb.dy;
-          final dTop = topB - topA;
-          final absTop = dTop.abs();
-          if (absTop <= alignBand) {
-            final normalized = 1.0 - (absTop / alignBand);
-            final k =
-                edgeAlignK *
-                earlyAlignBoost *
-                normalized *
-                (coolingAlignScale + cooling);
-            final fy = dTop * k;
-            forces[a] = forces[a]! + Offset(0, fy);
-            forces[b] = forces[b]! - Offset(0, fy);
-          }
+            final topB = pb.dy;
+            final dTop = topB - topA;
+            final absTop = dTop.abs();
+            if (absTop <= alignBand) {
+              final normalized = 1.0 - (absTop / alignBand);
+              final k =
+                  edgeAlignK *
+                  earlyAlignBoost *
+                  normalized *
+                  (coolingAlignScale + cooling);
+              final fy = dTop * k;
+              forces[a] = forces[a]! + Offset(0, fy);
+              forces[b] = forces[b]! - Offset(0, fy);
+            }
 
-          final rightB = pb.dx + sb.width;
-          final dRight = rightB - rightA;
-          final absRight = dRight.abs();
-          if (absRight <= alignBand) {
-            final normalized = 1.0 - (absRight / alignBand);
-            final k =
-                edgeAlignK *
-                earlyAlignBoost *
-                normalized *
-                (coolingAlignScale + cooling);
-            final fx = dRight * k;
-            forces[a] = forces[a]! + Offset(fx, 0);
-            forces[b] = forces[b]! - Offset(fx, 0);
+            final rightB = pb.dx + sb.width;
+            final dRight = rightB - rightA;
+            final absRight = dRight.abs();
+            if (absRight <= alignBand) {
+              final normalized = 1.0 - (absRight / alignBand);
+              final k =
+                  edgeAlignK *
+                  earlyAlignBoost *
+                  normalized *
+                  (coolingAlignScale + cooling);
+              final fx = dRight * k;
+              forces[a] = forces[a]! + Offset(fx, 0);
+              forces[b] = forces[b]! - Offset(fx, 0);
+            }
           }
         }
       }
@@ -463,16 +469,18 @@ class AutoLayoutEngine {
       minGap: blockGap,
     );
 
-    _tryOpportunisticAlignment(
-      nodeOrder: nodeOrder,
-      positions: positions,
-      sizeByNode: sizeByNode,
-      allEdges: allEdges,
-      neighbors: neighbors,
-      direction: direction,
-      minGap: blockGap,
-      alignmentPriority: alignPriority,
-    );
+    if (!alignDisabled) {
+      _tryOpportunisticAlignment(
+        nodeOrder: nodeOrder,
+        positions: positions,
+        sizeByNode: sizeByNode,
+        allEdges: allEdges,
+        neighbors: neighbors,
+        direction: direction,
+        minGap: blockGap,
+        alignmentPriority: alignPriority,
+      );
+    }
 
     _snapSeedJitterIfSafe(
       nodeOrder: nodeOrder,
@@ -514,8 +522,9 @@ class AutoLayoutEngine {
       final betterPenalty = finalPenalty + 1e-6 < seedPenalty;
       final equalPenalty = (finalPenalty - seedPenalty).abs() <= 1e-6;
       final betterLength = finalLength < seedLength * 0.995;
-      final betterAlignment =
-          finalAlignment > seedAlignment + (2.2 - 0.7 * alignPriority);
+      final betterAlignment = !alignDisabled
+          ? (finalAlignment > seedAlignment + (2.2 - 0.7 * alignPriority))
+          : false;
       final keepsHardConstraints = finalPenalty <= seedPenalty + 1e-6;
 
       if (!(keepsHardConstraints &&

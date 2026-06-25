@@ -328,7 +328,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
                 ),
                 Spacer(),
                 Text(
-                  'API Architec by Desomer G. V1.0.5.1',
+                  'API Architec by Desomer G. V1.0.5.2',
                   style: TextStyle(fontSize: 12),
                 ),
                 SizedBox(width: 20),

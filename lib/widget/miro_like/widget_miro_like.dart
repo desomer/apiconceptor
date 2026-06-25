@@ -83,6 +83,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     'Plus ecarte',
   ];
   static const List<String> _alignmentPriorityModes = [
+    'Aucun',
     'Normal',
     'Fort',
     'Extreme',
@@ -125,6 +126,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   double _alignmentPriorityMultiplier() {
     switch (_alignmentPriorityMode) {
+      case 'Aucun':
+        // Negative value means "disable alignment constraints" in auto-layout.
+        return -1.0;
       case 'Normal':
         return 0;
       case 'Fort':
