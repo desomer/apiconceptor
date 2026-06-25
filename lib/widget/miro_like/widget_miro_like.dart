@@ -3146,11 +3146,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   });
                 }
               },
-              onCanvasPanDown: (details) {
+              onCanvasSecondaryDragStart: (event) {
                 setState(() {
-                  final modelPosition = _toModelPosition(
-                    details.globalPosition,
-                  );
+                  final modelPosition = _toModelPosition(event.position);
                   bool isOnBlock = false;
                   for (var block in blocks) {
                     final blockRect = Rect.fromLTWH(
@@ -3167,14 +3165,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   isPanning = !isOnBlock;
                 });
               },
-              onCanvasPanUpdate: (details) {
+              onCanvasSecondaryDragUpdate: (event) {
                 if (isPanning) {
                   setState(() {
-                    canvasOffset += details.delta;
+                    canvasOffset += event.delta;
                   });
                 }
               },
-              onCanvasPanEnd: (_) {
+              onCanvasSecondaryDragEnd: (_) {
                 setState(() {
                   isPanning = false;
                 });

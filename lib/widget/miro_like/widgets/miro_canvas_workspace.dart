@@ -15,9 +15,9 @@ class MiroCanvasWorkspace extends StatelessWidget {
   final List<Widget> overlayWidgets;
   final ValueChanged<PointerHoverEvent> onHover;
   final ValueChanged<PointerSignalEvent> onPointerSignal;
-  final GestureDragDownCallback onCanvasPanDown;
-  final GestureDragUpdateCallback onCanvasPanUpdate;
-  final GestureDragEndCallback onCanvasPanEnd;
+  final ValueChanged<PointerDownEvent> onCanvasSecondaryDragStart;
+  final ValueChanged<PointerMoveEvent> onCanvasSecondaryDragUpdate;
+  final ValueChanged<PointerUpEvent> onCanvasSecondaryDragEnd;
   final GestureTapDownCallback onCanvasTapDown;
   final GestureTapDownCallback onCanvasSecondaryTapDown;
   final bool Function(int buttons) isSecondaryButtonPressed;
@@ -42,9 +42,9 @@ class MiroCanvasWorkspace extends StatelessWidget {
     required this.overlayWidgets,
     required this.onHover,
     required this.onPointerSignal,
-    required this.onCanvasPanDown,
-    required this.onCanvasPanUpdate,
-    required this.onCanvasPanEnd,
+    required this.onCanvasSecondaryDragStart,
+    required this.onCanvasSecondaryDragUpdate,
+    required this.onCanvasSecondaryDragEnd,
     required this.onCanvasTapDown,
     required this.onCanvasSecondaryTapDown,
     required this.isSecondaryButtonPressed,
@@ -65,6 +65,19 @@ class MiroCanvasWorkspace extends StatelessWidget {
       onHover: onHover,
       child: Listener(
         onPointerSignal: onPointerSignal,
+        onPointerDown: (event) {
+          if (isSecondaryButtonPressed(event.buttons)) {
+            onCanvasSecondaryDragStart(event);
+          }
+        },
+        onPointerMove: (event) {
+          if (isSecondaryButtonPressed(event.buttons)) {
+            onCanvasSecondaryDragUpdate(event);
+          }
+        },
+        onPointerUp: (event) {
+          onCanvasSecondaryDragEnd(event);
+        },
         child: CustomPaint(
           foregroundPainter: foregroundPainter,
           child: Container(
@@ -72,9 +85,6 @@ class MiroCanvasWorkspace extends StatelessWidget {
             child: Stack(
               children: [
                 GestureDetector(
-                  onPanDown: onCanvasPanDown,
-                  onPanUpdate: onCanvasPanUpdate,
-                  onPanEnd: onCanvasPanEnd,
                   onTapDown: onCanvasTapDown,
                   onSecondaryTapDown: onCanvasSecondaryTapDown,
                 ),
