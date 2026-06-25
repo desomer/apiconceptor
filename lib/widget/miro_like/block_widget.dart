@@ -90,7 +90,26 @@ class BlockWidget extends StatelessWidget {
   }
 
   Uint8List? _iconBytes() {
-    final raw = (block.iconBase64 ?? '').trim();
+    String? iconFromJson;
+    final rawJson = (block.propertiesJson ?? '').trim();
+    if (rawJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawJson);
+        if (decoded is Map<String, dynamic>) {
+          final dynamicIcon = decoded['iconBase64'];
+          if (dynamicIcon != null) {
+            final resolved = dynamicIcon.toString().trim();
+            if (resolved.isNotEmpty) {
+              iconFromJson = resolved;
+            }
+          }
+        }
+      } catch (_) {
+        // Ignore malformed JSON and fallback to iconBase64 field.
+      }
+    }
+
+    final raw = (iconFromJson ?? block.iconBase64 ?? '').trim();
     if (raw.isEmpty) {
       return null;
     }
@@ -121,7 +140,7 @@ class BlockWidget extends StatelessWidget {
         : colorBlockBorder;
     final radius = BorderRadius.circular(18);
     final iconBytes = _iconBytes();
-    final iconSize = (32.0 * textScale).clamp(22.0, 64.0);
+    final iconSize = (42.0 * textScale).clamp(30.0, 92.0);
 
     return Container(
       width: block.size.width,
@@ -216,10 +235,6 @@ class BlockWidget extends StatelessWidget {
                   height: iconSize,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.55),
-                      width: 0.9,
-                    ),
                     color: Colors.black.withValues(alpha: 0.12),
                   ),
                   clipBehavior: Clip.antiAlias,

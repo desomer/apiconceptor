@@ -304,7 +304,37 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     setState(() {
       final trimmed = value.trim();
       block.iconBase64 = trimmed.isEmpty ? null : trimmed;
+      _normalizeBlockIconStorage(block);
     });
+  }
+
+  String? _iconBase64FromPropertiesJson(String? rawJson) {
+    final raw = rawJson?.trim() ?? '';
+    if (raw.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+      final dynamicIcon = decoded['iconBase64'];
+      if (dynamicIcon == null) {
+        return null;
+      }
+      final iconBase64 = dynamicIcon.toString().trim();
+      return iconBase64.isEmpty ? null : iconBase64;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _normalizeBlockIconStorage(Block block) {
+    final iconFromJson = _iconBase64FromPropertiesJson(block.propertiesJson);
+    if (iconFromJson != null) {
+      // Avoid duplicated storage: JSON becomes source of truth when present.
+      block.iconBase64 = null;
+    }
   }
 
   void _handleBlockPropertiesJsonChanged(Block block, String rawJson) {
@@ -360,15 +390,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         }
       }
 
-      final positionRaw = decoded['position'];
-      if (positionRaw is Map) {
-        block.position = _offsetFromJson(positionRaw, fallback: block.position);
-      }
-
       final sizeRaw = decoded['size'];
       if (sizeRaw is Map) {
         block.size = _sizeFromJson(sizeRaw, fallback: block.size);
       }
+
+      _normalizeBlockIconStorage(block);
     });
   }
 
@@ -727,6 +754,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           size: _sizeFromJson(item['size']),
         ),
       );
+      final importedBlock = parsed.last;
+      _normalizeBlockIconStorage(importedBlock);
     }
     return parsed;
   }

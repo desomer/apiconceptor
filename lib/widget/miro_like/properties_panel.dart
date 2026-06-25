@@ -133,6 +133,47 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     }
   }
 
+  void _populateJsonFromBlock(Block block) {
+    final resolvedIcon = _resolvedBlockIconBase64(block);
+    final payload = <String, dynamic>{
+      'title': block.title,
+      'colorKey': block.colorKey,
+      'tagColorKeys': List<String>.from(block.tagColorKeys),
+      'iconBase64': resolvedIcon,
+      'size': {'width': block.size.width, 'height': block.size.height},
+    };
+
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    setState(() {
+      _blockJsonController.text = encoded;
+      _blockJsonError = null;
+    });
+    widget.onBlockPropertiesJsonChanged?.call(block, encoded);
+  }
+
+  String? _resolvedBlockIconBase64(Block block) {
+    final rawJson = (block.propertiesJson ?? '').trim();
+    if (rawJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawJson);
+        if (decoded is Map<String, dynamic>) {
+          final dynamicIcon = decoded['iconBase64'];
+          if (dynamicIcon != null) {
+            final resolved = dynamicIcon.toString().trim();
+            if (resolved.isNotEmpty) {
+              return resolved;
+            }
+          }
+        }
+      } catch (_) {
+        // Keep fallback behavior when JSON is invalid.
+      }
+    }
+
+    final fallback = (block.iconBase64 ?? '').trim();
+    return fallback.isEmpty ? null : fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
     final block = widget.selectedBlock;
@@ -309,14 +350,14 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           ),
           const SizedBox(height: 12),
           ImageUrlToBase64Widget(
-            initialBase64: block.iconBase64,
+            initialBase64: _resolvedBlockIconBase64(block),
             showBase64Text: false,
             onBase64Changed: (value) {
               widget.onBlockIconBase64Changed?.call(block, value);
             },
           ),
           const SizedBox(height: 8),
-          if ((block.iconBase64 ?? '').trim().isNotEmpty)
+          if ((_resolvedBlockIconBase64(block) ?? '').isNotEmpty)
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -337,7 +378,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               labelText: 'JSON propriétés bloc',
               alignLabelWithHint: true,
               hintText:
-                  '{"title":"Service API","colorKey":"blue","tagColorKeys":["green"],"position":{"dx":120,"dy":80},"size":{"width":240,"height":180}}',
+                  '{"title":"Service API","colorKey":"blue","tagColorKeys":["green"],"size":{"width":240,"height":180}}',
               hintStyle: const TextStyle(color: colorTextSecondary),
               labelStyle: const TextStyle(color: colorTextSecondary),
               border: OutlineInputBorder(
@@ -358,7 +399,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             runSpacing: 2,
             children: const [
               Text(
-                'Clés supportées: title, colorKey, tagColorKeys, iconBase64, position, size',
+                'Clés supportées: title, colorKey, tagColorKeys, iconBase64, size',
                 style: TextStyle(color: colorTextSecondary, fontSize: 12),
               ),
             ],
@@ -371,13 +412,24 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ],
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
-              onPressed: () => _applyBlockPropertiesJson(block),
-              icon: const Icon(Icons.data_object),
-              label: const Text('Appliquer JSON'),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _populateJsonFromBlock(block),
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('Depuis bloc'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _applyBlockPropertiesJson(block),
+                  icon: const Icon(Icons.data_object),
+                  label: const Text('Appliquer JSON'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Text(

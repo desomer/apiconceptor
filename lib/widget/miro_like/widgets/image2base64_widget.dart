@@ -25,7 +25,7 @@ class ImageUrlToBase64Widget extends StatefulWidget {
 
 class _ImageUrlToBase64WidgetState extends State<ImageUrlToBase64Widget> {
   static const double _previewIconSize = 50;
-  static const int _outputIconSize = 96;
+  static const int _outputIconSize = 128;
 
   final TextEditingController _urlController = TextEditingController();
   final Dio _dio = Dio();
