@@ -2882,6 +2882,19 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return null;
   }
 
+  List<BlockLink> _linksFullyInsideSelection(Set<String> selectedIds) {
+    if (selectedIds.length < 2) {
+      return const <BlockLink>[];
+    }
+    return links
+        .where(
+          (link) =>
+              selectedIds.contains(link.fromBlockId) &&
+              selectedIds.contains(link.toBlockId),
+        )
+        .toList(growable: false);
+  }
+
   Block? _findBlockNearModelPosition(Offset modelPosition) {
     final modelTolerance = 10.0 / zoomLevel;
     for (final block in blocks.reversed) {
@@ -3717,6 +3730,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       details.delta.dy / zoomLevel,
                     );
                     if (_selectedBlockIds.length > 1) {
+                      final linksToMove = _linksFullyInsideSelection(
+                        _selectedBlockIds,
+                      );
                       for (final selectedId in _selectedBlockIds) {
                         final idx = blocks.indexWhere(
                           (b) => b.id == selectedId,
@@ -3727,6 +3743,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         blocks[idx].position += deltaModel;
                         if (!blocks[idx].isZone) {
                           _updateLinksAnchorsForBlock(blocks[idx]);
+                        }
+                      }
+
+                      // Keep manual bends stable while dragging a selected group.
+                      for (final link in linksToMove) {
+                        for (int i = 0; i < link.inflectionPoints.length; i++) {
+                          link.inflectionPoints[i] += deltaModel;
                         }
                       }
                     } else {
