@@ -382,7 +382,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
         }
       }
 
-      bool noDisplayNodeButKeepChildren = false;
+      //bool noDisplayNodeButKeepChildren = false;
       bool noTab = false;
 
       if (node.data is NodeAttribut) {

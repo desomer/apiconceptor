@@ -9,7 +9,9 @@ class InflectionHandleWidget extends StatelessWidget {
   final Color shadowColor;
   final GestureTapDownCallback? onTapDown;
   final GestureTapDownCallback? onSecondaryTapDown;
+  final GestureDragStartCallback? onPanStart;
   final GestureDragUpdateCallback? onPanUpdate;
+  final GestureDragEndCallback? onPanEnd;
 
   const InflectionHandleWidget({
     super.key,
@@ -21,7 +23,9 @@ class InflectionHandleWidget extends StatelessWidget {
     required this.shadowColor,
     this.onTapDown,
     this.onSecondaryTapDown,
+    this.onPanStart,
     this.onPanUpdate,
+    this.onPanEnd,
   });
 
   @override
@@ -34,7 +38,9 @@ class InflectionHandleWidget extends StatelessWidget {
         child: GestureDetector(
           onTapDown: onTapDown,
           onSecondaryTapDown: onSecondaryTapDown,
+          onPanStart: onPanStart,
           onPanUpdate: onPanUpdate,
+          onPanEnd: onPanEnd,
           child: Container(
             width: radius * 2,
             height: radius * 2,

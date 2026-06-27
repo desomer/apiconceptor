@@ -7,7 +7,9 @@ class AnchorHandleWidget extends StatelessWidget {
   final Color color;
   final GestureTapDownCallback? onTapDown;
   final GestureTapDownCallback? onSecondaryTapDown;
+  final GestureDragStartCallback? onPanStart;
   final GestureDragUpdateCallback? onPanUpdate;
+  final GestureDragEndCallback? onPanEnd;
 
   const AnchorHandleWidget({
     super.key,
@@ -17,7 +19,9 @@ class AnchorHandleWidget extends StatelessWidget {
     required this.color,
     this.onTapDown,
     this.onSecondaryTapDown,
+    this.onPanStart,
     this.onPanUpdate,
+    this.onPanEnd,
   });
 
   @override
@@ -30,7 +34,9 @@ class AnchorHandleWidget extends StatelessWidget {
         child: GestureDetector(
           onTapDown: onTapDown,
           onSecondaryTapDown: onSecondaryTapDown,
+          onPanStart: onPanStart,
           onPanUpdate: onPanUpdate,
+          onPanEnd: onPanEnd,
           child: Container(
             width: radius * 2,
             height: radius * 2,

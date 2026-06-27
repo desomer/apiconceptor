@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/async_api/property_editor_mixin.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';

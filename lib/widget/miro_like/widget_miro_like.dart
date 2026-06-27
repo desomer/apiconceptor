@@ -79,6 +79,14 @@ const double _zoneHandleSize = 14.0;
 
 enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
 
+class _UndoIntent extends Intent {
+  const _UndoIntent();
+}
+
+class _RedoIntent extends Intent {
+  const _RedoIntent();
+}
+
 class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
   static const List<String> _mermaidDirections = ['LR', 'TB', 'RL', 'BT'];
@@ -133,12 +141,136 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   String? _draggedZoneId;
   bool _hasUnsavedChanges = false;
 
+  static const int _historyLimit = 30;
+
+  static const Duration _granularUndoWindow = Duration(milliseconds: 900);
+  final List<String> _undoStack = <String>[];
+  final List<String> _redoStack = <String>[];
+  String? _savedBoardSnapshot;
+  String? _lastGranularUndoKey;
+  DateTime? _lastGranularUndoAt;
+
   void _markBoardChanged() {
     _hasUnsavedChanges = true;
   }
 
   void _markBoardSaved() {
     _hasUnsavedChanges = false;
+    _savedBoardSnapshot = _createBoardSnapshot();
+  }
+
+  String _createBoardSnapshot() {
+    return jsonEncode(_boardToJson());
+  }
+
+  void _pushUndoSnapshot() {
+    _lastGranularUndoKey = null;
+    _lastGranularUndoAt = null;
+    final snapshot = _createBoardSnapshot();
+    if (_undoStack.isNotEmpty && _undoStack.last == snapshot) {
+      return;
+    }
+    _undoStack.add(snapshot);
+    if (_undoStack.length > _historyLimit) {
+      _undoStack.removeAt(0);
+    }
+    _redoStack.clear();
+  }
+
+  void _pushUndoSnapshotForGranularEdit(String key) {
+    final now = DateTime.now();
+    final lastAt = _lastGranularUndoAt;
+    final isSameEditScope = _lastGranularUndoKey == key;
+    final isInsideWindow =
+        lastAt != null && now.difference(lastAt) <= _granularUndoWindow;
+
+    if (!isSameEditScope || !isInsideWindow) {
+      _pushUndoSnapshot();
+    }
+
+    _lastGranularUndoKey = key;
+    _lastGranularUndoAt = now;
+  }
+
+  bool _isTextEditingFocused() {
+    final focusedContext = FocusManager.instance.primaryFocus?.context;
+    return focusedContext?.widget is EditableText;
+  }
+
+  void _updateUnsavedStateFromSnapshot() {
+    final savedSnapshot = _savedBoardSnapshot;
+    if (savedSnapshot == null) {
+      _markBoardChanged();
+      return;
+    }
+    _hasUnsavedChanges = _createBoardSnapshot() != savedSnapshot;
+  }
+
+  void _restoreBoardFromSnapshot(String snapshot) {
+    final decoded = jsonDecode(snapshot);
+    if (decoded is! Map<String, dynamic>) {
+      return;
+    }
+
+    final importedBlocks = _blocksFromJson(decoded['blocks']);
+    final legacyType = _connectorTypeFromName(decoded['connectorType']);
+    final importedLinks = _linksFromJson(
+      decoded['links'],
+      fallbackType: legacyType,
+    );
+    final importedIds = importedBlocks.map((b) => b.id).toSet();
+    importedLinks.removeWhere(
+      (l) =>
+          !importedIds.contains(l.fromBlockId) ||
+          !importedIds.contains(l.toBlockId),
+    );
+
+    setState(() {
+      blocks
+        ..clear()
+        ..addAll(importedBlocks);
+      links
+        ..clear()
+        ..addAll(importedLinks);
+
+      final zoom = decoded['zoomLevel'];
+      if (zoom is num) {
+        zoomLevel = zoom.toDouble().clamp(0.2, 4.0);
+      }
+
+      canvasOffset = _offsetFromJson(decoded['canvasOffset']);
+      selectedBlock = null;
+      _selectedBlockIds.clear();
+      selectedLink = null;
+      linkSourceBlock = null;
+      linkingFromPoint = null;
+      currentMousePosition = null;
+      pendingInflectionPoints.clear();
+      _resetBlockDragSnap();
+      _isBoxSelecting = false;
+      _selectionStartCanvas = null;
+      _selectionCurrentCanvas = null;
+      _draggedZoneId = null;
+      _updateUnsavedStateFromSnapshot();
+    });
+  }
+
+  void _undo() {
+    if (_undoStack.isEmpty) {
+      return;
+    }
+    final previousSnapshot = _undoStack.removeLast();
+    _redoStack.add(_createBoardSnapshot());
+    _restoreBoardFromSnapshot(previousSnapshot);
+  }
+
+  void _redo() {
+    if (_redoStack.isEmpty) {
+      return;
+    }
+    final nextSnapshot = _redoStack.removeLast();
+    _undoStack.add(_createBoardSnapshot());
+    _restoreBoardFromSnapshot(nextSnapshot);
   }
 
   Block? _findTopBlockAtModelPosition(Offset modelPosition) {
@@ -260,7 +392,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     importExportManager = ImportExportManager(
       context: context,
       generateBoardJson: _generateBoardJson,
-      importBoard: _importBoard,
+      importBoard: (decoded) => _importBoard(decoded, recordHistory: true),
       generateMermaid: _generateMermaid,
       importMermaid: _importMermaid,
     );
@@ -285,7 +417,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           .getFlowApp(currentCompany.currentFlow!, widget.query!)
           .then((flowApp) {
             if (flowApp != null) {
-              _importBoard(flowApp);
+              _importBoard(flowApp, recordHistory: false);
               _markBoardSaved();
             }
           })
@@ -318,6 +450,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _addBlock(Offset position) {
+    _pushUndoSnapshot();
     setState(() {
       blocks.add(
         Block(
@@ -332,6 +465,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _addZoneBlock(Offset position) {
+    _pushUndoSnapshot();
     setState(() {
       final zoneCount = blocks.where((b) => b.isZone).length;
       blocks.add(
@@ -348,6 +482,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _deleteBlock(Block block) {
+    _pushUndoSnapshot();
     setState(() {
       blocks.remove(block);
       links.removeWhere(
@@ -362,6 +497,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _deleteLink(BlockLink link) {
+    _pushUndoSnapshot();
     setState(() {
       linkManager.deleteLink(links, link);
       if (selectedLink == link) {
@@ -372,6 +508,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _reverseLink(BlockLink link) {
+    _pushUndoSnapshot();
     setState(() {
       linkManager.reverseLink(links, link);
       _markBoardChanged();
@@ -379,6 +516,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleBlockTitleChanged(String blockId, String newTitle) {
+    _pushUndoSnapshotForGranularEdit('block-title:$blockId');
     setState(() {
       final blockIndex = blocks.indexWhere((b) => b.id == blockId);
       if (blockIndex != -1) {
@@ -389,6 +527,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleBlockColorChanged(Block block, String? colorKey) {
+    _pushUndoSnapshot();
     setState(() {
       block.colorKey = colorKey;
       _markBoardChanged();
@@ -400,6 +539,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       return;
     }
 
+    _pushUndoSnapshot();
     setState(() {
       final zones = blocks.where((b) => b.isZone).toList(growable: true);
       final normals = blocks.where((b) => !b.isZone).toList(growable: false);
@@ -432,6 +572,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleBlockTagsChanged(Block block, List<String> tagColorKeys) {
+    _pushUndoSnapshot();
     setState(() {
       block.tagColorKeys
         ..clear()
@@ -443,6 +584,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleBlockIconBase64Changed(Block block, String value) {
+    _pushUndoSnapshot();
     setState(() {
       final trimmed = value.trim();
       block.iconBase64 = trimmed.isEmpty ? null : trimmed;
@@ -481,6 +623,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleBlockPropertiesJsonChanged(Block block, String rawJson) {
+    _pushUndoSnapshot();
     setState(() {
       final trimmed = rawJson.trim();
       if (trimmed.isEmpty) {
@@ -545,6 +688,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleLinkNameChanged(BlockLink link, String newName) {
+    _pushUndoSnapshotForGranularEdit(
+      'link-name:${link.fromBlockId}->${link.toBlockId}',
+    );
     setState(() {
       link.name = newName;
       _markBoardChanged();
@@ -552,6 +698,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleLinkColorChanged(BlockLink link, String? colorKey) {
+    _pushUndoSnapshot();
     setState(() {
       link.colorKey = colorKey;
       _markBoardChanged();
@@ -559,6 +706,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleLinkLabelIconChanged(BlockLink link, String? iconKey) {
+    _pushUndoSnapshot();
     setState(() {
       link.labelIconKey = iconKey;
       _markBoardChanged();
@@ -566,6 +714,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleLinkParticleDensityChanged(BlockLink link, double value) {
+    _pushUndoSnapshotForGranularEdit(
+      'link-density:${link.fromBlockId}->${link.toBlockId}',
+    );
     setState(() {
       link.particleDensity = value.clamp(0.2, 3.0);
       _markBoardChanged();
@@ -573,6 +724,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleLinkParticleSpeedChanged(BlockLink link, double value) {
+    _pushUndoSnapshotForGranularEdit(
+      'link-speed:${link.fromBlockId}->${link.toBlockId}',
+    );
     setState(() {
       link.particleSpeed = value.clamp(0.2, 3.0);
       _markBoardChanged();
@@ -580,6 +734,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleLinkLabelPositionChanged(BlockLink link, double value) {
+    _pushUndoSnapshotForGranularEdit(
+      'link-label-position:${link.fromBlockId}->${link.toBlockId}',
+    );
     setState(() {
       link.labelPosition = value;
       _markBoardChanged();
@@ -587,6 +744,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleLinkLabelOffsetChanged(BlockLink link, Offset offset) {
+    _pushUndoSnapshotForGranularEdit(
+      'link-label-offset:${link.fromBlockId}->${link.toBlockId}',
+    );
     setState(() {
       link.labelOffset = offset;
       _markBoardChanged();
@@ -597,6 +757,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     BlockLink link,
     ConnectorType connectorType,
   ) {
+    _pushUndoSnapshot();
     setState(() {
       link.connectorType = connectorType;
       _markBoardChanged();
@@ -604,6 +765,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _handleLinkAutoLayoutLockChanged(BlockLink link, bool value) {
+    _pushUndoSnapshot();
     setState(() {
       link.autoLayoutLock = value;
       _markBoardChanged();
@@ -1517,6 +1679,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         )
         .toList(growable: false);
 
+    _pushUndoSnapshot();
     setState(() {
       _runAutoLayoutOnGraph(
         layoutBlocks,
@@ -1986,6 +2149,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     _runAutoLayoutOnGraph(importedBlocks, importedLinks, layoutDirection);
 
+    _pushUndoSnapshot();
+
     setState(() {
       blocks
         ..clear()
@@ -2015,7 +2180,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     _fitToViewAfterNextFrame();
   }
 
-  void _importBoard(Map<String, dynamic> decoded) {
+  void _importBoard(Map<String, dynamic> decoded, {bool recordHistory = true}) {
+    if (recordHistory) {
+      _pushUndoSnapshot();
+    }
     final importedBlocks = _blocksFromJson(decoded['blocks']);
     final legacyType = _connectorTypeFromName(decoded['connectorType']);
     final importedLinks = _linksFromJson(
@@ -2056,6 +2224,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   void _endLinking(Block targetBlock) {
     if (linkSourceBlock != null && linkSourceBlock!.id != targetBlock.id) {
+      _pushUndoSnapshot();
       final sourceRect = _blockRectCanvas(linkSourceBlock!);
       final targetRect = _blockRectCanvas(targetBlock);
 
@@ -2961,6 +3130,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final closestCanvasPoint = closest.$2;
 
       if (bestDistSq <= toleranceSq) {
+        _pushUndoSnapshot();
         var bestSegIndex = 0;
         var bestSegDistSq = double.infinity;
         for (var seg = 0; seg < points.length - 1; seg++) {
@@ -3119,10 +3289,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             setState(() {
               if (pointIndex >= 0 &&
                   pointIndex < link.inflectionPoints.length) {
+                _pushUndoSnapshot();
                 link.inflectionPoints.removeAt(pointIndex);
                 _markBoardChanged();
               }
             });
+          },
+          onPanStart: (_) {
+            _pushUndoSnapshot();
           },
           onPanUpdate: (details) {
             setState(() {
@@ -3224,6 +3398,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               selectedBlock = null;
             });
           },
+          onPanStart: (_) {
+            _pushUndoSnapshot();
+          },
           onPanUpdate: (details) {
             setState(() {
               selectedLink = link;
@@ -3276,6 +3453,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           onSecondaryTapDown: (_) {
             setState(() {
               if (linkIndex >= 0 && linkIndex < links.length) {
+                _pushUndoSnapshot();
                 links.removeAt(linkIndex);
                 if (selectedLink == link) {
                   selectedLink = null;
@@ -3283,6 +3461,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 _markBoardChanged();
               }
             });
+          },
+          onPanStart: (_) {
+            _pushUndoSnapshot();
           },
           onPanUpdate: (details) {
             setState(() {
@@ -3329,6 +3510,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           onSecondaryTapDown: (_) {
             setState(() {
               if (linkIndex >= 0 && linkIndex < links.length) {
+                _pushUndoSnapshot();
                 links.removeAt(linkIndex);
                 if (selectedLink == link) {
                   selectedLink = null;
@@ -3336,6 +3518,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 _markBoardChanged();
               }
             });
+          },
+          onPanStart: (_) {
+            _pushUndoSnapshot();
           },
           onPanUpdate: (details) {
             setState(() {
@@ -3441,6 +3626,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         width: size,
         height: size,
         child: GestureDetector(
+          onPanStart: (_) {
+            _pushUndoSnapshot();
+          },
           onPanUpdate: (details) {
             setState(() {
               _resizeZoneFromHandle(zone, type, details);
@@ -3475,408 +3663,473 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: MiroCanvasWorkspace(
-            canvasKey: _canvasKey,
-            canvasBackgroundColor: colorCanvasBackground,
-            blocks: blocks,
-            canvasOffset: canvasOffset,
-            zoomLevel: zoomLevel,
-            selectedBlock: selectedBlock,
-            linkSourceBlock: linkSourceBlock,
-            foregroundPainter: MiroCanvasPainter(
-              blocks: blocks,
-              links: links,
-              canvasOffset: canvasOffset,
-              zoomLevel: zoomLevel,
-              selectedBlock: selectedBlock,
-              selectedLink: selectedLink,
-              linkingFromPoint: linkingFromPoint,
-              currentMousePosition: currentMousePosition,
-              linkSourceBlock: linkSourceBlock,
-              flowAnimation: _flowController,
-              pendingInflectionPoints: pendingInflectionPoints,
-            ),
-            overlayWidgets: [
-              ..._buildSelectionOverlay(),
-              ..._buildZoneResizeHandles(),
-              ..._buildAnchorHandles(),
-              ..._buildInflectionHandles(),
-              ..._buildLinkLabelHandles(),
-            ],
-            onCanvasPrimaryDragStart: (details) {
-              setState(() {
-                if (linkSourceBlock != null) {
-                  return;
-                }
-                _startBoxSelection(details.localPosition);
-              });
-            },
-            onCanvasPrimaryDragUpdate: (details) {
-              setState(() {
-                if (linkSourceBlock != null) {
-                  return;
-                }
-                _updateBoxSelection(details.localPosition);
-              });
-            },
-            onCanvasPrimaryDragEnd: (_) {
-              setState(() {
-                _finishBoxSelection();
-              });
-            },
-            onHover: (event) {
-              setState(() {
-                currentMousePosition = event.localPosition;
-              });
-            },
-            onPointerSignal: (event) {
-              if (event is PointerScrollEvent) {
-                setState(() {
-                  final mouseCanvasPos = event.localPosition;
-                  final modelPointBeforeZoom =
-                      (mouseCanvasPos - canvasOffset) / zoomLevel;
-                  final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
-                  zoomLevel = (zoomLevel * zoomFactor).clamp(0.2, 4.0);
-                  canvasOffset =
-                      mouseCanvasPos - modelPointBeforeZoom * zoomLevel;
-                });
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.keyZ, control: true): _UndoIntent(),
+        SingleActivator(LogicalKeyboardKey.keyY, control: true): _RedoIntent(),
+        SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true):
+            _RedoIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _UndoIntent: CallbackAction<_UndoIntent>(
+            onInvoke: (_) {
+              if (_isTextEditingFocused()) {
+                return null;
               }
+              _undo();
+              return null;
             },
-            onCanvasSecondaryDragStart: (event) {
-              setState(() {
-                final modelPosition = _toModelPosition(event.position);
-                if (_isInsideStandardBlockAtModelPosition(modelPosition)) {
-                  _draggedZoneId = null;
-                  isPanning = false;
-                  return;
-                }
-
-                final hitBlock = _findTopBlockAtModelPosition(modelPosition);
-                if (hitBlock != null && hitBlock.isZone) {
-                  _draggedZoneId = hitBlock.id;
-                  selectedBlock = hitBlock;
-                  _selectedBlockIds
-                    ..clear()
-                    ..add(hitBlock.id);
-                  selectedLink = null;
-                  isPanning = false;
-                  return;
-                }
-                _draggedZoneId = null;
-                isPanning = hitBlock == null;
-              });
-            },
-            onCanvasSecondaryDragUpdate: (event) {
-              if (_draggedZoneId != null) {
-                setState(() {
-                  final zoneIndex = blocks.indexWhere(
-                    (b) => b.id == _draggedZoneId,
-                  );
-                  if (zoneIndex == -1) {
-                    return;
-                  }
-                  final zone = blocks[zoneIndex];
-                  zone.position += Offset(
-                    event.delta.dx / zoomLevel,
-                    event.delta.dy / zoomLevel,
-                  );
-                  _markBoardChanged();
-                });
-                return;
+          ),
+          _RedoIntent: CallbackAction<_RedoIntent>(
+            onInvoke: (_) {
+              if (_isTextEditingFocused()) {
+                return null;
               }
-              if (isPanning) {
-                setState(() {
-                  canvasOffset += event.delta;
-                });
-              }
+              _redo();
+              return null;
             },
-            onCanvasSecondaryDragEnd: (_) {
-              setState(() {
-                _draggedZoneId = null;
-                isPanning = false;
-              });
-            },
-            onCanvasTapDown: (details) {
-              setState(() {
-                if (_consumeNextCanvasTap) {
-                  _consumeNextCanvasTap = false;
-                  return;
-                }
-
-                final canvasPosition = _toCanvasLocal(details.globalPosition);
-                final modelPosition = _toModelPosition(details.globalPosition);
-
-                if (linkSourceBlock != null) {
-                  return;
-                }
-
-                final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                if (hitLink != null) {
-                  selectedBlock = null;
-                  _selectedBlockIds.clear();
-                  selectedLink = hitLink;
-                  return;
-                }
-
-                for (final block in blocks.reversed) {
-                  if (block.isZone) {
-                    continue;
-                  }
-                  final blockRect = Rect.fromLTWH(
-                    block.position.dx,
-                    block.position.dy,
-                    block.size.width,
-                    block.size.height,
-                  );
-                  if (blockRect.contains(modelPosition)) {
-                    if (_isCtrlPressed()) {
-                      if (_selectedBlockIds.contains(block.id)) {
-                        _selectedBlockIds.remove(block.id);
-                      } else {
-                        _selectedBlockIds.add(block.id);
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Row(
+            children: [
+              Expanded(
+                child: MiroCanvasWorkspace(
+                  canvasKey: _canvasKey,
+                  canvasBackgroundColor: colorCanvasBackground,
+                  blocks: blocks,
+                  canvasOffset: canvasOffset,
+                  zoomLevel: zoomLevel,
+                  selectedBlock: selectedBlock,
+                  linkSourceBlock: linkSourceBlock,
+                  foregroundPainter: MiroCanvasPainter(
+                    blocks: blocks,
+                    links: links,
+                    canvasOffset: canvasOffset,
+                    zoomLevel: zoomLevel,
+                    selectedBlock: selectedBlock,
+                    selectedLink: selectedLink,
+                    linkingFromPoint: linkingFromPoint,
+                    currentMousePosition: currentMousePosition,
+                    linkSourceBlock: linkSourceBlock,
+                    flowAnimation: _flowController,
+                    pendingInflectionPoints: pendingInflectionPoints,
+                  ),
+                  overlayWidgets: [
+                    ..._buildSelectionOverlay(),
+                    ..._buildZoneResizeHandles(),
+                    ..._buildAnchorHandles(),
+                    ..._buildInflectionHandles(),
+                    ..._buildLinkLabelHandles(),
+                  ],
+                  onCanvasPrimaryDragStart: (details) {
+                    setState(() {
+                      if (linkSourceBlock != null) {
+                        return;
                       }
-                      selectedBlock = _selectedBlockIds.length == 1
-                          ? blocks.firstWhere(
-                              (b) => b.id == _selectedBlockIds.first,
-                            )
+                      _startBoxSelection(details.localPosition);
+                    });
+                  },
+                  onCanvasPrimaryDragUpdate: (details) {
+                    setState(() {
+                      if (linkSourceBlock != null) {
+                        return;
+                      }
+                      _updateBoxSelection(details.localPosition);
+                    });
+                  },
+                  onCanvasPrimaryDragEnd: (_) {
+                    setState(() {
+                      _finishBoxSelection();
+                    });
+                  },
+                  onHover: (event) {
+                    setState(() {
+                      currentMousePosition = event.localPosition;
+                    });
+                  },
+                  onPointerSignal: (event) {
+                    if (event is PointerScrollEvent) {
+                      setState(() {
+                        final mouseCanvasPos = event.localPosition;
+                        final modelPointBeforeZoom =
+                            (mouseCanvasPos - canvasOffset) / zoomLevel;
+                        final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
+                        zoomLevel = (zoomLevel * zoomFactor).clamp(0.2, 4.0);
+                        canvasOffset =
+                            mouseCanvasPos - modelPointBeforeZoom * zoomLevel;
+                      });
+                    }
+                  },
+                  onCanvasSecondaryDragStart: (event) {
+                    setState(() {
+                      final modelPosition = _toModelPosition(event.position);
+                      if (_isInsideStandardBlockAtModelPosition(
+                        modelPosition,
+                      )) {
+                        _draggedZoneId = null;
+                        isPanning = false;
+                        return;
+                      }
+
+                      final hitBlock = _findTopBlockAtModelPosition(
+                        modelPosition,
+                      );
+                      if (hitBlock != null && hitBlock.isZone) {
+                        _pushUndoSnapshot();
+                        _draggedZoneId = hitBlock.id;
+                        selectedBlock = hitBlock;
+                        _selectedBlockIds
+                          ..clear()
+                          ..add(hitBlock.id);
+                        selectedLink = null;
+                        isPanning = false;
+                        return;
+                      }
+                      _draggedZoneId = null;
+                      isPanning = hitBlock == null;
+                    });
+                  },
+                  onCanvasSecondaryDragUpdate: (event) {
+                    if (_draggedZoneId != null) {
+                      setState(() {
+                        final zoneIndex = blocks.indexWhere(
+                          (b) => b.id == _draggedZoneId,
+                        );
+                        if (zoneIndex == -1) {
+                          return;
+                        }
+                        final zone = blocks[zoneIndex];
+                        zone.position += Offset(
+                          event.delta.dx / zoomLevel,
+                          event.delta.dy / zoomLevel,
+                        );
+                        _markBoardChanged();
+                      });
+                      return;
+                    }
+                    if (isPanning) {
+                      setState(() {
+                        canvasOffset += event.delta;
+                      });
+                    }
+                  },
+                  onCanvasSecondaryDragEnd: (_) {
+                    setState(() {
+                      _draggedZoneId = null;
+                      isPanning = false;
+                    });
+                  },
+                  onCanvasTapDown: (details) {
+                    setState(() {
+                      if (_consumeNextCanvasTap) {
+                        _consumeNextCanvasTap = false;
+                        return;
+                      }
+
+                      final canvasPosition = _toCanvasLocal(
+                        details.globalPosition,
+                      );
+                      final modelPosition = _toModelPosition(
+                        details.globalPosition,
+                      );
+
+                      if (linkSourceBlock != null) {
+                        return;
+                      }
+
+                      final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                      if (hitLink != null) {
+                        selectedBlock = null;
+                        _selectedBlockIds.clear();
+                        selectedLink = hitLink;
+                        return;
+                      }
+
+                      for (final block in blocks.reversed) {
+                        if (block.isZone) {
+                          continue;
+                        }
+                        final blockRect = Rect.fromLTWH(
+                          block.position.dx,
+                          block.position.dy,
+                          block.size.width,
+                          block.size.height,
+                        );
+                        if (blockRect.contains(modelPosition)) {
+                          if (_isCtrlPressed()) {
+                            if (_selectedBlockIds.contains(block.id)) {
+                              _selectedBlockIds.remove(block.id);
+                            } else {
+                              _selectedBlockIds.add(block.id);
+                            }
+                            selectedBlock = _selectedBlockIds.length == 1
+                                ? blocks.firstWhere(
+                                    (b) => b.id == _selectedBlockIds.first,
+                                  )
+                                : null;
+                          } else {
+                            selectedBlock = block;
+                            _selectedBlockIds
+                              ..clear()
+                              ..add(block.id);
+                          }
+                          selectedLink = null;
+                          return;
+                        }
+                      }
+
+                      selectedBlock = null;
+                      _selectedBlockIds.clear();
+                      selectedLink = null;
+                    });
+                  },
+                  onCanvasSecondaryTapDown: (details) {
+                    final canvasPosition = _toCanvasLocal(
+                      details.globalPosition,
+                    );
+                    final modelPosition = _toModelPosition(
+                      details.globalPosition,
+                    );
+
+                    if (linkSourceBlock != null) {
+                      return;
+                    }
+
+                    final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                    if (hitLink != null) {
+                      setState(() {
+                        selectedBlock = null;
+                        _selectedBlockIds.clear();
+                        if (selectedLink != hitLink) {
+                          selectedLink = hitLink;
+                          return;
+                        }
+
+                        final pointAdded = _insertInflectionPointOnLink(
+                          canvasPosition,
+                        );
+                        if (!pointAdded) {
+                          selectedLink = hitLink;
+                        }
+                      });
+                      _lastSecondaryTapTime = null;
+                      _lastSecondaryTapCanvasPosition = null;
+                      return;
+                    }
+
+                    final nearBlock = _findBlockNearModelPosition(
+                      modelPosition,
+                    );
+                    if (nearBlock != null) {
+                      _lastSecondaryTapTime = null;
+                      _lastSecondaryTapCanvasPosition = null;
+                      return;
+                    }
+
+                    final now = DateTime.now();
+                    final isDoubleSecondaryTap =
+                        _lastSecondaryTapTime != null &&
+                        now.difference(_lastSecondaryTapTime!) <=
+                            const Duration(milliseconds: 350) &&
+                        _lastSecondaryTapCanvasPosition != null &&
+                        (canvasPosition - _lastSecondaryTapCanvasPosition!)
+                                .distance <=
+                            18.0;
+
+                    _lastSecondaryTapTime = now;
+                    _lastSecondaryTapCanvasPosition = canvasPosition;
+
+                    if (!isDoubleSecondaryTap) {
+                      return;
+                    }
+
+                    _lastSecondaryTapTime = null;
+                    _lastSecondaryTapCanvasPosition = null;
+
+                    _showCanvasCreationMenu(details.globalPosition);
+                  },
+                  isSecondaryButtonPressed: _isSecondaryButtonPressed,
+                  onStartLinkingForBlock: _startLinking,
+                  onUpdateLinkPreviewFromGlobal: _updateLinkPreviewFromGlobal,
+                  onFinishLinkingAtGlobal: _finishLinkingAtGlobal,
+                  onBlockPanDown: (block, details) {
+                    setState(() {
+                      _pushUndoSnapshot();
+                      final canvasPosition = _toCanvasLocal(
+                        details.globalPosition,
+                      );
+                      final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                      if (hitLink != null) {
+                        selectedBlock = null;
+                        _selectedBlockIds.clear();
+                        selectedLink = hitLink;
+                        _resetBlockDragSnap();
+                        _dragFreePositionModel = null;
+                        return;
+                      }
+
+                      if (!_isCtrlPressed()) {
+                        if (!(_selectedBlockIds.length > 1 &&
+                            _selectedBlockIds.contains(block.id))) {
+                          _selectedBlockIds
+                            ..clear()
+                            ..add(block.id);
+                          selectedBlock = block;
+                        }
+                      }
+                      selectedLink = null;
+                      _resetBlockDragSnap();
+                      _dragFreePositionModel = _selectedBlockIds.length == 1
+                          ? block.position
                           : null;
-                    } else {
-                      selectedBlock = block;
-                      _selectedBlockIds
-                        ..clear()
-                        ..add(block.id);
+                    });
+                  },
+                  onBlockPanUpdate: (block, details) {
+                    if (_selectedBlockIds.contains(block.id)) {
+                      setState(() {
+                        final deltaModel = Offset(
+                          details.delta.dx / zoomLevel,
+                          details.delta.dy / zoomLevel,
+                        );
+                        if (_selectedBlockIds.length > 1) {
+                          final linksToMove = _linksFullyInsideSelection(
+                            _selectedBlockIds,
+                          );
+                          for (final selectedId in _selectedBlockIds) {
+                            final idx = blocks.indexWhere(
+                              (b) => b.id == selectedId,
+                            );
+                            if (idx == -1) {
+                              continue;
+                            }
+                            blocks[idx].position += deltaModel;
+                            if (!blocks[idx].isZone) {
+                              _updateLinksAnchorsForBlock(blocks[idx]);
+                            }
+                          }
+
+                          // Keep manual bends stable while dragging a selected group.
+                          for (final link in linksToMove) {
+                            for (
+                              int i = 0;
+                              i < link.inflectionPoints.length;
+                              i++
+                            ) {
+                              link.inflectionPoints[i] += deltaModel;
+                            }
+                          }
+                        } else {
+                          final proposedPosition =
+                              (_dragFreePositionModel ?? block.position) +
+                              deltaModel;
+                          _dragFreePositionModel = proposedPosition;
+                          block.position = _applyBlockAlignmentSnap(
+                            block,
+                            proposedPosition,
+                          );
+                          if (!block.isZone) {
+                            _updateLinksAnchorsForBlock(block);
+                          }
+                        }
+                        _markBoardChanged();
+                      });
                     }
-                    selectedLink = null;
-                    return;
-                  }
-                }
-
-                selectedBlock = null;
-                _selectedBlockIds.clear();
-                selectedLink = null;
-              });
-            },
-            onCanvasSecondaryTapDown: (details) {
-              final canvasPosition = _toCanvasLocal(details.globalPosition);
-              final modelPosition = _toModelPosition(details.globalPosition);
-
-              if (linkSourceBlock != null) {
-                return;
-              }
-
-              final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-              if (hitLink != null) {
-                setState(() {
-                  selectedBlock = null;
-                  _selectedBlockIds.clear();
-                  if (selectedLink != hitLink) {
-                    selectedLink = hitLink;
-                    return;
-                  }
-
-                  final pointAdded = _insertInflectionPointOnLink(
-                    canvasPosition,
-                  );
-                  if (!pointAdded) {
-                    selectedLink = hitLink;
-                  }
-                });
-                _lastSecondaryTapTime = null;
-                _lastSecondaryTapCanvasPosition = null;
-                return;
-              }
-
-              final nearBlock = _findBlockNearModelPosition(modelPosition);
-              if (nearBlock != null) {
-                _lastSecondaryTapTime = null;
-                _lastSecondaryTapCanvasPosition = null;
-                return;
-              }
-
-              final now = DateTime.now();
-              final isDoubleSecondaryTap =
-                  _lastSecondaryTapTime != null &&
-                  now.difference(_lastSecondaryTapTime!) <=
-                      const Duration(milliseconds: 350) &&
-                  _lastSecondaryTapCanvasPosition != null &&
-                  (canvasPosition - _lastSecondaryTapCanvasPosition!)
-                          .distance <=
-                      18.0;
-
-              _lastSecondaryTapTime = now;
-              _lastSecondaryTapCanvasPosition = canvasPosition;
-
-              if (!isDoubleSecondaryTap) {
-                return;
-              }
-
-              _lastSecondaryTapTime = null;
-              _lastSecondaryTapCanvasPosition = null;
-
-              _showCanvasCreationMenu(details.globalPosition);
-            },
-            isSecondaryButtonPressed: _isSecondaryButtonPressed,
-            onStartLinkingForBlock: _startLinking,
-            onUpdateLinkPreviewFromGlobal: _updateLinkPreviewFromGlobal,
-            onFinishLinkingAtGlobal: _finishLinkingAtGlobal,
-            onBlockPanDown: (block, details) {
-              setState(() {
-                final canvasPosition = _toCanvasLocal(details.globalPosition);
-                final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                if (hitLink != null) {
-                  selectedBlock = null;
-                  _selectedBlockIds.clear();
-                  selectedLink = hitLink;
-                  _resetBlockDragSnap();
-                  _dragFreePositionModel = null;
-                  return;
-                }
-
-                if (!_isCtrlPressed()) {
-                  if (!(_selectedBlockIds.length > 1 &&
-                      _selectedBlockIds.contains(block.id))) {
-                    _selectedBlockIds
-                      ..clear()
-                      ..add(block.id);
-                    selectedBlock = block;
-                  }
-                }
-                selectedLink = null;
-                _resetBlockDragSnap();
-                _dragFreePositionModel = _selectedBlockIds.length == 1
-                    ? block.position
-                    : null;
-              });
-            },
-            onBlockPanUpdate: (block, details) {
-              if (_selectedBlockIds.contains(block.id)) {
-                setState(() {
-                  final deltaModel = Offset(
-                    details.delta.dx / zoomLevel,
-                    details.delta.dy / zoomLevel,
-                  );
-                  if (_selectedBlockIds.length > 1) {
-                    final linksToMove = _linksFullyInsideSelection(
-                      _selectedBlockIds,
-                    );
-                    for (final selectedId in _selectedBlockIds) {
-                      final idx = blocks.indexWhere((b) => b.id == selectedId);
-                      if (idx == -1) {
-                        continue;
+                  },
+                  onBlockPanEnd: (_) {
+                    _resetBlockDragSnap();
+                  },
+                  onBlockTapDown: (block, details) {
+                    setState(() {
+                      _consumeNextCanvasTap = true;
+                      final canvasPosition = _toCanvasLocal(
+                        details.globalPosition,
+                      );
+                      final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                      if (hitLink != null) {
+                        selectedBlock = null;
+                        _selectedBlockIds.clear();
+                        selectedLink = hitLink;
+                        return;
                       }
-                      blocks[idx].position += deltaModel;
-                      if (!blocks[idx].isZone) {
-                        _updateLinksAnchorsForBlock(blocks[idx]);
-                      }
-                    }
 
-                    // Keep manual bends stable while dragging a selected group.
-                    for (final link in linksToMove) {
-                      for (int i = 0; i < link.inflectionPoints.length; i++) {
-                        link.inflectionPoints[i] += deltaModel;
+                      _lastSecondaryTapTime = null;
+                      _lastSecondaryTapCanvasPosition = null;
+                      if (_isCtrlPressed()) {
+                        if (_selectedBlockIds.contains(block.id)) {
+                          _selectedBlockIds.remove(block.id);
+                        } else {
+                          _selectedBlockIds.add(block.id);
+                        }
+                        selectedBlock = _selectedBlockIds.length == 1
+                            ? blocks.firstWhere(
+                                (b) => b.id == _selectedBlockIds.first,
+                              )
+                            : null;
+                      } else {
+                        selectedBlock = block;
+                        _selectedBlockIds
+                          ..clear()
+                          ..add(block.id);
                       }
-                    }
-                  } else {
-                    final proposedPosition =
-                        (_dragFreePositionModel ?? block.position) + deltaModel;
-                    _dragFreePositionModel = proposedPosition;
-                    block.position = _applyBlockAlignmentSnap(
-                      block,
-                      proposedPosition,
-                    );
-                    if (!block.isZone) {
-                      _updateLinksAnchorsForBlock(block);
-                    }
-                  }
-                  _markBoardChanged();
-                });
-              }
-            },
-            onBlockPanEnd: (_) {
-              _resetBlockDragSnap();
-            },
-            onBlockTapDown: (block, details) {
-              setState(() {
-                _consumeNextCanvasTap = true;
-                final canvasPosition = _toCanvasLocal(details.globalPosition);
-                final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                if (hitLink != null) {
-                  selectedBlock = null;
-                  _selectedBlockIds.clear();
-                  selectedLink = hitLink;
-                  return;
-                }
-
-                _lastSecondaryTapTime = null;
-                _lastSecondaryTapCanvasPosition = null;
-                if (_isCtrlPressed()) {
-                  if (_selectedBlockIds.contains(block.id)) {
-                    _selectedBlockIds.remove(block.id);
-                  } else {
-                    _selectedBlockIds.add(block.id);
-                  }
-                  selectedBlock = _selectedBlockIds.length == 1
-                      ? blocks.firstWhere(
-                          (b) => b.id == _selectedBlockIds.first,
-                        )
-                      : null;
-                } else {
-                  selectedBlock = block;
-                  _selectedBlockIds
-                    ..clear()
-                    ..add(block.id);
-                }
-                selectedLink = null;
-                _resetBlockDragSnap();
-              });
-            },
-            onBlockInfoTap: (block) {
-              _showBlockInfoDialog(block);
-            },
-            selectedBlockIds: _selectedBlockIds,
+                      selectedLink = null;
+                      _resetBlockDragSnap();
+                    });
+                  },
+                  onBlockInfoTap: (block) {
+                    _showBlockInfoDialog(block);
+                  },
+                  selectedBlockIds: _selectedBlockIds,
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  SizedBox(
+                    width: 320,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: getAction(),
+                    ),
+                  ),
+                  Expanded(
+                    child: PropertiesPanel(
+                      selectedBlock: selectedBlock,
+                      selectedLink: selectedLink,
+                      onBlockTitleChanged: _handleBlockTitleChanged,
+                      onBlockColorChanged: _handleBlockColorChanged,
+                      onBlockTagsChanged: _handleBlockTagsChanged,
+                      onBlockIconBase64Changed: _handleBlockIconBase64Changed,
+                      onBlockPropertiesJsonChanged:
+                          _handleBlockPropertiesJsonChanged,
+                      onZoneBringToFront: _handleZoneBringToFront,
+                      onZoneSendToBack: _handleZoneSendToBack,
+                      onLinkNameChanged: _handleLinkNameChanged,
+                      onLinkColorChanged: _handleLinkColorChanged,
+                      onLinkLabelIconChanged: _handleLinkLabelIconChanged,
+                      onLinkParticleDensityChanged:
+                          _handleLinkParticleDensityChanged,
+                      onLinkParticleSpeedChanged:
+                          _handleLinkParticleSpeedChanged,
+                      onLinkLabelPositionChanged:
+                          _handleLinkLabelPositionChanged,
+                      onLinkLabelOffsetChanged: _handleLinkLabelOffsetChanged,
+                      onReverseLink: _reverseLink,
+                      onDeleteLink: _deleteLink,
+                      onConnectorTypeChanged: _handleConnectorTypeChanged,
+                      onLinkAutoLayoutLockChanged:
+                          _handleLinkAutoLayoutLockChanged,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.max,
-          children: [
-            SizedBox(
-              width: 320,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: getAction(),
-              ),
-            ),
-            Expanded(
-              child: PropertiesPanel(
-                selectedBlock: selectedBlock,
-                selectedLink: selectedLink,
-                onBlockTitleChanged: _handleBlockTitleChanged,
-                onBlockColorChanged: _handleBlockColorChanged,
-                onBlockTagsChanged: _handleBlockTagsChanged,
-                onBlockIconBase64Changed: _handleBlockIconBase64Changed,
-                onBlockPropertiesJsonChanged: _handleBlockPropertiesJsonChanged,
-                onZoneBringToFront: _handleZoneBringToFront,
-                onZoneSendToBack: _handleZoneSendToBack,
-                onLinkNameChanged: _handleLinkNameChanged,
-                onLinkColorChanged: _handleLinkColorChanged,
-                onLinkLabelIconChanged: _handleLinkLabelIconChanged,
-                onLinkParticleDensityChanged: _handleLinkParticleDensityChanged,
-                onLinkParticleSpeedChanged: _handleLinkParticleSpeedChanged,
-                onLinkLabelPositionChanged: _handleLinkLabelPositionChanged,
-                onLinkLabelOffsetChanged: _handleLinkLabelOffsetChanged,
-                onReverseLink: _reverseLink,
-                onDeleteLink: _deleteLink,
-                onConnectorTypeChanged: _handleConnectorTypeChanged,
-                onLinkAutoLayoutLockChanged: _handleLinkAutoLayoutLockChanged,
-              ),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
@@ -3890,6 +4143,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             onPressed: _fitToView,
           ),
           Spacer(),
+          IconButton(
+            icon: const Icon(Icons.undo),
+            tooltip: 'Undo (Ctrl+Z)',
+            onPressed: _undoStack.isEmpty ? null : _undo,
+          ),
+          IconButton(
+            icon: const Icon(Icons.redo),
+            tooltip: 'Redo (Ctrl+Y)',
+            onPressed: _redoStack.isEmpty ? null : _redo,
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _addBlock(Offset(200, 200)),

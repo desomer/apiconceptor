@@ -6,7 +6,9 @@ class LinkLabelHandleWidget extends StatelessWidget {
   final double width;
   final double height;
   final GestureTapDownCallback? onTapDown;
+  final GestureDragStartCallback? onPanStart;
   final GestureDragUpdateCallback? onPanUpdate;
+  final GestureDragEndCallback? onPanEnd;
 
   const LinkLabelHandleWidget({
     super.key,
@@ -15,7 +17,9 @@ class LinkLabelHandleWidget extends StatelessWidget {
     required this.width,
     required this.height,
     this.onTapDown,
+    this.onPanStart,
     this.onPanUpdate,
+    this.onPanEnd,
   });
 
   @override
@@ -28,7 +32,9 @@ class LinkLabelHandleWidget extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTapDown: onTapDown,
+          onPanStart: onPanStart,
           onPanUpdate: onPanUpdate,
+          onPanEnd: onPanEnd,
           child: SizedBox(
             width: width,
             height: height,
