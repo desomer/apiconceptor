@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/bdd/data_event.dart';
+import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/miro_like/miro_canvas_painter.dart';
 import 'package:jsonschema/widget/miro_like/connector_path_utils.dart';
 import 'package:jsonschema/widget/miro_like/properties_panel.dart';
@@ -54,7 +57,8 @@ const Color colorShadow1 = Color.fromARGB(77, 0, 0, 0);
 const Color colorShadow2 = Color.fromARGB(64, 0, 0, 0);
 
 class MiroLikeWidget extends StatefulWidget {
-  const MiroLikeWidget({super.key});
+  final String? query;
+  const MiroLikeWidget({super.key, this.query});
 
   @override
   State<MiroLikeWidget> createState() => _MiroLikeWidgetState();
@@ -127,6 +131,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   DateTime? _lastSecondaryTapTime;
   Offset? _lastSecondaryTapCanvasPosition;
   String? _draggedZoneId;
+  bool _hasUnsavedChanges = false;
+
+  void _markBoardChanged() {
+    _hasUnsavedChanges = true;
+  }
+
+  void _markBoardSaved() {
+    _hasUnsavedChanges = false;
+  }
 
   Block? _findTopBlockAtModelPosition(Offset modelPosition) {
     for (final block in blocks.reversed) {
@@ -256,6 +269,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       duration: const Duration(milliseconds: 1800),
     )..repeat();
     _initializeSampleBlocks();
+    _markBoardSaved();
   }
 
   @override
@@ -265,26 +279,42 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _initializeSampleBlocks() {
-    blocks.addAll([
-      Block(
-        id: '1',
-        title: 'Block 1',
-        position: const Offset(100, 100),
-        size: const Size(_minBlockWidth, _minBlockHeight),
-      ),
-      Block(
-        id: '2',
-        title: 'Block 2',
-        position: const Offset(350, 100),
-        size: const Size(_minBlockWidth, _minBlockHeight),
-      ),
-      Block(
-        id: '3',
-        title: 'Block 3',
-        position: const Offset(225, 300),
-        size: const Size(_minBlockWidth, _minBlockHeight),
-      ),
-    ]);
+    // loader from query id
+    if (widget.query != null) {
+      bddStorage
+          .getFlowApp(currentCompany.currentFlow!, widget.query!)
+          .then((flowApp) {
+            if (flowApp != null) {
+              _importBoard(flowApp);
+              _markBoardSaved();
+            }
+          })
+          .catchError((error) {
+            // Handle error if needed
+            print('Error loading flow app: $error');
+          });
+    }
+
+    // blocks.addAll([
+    //   Block(
+    //     id: '1',
+    //     title: 'Block 1',
+    //     position: const Offset(100, 100),
+    //     size: const Size(_minBlockWidth, _minBlockHeight),
+    //   ),
+    //   Block(
+    //     id: '2',
+    //     title: 'Block 2',
+    //     position: const Offset(350, 100),
+    //     size: const Size(_minBlockWidth, _minBlockHeight),
+    //   ),
+    //   Block(
+    //     id: '3',
+    //     title: 'Block 3',
+    //     position: const Offset(225, 300),
+    //     size: const Size(_minBlockWidth, _minBlockHeight),
+    //   ),
+    // ]);
   }
 
   void _addBlock(Offset position) {
@@ -297,6 +327,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           size: const Size(_minBlockWidth, _minBlockHeight),
         ),
       );
+      _markBoardChanged();
     });
   }
 
@@ -312,6 +343,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           size: const Size(420, 280),
         ),
       );
+      _markBoardChanged();
     });
   }
 
@@ -325,6 +357,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       if (selectedLink != null && !links.contains(selectedLink)) {
         selectedLink = null;
       }
+      _markBoardChanged();
     });
   }
 
@@ -334,12 +367,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       if (selectedLink == link) {
         selectedLink = null;
       }
+      _markBoardChanged();
     });
   }
 
   void _reverseLink(BlockLink link) {
     setState(() {
       linkManager.reverseLink(links, link);
+      _markBoardChanged();
     });
   }
 
@@ -348,6 +383,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final blockIndex = blocks.indexWhere((b) => b.id == blockId);
       if (blockIndex != -1) {
         blocks[blockIndex].title = _normalizeBlockTitleLineBreaks(newTitle);
+        _markBoardChanged();
       }
     });
   }
@@ -355,6 +391,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   void _handleBlockColorChanged(Block block, String? colorKey) {
     setState(() {
       block.colorKey = colorKey;
+      _markBoardChanged();
     });
   }
 
@@ -382,6 +419,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         ..clear()
         ..addAll(zones)
         ..addAll(normals);
+      _markBoardChanged();
     });
   }
 
@@ -400,6 +438,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         ..addAll(
           tagColorKeys.where((key) => kBlockTagColorMap.containsKey(key)),
         );
+      _markBoardChanged();
     });
   }
 
@@ -408,6 +447,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final trimmed = value.trim();
       block.iconBase64 = trimmed.isEmpty ? null : trimmed;
       _normalizeBlockIconStorage(block);
+      _markBoardChanged();
     });
   }
 
@@ -445,6 +485,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final trimmed = rawJson.trim();
       if (trimmed.isEmpty) {
         block.propertiesJson = null;
+        _markBoardChanged();
         return;
       }
 
@@ -499,48 +540,56 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       }
 
       _normalizeBlockIconStorage(block);
+      _markBoardChanged();
     });
   }
 
   void _handleLinkNameChanged(BlockLink link, String newName) {
     setState(() {
       link.name = newName;
+      _markBoardChanged();
     });
   }
 
   void _handleLinkColorChanged(BlockLink link, String? colorKey) {
     setState(() {
       link.colorKey = colorKey;
+      _markBoardChanged();
     });
   }
 
   void _handleLinkLabelIconChanged(BlockLink link, String? iconKey) {
     setState(() {
       link.labelIconKey = iconKey;
+      _markBoardChanged();
     });
   }
 
   void _handleLinkParticleDensityChanged(BlockLink link, double value) {
     setState(() {
       link.particleDensity = value.clamp(0.2, 3.0);
+      _markBoardChanged();
     });
   }
 
   void _handleLinkParticleSpeedChanged(BlockLink link, double value) {
     setState(() {
       link.particleSpeed = value.clamp(0.2, 3.0);
+      _markBoardChanged();
     });
   }
 
   void _handleLinkLabelPositionChanged(BlockLink link, double value) {
     setState(() {
       link.labelPosition = value;
+      _markBoardChanged();
     });
   }
 
   void _handleLinkLabelOffsetChanged(BlockLink link, Offset offset) {
     setState(() {
       link.labelOffset = offset;
+      _markBoardChanged();
     });
   }
 
@@ -550,12 +599,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   ) {
     setState(() {
       link.connectorType = connectorType;
+      _markBoardChanged();
     });
   }
 
   void _handleLinkAutoLayoutLockChanged(BlockLink link, bool value) {
     setState(() {
       link.autoLayoutLock = value;
+      _markBoardChanged();
     });
   }
 
@@ -1473,6 +1524,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         _mermaidLayoutDirection,
         preserveCurrentPositions: true,
       );
+      _markBoardChanged();
     });
   }
 
@@ -1957,6 +2009,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       for (final block in blocks) {
         _ensureBlockHasSpaceForAnchors(block);
       }
+      _markBoardChanged();
     });
 
     _fitToViewAfterNextFrame();
@@ -1995,6 +2048,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       linkingFromPoint = null;
       currentMousePosition = null;
       pendingInflectionPoints.clear();
+      _markBoardSaved();
     });
 
     _fitToViewAfterNextFrame();
@@ -2036,6 +2090,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         linkSourceBlock = null;
         linkingFromPoint = null;
         pendingInflectionPoints.clear();
+        _markBoardChanged();
       });
     }
   }
@@ -2932,6 +2987,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         link.inflectionPoints.insert(insertIndex, modelPoint);
         selectedLink = link;
         selectedBlock = null;
+        _markBoardChanged();
         return true;
       }
     }
@@ -3064,6 +3120,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               if (pointIndex >= 0 &&
                   pointIndex < link.inflectionPoints.length) {
                 link.inflectionPoints.removeAt(pointIndex);
+                _markBoardChanged();
               }
             });
           },
@@ -3072,6 +3129,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               selectedLink = link;
               selectedBlock = null;
               link.inflectionPoints[pointIndex] += details.delta / zoomLevel;
+              _markBoardChanged();
             });
           },
         ),
@@ -3171,6 +3229,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               selectedLink = link;
               selectedBlock = null;
               link.labelOffset += details.delta / zoomLevel;
+              _markBoardChanged();
             });
           },
         ),
@@ -3221,6 +3280,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 if (selectedLink == link) {
                   selectedLink = null;
                 }
+                _markBoardChanged();
               }
             });
           },
@@ -3248,6 +3308,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               if (fromIndex != -1) {
                 _ensureBlockHasSpaceForAnchors(blocks[fromIndex]);
               }
+              _markBoardChanged();
             });
           },
         ),
@@ -3272,6 +3333,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 if (selectedLink == link) {
                   selectedLink = null;
                 }
+                _markBoardChanged();
               }
             });
           },
@@ -3297,6 +3359,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               if (toIndex != -1) {
                 _ensureBlockHasSpaceForAnchors(blocks[toIndex]);
               }
+              _markBoardChanged();
             });
           },
         ),
@@ -3381,6 +3444,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           onPanUpdate: (details) {
             setState(() {
               _resizeZoneFromHandle(zone, type, details);
+              _markBoardChanged();
             });
           },
           child: Container(
@@ -3411,10 +3475,421 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Domain Designer'),
-        actions: [
+    return Row(
+      children: [
+        Expanded(
+          child: MiroCanvasWorkspace(
+            canvasKey: _canvasKey,
+            canvasBackgroundColor: colorCanvasBackground,
+            blocks: blocks,
+            canvasOffset: canvasOffset,
+            zoomLevel: zoomLevel,
+            selectedBlock: selectedBlock,
+            linkSourceBlock: linkSourceBlock,
+            foregroundPainter: MiroCanvasPainter(
+              blocks: blocks,
+              links: links,
+              canvasOffset: canvasOffset,
+              zoomLevel: zoomLevel,
+              selectedBlock: selectedBlock,
+              selectedLink: selectedLink,
+              linkingFromPoint: linkingFromPoint,
+              currentMousePosition: currentMousePosition,
+              linkSourceBlock: linkSourceBlock,
+              flowAnimation: _flowController,
+              pendingInflectionPoints: pendingInflectionPoints,
+            ),
+            overlayWidgets: [
+              ..._buildSelectionOverlay(),
+              ..._buildZoneResizeHandles(),
+              ..._buildAnchorHandles(),
+              ..._buildInflectionHandles(),
+              ..._buildLinkLabelHandles(),
+            ],
+            onCanvasPrimaryDragStart: (details) {
+              setState(() {
+                if (linkSourceBlock != null) {
+                  return;
+                }
+                _startBoxSelection(details.localPosition);
+              });
+            },
+            onCanvasPrimaryDragUpdate: (details) {
+              setState(() {
+                if (linkSourceBlock != null) {
+                  return;
+                }
+                _updateBoxSelection(details.localPosition);
+              });
+            },
+            onCanvasPrimaryDragEnd: (_) {
+              setState(() {
+                _finishBoxSelection();
+              });
+            },
+            onHover: (event) {
+              setState(() {
+                currentMousePosition = event.localPosition;
+              });
+            },
+            onPointerSignal: (event) {
+              if (event is PointerScrollEvent) {
+                setState(() {
+                  final mouseCanvasPos = event.localPosition;
+                  final modelPointBeforeZoom =
+                      (mouseCanvasPos - canvasOffset) / zoomLevel;
+                  final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
+                  zoomLevel = (zoomLevel * zoomFactor).clamp(0.2, 4.0);
+                  canvasOffset =
+                      mouseCanvasPos - modelPointBeforeZoom * zoomLevel;
+                });
+              }
+            },
+            onCanvasSecondaryDragStart: (event) {
+              setState(() {
+                final modelPosition = _toModelPosition(event.position);
+                if (_isInsideStandardBlockAtModelPosition(modelPosition)) {
+                  _draggedZoneId = null;
+                  isPanning = false;
+                  return;
+                }
+
+                final hitBlock = _findTopBlockAtModelPosition(modelPosition);
+                if (hitBlock != null && hitBlock.isZone) {
+                  _draggedZoneId = hitBlock.id;
+                  selectedBlock = hitBlock;
+                  _selectedBlockIds
+                    ..clear()
+                    ..add(hitBlock.id);
+                  selectedLink = null;
+                  isPanning = false;
+                  return;
+                }
+                _draggedZoneId = null;
+                isPanning = hitBlock == null;
+              });
+            },
+            onCanvasSecondaryDragUpdate: (event) {
+              if (_draggedZoneId != null) {
+                setState(() {
+                  final zoneIndex = blocks.indexWhere(
+                    (b) => b.id == _draggedZoneId,
+                  );
+                  if (zoneIndex == -1) {
+                    return;
+                  }
+                  final zone = blocks[zoneIndex];
+                  zone.position += Offset(
+                    event.delta.dx / zoomLevel,
+                    event.delta.dy / zoomLevel,
+                  );
+                  _markBoardChanged();
+                });
+                return;
+              }
+              if (isPanning) {
+                setState(() {
+                  canvasOffset += event.delta;
+                });
+              }
+            },
+            onCanvasSecondaryDragEnd: (_) {
+              setState(() {
+                _draggedZoneId = null;
+                isPanning = false;
+              });
+            },
+            onCanvasTapDown: (details) {
+              setState(() {
+                if (_consumeNextCanvasTap) {
+                  _consumeNextCanvasTap = false;
+                  return;
+                }
+
+                final canvasPosition = _toCanvasLocal(details.globalPosition);
+                final modelPosition = _toModelPosition(details.globalPosition);
+
+                if (linkSourceBlock != null) {
+                  return;
+                }
+
+                final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                if (hitLink != null) {
+                  selectedBlock = null;
+                  _selectedBlockIds.clear();
+                  selectedLink = hitLink;
+                  return;
+                }
+
+                for (final block in blocks.reversed) {
+                  if (block.isZone) {
+                    continue;
+                  }
+                  final blockRect = Rect.fromLTWH(
+                    block.position.dx,
+                    block.position.dy,
+                    block.size.width,
+                    block.size.height,
+                  );
+                  if (blockRect.contains(modelPosition)) {
+                    if (_isCtrlPressed()) {
+                      if (_selectedBlockIds.contains(block.id)) {
+                        _selectedBlockIds.remove(block.id);
+                      } else {
+                        _selectedBlockIds.add(block.id);
+                      }
+                      selectedBlock = _selectedBlockIds.length == 1
+                          ? blocks.firstWhere(
+                              (b) => b.id == _selectedBlockIds.first,
+                            )
+                          : null;
+                    } else {
+                      selectedBlock = block;
+                      _selectedBlockIds
+                        ..clear()
+                        ..add(block.id);
+                    }
+                    selectedLink = null;
+                    return;
+                  }
+                }
+
+                selectedBlock = null;
+                _selectedBlockIds.clear();
+                selectedLink = null;
+              });
+            },
+            onCanvasSecondaryTapDown: (details) {
+              final canvasPosition = _toCanvasLocal(details.globalPosition);
+              final modelPosition = _toModelPosition(details.globalPosition);
+
+              if (linkSourceBlock != null) {
+                return;
+              }
+
+              final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+              if (hitLink != null) {
+                setState(() {
+                  selectedBlock = null;
+                  _selectedBlockIds.clear();
+                  if (selectedLink != hitLink) {
+                    selectedLink = hitLink;
+                    return;
+                  }
+
+                  final pointAdded = _insertInflectionPointOnLink(
+                    canvasPosition,
+                  );
+                  if (!pointAdded) {
+                    selectedLink = hitLink;
+                  }
+                });
+                _lastSecondaryTapTime = null;
+                _lastSecondaryTapCanvasPosition = null;
+                return;
+              }
+
+              final nearBlock = _findBlockNearModelPosition(modelPosition);
+              if (nearBlock != null) {
+                _lastSecondaryTapTime = null;
+                _lastSecondaryTapCanvasPosition = null;
+                return;
+              }
+
+              final now = DateTime.now();
+              final isDoubleSecondaryTap =
+                  _lastSecondaryTapTime != null &&
+                  now.difference(_lastSecondaryTapTime!) <=
+                      const Duration(milliseconds: 350) &&
+                  _lastSecondaryTapCanvasPosition != null &&
+                  (canvasPosition - _lastSecondaryTapCanvasPosition!)
+                          .distance <=
+                      18.0;
+
+              _lastSecondaryTapTime = now;
+              _lastSecondaryTapCanvasPosition = canvasPosition;
+
+              if (!isDoubleSecondaryTap) {
+                return;
+              }
+
+              _lastSecondaryTapTime = null;
+              _lastSecondaryTapCanvasPosition = null;
+
+              _showCanvasCreationMenu(details.globalPosition);
+            },
+            isSecondaryButtonPressed: _isSecondaryButtonPressed,
+            onStartLinkingForBlock: _startLinking,
+            onUpdateLinkPreviewFromGlobal: _updateLinkPreviewFromGlobal,
+            onFinishLinkingAtGlobal: _finishLinkingAtGlobal,
+            onBlockPanDown: (block, details) {
+              setState(() {
+                final canvasPosition = _toCanvasLocal(details.globalPosition);
+                final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                if (hitLink != null) {
+                  selectedBlock = null;
+                  _selectedBlockIds.clear();
+                  selectedLink = hitLink;
+                  _resetBlockDragSnap();
+                  _dragFreePositionModel = null;
+                  return;
+                }
+
+                if (!_isCtrlPressed()) {
+                  if (!(_selectedBlockIds.length > 1 &&
+                      _selectedBlockIds.contains(block.id))) {
+                    _selectedBlockIds
+                      ..clear()
+                      ..add(block.id);
+                    selectedBlock = block;
+                  }
+                }
+                selectedLink = null;
+                _resetBlockDragSnap();
+                _dragFreePositionModel = _selectedBlockIds.length == 1
+                    ? block.position
+                    : null;
+              });
+            },
+            onBlockPanUpdate: (block, details) {
+              if (_selectedBlockIds.contains(block.id)) {
+                setState(() {
+                  final deltaModel = Offset(
+                    details.delta.dx / zoomLevel,
+                    details.delta.dy / zoomLevel,
+                  );
+                  if (_selectedBlockIds.length > 1) {
+                    final linksToMove = _linksFullyInsideSelection(
+                      _selectedBlockIds,
+                    );
+                    for (final selectedId in _selectedBlockIds) {
+                      final idx = blocks.indexWhere((b) => b.id == selectedId);
+                      if (idx == -1) {
+                        continue;
+                      }
+                      blocks[idx].position += deltaModel;
+                      if (!blocks[idx].isZone) {
+                        _updateLinksAnchorsForBlock(blocks[idx]);
+                      }
+                    }
+
+                    // Keep manual bends stable while dragging a selected group.
+                    for (final link in linksToMove) {
+                      for (int i = 0; i < link.inflectionPoints.length; i++) {
+                        link.inflectionPoints[i] += deltaModel;
+                      }
+                    }
+                  } else {
+                    final proposedPosition =
+                        (_dragFreePositionModel ?? block.position) + deltaModel;
+                    _dragFreePositionModel = proposedPosition;
+                    block.position = _applyBlockAlignmentSnap(
+                      block,
+                      proposedPosition,
+                    );
+                    if (!block.isZone) {
+                      _updateLinksAnchorsForBlock(block);
+                    }
+                  }
+                  _markBoardChanged();
+                });
+              }
+            },
+            onBlockPanEnd: (_) {
+              _resetBlockDragSnap();
+            },
+            onBlockTapDown: (block, details) {
+              setState(() {
+                _consumeNextCanvasTap = true;
+                final canvasPosition = _toCanvasLocal(details.globalPosition);
+                final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+                if (hitLink != null) {
+                  selectedBlock = null;
+                  _selectedBlockIds.clear();
+                  selectedLink = hitLink;
+                  return;
+                }
+
+                _lastSecondaryTapTime = null;
+                _lastSecondaryTapCanvasPosition = null;
+                if (_isCtrlPressed()) {
+                  if (_selectedBlockIds.contains(block.id)) {
+                    _selectedBlockIds.remove(block.id);
+                  } else {
+                    _selectedBlockIds.add(block.id);
+                  }
+                  selectedBlock = _selectedBlockIds.length == 1
+                      ? blocks.firstWhere(
+                          (b) => b.id == _selectedBlockIds.first,
+                        )
+                      : null;
+                } else {
+                  selectedBlock = block;
+                  _selectedBlockIds
+                    ..clear()
+                    ..add(block.id);
+                }
+                selectedLink = null;
+                _resetBlockDragSnap();
+              });
+            },
+            onBlockInfoTap: (block) {
+              _showBlockInfoDialog(block);
+            },
+            selectedBlockIds: _selectedBlockIds,
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            SizedBox(
+              width: 320,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: getAction(),
+              ),
+            ),
+            Expanded(
+              child: PropertiesPanel(
+                selectedBlock: selectedBlock,
+                selectedLink: selectedLink,
+                onBlockTitleChanged: _handleBlockTitleChanged,
+                onBlockColorChanged: _handleBlockColorChanged,
+                onBlockTagsChanged: _handleBlockTagsChanged,
+                onBlockIconBase64Changed: _handleBlockIconBase64Changed,
+                onBlockPropertiesJsonChanged: _handleBlockPropertiesJsonChanged,
+                onZoneBringToFront: _handleZoneBringToFront,
+                onZoneSendToBack: _handleZoneSendToBack,
+                onLinkNameChanged: _handleLinkNameChanged,
+                onLinkColorChanged: _handleLinkColorChanged,
+                onLinkLabelIconChanged: _handleLinkLabelIconChanged,
+                onLinkParticleDensityChanged: _handleLinkParticleDensityChanged,
+                onLinkParticleSpeedChanged: _handleLinkParticleSpeedChanged,
+                onLinkLabelPositionChanged: _handleLinkLabelPositionChanged,
+                onLinkLabelOffsetChanged: _handleLinkLabelOffsetChanged,
+                onReverseLink: _reverseLink,
+                onDeleteLink: _deleteLink,
+                onConnectorTypeChanged: _handleConnectorTypeChanged,
+                onLinkAutoLayoutLockChanged: _handleLinkAutoLayoutLockChanged,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  List<Widget> getAction() {
+    return [
+      Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.fit_screen),
+            tooltip: 'Voir tous les blocs',
+            onPressed: _fitToView,
+          ),
+          Spacer(),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _addBlock(Offset(200, 200)),
@@ -3435,6 +3910,48 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 : null,
             tooltip: 'Supprimer le bloc sélectionné',
           ),
+        ],
+      ),
+      Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              Icons.save_outlined,
+              color: _hasUnsavedChanges ? Colors.blue : null,
+            ),
+            tooltip: 'Save',
+            onPressed: () {
+              // save miro canvas state to local storage or backend
+              print("save flow app ${widget.query}");
+
+              var payload = {
+                'company_id': currentCompany.companyId,
+                'namespace': currentCompany.currentFlow!.namespace,
+                'category': 'appflow',
+                'schema_id': '${currentCompany.currentFlow!.id}/data',
+                'version': '1',
+                'attr_id': widget.query!,
+                'path': '-',
+                'prop': _boardToJson(),
+                'state': 'R',
+                'update_at': DateTime.now().toIso8601String(),
+              };
+
+              var save = SaveEvent(
+                model: currentCompany.currentFlow!,
+                version: null,
+                idIdempotence: widget.query!,
+                table: 'attributs',
+                data: payload,
+              );
+
+              bddStorage.storeManager.add(save);
+              setState(() {
+                _markBoardSaved();
+              });
+            },
+          ),
+          Spacer(),
           IconButton(
             icon: const Icon(Icons.file_upload_outlined),
             tooltip: 'Export JSON',
@@ -3455,6 +3972,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             tooltip: 'Import Mermaid',
             onPressed: () => importExportManager.showImportMermaidDialog(),
           ),
+        ],
+      ),
+      Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.auto_fix_high),
+            tooltip: 'Réorganiser le graphe',
+            onPressed: _reorganizeGraphLayout,
+          ),
+          Spacer(),
           PopupMenuButton<String>(
             tooltip: 'Direction Mermaid ($_mermaidLayoutDirection)',
             onSelected: (value) {
@@ -3555,409 +4082,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             },
             icon: const Icon(Icons.settings_input_component),
           ),
-          IconButton(
-            icon: const Icon(Icons.auto_fix_high),
-            tooltip: 'Réorganiser le graphe',
-            onPressed: _reorganizeGraphLayout,
-          ),
-          IconButton(
-            icon: const Icon(Icons.fit_screen),
-            tooltip: 'Voir tous les blocs',
-            onPressed: _fitToView,
-          ),
         ],
       ),
-      body: Row(
-        children: [
-          Expanded(
-            child: MiroCanvasWorkspace(
-              canvasKey: _canvasKey,
-              canvasBackgroundColor: colorCanvasBackground,
-              blocks: blocks,
-              canvasOffset: canvasOffset,
-              zoomLevel: zoomLevel,
-              selectedBlock: selectedBlock,
-              linkSourceBlock: linkSourceBlock,
-              foregroundPainter: MiroCanvasPainter(
-                blocks: blocks,
-                links: links,
-                canvasOffset: canvasOffset,
-                zoomLevel: zoomLevel,
-                selectedBlock: selectedBlock,
-                selectedLink: selectedLink,
-                linkingFromPoint: linkingFromPoint,
-                currentMousePosition: currentMousePosition,
-                linkSourceBlock: linkSourceBlock,
-                flowAnimation: _flowController,
-                pendingInflectionPoints: pendingInflectionPoints,
-              ),
-              overlayWidgets: [
-                ..._buildSelectionOverlay(),
-                ..._buildZoneResizeHandles(),
-                ..._buildAnchorHandles(),
-                ..._buildInflectionHandles(),
-                ..._buildLinkLabelHandles(),
-              ],
-              onCanvasPrimaryDragStart: (details) {
-                setState(() {
-                  if (linkSourceBlock != null) {
-                    return;
-                  }
-                  _startBoxSelection(details.localPosition);
-                });
-              },
-              onCanvasPrimaryDragUpdate: (details) {
-                setState(() {
-                  if (linkSourceBlock != null) {
-                    return;
-                  }
-                  _updateBoxSelection(details.localPosition);
-                });
-              },
-              onCanvasPrimaryDragEnd: (_) {
-                setState(() {
-                  _finishBoxSelection();
-                });
-              },
-              onHover: (event) {
-                setState(() {
-                  currentMousePosition = event.localPosition;
-                });
-              },
-              onPointerSignal: (event) {
-                if (event is PointerScrollEvent) {
-                  setState(() {
-                    final mouseCanvasPos = event.localPosition;
-                    final modelPointBeforeZoom =
-                        (mouseCanvasPos - canvasOffset) / zoomLevel;
-                    final zoomFactor = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
-                    zoomLevel = (zoomLevel * zoomFactor).clamp(0.2, 4.0);
-                    canvasOffset =
-                        mouseCanvasPos - modelPointBeforeZoom * zoomLevel;
-                  });
-                }
-              },
-              onCanvasSecondaryDragStart: (event) {
-                setState(() {
-                  final modelPosition = _toModelPosition(event.position);
-                  if (_isInsideStandardBlockAtModelPosition(modelPosition)) {
-                    _draggedZoneId = null;
-                    isPanning = false;
-                    return;
-                  }
-
-                  final hitBlock = _findTopBlockAtModelPosition(modelPosition);
-                  if (hitBlock != null && hitBlock.isZone) {
-                    _draggedZoneId = hitBlock.id;
-                    selectedBlock = hitBlock;
-                    _selectedBlockIds
-                      ..clear()
-                      ..add(hitBlock.id);
-                    selectedLink = null;
-                    isPanning = false;
-                    return;
-                  }
-                  _draggedZoneId = null;
-                  isPanning = hitBlock == null;
-                });
-              },
-              onCanvasSecondaryDragUpdate: (event) {
-                if (_draggedZoneId != null) {
-                  setState(() {
-                    final zoneIndex = blocks.indexWhere(
-                      (b) => b.id == _draggedZoneId,
-                    );
-                    if (zoneIndex == -1) {
-                      return;
-                    }
-                    final zone = blocks[zoneIndex];
-                    zone.position += Offset(
-                      event.delta.dx / zoomLevel,
-                      event.delta.dy / zoomLevel,
-                    );
-                  });
-                  return;
-                }
-                if (isPanning) {
-                  setState(() {
-                    canvasOffset += event.delta;
-                  });
-                }
-              },
-              onCanvasSecondaryDragEnd: (_) {
-                setState(() {
-                  _draggedZoneId = null;
-                  isPanning = false;
-                });
-              },
-              onCanvasTapDown: (details) {
-                setState(() {
-                  if (_consumeNextCanvasTap) {
-                    _consumeNextCanvasTap = false;
-                    return;
-                  }
-
-                  final canvasPosition = _toCanvasLocal(details.globalPosition);
-                  final modelPosition = _toModelPosition(
-                    details.globalPosition,
-                  );
-
-                  if (linkSourceBlock != null) {
-                    return;
-                  }
-
-                  final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                  if (hitLink != null) {
-                    selectedBlock = null;
-                    _selectedBlockIds.clear();
-                    selectedLink = hitLink;
-                    return;
-                  }
-
-                  for (final block in blocks.reversed) {
-                    if (block.isZone) {
-                      continue;
-                    }
-                    final blockRect = Rect.fromLTWH(
-                      block.position.dx,
-                      block.position.dy,
-                      block.size.width,
-                      block.size.height,
-                    );
-                    if (blockRect.contains(modelPosition)) {
-                      if (_isCtrlPressed()) {
-                        if (_selectedBlockIds.contains(block.id)) {
-                          _selectedBlockIds.remove(block.id);
-                        } else {
-                          _selectedBlockIds.add(block.id);
-                        }
-                        selectedBlock = _selectedBlockIds.length == 1
-                            ? blocks.firstWhere(
-                                (b) => b.id == _selectedBlockIds.first,
-                              )
-                            : null;
-                      } else {
-                        selectedBlock = block;
-                        _selectedBlockIds
-                          ..clear()
-                          ..add(block.id);
-                      }
-                      selectedLink = null;
-                      return;
-                    }
-                  }
-
-                  selectedBlock = null;
-                  _selectedBlockIds.clear();
-                  selectedLink = null;
-                });
-              },
-              onCanvasSecondaryTapDown: (details) {
-                final canvasPosition = _toCanvasLocal(details.globalPosition);
-                final modelPosition = _toModelPosition(details.globalPosition);
-
-                if (linkSourceBlock != null) {
-                  return;
-                }
-
-                final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                if (hitLink != null) {
-                  setState(() {
-                    selectedBlock = null;
-                    _selectedBlockIds.clear();
-                    if (selectedLink != hitLink) {
-                      selectedLink = hitLink;
-                      return;
-                    }
-
-                    final pointAdded = _insertInflectionPointOnLink(
-                      canvasPosition,
-                    );
-                    if (!pointAdded) {
-                      selectedLink = hitLink;
-                    }
-                  });
-                  _lastSecondaryTapTime = null;
-                  _lastSecondaryTapCanvasPosition = null;
-                  return;
-                }
-
-                final nearBlock = _findBlockNearModelPosition(modelPosition);
-                if (nearBlock != null) {
-                  _lastSecondaryTapTime = null;
-                  _lastSecondaryTapCanvasPosition = null;
-                  return;
-                }
-
-                final now = DateTime.now();
-                final isDoubleSecondaryTap =
-                    _lastSecondaryTapTime != null &&
-                    now.difference(_lastSecondaryTapTime!) <=
-                        const Duration(milliseconds: 350) &&
-                    _lastSecondaryTapCanvasPosition != null &&
-                    (canvasPosition - _lastSecondaryTapCanvasPosition!)
-                            .distance <=
-                        18.0;
-
-                _lastSecondaryTapTime = now;
-                _lastSecondaryTapCanvasPosition = canvasPosition;
-
-                if (!isDoubleSecondaryTap) {
-                  return;
-                }
-
-                _lastSecondaryTapTime = null;
-                _lastSecondaryTapCanvasPosition = null;
-
-                _showCanvasCreationMenu(details.globalPosition);
-              },
-              isSecondaryButtonPressed: _isSecondaryButtonPressed,
-              onStartLinkingForBlock: _startLinking,
-              onUpdateLinkPreviewFromGlobal: _updateLinkPreviewFromGlobal,
-              onFinishLinkingAtGlobal: _finishLinkingAtGlobal,
-              onBlockPanDown: (block, details) {
-                setState(() {
-                  final canvasPosition = _toCanvasLocal(details.globalPosition);
-                  final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                  if (hitLink != null) {
-                    selectedBlock = null;
-                    _selectedBlockIds.clear();
-                    selectedLink = hitLink;
-                    _resetBlockDragSnap();
-                    _dragFreePositionModel = null;
-                    return;
-                  }
-
-                  if (!_isCtrlPressed()) {
-                    if (!(_selectedBlockIds.length > 1 &&
-                        _selectedBlockIds.contains(block.id))) {
-                      _selectedBlockIds
-                        ..clear()
-                        ..add(block.id);
-                      selectedBlock = block;
-                    }
-                  }
-                  selectedLink = null;
-                  _resetBlockDragSnap();
-                  _dragFreePositionModel = _selectedBlockIds.length == 1
-                      ? block.position
-                      : null;
-                });
-              },
-              onBlockPanUpdate: (block, details) {
-                if (_selectedBlockIds.contains(block.id)) {
-                  setState(() {
-                    final deltaModel = Offset(
-                      details.delta.dx / zoomLevel,
-                      details.delta.dy / zoomLevel,
-                    );
-                    if (_selectedBlockIds.length > 1) {
-                      final linksToMove = _linksFullyInsideSelection(
-                        _selectedBlockIds,
-                      );
-                      for (final selectedId in _selectedBlockIds) {
-                        final idx = blocks.indexWhere(
-                          (b) => b.id == selectedId,
-                        );
-                        if (idx == -1) {
-                          continue;
-                        }
-                        blocks[idx].position += deltaModel;
-                        if (!blocks[idx].isZone) {
-                          _updateLinksAnchorsForBlock(blocks[idx]);
-                        }
-                      }
-
-                      // Keep manual bends stable while dragging a selected group.
-                      for (final link in linksToMove) {
-                        for (int i = 0; i < link.inflectionPoints.length; i++) {
-                          link.inflectionPoints[i] += deltaModel;
-                        }
-                      }
-                    } else {
-                      final proposedPosition =
-                          (_dragFreePositionModel ?? block.position) +
-                          deltaModel;
-                      _dragFreePositionModel = proposedPosition;
-                      block.position = _applyBlockAlignmentSnap(
-                        block,
-                        proposedPosition,
-                      );
-                      if (!block.isZone) {
-                        _updateLinksAnchorsForBlock(block);
-                      }
-                    }
-                  });
-                }
-              },
-              onBlockPanEnd: (_) {
-                _resetBlockDragSnap();
-              },
-              onBlockTapDown: (block, details) {
-                setState(() {
-                  _consumeNextCanvasTap = true;
-                  final canvasPosition = _toCanvasLocal(details.globalPosition);
-                  final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                  if (hitLink != null) {
-                    selectedBlock = null;
-                    _selectedBlockIds.clear();
-                    selectedLink = hitLink;
-                    return;
-                  }
-
-                  _lastSecondaryTapTime = null;
-                  _lastSecondaryTapCanvasPosition = null;
-                  if (_isCtrlPressed()) {
-                    if (_selectedBlockIds.contains(block.id)) {
-                      _selectedBlockIds.remove(block.id);
-                    } else {
-                      _selectedBlockIds.add(block.id);
-                    }
-                    selectedBlock = _selectedBlockIds.length == 1
-                        ? blocks.firstWhere(
-                            (b) => b.id == _selectedBlockIds.first,
-                          )
-                        : null;
-                  } else {
-                    selectedBlock = block;
-                    _selectedBlockIds
-                      ..clear()
-                      ..add(block.id);
-                  }
-                  selectedLink = null;
-                  _resetBlockDragSnap();
-                });
-              },
-              onBlockInfoTap: (block) {
-                _showBlockInfoDialog(block);
-              },
-              selectedBlockIds: _selectedBlockIds,
-            ),
-          ),
-          PropertiesPanel(
-            selectedBlock: selectedBlock,
-            selectedLink: selectedLink,
-            onBlockTitleChanged: _handleBlockTitleChanged,
-            onBlockColorChanged: _handleBlockColorChanged,
-            onBlockTagsChanged: _handleBlockTagsChanged,
-            onBlockIconBase64Changed: _handleBlockIconBase64Changed,
-            onBlockPropertiesJsonChanged: _handleBlockPropertiesJsonChanged,
-            onZoneBringToFront: _handleZoneBringToFront,
-            onZoneSendToBack: _handleZoneSendToBack,
-            onLinkNameChanged: _handleLinkNameChanged,
-            onLinkColorChanged: _handleLinkColorChanged,
-            onLinkLabelIconChanged: _handleLinkLabelIconChanged,
-            onLinkParticleDensityChanged: _handleLinkParticleDensityChanged,
-            onLinkParticleSpeedChanged: _handleLinkParticleSpeedChanged,
-            onLinkLabelPositionChanged: _handleLinkLabelPositionChanged,
-            onLinkLabelOffsetChanged: _handleLinkLabelOffsetChanged,
-            onReverseLink: _reverseLink,
-            onDeleteLink: _deleteLink,
-            onConnectorTypeChanged: _handleConnectorTypeChanged,
-            onLinkAutoLayoutLockChanged: _handleLinkAutoLayoutLockChanged,
-          ),
-        ],
-      ),
-    );
+    ];
   }
 }

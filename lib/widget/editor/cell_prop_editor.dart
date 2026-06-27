@@ -7,6 +7,11 @@ import 'package:jsonschema/start_core.dart';
 
 const double fontSize = 14.0;
 
+String _formatLabel(String text) {
+  text = text.split('.').last;
+  return text.replaceAll('_', ' ');
+}
+
 class CellEditor extends StatefulWidget {
   const CellEditor({
     super.key,
@@ -110,7 +115,7 @@ class CellEditorState extends State<CellEditor> {
   }
 
   SizedBox getWidgetModeEdit(TextStyle textStyleLabel) {
-    var name = widget.acces.getName().replaceAll("#", "");
+    final name = _formatLabel(widget.acces.getName().replaceAll("#", ""));
 
     return SizedBox(
       width: widget.inArray && !widget.widthInfinite
@@ -181,7 +186,7 @@ class CellEditorState extends State<CellEditor> {
       height: 30,
       decoration: deco,
       child: Text(
-        isEditable ? widget.acces.getName() : '',
+        isEditable ? _formatLabel(widget.acces.getName()) : '',
         style: textStyleLabel,
       ),
     );
@@ -251,8 +256,8 @@ class _CellDropMenuEditorState extends State<CellDropMenuEditor> {
   @override
   Widget build(BuildContext context) {
     return DropdownMenu<String>(
-      hintText: widget.acces.getName(),
-      label: Text(widget.acces.getName()),
+      hintText: _formatLabel(widget.acces.getName()),
+      label: Text(_formatLabel(widget.acces.getName())),
       initialSelection: widget.acces.get(),
       enabled: widget.acces.isEditable(),
       dropdownMenuEntries: const [
@@ -330,7 +335,10 @@ class CellCheckEditorState extends State<CellCheckEditor> {
         visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
         minTileHeight: 30,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-        title: Text(name, style: const TextStyle(fontSize: fontSize)),
+        title: Text(
+          _formatLabel(name),
+          style: const TextStyle(fontSize: fontSize),
+        ),
         onTap: widget.acces.isEditable() ? () => onToggle(!currentValue) : null,
         trailing: Transform.scale(
           scale: 0.7,
@@ -413,7 +421,10 @@ class _SingleChoiceState extends State<CellSelectEditor> {
       emptySelectionAllowed: true,
       segments: widget.options
           .map(
-            (value) => ButtonSegment<String>(value: value, label: Text(value)),
+            (value) => ButtonSegment<String>(
+              value: value,
+              label: Text(_formatLabel(value)),
+            ),
           )
           .toList(),
       selected: selected,
@@ -515,13 +526,15 @@ class ModelAccessorAttr extends ValueAccessor {
     if (aNode.info.properties?[propName] == value && !force) return;
 
     var propChangeValue = aNode.info.properties?[propName];
-    if (withHistory) {
+    if (withHistory && (schema?.autoSaveProperties ?? true)) {
       schema?.addHistory(aNode, path, ChangeOpe.change, propChangeValue, value);
     } else {
       node.info.action = 'U';
     }
     aNode.info.properties?[propName] = value;
-    schema?.saveProperties();
+    if (schema?.autoSaveProperties ?? true) {
+      schema?.saveProperties();
+    }
     aNode.repaint();
   }
 
@@ -530,11 +543,14 @@ class ModelAccessorAttr extends ValueAccessor {
     var aNode = getNode();
     var path = '${aNode.info.path}.prop.$propName';
     var propChangeValue = aNode.info.properties?[propName];
-    schema?.addHistory(aNode, path, ChangeOpe.clear, propChangeValue, '');
-
+    if (schema?.autoSaveProperties ?? true) {
+      schema?.addHistory(aNode, path, ChangeOpe.clear, propChangeValue, '');
+    }
     aNode.info.properties?.remove(propName);
 
-    schema?.saveProperties();
+    if (schema?.autoSaveProperties ?? true) {
+      schema?.saveProperties();
+    }
     // ignore: invalid_use_of_protected_member
     aNode.repaint();
   }

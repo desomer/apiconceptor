@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/authorization_manager.dart';
+import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'dart:convert';
 import 'block_model.dart';
 import 'link_model.dart';
@@ -157,6 +161,36 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     widget.onBlockPropertiesJsonChanged?.call(block, encoded);
   }
 
+  void _removeBlockIcon(Block block) {
+    widget.onBlockIconBase64Changed?.call(block, '');
+
+    final raw = _blockJsonController.text.trim();
+    if (raw.isEmpty) {
+      return;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return;
+      }
+
+      if (!decoded.containsKey('iconBase64')) {
+        return;
+      }
+
+      decoded.remove('iconBase64');
+      final encoded = const JsonEncoder.withIndent('  ').convert(decoded);
+      setState(() {
+        _blockJsonController.text = encoded;
+        _blockJsonError = null;
+      });
+      widget.onBlockPropertiesJsonChanged?.call(block, encoded);
+    } catch (_) {
+      // Keep behavior simple if JSON is currently invalid.
+    }
+  }
+
   String? _resolvedBlockIconBase64(Block block) {
     final rawJson = (block.propertiesJson ?? '').trim();
     if (rawJson.isNotEmpty) {
@@ -234,6 +268,20 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             onChanged: (value) {
               widget.onBlockTitleChanged?.call(block.id, value);
             },
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await onTapProposal();
+
+                // _blockTitleController.text = value;
+                // widget.onBlockTitleChanged?.call(block.id, value);
+              },
+              icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
+              label: const Text('proposal'),
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String?>(
@@ -363,21 +411,13 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             initialBase64: _resolvedBlockIconBase64(block),
             showBase64Text: false,
             onBase64Changed: (value) {
+              if (value.trim().isEmpty) {
+                _removeBlockIcon(block);
+                return;
+              }
               widget.onBlockIconBase64Changed?.call(block, value);
             },
           ),
-          const SizedBox(height: 8),
-          if ((_resolvedBlockIconBase64(block) ?? '').isNotEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () {
-                  widget.onBlockIconBase64Changed?.call(block, '');
-                },
-                icon: const Icon(Icons.delete_outline, size: 16),
-                label: const Text('Retirer l\'icône'),
-              ),
-            ),
           const SizedBox(height: 8),
           TextFormField(
             controller: _blockJsonController,
@@ -464,6 +504,155 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     );
   }
 
+  Future<List<ProposalInfo>> searchProposal(String query) async {
+    List? resultsbdd = await bddStorage.supabase.rpc(
+      'search_apm',
+      params: {
+        'q': query,
+        'lang': 'english',
+        'company_id': currentCompany.companyId,
+      },
+    );
+
+    List<ProposalInfo> existingProposals = [];
+    if (resultsbdd != null) {
+      for (var element in resultsbdd) {
+        Map<String, dynamic> hasProp = {...element['prop'] ?? {}};
+
+        // String attrId = element['attr_id'];
+        // String schemaId = element['schema_id'];
+        String namespace = element['namespace'];
+        // String companyId = element['company_id'];
+
+        // var listModel = await bddStorage.supabase
+        //     .from('attributs')
+        //     .select('*')
+        //     .eq('schema_id', schemaId)
+        //     .eq('category', 'apm')
+        //     .eq('attr_id', attrId)
+        //     .eq('namespace', namespace)
+        //     .eq('company_id', companyId);
+
+        // if (listModel.isEmpty) continue;
+        //get Namespace name
+        var aDomain =
+            currentCompany.listDomain
+                ?.getNodeByMasterIdPath(namespace)
+                ?.info
+                .name ??
+            '';
+        var modelName = element['path'].split('>').last ?? 'unknown';
+        var path = element['path'].replaceAll('>', '.');
+        if (path.startsWith('root.')) {
+          path = path.substring(5);
+        }
+
+        var proposalInfo = ProposalInfo(
+          name: path.split('.').last,
+          path: path,
+          properties: hasProp,
+          model: modelName,
+          domain: aDomain,
+        );
+        existingProposals.add(proposalInfo);
+      }
+    }
+    return existingProposals;
+  }
+
+  BuildContext? loadingContext;
+
+  Future<Null> onTapProposal() async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        loadingContext = dialogContext;
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(width: 14),
+                const Text('Recherche en cours...'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    String query = widget.selectedBlock?.title ?? '';
+
+    //pop le dialog de loading
+    List<ProposalInfo> result = await searchProposal(query);
+
+    // ignore: use_build_context_synchronously
+    Navigator.of(loadingContext!).pop();
+    if (!context.mounted) return;
+
+    var scoreTxt = '';
+
+    showDialog<void>(
+      // ignore: use_build_context_synchronously
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Search results for "$query"'),
+          content: SizedBox(
+            width: 500,
+            child: result.isEmpty
+                ? Text('No result found for "$query"')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: result.length,
+                    itemBuilder: (context, index) {
+                      final r = result[index];
+                      return AnimatedTooltip(
+                        content: Column(
+                          //children: getTooltipFromProposal(r.item),
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.blueGrey.withAlpha(130),
+                            ),
+                          ),
+                          child: ListTile(
+                            dense: true,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            onTap: () {
+                              applyProposal(widget.selectedBlock!, r);
+                              Navigator.of(dialogContext).pop();
+                            },
+                            //leading: getColorIndicatorFromScore(r.score),
+                            title: Text(
+                              '${index + 1}.) ${r.name} from ${r.domain}.${r.model} ',
+                            ),
+                            subtitle: Text('${r.path}  score: $scoreTxt'),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildZoneBlockProperties(Block block) {
     return _buildPanelContainer(
       child: Column(
@@ -493,6 +682,19 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             onChanged: (value) {
               widget.onBlockTitleChanged?.call(block.id, value);
             },
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                const value = 'proposal';
+                _blockTitleController.text = value;
+                widget.onBlockTitleChanged?.call(block.id, value);
+              },
+              icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
+              label: const Text('proposal'),
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String?>(
@@ -614,6 +816,19 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             onChanged: (value) {
               widget.onLinkNameChanged?.call(link, value);
             },
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                const value = 'proposal';
+                _linkNameController.text = value;
+                widget.onLinkNameChanged?.call(link, value);
+              },
+              icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
+              label: const Text('proposal'),
+            ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String?>(
@@ -904,5 +1119,25 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         child: child,
       ),
     );
+  }
+
+  void applyProposal(Block block, ProposalInfo r) {
+    // _blockTitleController.text = r.properties?['title'] ?? r.name;
+    // widget.onBlockTitleChanged?.call(block.id, _blockTitleController.text);
+
+    final payload = <String, dynamic>{
+      'title': r.properties?['title'] ?? r.name,
+      // 'colorKey': block.colorKey,
+      // 'tagColorKeys': List<String>.from(block.tagColorKeys),
+      'iconBase64': ?r.properties?['identity.logo'],
+      //'size': {'width': block.size.width, 'height': block.size.height},
+    };
+
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    setState(() {
+      _blockJsonController.text = encoded;
+      _blockJsonError = null;
+    });
+    widget.onBlockPropertiesJsonChanged?.call(block, encoded);
   }
 }

@@ -1,34 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jsonschema/feature/glossary/pan_glossary.dart';
+import 'package:jsonschema/feature/apm/pan_application_flow.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
-class GlossaryPage extends GenericPageStateless {
-  const GlossaryPage({super.key});
+class AppFlowPage extends GenericPageStateless {
+  const AppFlowPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return WidgetTab(
       onInitController: (TabController tab) {},
-      listTab: [
-        Tab(text: 'Notion naming'),
-        Tab(text: 'Available suffix & prefix'),
-      ],
+      listTab: [Tab(text: 'Applications flow')],
       listTabCont: [
-        PanGlossary(
+        PanApplicationFlow(
           getSchemaFct: () async {
-            currentCompany.glossaryManager.dico.clear();
-            currentCompany.listGlossary = await loadGlossary('glossary', 'Glossary');
-            return currentCompany.listGlossary;
+            // currentCompany.glossaryManager.dico.clear();
+            // currentCompany.listGlossary = await loadGlossary('glossary', 'Glossary');
+            currentCompany.currentFlow = await loadAppFlow('all', true);
+            return currentCompany.currentFlow!;
           },
         ),
-        Container()
-        // WidgetGlossary(
-        //   schemaGlossary: currentCompany.listGlossarySuffixPrefix,
-        //   typeModel: 'Suffix & prefix',
-        // ),
       ],
       heightTab: 40,
     );

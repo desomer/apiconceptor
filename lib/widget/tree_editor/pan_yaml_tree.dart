@@ -322,7 +322,11 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
             }
           },
           child: getToolTip(
-            toolContent: getTooltipFromAttr(node.data.info, _schema),
+            toolContent: getTooltipFromAttr(
+              node.data.info,
+              _schema,
+              overrideGetWidgetPropForTooltip,
+            ),
             child: NoOverflowErrorFlex(
               crossAxisAlignment: CrossAxisAlignment.end,
               direction: Axis.horizontal,
@@ -359,6 +363,12 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   //     child: child,
   //   );
   // }
+
+  Widget? overrideGetWidgetPropForTooltip(String key, value) {
+    return getWidgetPropForTooltip(key, value);
+  }
+
+
 
   Widget getYamlEditor() {
     var doc = getDoc();

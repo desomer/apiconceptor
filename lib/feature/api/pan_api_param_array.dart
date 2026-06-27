@@ -94,7 +94,11 @@ class _WidgetArrayParamState extends State<WidgetArrayParam> with WidgetHelper {
     return Container(
       key: ValueKey('row ${param.hashCode}'),
       child: getToolTip(
-        toolContent: getTooltipFromAttr(param.info, null),
+        toolContent: getTooltipFromAttr(
+          param.info,
+          null,
+          getWidgetPropForTooltip,
+        ),
         child: NoOverflowErrorFlex(
           direction: Axis.horizontal,
           children: [

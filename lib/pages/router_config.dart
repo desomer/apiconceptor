@@ -14,6 +14,9 @@ import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/core/json_browser/browse_api.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/pages/apm_page.dart';
+import 'package:jsonschema/pages/app_flow_editor_page.dart';
+import 'package:jsonschema/pages/app_flow_page.dart';
 import 'package:jsonschema/pages/apps/apps_list_page.dart';
 import 'package:jsonschema/pages/content/content_map_engine_yaml.dart';
 import 'package:jsonschema/pages/content/content_map_page.dart';
@@ -81,6 +84,9 @@ enum Pages {
   mock("/apis/mock"),
 
   asyncApi("/async"),
+  apm("/apm"),
+  appFlow("/appflow"),
+  appFlowEditor("/appflow/editor"),
 
   env('/env'),
   log('/log'),
@@ -446,6 +452,10 @@ final GoRouter router = GoRouter(
         addRouteBy(Pages.modelGraph, const DesignModelGraphPage()),
         addRouteBy(Pages.modelScrum, const DesignModelDetailScrumPage()),
         addRouteBy(Pages.modelUI, DesignModelUIPage()),
+        //----------------------------------------------------------------
+        addRouteBy(Pages.appFlow, const AppFlowPage()),
+        addRouteBy(Pages.appFlowEditor, AppFlowEditorPage()),
+        addRouteBy(Pages.apm, const ApmPage()),
         //----------------------------------------------------------------
         addRoute(
           GoRoute(path: Pages.api.urlpath, pageBuilder: getPageAnim),

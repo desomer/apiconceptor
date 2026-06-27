@@ -293,7 +293,7 @@ mixin class WidgetHelper {
   Widget getChip(Widget content, {required Color? color, double? height}) {
     var w = Container(
       padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 5),
-      decoration:  BoxDecoration(
+      decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.blueGrey, width: 1),
@@ -326,7 +326,15 @@ mixin class WidgetHelper {
     return wpath;
   }
 
-  List<Widget> getTooltipFromAttr(AttributInfo? info, ModelSchema? schema) {
+  Widget? getWidgetPropForTooltip(String key, value) {
+    return Text('$key = $value', style: TextStyle(fontSize: 15));
+  }
+
+  List<Widget> getTooltipFromAttr(
+    AttributInfo? info,
+    ModelSchema? schema,
+    Widget? Function(String key, dynamic value) getWidgetPropForTooltip,
+  ) {
     if (info?.treePosition == null &&
         schema != null &&
         schema.qualityInfo != null) {
@@ -343,12 +351,13 @@ mixin class WidgetHelper {
     if (info?.properties != null) {
       for (var element in info!.properties!.entries) {
         if (!element.key.startsWith('\$\$') && !element.key.startsWith('#')) {
-          tooltip.add(
-            Text(
-              '${element.key} = ${element.value}',
-              style: TextStyle(fontSize: 15),
-            ),
+          var widgetFromProp = getWidgetPropForTooltip(
+            element.key,
+            element.value,
           );
+          if (widgetFromProp != null) {
+            tooltip.add(widgetFromProp);
+          }
         } else if (element.key == constMasterID) {
           // cas du master id
           tooltip.insert(

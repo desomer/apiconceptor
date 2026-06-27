@@ -1,0 +1,352 @@
+{
+  "types_outils": [
+    {
+      "trigramme": "ERP",
+      "nom": "Enterprise Resource Planning",
+      "definition": "Système de gestion intégrée couvrant finance, achats, stock, production.",
+      "exemples": ["SAP", "Oracle ERP", "Microsoft Dynamics"]
+    },
+    {
+      "trigramme": "CRM",
+      "nom": "Customer Relationship Management",
+      "definition": "Gestion des clients, ventes et marketing.",
+      "exemples": ["Salesforce", "HubSpot", "Zoho CRM"]
+    },
+    {
+      "trigramme": "SCM",
+      "nom": "Supply Chain Management",
+      "definition": "Gestion de la chaîne logistique.",
+      "exemples": ["Blue Yonder", "Manhattan", "SAP SCM"]
+    },
+    {
+      "trigramme": "WMS",
+      "nom": "Warehouse Management System",
+      "definition": "Gestion des opérations d'entrepôt.",
+      "exemples": ["Reflex", "Manhattan WMS"]
+    },
+    {
+      "trigramme": "TMS",
+      "nom": "Transport Management System",
+      "definition": "Gestion du transport et de la logistique.",
+      "exemples": ["Transporeon", "Shippeo"]
+    },
+    {
+      "trigramme": "MES",
+      "nom": "Manufacturing Execution System",
+      "definition": "Pilotage et exécution de la production industrielle.",
+      "exemples": ["Siemens Opcenter", "Apriso"]
+    },
+    {
+      "trigramme": "LIMS",
+      "nom": "Laboratory Information Management System",
+      "definition": "Gestion des processus de laboratoire.",
+      "exemples": ["LabWare", "STARLIMS"]
+    },
+    {
+      "trigramme": "HCM",
+      "nom": "Human Capital Management",
+      "definition": "Gestion des ressources humaines.",
+      "exemples": ["Workday", "SuccessFactors"]
+    },
+    {
+      "trigramme": "ATS",
+      "nom": "Applicant Tracking System",
+      "definition": "Gestion du recrutement et des candidatures.",
+      "exemples": ["Taleo", "Greenhouse"]
+    },
+    {
+      "trigramme": "MDM",
+      "nom": "Master Data Management",
+      "definition": "Gestion des données maîtres (client, produit...).",
+      "exemples": ["Semarchy", "Informatica MDM"]
+    },
+    {
+      "trigramme": "PIM",
+      "nom": "Product Information Management",
+      "definition": "Référentiel produit centralisé.",
+      "exemples": ["Akeneo", "InRiver"]
+    },
+    {
+      "trigramme": "DAM",
+      "nom": "Digital Asset Management",
+      "definition": "Gestion des médias numériques.",
+      "exemples": ["Bynder", "Wedia"]
+    },
+    {
+      "trigramme": "DWH",
+      "nom": "Data Warehouse",
+      "definition": "Entrepôt de données structuré.",
+      "exemples": ["Snowflake", "BigQuery", "Redshift"]
+    },
+    {
+      "trigramme": "DL",
+      "nom": "Data Lake",
+      "definition": "Stockage brut de données.",
+      "exemples": ["AWS S3", "Azure Data Lake"]
+    },
+    {
+      "trigramme": "ETL",
+      "nom": "Extract Transform Load",
+      "definition": "Intégration et transformation de données.",
+      "exemples": ["Talend", "Fivetran", "Informatica"]
+    },
+    {
+      "trigramme": "ESB",
+      "nom": "Enterprise Service Bus",
+      "definition": "Bus d'intégration pour orchestrer les échanges.",
+      "exemples": ["MuleSoft", "Talend ESB"]
+    },
+    {
+      "trigramme": "iPaaS",
+      "nom": "Integration Platform as a Service",
+      "definition": "Plateforme d'intégration cloud.",
+      "exemples": ["Boomi", "Make", "Zapier"]
+    },
+    {
+      "trigramme": "API GW",
+      "nom": "API Gateway",
+      "definition": "Gestion, sécurisation et exposition des API.",
+      "exemples": ["Kong", "Apigee", "AWS API Gateway"]
+    },
+    {
+      "trigramme": "BPM",
+      "nom": "Business Process Management",
+      "definition": "Orchestration et automatisation des processus métier.",
+      "exemples": ["Camunda", "BonitaSoft"]
+    },
+    {
+      "trigramme": "EAI",
+      "nom": "Enterprise Application Integration",
+      "definition": "Intégration applicative traditionnelle.",
+      "exemples": ["Tibco", "WebMethods"]
+    },
+    {
+      "trigramme": "CMS",
+      "nom": "Content Management System",
+      "definition": "Gestion de contenu web.",
+      "exemples": ["Drupal", "Strapi", "WordPress"]
+    },
+    {
+      "trigramme": "ECM",
+      "nom": "Enterprise Content Management",
+      "definition": "Gestion documentaire d'entreprise.",
+      "exemples": ["SharePoint", "Alfresco"]
+    },
+    {
+      "trigramme": "GED",
+      "nom": "Gestion Electronique de Documents",
+      "definition": "Gestion du cycle de vie documentaire (capture, classement, recherche, archivage).",
+      "exemples": ["DocuWare", "Zeendoc", "M-Files"]
+    },
+    {
+      "trigramme": "DXP",
+      "nom": "Digital Experience Platform",
+      "definition": "Plateforme d'expérience digitale omnicanale.",
+      "exemples": ["Adobe Experience Manager", "Liferay"]
+    },
+    {
+      "trigramme": "E-COM",
+      "nom": "E-Commerce Platform",
+      "definition": "Plateforme de vente en ligne.",
+      "exemples": ["Shopify", "Magento"]
+    },
+    {
+      "trigramme": "IAM",
+      "nom": "Identity & Access Management",
+      "definition": "Gestion des identités et des accès.",
+      "exemples": ["Okta", "Azure AD"]
+    },
+    {
+      "trigramme": "PAM",
+      "nom": "Privileged Access Management",
+      "definition": "Gestion des comptes à privilèges.",
+      "exemples": ["CyberArk"]
+    },
+    {
+      "trigramme": "SIEM",
+      "nom": "Security Information & Event Management",
+      "definition": "Supervision et analyse des événements de sécurité.",
+      "exemples": ["Splunk", "Microsoft Sentinel"]
+    },
+    {
+      "trigramme": "EDR",
+      "nom": "Endpoint Detection & Response",
+      "definition": "Protection avancée des postes de travail.",
+      "exemples": ["CrowdStrike", "SentinelOne"]
+    },
+    {
+      "trigramme": "CMDB",
+      "nom": "Configuration Management Database",
+      "definition": "Base de données des éléments de configuration.",
+      "exemples": ["ServiceNow CMDB"]
+    },
+    {
+      "trigramme": "ITSM",
+      "nom": "IT Service Management",
+      "definition": "Gestion des services IT.",
+      "exemples": ["ServiceNow", "Jira Service Management"]
+    },
+    {
+      "trigramme": "AIOps",
+      "nom": "AI for IT Operations",
+      "definition": "Supervision intelligente basée sur l'IA.",
+      "exemples": ["Dynatrace", "Datadog"]
+    },
+    {
+      "trigramme": "CI/CD",
+      "nom": "Continuous Integration / Continuous Delivery",
+      "definition": "Pipelines de build, test et déploiement.",
+      "exemples": ["GitLab CI", "Jenkins"]
+    },
+    {
+      "trigramme": "DMS",
+      "nom": "Document Management System",
+      "definition": "Gestion documentaire.",
+      "exemples": ["SharePoint", "Google Drive"]
+    },
+    {
+      "trigramme": "KMS",
+      "nom": "Knowledge Management System",
+      "definition": "Gestion de la connaissance.",
+      "exemples": ["Confluence"]
+    },
+    {
+      "trigramme": "RPA",
+      "nom": "Robotic Process Automation",
+      "definition": "Automatisation robotisée de tâches.",
+      "exemples": ["UiPath", "BluePrism"]
+    },
+    {
+      "trigramme": "CDP",
+      "nom": "Customer Data Platform",
+      "definition": "Unification des données clients.",
+      "exemples": ["mParticle", "Salesforce CDP"]
+    },
+    {
+      "trigramme": "BFF",
+      "nom": "Backend For Frontend",
+      "definition": "Couche API dédiée à un canal de présentation (web, mobile, portail).",
+      "exemples": ["Node.js BFF", "GraphQL BFF"]
+    },
+    {
+      "trigramme": "ESM",
+      "nom": "Enterprise Service Management",
+      "definition": "Extension des pratiques ITSM aux services métiers (RH, finance, achats).",
+      "exemples": ["ServiceNow ESM", "Jira Service Management"]
+    },
+    {
+      "trigramme": "BI",
+      "nom": "Business Intelligence",
+      "definition": "Analyse, reporting et visualisation de données pour l'aide a la decision.",
+      "exemples": ["Power BI", "Tableau", "Qlik Sense"]
+    },
+    {
+      "trigramme": "PLM",
+      "nom": "Product Lifecycle Management",
+      "definition": "Gestion du cycle de vie produit, de la conception au retrait.",
+      "exemples": ["Siemens Teamcenter", "PTC Windchill", "Dassault ENOVIA"]
+    },
+    {
+      "trigramme": "EPM",
+      "nom": "Enterprise Performance Management",
+      "definition": "Pilotage de la performance: budget, planification, consolidation et previsions.",
+      "exemples": ["Anaplan", "Oracle EPM Cloud", "SAP BPC"]
+    },
+    {
+      "trigramme": "MDP",
+      "nom": "Marketing Data Platform",
+      "definition": "Centralisation des données marketing.",
+      "exemples": ["Segment", "Tealium"]
+    },
+    {
+      "trigramme": "BRM",
+      "nom": "Business Rules Management",
+      "definition": "Gestion et exécution centralisée des règles métier.",
+      "exemples": ["Drools", "IBM ODM", "Red Hat Decision Manager"]
+    },
+    {
+      "trigramme": "MFT",
+      "nom": "Managed File Transfer",
+      "definition": "Transfert de fichiers sécurisé, tracé et gouverné entre systèmes.",
+      "exemples": ["GoAnywhere", "Axway MFT", "MOVEit"]
+    },
+    {
+      "trigramme": "EAM",
+      "nom": "Enterprise Asset Management",
+      "definition": "Gestion des actifs physiques et de leur maintenance sur le cycle de vie.",
+      "exemples": ["IBM Maximo", "Infor EAM", "SAP EAM"]
+    },
+    {
+      "trigramme": "FSM",
+      "nom": "Field Service Management",
+      "definition": "Planification et pilotage des interventions terrain.",
+      "exemples": ["Salesforce Field Service", "ServiceNow FSM", "Dynamics 365 Field Service"]
+    },
+    {
+      "trigramme": "QMS",
+      "nom": "Quality Management System",
+      "definition": "Gestion de la qualité, non-conformités, audits et actions correctives.",
+      "exemples": ["MasterControl", "ETQ Reliance", "Qualio"]
+    },
+    {
+      "trigramme": "GRC",
+      "nom": "Governance, Risk and Compliance",
+      "definition": "Pilotage de la gouvernance, des risques et de la conformité.",
+      "exemples": ["RSA Archer", "ServiceNow GRC", "SAP GRC"]
+    },
+    {
+      "trigramme": "SOAR",
+      "nom": "Security Orchestration, Automation and Response",
+      "definition": "Orchestration et automatisation des réponses aux incidents de sécurité.",
+      "exemples": ["Cortex XSOAR", "Splunk SOAR", "IBM SOAR"]
+    },
+    {
+      "trigramme": "UEM",
+      "nom": "Unified Endpoint Management",
+      "definition": "Administration unifiée des postes, mobiles et terminaux.",
+      "exemples": ["Microsoft Intune", "VMware Workspace ONE", "Ivanti"]
+    },
+    {
+      "trigramme": "OBS",
+      "nom": "Observability Platform",
+      "definition": "Supervision applicative et infrastructure via métriques, logs et traces.",
+      "exemples": ["Datadog", "New Relic", "Dynatrace"]
+    },
+    {
+      "trigramme": "DCAT",
+      "nom": "Data Catalog",
+      "definition": "Inventaire et découverte des jeux de données avec métadonnées.",
+      "exemples": ["Collibra", "Alation", "Microsoft Purview"]
+    },
+    {
+      "trigramme": "DGOV",
+      "nom": "Data Governance",
+      "definition": "Cadre de gouvernance des données, qualité, ownership et conformité.",
+      "exemples": ["Informatica Data Governance", "Ataccama", "OneTrust"]
+    },
+    {
+      "trigramme": "MLOps",
+      "nom": "Machine Learning Operations",
+      "definition": "Industrialisation du cycle de vie des modèles IA/ML.",
+      "exemples": ["MLflow", "SageMaker", "Vertex AI"]
+    },
+    {
+      "trigramme": "IDP",
+      "nom": "Intelligent Document Processing",
+      "definition": "Extraction intelligente de données documentaires (OCR + IA).",
+      "exemples": ["ABBYY", "UiPath Document Understanding", "Azure Document Intelligence"]
+    },
+    {
+      "trigramme": "CLM",
+      "nom": "Contract Lifecycle Management",
+      "definition": "Gestion du cycle de vie des contrats, de la rédaction au renouvellement.",
+      "exemples": ["Icertis", "DocuSign CLM", "Ironclad"]
+    },
+    {
+      "trigramme": "PPM",
+      "nom": "Project and Portfolio Management",
+      "definition": "Pilotage des projets, programmes et portefeuilles.",
+      "exemples": ["Planview", "Clarity", "Microsoft Project Online"]
+    }
+  ]
+}

@@ -53,6 +53,7 @@ language sql stable as $$
   select *
   from attributs
   where attributs.company_id = company_id
+    and attributs.category = 'model'
     and to_tsvector(
       lang,
       coalesce(prop->>'title', '') || ' ' ||
@@ -61,3 +62,21 @@ language sql stable as $$
     ) @@ websearch_to_tsquery(lang, q);
 $$;
 
+create or replace function search_apm(
+  q text,
+  lang regconfig,
+  company_id text,
+)
+returns setof attributs
+language sql stable as $$
+  select *
+  from attributs
+  where attributs.company_id = company_id
+    and attributs.category = 'apm'
+    and to_tsvector(
+      lang,
+      coalesce(prop->>'title', '') || ' ' ||
+      coalesce(prop->>'identity.acronym', '') || ' ' ||
+      coalesce(path, '')
+    ) @@ websearch_to_tsquery(lang, q);
+$$;

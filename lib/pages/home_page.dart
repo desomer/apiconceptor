@@ -31,7 +31,11 @@ class HomePage extends GenericPageStateless {
                   // getExpansible("Get started", getMenuStarted(context)),
                   // SizedBox(height: 30),
                   getExpansible(
-                    "For architect & tech designer",
+                    "For tech designer",
+                    getMenuDesigner(context),
+                  ),
+                  getExpansible(
+                    "For architect",
                     getMenuArchitect(context),
                   ),
                   getExpansible("For developer", getMenuDevelopper(context)),
@@ -114,6 +118,35 @@ class HomePage extends GenericPageStateless {
         alignment: WrapAlignment.start,
         children: [
           WidgetMenuBtn(
+            key: showCaseInfo.keys['apps'] = GlobalKey(),
+            label: 'Applications',
+            icon: Icons.apps,
+            route: Pages.apm,
+          ),
+          WidgetMenuBtn(
+            key: showCaseInfo.keys['flows'] = GlobalKey(),
+            label: 'Application Flow Maps',
+            icon: Icons.account_tree_outlined,
+            route: Pages.appFlow,
+          ),
+          // WidgetMenuBtn(
+          //   label: 'Validation Workflow',
+          //   icon: Icons.wechat_rounded,
+          // ),
+        ],
+      ),
+    );
+  }
+
+  Widget getMenuDesigner(BuildContext context) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Wrap(
+        spacing: 5, // espace horizontal entre les blocs
+        runSpacing: 5, // espace vertical entre les lignes
+        alignment: WrapAlignment.start,
+        children: [
+          WidgetMenuBtn(
             key: showCaseInfo.keys['glossary'] = GlobalKey(),
             label: 'Company Glossary',
             icon: Icons.language,
@@ -121,7 +154,7 @@ class HomePage extends GenericPageStateless {
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['model'] = GlobalKey(),
-            label: 'Design Model',
+            label: 'Design Models',
             icon: Icons.data_object,
             route: Pages.models,
           ),
@@ -133,14 +166,14 @@ class HomePage extends GenericPageStateless {
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['message'] = GlobalKey(),
-            label: 'Design Event',
+            label: 'Design Flows',
             icon: Icons.message_outlined,
             route: Pages.asyncApi,
           ),
-          WidgetMenuBtn(
-            label: 'Validation Workflow',
-            icon: Icons.wechat_rounded,
-          ),
+          // WidgetMenuBtn(
+          //   label: 'Validation Workflow',
+          //   icon: Icons.wechat_rounded,
+          // ),
         ],
       ),
     );

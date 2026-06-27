@@ -174,6 +174,15 @@ class _ImageUrlToBase64WidgetState extends State<ImageUrlToBase64Widget> {
     return byteData.buffer.asUint8List();
   }
 
+  void _clearImage() {
+    setState(() {
+      _previewBytes = null;
+      _base64 = '';
+      _errorMessage = null;
+    });
+    widget.onBase64Changed?.call('');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -227,35 +236,60 @@ class _ImageUrlToBase64WidgetState extends State<ImageUrlToBase64Widget> {
             const SizedBox(height: 10),
             Row(
               children: [
-                FilledButton.icon(
-                  onPressed: _isLoading ? null : _convertFromUrl,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.image),
-                  label: Text(
-                    _isLoading ? 'Converting...' : 'Import and convert',
-                  ),
-                ),
+                // FilledButton.icon(
+                //   onPressed: _isLoading ? null : _convertFromUrl,
+                //   icon: _isLoading
+                //       ? const SizedBox(
+                //           width: 14,
+                //           height: 14,
+                //           child: CircularProgressIndicator(strokeWidth: 2),
+                //         )
+                //       : const Icon(Icons.image),
+                //   label: Text(
+                //     _isLoading ? 'Converting...' : 'Import and convert',
+                //   ),
+                // ),
                 const SizedBox(width: 12),
                 if (_previewBytes != null)
-                  Container(
-                    width: _previewIconSize,
-                    height: _previewIconSize,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF4A4A55)),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.memory(
-                      _previewBytes!,
-                      fit: BoxFit.cover,
-                      width: _previewIconSize,
-                      height: _previewIconSize,
-                    ),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: _previewIconSize,
+                        height: _previewIconSize,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF4A4A55)),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.memory(
+                          _previewBytes!,
+                          fit: BoxFit.cover,
+                          width: _previewIconSize,
+                          height: _previewIconSize,
+                        ),
+                      ),
+                      Positioned(
+                        top: -8,
+                        right: -8,
+                        child: Material(
+                          color: const Color(0xFF2A2A30),
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            onTap: _isLoading ? null : _clearImage,
+                            customBorder: const CircleBorder(),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Color(0xFFE4E4EC),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),

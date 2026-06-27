@@ -6,6 +6,8 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_env.dart';
+import 'package:jsonschema/feature/apm/pan_apm_application.dart';
+import 'package:jsonschema/feature/apm/pan_application_flow.dart';
 import 'package:jsonschema/feature/async_api/pan_async_selector.dart';
 import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
 import 'package:jsonschema/feature/domain/pan_domain.dart';
@@ -356,6 +358,55 @@ Future<ModelSchema> loadVarEnv(
   schema.isReadOnlyModel = isDomainAllowed(idDomain) == false;
   return schema;
 }
+
+Future<ModelSchema> loadAppFlow(String idDomain, bool cache) async {
+  var schema = ModelSchema(
+    category: Category.appflow,
+    headerName: "Application Flow",
+    id: 'appflow/$idDomain',
+    infoManager: InfoManagerAppFlow(),
+    refDomain: null,
+  );
+  schema.namespace = idDomain;
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  schema.namespace = idDomain;
+  // currentCompany.listAsync = schema;
+  //schema.isReadOnlyModel = isDomainAllowed(idDomain) == false;
+  return schema;
+}
+
+Future<ModelSchema> loadApm(String idDomain, bool cache) async {
+  var schema = ModelSchema(
+    category: Category.apm,
+    headerName: "Application",  
+    id: 'apm/$idDomain',
+    infoManager: InfoManagerApm(),
+    refDomain: null,
+  );
+  schema.namespace = idDomain;
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  schema.namespace = idDomain;
+  // currentCompany.listAsync = schema;
+  //schema.isReadOnlyModel = isDomainAllowed(idDomain) == false;
+  return schema;
+}
+
 
 Future<ModelSchema> loadSchema(
   TypeMD type,

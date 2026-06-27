@@ -260,6 +260,24 @@ class DataAcces {
     return null;
   }
 
+  Future<dynamic> getFlowApp(ModelSchema model, String id) async {
+    await ensureSessionValid();
+    var queryattr = supabase
+        .from('attributs')
+        .select('*')
+        .eq('company_id', currentCompany.companyId)
+        .eq('state', 'R')
+        .eq('namespace', model.namespace ?? currentCompany.currentNameSpace)
+        .eq('attr_id', id)
+        .eq('schema_id', '${model.id}/data')
+        .order('update_at', ascending: false);
+    var ret2 = await queryattr;
+    if (ret2.isNotEmpty) {
+      return ret2.first['prop'];
+    }
+    return null;
+  }
+
   Future<dynamic> _getFromModelSupabase(
     ModelSchema model,
     String id,

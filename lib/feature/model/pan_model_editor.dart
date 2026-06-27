@@ -379,8 +379,14 @@ mixin PanModelEditorHelper implements WidgetHelper {
       },
     );
 
+    int maxResults = 20;
+
     if (resultsbdd != null) {
       for (var element in resultsbdd) {
+        maxResults--;
+        if (maxResults <= 0) {
+          break;
+        }
         Map<String, dynamic> hasProp = {...element['prop'] ?? {}};
         hasProp.removeWhere((key, value) {
           return key.startsWith('\$') ||

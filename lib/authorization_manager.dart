@@ -52,6 +52,8 @@ class CompanyModelSchema {
   late ModelSchema listGlossary;
   late ModelSchema listGlossarySuffixPrefix;
   ModelSchema? currentApps;
+  ModelSchema? currentFlow;
+  ModelSchema? currentAPM;
 
   MappingEngineConfig? currentMapEngine;
   GlossaryManager glossaryManager = GlossaryManager();
@@ -251,4 +253,6 @@ enum Category {
   dataMap,
   apps,
   asyncApi,
+  appflow,
+  apm,
 }
