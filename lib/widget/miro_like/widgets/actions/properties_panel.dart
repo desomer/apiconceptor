@@ -37,6 +37,7 @@ class PropertiesPanel extends StatefulWidget {
   final Function(BlockLink)? onDeleteLink;
   final Function(BlockLink, ConnectorType)? onConnectorTypeChanged;
   final Function(BlockLink, bool)? onLinkAutoLayoutLockChanged;
+  final Function(BlockLink, String?)? onLinkSequenceArrowTypeChanged;
 
   const PropertiesPanel({
     super.key,
@@ -60,6 +61,7 @@ class PropertiesPanel extends StatefulWidget {
     this.onDeleteLink,
     this.onConnectorTypeChanged,
     this.onLinkAutoLayoutLockChanged,
+    this.onLinkSequenceArrowTypeChanged,
   });
 
   @override
@@ -67,6 +69,17 @@ class PropertiesPanel extends StatefulWidget {
 }
 
 class _PropertiesPanelState extends State<PropertiesPanel> {
+  static const List<String> _mermaidArrowTypeOptions = [
+    '->>',
+    '-->>',
+    '->',
+    '-->',
+    '->x',
+    '--x',
+    '-)',
+    '--)',
+  ];
+
   late TextEditingController _blockTitleController;
   late TextEditingController _blockJsonController;
   late TextEditingController _linkNameController;
@@ -778,7 +791,59 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     );
   }
 
+  String _describeMermaidArrowType(String arrowType) {
+    switch (arrowType) {
+      case '->>':
+        return 'Message synchrone';
+      case '-->>':
+        return 'Message synchrone pointille';
+      case '->':
+        return 'Message simple';
+      case '-->':
+        return 'Message simple pointille';
+      case '->x':
+        return 'Message termine (croix)';
+      case '--x':
+        return 'Message termine pointille (croix)';
+      case '-)':
+        return 'Message ouvert';
+      case '--)':
+        return 'Message ouvert pointille';
+      default:
+        return 'Type personnalise';
+    }
+  }
+
+  String _mermaidArrowTypeLabel(String arrowType) {
+    return '$arrowType - ${_describeMermaidArrowType(arrowType)}';
+  }
+
+  Color _mermaidArrowAccentColor(String arrowType) {
+    if (arrowType.endsWith('x') || arrowType.endsWith('X')) {
+      return const Color(0xFFE57373);
+    }
+    if (arrowType.endsWith(')')) {
+      return const Color(0xFFFFC107);
+    }
+    return const Color(0xFF64C8FF);
+  }
+
+  IconData _mermaidArrowIcon(String arrowType) {
+    if (arrowType.endsWith('x') || arrowType.endsWith('X')) {
+      return Icons.close_rounded;
+    }
+    if (arrowType.endsWith(')')) {
+      return Icons.arrow_outward_rounded;
+    }
+    return Icons.arrow_forward_rounded;
+  }
+
   Widget _buildLinkProperties(BlockLink link) {
+    final arrowType = (link.sequenceArrowType ?? '').trim();
+    final hasSequenceArrowType = arrowType.isNotEmpty;
+    final isDashedArrow = hasSequenceArrowType && arrowType.startsWith('--');
+    final arrowAccent = _mermaidArrowAccentColor(arrowType);
+
     return _buildPanelContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -800,6 +865,91 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             'Cible: ${link.toBlockId}',
             style: const TextStyle(color: colorTextSecondary),
           ),
+          if (hasSequenceArrowType) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              decoration: BoxDecoration(
+                color: arrowAccent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: arrowAccent.withValues(alpha: 0.55)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    _mermaidArrowIcon(arrowType),
+                    size: 16,
+                    color: arrowAccent,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Type Mermaid: $arrowType',
+                          style: const TextStyle(
+                            color: colorTextPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _describeMermaidArrowType(arrowType),
+                          style: const TextStyle(
+                            color: colorTextSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (isDashedArrow)
+                          const Text(
+                            'Style de trait: pointille',
+                            style: TextStyle(
+                              color: colorTextSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (hasSequenceArrowType) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _mermaidArrowTypeOptions.contains(arrowType)
+                  ? arrowType
+                  : '->>',
+              dropdownColor: colorBlockBackground,
+              style: const TextStyle(color: colorTextPrimary),
+              decoration: InputDecoration(
+                labelText: 'Type message Mermaid',
+                labelStyle: const TextStyle(color: colorTextSecondary),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: colorPanelBorder),
+                ),
+                isDense: true,
+              ),
+              items: _mermaidArrowTypeOptions
+                  .map(
+                    (type) => DropdownMenuItem<String>(
+                      value: type,
+                      child: Text(
+                        _mermaidArrowTypeLabel(type),
+                        style: const TextStyle(color: colorTextPrimary),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                widget.onLinkSequenceArrowTypeChanged?.call(link, value);
+              },
+            ),
+          ],
           const SizedBox(height: 12),
           TextFormField(
             key: ValueKey('link-name-${link.fromBlockId}-${link.toBlockId}'),

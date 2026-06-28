@@ -52,6 +52,7 @@ class BlockLink {
   String fromBlockId;
   String toBlockId;
   String name;
+  String? sequenceArrowType;
   String? colorKey;
   String? labelIconKey;
   double particleDensity;
@@ -72,6 +73,7 @@ class BlockLink {
     required this.fromBlockId,
     required this.toBlockId,
     this.name = '',
+    this.sequenceArrowType,
     this.colorKey,
     this.labelIconKey,
     this.particleDensity = 1.0,

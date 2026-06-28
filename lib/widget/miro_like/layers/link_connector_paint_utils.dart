@@ -16,6 +16,7 @@ void paintLinkConnector({
   Offset? startTangent,
   Offset? endTangent,
   BlockLink? link,
+  bool dashed = false,
 }) {
   final path = buildConnectorPath(
     from,
@@ -34,5 +35,6 @@ void paintLinkConnector({
     zoomLevel: zoomLevel,
     arrowTip: to,
     link: link,
+    dashed: dashed,
   );
 }

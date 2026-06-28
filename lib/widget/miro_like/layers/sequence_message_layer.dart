@@ -52,6 +52,8 @@ class SequenceMessageLayer extends StatelessWidget {
     SequenceMessageEntry entry,
     bool isSelected,
   ) {
+    final arrowType = (entry.link.sequenceArrowType ?? '').trim();
+    final isDashed = arrowType.startsWith('--');
     final left = entry.startXCanvas < entry.endXCanvas
         ? entry.startXCanvas
         : entry.endXCanvas;
@@ -79,7 +81,10 @@ class SequenceMessageLayer extends StatelessWidget {
               onDragUpdate(entry.link, details.globalPosition),
           onPanEnd: (_) => onDragEnd(entry.link),
           child: CustomPaint(
-            painter: _SequenceMessageHandlePainter(isSelected: isSelected),
+            painter: _SequenceMessageHandlePainter(
+              isSelected: isSelected,
+              dashed: isDashed,
+            ),
           ),
         ),
       ),
@@ -89,8 +94,12 @@ class SequenceMessageLayer extends StatelessWidget {
 
 class _SequenceMessageHandlePainter extends CustomPainter {
   final bool isSelected;
+  final bool dashed;
 
-  const _SequenceMessageHandlePainter({required this.isSelected});
+  const _SequenceMessageHandlePainter({
+    required this.isSelected,
+    required this.dashed,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -105,7 +114,20 @@ class _SequenceMessageHandlePainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final y = size.height / 2;
-    canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+    if (!dashed) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+    } else {
+      final dashLength = isSelected ? 12.0 : 10.0;
+      final gapLength = isSelected ? 12.0 : 10.0;
+      var x = 0.0;
+      while (x < size.width) {
+        final next = (x + dashLength) > size.width
+            ? size.width
+            : x + dashLength;
+        canvas.drawLine(Offset(x, y), Offset(next, y), linePaint);
+        x = next + gapLength;
+      }
+    }
 
     final knobPaint = Paint()
       ..color = lineColor.withValues(alpha: 0.95)
@@ -123,6 +145,6 @@ class _SequenceMessageHandlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SequenceMessageHandlePainter oldDelegate) {
-    return oldDelegate.isSelected != isSelected;
+    return oldDelegate.isSelected != isSelected || oldDelegate.dashed != dashed;
   }
 }

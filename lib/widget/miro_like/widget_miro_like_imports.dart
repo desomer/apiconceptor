@@ -118,11 +118,15 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
 
       final inflectionPoints = <Offset>[];
       if (message.fromId == message.toId) {
-        final loopX = fromBlock.position.dx + fromBlock.size.width + 80;
+        final loopX =
+            fromBlock.position.dx +
+            fromBlock.size.width +
+            _sequenceSelfLoopHorizontalOffset;
+        final loopReturnY = messageY + _sequenceSelfLoopVerticalOffset;
         inflectionPoints
           ..add(Offset(loopX, messageY))
-          ..add(Offset(loopX, messageY + 64))
-          ..add(Offset(fromCenterX, messageY + 64));
+          ..add(Offset(loopX, loopReturnY))
+          ..add(Offset(fromCenterX, loopReturnY));
       } else {
         inflectionPoints
           ..add(Offset(fromCenterX, messageY))
@@ -134,6 +138,7 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
             fromBlockId: message.fromId,
             toBlockId: message.toId,
             name: message.label,
+            sequenceArrowType: message.arrowType,
             connectorType: ConnectorType.orthogonal,
             sourceAnchorUnit: const Offset(0, 1),
             targetAnchorUnit: const Offset(0, 1),

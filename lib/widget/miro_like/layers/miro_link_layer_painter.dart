@@ -164,20 +164,36 @@ class MiroLinkLayerPainter {
       );
       final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
 
+      final arrowType = (link.sequenceArrowType ?? '').trim();
+      final isSequenceTyped =
+          showSequenceParticipantLifelines && arrowType.isNotEmpty;
+      final isDashedType = isSequenceTyped && arrowType.startsWith('--');
+      final isDestroyType =
+          isSequenceTyped &&
+          (arrowType.endsWith('x') || arrowType.endsWith('X'));
+      final isOpenType = isSequenceTyped && arrowType.endsWith(')');
+
+      final resolvedColor = selectedLink == link
+          ? colorLinkSelected
+          : isDestroyType
+          ? const Color(0xFFE57373)
+          : isOpenType
+          ? const Color(0xFFFFC107)
+          : (kLinkColorMap[link.colorKey] ?? colorLinkDefault);
+
       paintLinkConnector(
         canvas: canvas,
         from: fromEdge,
         to: toEdge,
         connectorType: link.connectorType,
-        color: (selectedLink == link)
-            ? colorLinkSelected
-            : (kLinkColorMap[link.colorKey] ?? colorLinkDefault),
+        color: resolvedColor,
         strokeWidth: linkPaint.strokeWidth,
         zoomLevel: zoomLevel,
         link: link,
         viaPoints: viaCanvas,
         startTangent: startTangent,
         endTangent: endTangent,
+        dashed: isDashedType,
       );
 
       labelEntries.add((

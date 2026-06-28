@@ -86,6 +86,8 @@ const double _sequenceParticipantGap = 280.0;
 const double _sequenceParticipantTop = 80.0;
 const double _sequenceMessageStartY = 300.0;
 const double _sequenceMessageStepY = 60.0;
+const double _sequenceSelfLoopHorizontalOffset = 56.0;
+const double _sequenceSelfLoopVerticalOffset = 36.0;
 
 enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
 
@@ -790,6 +792,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _handleLinkSequenceArrowTypeChanged(BlockLink link, String? value) {
+    _pushUndoSnapshot();
+    setState(() {
+      final normalized = (value ?? '').trim();
+      link.sequenceArrowType = normalized.isEmpty ? null : normalized;
+      _markBoardChanged();
+    });
+  }
+
   void _showBlockInfoDialog(Block block) {
     showDialog<void>(
       context: context,
@@ -1090,6 +1101,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'fromBlockId': link.fromBlockId,
       'toBlockId': link.toBlockId,
       'name': link.name,
+      'sequenceArrowType': link.sequenceArrowType,
       'colorKey': link.colorKey,
       'labelIconKey': link.labelIconKey,
       'particleDensity': link.particleDensity,
@@ -1239,6 +1251,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           fromBlockId: fromId,
           toBlockId: toId,
           name: item['name']?.toString() ?? '',
+          sequenceArrowType: item['sequenceArrowType']?.toString(),
           colorKey: item['colorKey']?.toString(),
           labelIconKey: item['labelIconKey']?.toString(),
           particleDensity: item['particleDensity'] is num
@@ -2186,86 +2199,93 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   bool _endLinking(Block targetBlock) {
-    if (linkSourceBlock != null && linkSourceBlock!.id != targetBlock.id) {
-      _pushUndoSnapshot();
-      final sourceRect = _blockRectCanvas(linkSourceBlock!);
-      final targetRect = _blockRectCanvas(targetBlock);
-
-      final sourceAnchorUnit = _calculateOptimalAnchorUnit(
-        sourceRect,
-        targetRect,
-      );
-      final targetAnchorUnit = _calculateOptimalAnchorUnit(
-        targetRect,
-        sourceRect,
-      );
-
-      setState(() {
-        final isSequenceMode = _isSequenceDiagramView;
-        final laneYModel = isSequenceMode
-            ? (() {
-                final minLaneCanvasY = math.max(
-                  _sequenceLifelineStartCanvasY(linkSourceBlock!),
-                  _sequenceLifelineStartCanvasY(targetBlock),
-                );
-                final fallbackLaneCanvasY = minLaneCanvasY + (32.0 * zoomLevel);
-                final creationStartCanvasY = _sequenceCreationStartCanvasY;
-                final previewLaneCanvasY = currentMousePosition?.dy;
-                final referenceLaneCanvasY =
-                    creationStartCanvasY ??
-                    previewLaneCanvasY ??
-                    fallbackLaneCanvasY;
-                final laneCanvasY = math.max(
-                  referenceLaneCanvasY,
-                  minLaneCanvasY,
-                );
-                return (laneCanvasY - canvasOffset.dy) / zoomLevel;
-              })()
-            : null;
-
-        links.add(
-          BlockLink(
-            fromBlockId: linkSourceBlock!.id,
-            toBlockId: targetBlock.id,
-            name: 'Lien ${links.length + 1}',
-            colorKey: null,
-            labelPosition: 0.75,
-            labelOffset: Offset.zero,
-            particleDensity: 1.0,
-            particleSpeed: 1.0,
-            connectorType: isSequenceMode
-                ? ConnectorType.orthogonal
-                : ConnectorType.bezier,
-            inflectionPoints: isSequenceMode
-                ? <Offset>[]
-                : List<Offset>.from(pendingInflectionPoints),
-            sourceAnchorUnit: isSequenceMode
-                ? const Offset(0, 1)
-                : sourceAnchorUnit,
-            targetAnchorUnit: isSequenceMode
-                ? const Offset(0, 1)
-                : targetAnchorUnit,
-            autoLayoutLock: isSequenceMode,
-          ),
-        );
-        if (isSequenceMode && laneYModel != null) {
-          _setSequenceLinkLaneY(links.last, laneYModel);
-          _insertSequenceMessageAtReference(links.last, laneYModel);
-        }
-        _ensureBlockHasSpaceForAnchors(linkSourceBlock!);
-        _ensureBlockHasSpaceForAnchors(targetBlock);
-        linkSourceBlock = null;
-        linkingFromPoint = null;
-        currentMousePosition = null;
-        _sequenceLinkTargetHoverBlockId = null;
-        _sequenceCreationStartCanvasY = null;
-        pendingInflectionPoints.clear();
-        _markBoardChanged();
-      });
-      return true;
+    final sourceBlock = linkSourceBlock;
+    if (sourceBlock == null) {
+      return false;
     }
 
-    return false;
+    final isSelfLink = sourceBlock.id == targetBlock.id;
+    if (isSelfLink && !_isSequenceDiagramView) {
+      return false;
+    }
+
+    _pushUndoSnapshot();
+    final sourceRect = _blockRectCanvas(sourceBlock);
+    final targetRect = _blockRectCanvas(targetBlock);
+
+    final sourceAnchorUnit = _calculateOptimalAnchorUnit(
+      sourceRect,
+      targetRect,
+    );
+    final targetAnchorUnit = _calculateOptimalAnchorUnit(
+      targetRect,
+      sourceRect,
+    );
+
+    setState(() {
+      final isSequenceMode = _isSequenceDiagramView;
+      final laneYModel = isSequenceMode
+          ? (() {
+              final minLaneCanvasY = math.max(
+                _sequenceLifelineStartCanvasY(sourceBlock),
+                _sequenceLifelineStartCanvasY(targetBlock),
+              );
+              final fallbackLaneCanvasY = minLaneCanvasY + (32.0 * zoomLevel);
+              final creationStartCanvasY = _sequenceCreationStartCanvasY;
+              final previewLaneCanvasY = currentMousePosition?.dy;
+              final referenceLaneCanvasY =
+                  creationStartCanvasY ??
+                  previewLaneCanvasY ??
+                  fallbackLaneCanvasY;
+              final laneCanvasY = math.max(
+                referenceLaneCanvasY,
+                minLaneCanvasY,
+              );
+              return (laneCanvasY - canvasOffset.dy) / zoomLevel;
+            })()
+          : null;
+
+      links.add(
+        BlockLink(
+          fromBlockId: sourceBlock.id,
+          toBlockId: targetBlock.id,
+          name: 'Lien ${links.length + 1}',
+          sequenceArrowType: isSequenceMode ? '->>' : null,
+          colorKey: null,
+          labelPosition: 0.75,
+          labelOffset: Offset.zero,
+          particleDensity: 1.0,
+          particleSpeed: 1.0,
+          connectorType: isSequenceMode
+              ? ConnectorType.orthogonal
+              : ConnectorType.bezier,
+          inflectionPoints: isSequenceMode
+              ? <Offset>[]
+              : List<Offset>.from(pendingInflectionPoints),
+          sourceAnchorUnit: isSequenceMode
+              ? const Offset(0, 1)
+              : sourceAnchorUnit,
+          targetAnchorUnit: isSequenceMode
+              ? const Offset(0, 1)
+              : targetAnchorUnit,
+          autoLayoutLock: isSequenceMode,
+        ),
+      );
+      if (isSequenceMode && laneYModel != null) {
+        _setSequenceLinkLaneY(links.last, laneYModel);
+        _insertSequenceMessageAtReference(links.last, laneYModel);
+      }
+      _ensureBlockHasSpaceForAnchors(sourceBlock);
+      _ensureBlockHasSpaceForAnchors(targetBlock);
+      linkSourceBlock = null;
+      linkingFromPoint = null;
+      currentMousePosition = null;
+      _sequenceLinkTargetHoverBlockId = null;
+      _sequenceCreationStartCanvasY = null;
+      pendingInflectionPoints.clear();
+      _markBoardChanged();
+    });
+    return true;
   }
 
   Offset _calculateOptimalAnchorUnit(Rect fromRect, Rect toRect) {
@@ -3100,6 +3120,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     required Offset edgePoint,
   }) {
     if (_isSequenceDiagramView) {
+      if (link.fromBlockId == link.toBlockId) {
+        return const Offset(1, 0);
+      }
+
       final ownId = isSource ? link.fromBlockId : link.toBlockId;
       final otherId = isSource ? link.toBlockId : link.fromBlockId;
       final ownIndex = blocks.indexWhere((b) => b.id == ownId);
@@ -3135,10 +3159,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     final toCenterX = toBlock.position.dx + (toBlock.size.width / 2);
 
     if (link.fromBlockId == link.toBlockId) {
-      final loopX = fromBlock.position.dx + fromBlock.size.width + 96;
+      final loopX =
+          fromBlock.position.dx +
+          fromBlock.size.width +
+          _sequenceSelfLoopHorizontalOffset;
+      final loopReturnY = laneYModel + _sequenceSelfLoopVerticalOffset;
       link.inflectionPoints
         ..clear()
-        ..add(Offset(loopX, laneYModel));
+        ..add(Offset(loopX, laneYModel))
+        ..add(Offset(loopX, loopReturnY))
+        ..add(Offset(fromCenterX, loopReturnY));
     } else {
       link.inflectionPoints
         ..clear()
@@ -4496,6 +4526,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       onConnectorTypeChanged: _handleConnectorTypeChanged,
                       onLinkAutoLayoutLockChanged:
                           _handleLinkAutoLayoutLockChanged,
+                      onLinkSequenceArrowTypeChanged:
+                          _handleLinkSequenceArrowTypeChanged,
                     ),
                   ),
                 ],

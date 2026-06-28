@@ -11,11 +11,13 @@ class MermaidSequenceParticipant {
 class MermaidSequenceMessage {
   final String fromId;
   final String toId;
+  final String arrowType;
   final String label;
 
   const MermaidSequenceMessage({
     required this.fromId,
     required this.toId,
+    required this.arrowType,
     required this.label,
   });
 }
@@ -32,6 +34,17 @@ class MermaidSequenceParseResult {
 
 class MermaidSequenceCodec {
   const MermaidSequenceCodec._();
+
+  static const Set<String> _supportedArrowTypes = {
+    '->>',
+    '-->>',
+    '->',
+    '-->',
+    '->x',
+    '--x',
+    '-)',
+    '--)',
+  };
 
   // Mermaid actor IDs can contain internal dashes, but should not end with one.
   static const String _participantIdPattern =
@@ -110,19 +123,21 @@ class MermaidSequenceCodec {
       }
 
       final messageMatch = RegExp(
-        '^($_participantIdPattern)\\s*(?:-->>|->>|-->|->|--x|->x|--\\)|-\\))\\s*($_participantIdPattern)\\s*:\\s*(.*)' +
+        '^($_participantIdPattern)\\s*(-->>|->>|-->|->|--[xX]|->[xX]|--\\)|-\\))\\s*($_participantIdPattern)\\s*:\\s*(.*)' +
             r'$',
       ).firstMatch(line);
       if (messageMatch != null) {
         final fromId = messageMatch.group(1)!;
-        final toId = messageMatch.group(2)!;
-        final label = _normalizeInline((messageMatch.group(3) ?? '').trim());
+        final arrowType = _normalizeArrowType(messageMatch.group(2)!);
+        final toId = messageMatch.group(3)!;
+        final label = _normalizeInline((messageMatch.group(4) ?? '').trim());
         registerParticipant(fromId);
         registerParticipant(toId);
         messages.add(
           MermaidSequenceMessage(
             fromId: fromId,
             toId: toId,
+            arrowType: arrowType,
             label: label.isEmpty ? 'message' : label,
           ),
         );
@@ -171,7 +186,8 @@ class MermaidSequenceCodec {
       final label = link.name.trim().isEmpty
           ? 'message'
           : _normalizeInline(link.name);
-      buffer.writeln('  $fromId->>$toId: $label');
+      final arrowType = _normalizedArrowTypeOrDefault(link.sequenceArrowType);
+      buffer.writeln('  $fromId$arrowType$toId: $label');
     }
 
     return buffer.toString().trimRight();
@@ -196,5 +212,26 @@ class MermaidSequenceCodec {
         .replaceAll('\r', ' ')
         .replaceAll(':', ' -')
         .trim();
+  }
+
+  static String _normalizeArrowType(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return '->>';
+    }
+
+    final lowered = trimmed.toLowerCase();
+    if (_supportedArrowTypes.contains(lowered)) {
+      return lowered;
+    }
+
+    return _supportedArrowTypes.contains(trimmed) ? trimmed : '->>';
+  }
+
+  static String _normalizedArrowTypeOrDefault(String? value) {
+    if (value == null) {
+      return '->>';
+    }
+    return _normalizeArrowType(value);
   }
 }

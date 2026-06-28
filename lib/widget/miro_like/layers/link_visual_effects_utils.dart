@@ -18,20 +18,48 @@ void paintLinkConnectorVisuals({
   required double zoomLevel,
   required Offset arrowTip,
   BlockLink? link,
+  bool dashed = false,
 }) {
-  _drawNeonTube(canvas, path, color, strokeWidth);
+  _drawNeonTube(canvas, path, color, strokeWidth, dashed: dashed);
   _drawFlowParticles(canvas, path, color, link: link);
 
   final endAngle = _pathEndAngle(path);
   if (endAngle != null) {
-    _drawArrowHead(
-      canvas,
-      arrowTip,
-      endAngle,
-      color: color,
-      strokeWidth: strokeWidth,
-      arrowHeadSize: _arrowHeadSize(zoomLevel),
-    );
+    final arrowType = (link?.sequenceArrowType ?? '').trim();
+    final hasSequenceArrowType = arrowType.isNotEmpty;
+    final isCrossArrow =
+        hasSequenceArrowType &&
+        (arrowType.endsWith('x') || arrowType.endsWith('X'));
+    final isOpenArrow = hasSequenceArrowType && arrowType.endsWith(')');
+
+    if (isCrossArrow) {
+      _drawCrossMarker(
+        canvas,
+        arrowTip,
+        endAngle,
+        color: color,
+        strokeWidth: strokeWidth,
+        markerSize: _arrowHeadSize(zoomLevel),
+      );
+    } else if (isOpenArrow) {
+      _drawOpenArrowHead(
+        canvas,
+        arrowTip,
+        endAngle,
+        color: color,
+        strokeWidth: strokeWidth,
+        arrowHeadSize: _arrowHeadSize(zoomLevel),
+      );
+    } else {
+      _drawArrowHead(
+        canvas,
+        arrowTip,
+        endAngle,
+        color: color,
+        strokeWidth: strokeWidth,
+        arrowHeadSize: _arrowHeadSize(zoomLevel),
+      );
+    }
   }
 }
 
@@ -43,15 +71,95 @@ void _drawNeonTube(
   Canvas canvas,
   Path path,
   Color tubeColor,
-  double strokeWidth,
-) {
+  double strokeWidth, {
+  bool dashed = false,
+}) {
   final tubePaint = Paint()
     ..color = tubeColor.withValues(alpha: 0.4)
     ..strokeWidth = strokeWidth
     ..strokeCap = StrokeCap.round
     ..strokeJoin = StrokeJoin.round
     ..style = PaintingStyle.stroke;
-  canvas.drawPath(path, tubePaint);
+
+  if (!dashed) {
+    canvas.drawPath(path, tubePaint);
+    return;
+  }
+
+  final dashLength = (14.0 * (strokeWidth / 3.0)).clamp(8.0, 22.0);
+  final gapLength = (16.0 * (strokeWidth / 3.0)).clamp(8.0, 26.0);
+  final glowPaint = Paint()
+    ..color = tubeColor.withValues(alpha: 0.58)
+    ..strokeWidth = strokeWidth * 1.55
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..style = PaintingStyle.stroke;
+  final corePaint = Paint()
+    ..color = tubeColor.withValues(alpha: 0.95)
+    ..strokeWidth = (strokeWidth * 0.78).clamp(0.9, strokeWidth)
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..style = PaintingStyle.stroke;
+
+  for (final metric in path.computeMetrics()) {
+    var distance = 0.0;
+    while (distance < metric.length) {
+      final next = math.min(distance + dashLength, metric.length);
+      final segment = metric.extractPath(distance, next);
+      canvas.drawPath(segment, glowPaint);
+      canvas.drawPath(segment, corePaint);
+      distance = next + gapLength;
+    }
+  }
+}
+
+void _drawOpenArrowHead(
+  Canvas canvas,
+  Offset to,
+  double angle, {
+  required Color color,
+  required double strokeWidth,
+  required double arrowHeadSize,
+}) {
+  final arrowPaint = Paint()
+    ..color = color
+    ..strokeWidth = (strokeWidth * 0.85).clamp(0.8, 5.0)
+    ..strokeCap = StrokeCap.round
+    ..style = PaintingStyle.stroke;
+
+  final p1 =
+      to + Offset(-arrowHeadSize * 0.866, arrowHeadSize * 0.5).rotate(angle);
+  final p2 =
+      to + Offset(-arrowHeadSize * 0.866, -arrowHeadSize * 0.5).rotate(angle);
+
+  canvas.drawLine(to, p1, arrowPaint);
+  canvas.drawLine(to, p2, arrowPaint);
+}
+
+void _drawCrossMarker(
+  Canvas canvas,
+  Offset to,
+  double angle, {
+  required Color color,
+  required double strokeWidth,
+  required double markerSize,
+}) {
+  final markerPaint = Paint()
+    ..color = color
+    ..strokeWidth = (strokeWidth * 0.95).clamp(1.0, 5.5)
+    ..strokeCap = StrokeCap.round
+    ..style = PaintingStyle.stroke;
+
+  final center = to + Offset(-markerSize * 0.45, 0).rotate(angle);
+  final half = markerSize * 0.30;
+
+  final a = center + Offset(-half, -half).rotate(angle);
+  final b = center + Offset(half, half).rotate(angle);
+  final c = center + Offset(-half, half).rotate(angle);
+  final d = center + Offset(half, -half).rotate(angle);
+
+  canvas.drawLine(a, b, markerPaint);
+  canvas.drawLine(c, d, markerPaint);
 }
 
 void _drawArrowHead(

@@ -211,6 +211,10 @@ Offset outwardTangentForLinkEndpoint({
   required Offset canvasOffset,
 }) {
   if (showSequenceParticipantLifelines) {
+    if (link.fromBlockId == link.toBlockId) {
+      return const Offset(1, 0);
+    }
+
     final ownId = isSource ? link.fromBlockId : link.toBlockId;
     final otherId = isSource ? link.toBlockId : link.fromBlockId;
     final ownIndex = blocks.indexWhere((b) => b.id == ownId);
