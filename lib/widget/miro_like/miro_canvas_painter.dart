@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:jsonschema/widget/miro_like/block_model.dart';
 import 'package:jsonschema/widget/miro_like/link_model.dart';
-import 'package:jsonschema/widget/miro_like/widget_flowchart.dart';
+import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 
 const double _painterAnchorHandleRadius = 6.0;
 
