@@ -131,6 +131,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Block? selectedBlock;
   final Set<String> _selectedBlockIds = <String>{};
   BlockLink? selectedLink;
+  final Set<BlockLink> _selectedSequenceLinks = <BlockLink>{};
   Block? linkSourceBlock;
   Offset? linkingFromPoint;
   Offset? currentMousePosition;
@@ -149,6 +150,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset? _selectionStartCanvas;
   Offset? _selectionCurrentCanvas;
   bool _isBoxSelecting = false;
+  bool _isSequenceMessageBoxSelecting = false;
   bool _consumeNextCanvasTap = false;
   DateTime? _lastSecondaryTapTime;
   Offset? _lastSecondaryTapCanvasPosition;
@@ -261,6 +263,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       selectedBlock = null;
       _selectedBlockIds.clear();
       selectedLink = null;
+      _selectedSequenceLinks.clear();
       linkSourceBlock = null;
       linkingFromPoint = null;
       currentMousePosition = null;
@@ -523,6 +526,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     _pushUndoSnapshot();
     setState(() {
       linkManager.deleteLink(links, link);
+      _selectedSequenceLinks.remove(link);
       if (selectedLink == link) {
         selectedLink = null;
       }
@@ -2645,6 +2649,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     _selectionStartCanvas = canvasPosition;
     _selectionCurrentCanvas = canvasPosition;
     selectedLink = null;
+    _selectedSequenceLinks.clear();
   }
 
   void _updateBoxSelection(Offset canvasPosition) {
@@ -2701,6 +2706,49 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     _isBoxSelecting = false;
     _selectionStartCanvas = null;
     _selectionCurrentCanvas = null;
+  }
+
+  void _finishSequenceMessageBoxSelection() {
+    final start = _selectionStartCanvas;
+    final end = _selectionCurrentCanvas;
+    if (!_isBoxSelecting || start == null || end == null) {
+      _isBoxSelecting = false;
+      _selectionStartCanvas = null;
+      _selectionCurrentCanvas = null;
+      _isSequenceMessageBoxSelecting = false;
+      return;
+    }
+
+    final selectionCanvasRect = _selectionRectFromCanvasPoints(start, end);
+    final isClickLike =
+        selectionCanvasRect.width < 4.0 && selectionCanvasRect.height < 4.0;
+
+    if (!isClickLike) {
+      final selectedLinks = <BlockLink>{};
+      for (final entry in _buildSequenceMessageEntries()) {
+        final messageRect = Rect.fromLTRB(
+          entry.leftXCanvas,
+          entry.topYCanvas,
+          entry.rightXCanvas,
+          entry.bottomYCanvas,
+        ).inflate(16.0);
+        if (selectionCanvasRect.overlaps(messageRect)) {
+          selectedLinks.add(entry.link);
+        }
+      }
+
+      _selectedSequenceLinks
+        ..clear()
+        ..addAll(selectedLinks);
+      selectedLink = selectedLinks.length == 1 ? selectedLinks.first : null;
+      selectedBlock = null;
+      _selectedBlockIds.clear();
+    }
+
+    _isBoxSelecting = false;
+    _selectionStartCanvas = null;
+    _selectionCurrentCanvas = null;
+    _isSequenceMessageBoxSelecting = false;
   }
 
   List<Widget> _buildSelectionOverlay() {
@@ -3378,7 +3426,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final laneYCanvas = via.isNotEmpty
           ? via.first.dy
           : math.max(fromEdge.dy, toEdge.dy);
+      final xValues = <double>[fromEdge.dx, toEdge.dx, ...via.map((p) => p.dx)];
       final yValues = <double>[fromEdge.dy, toEdge.dy, ...via.map((p) => p.dy)];
+      final leftXCanvas = xValues.reduce(math.min);
+      final rightXCanvas = xValues.reduce(math.max);
       final topYCanvas = yValues.reduce(math.min);
       final bottomYCanvas = yValues.reduce(math.max);
 
@@ -3386,6 +3437,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         SequenceMessageEntry(
           link: link,
           laneYCanvas: laneYCanvas,
+          leftXCanvas: leftXCanvas,
+          rightXCanvas: rightXCanvas,
           startXCanvas: fromEdge.dx,
           endXCanvas: toEdge.dx,
           topYCanvas: topYCanvas,
@@ -4190,11 +4243,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       SequenceMessageLayer(
                         entries: _buildSequenceMessageEntries(),
                         groupSpan: _buildSequenceGroupSpan(),
-                        selectedLink: selectedLink,
+                        selectedLinks: _selectedSequenceLinks,
                         onSelect: (link) {
                           setState(() {
                             selectedLink = link;
+                            _selectedSequenceLinks
+                              ..clear()
+                              ..add(link);
                             selectedBlock = null;
+                            _selectedBlockIds.clear();
                           });
                         },
                         onDragStart: (_) {
@@ -4228,6 +4285,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       if (linkSourceBlock != null) {
                         return;
                       }
+                      if (_isSequenceDiagramView) {
+                        _isSequenceMessageBoxSelecting = true;
+                      }
                       _startBoxSelection(details.localPosition);
                     });
                   },
@@ -4241,7 +4301,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   },
                   onCanvasPrimaryDragEnd: (_) {
                     setState(() {
-                      _finishBoxSelection();
+                      if (_isSequenceMessageBoxSelecting) {
+                        _finishSequenceMessageBoxSelection();
+                      } else {
+                        _finishBoxSelection();
+                      }
                     });
                   },
                   onHover: (event) {
@@ -4266,6 +4330,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     setState(() {
                       final canvasPosition = _toCanvasLocal(event.position);
                       if (_startSequenceLinkingFromCanvas(canvasPosition)) {
+                        _isSequenceMessageBoxSelecting = false;
                         _draggedZoneId = null;
                         isPanning = false;
                         return;
@@ -4354,6 +4419,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         _sequenceCreationStartCanvasY = null;
                         pendingInflectionPoints.clear();
                       }
+                      _isSequenceMessageBoxSelecting = false;
                       _draggedZoneId = null;
                       isPanning = false;
                     });
@@ -4381,6 +4447,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         selectedBlock = null;
                         _selectedBlockIds.clear();
                         selectedLink = hitLink;
+                        _selectedSequenceLinks
+                          ..clear()
+                          ..add(hitLink);
                         return;
                       }
 
@@ -4413,6 +4482,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                               ..add(block.id);
                           }
                           selectedLink = null;
+                          _selectedSequenceLinks.clear();
                           return;
                         }
                       }
@@ -4420,6 +4490,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       selectedBlock = null;
                       _selectedBlockIds.clear();
                       selectedLink = null;
+                      _selectedSequenceLinks.clear();
                     });
                   },
                   onCanvasSecondaryTapDown: (details) {

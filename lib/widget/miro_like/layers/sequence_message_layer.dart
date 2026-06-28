@@ -14,6 +14,8 @@ class SequenceGroupSpan {
 class SequenceMessageEntry {
   final BlockLink link;
   final double laneYCanvas;
+  final double leftXCanvas;
+  final double rightXCanvas;
   final double startXCanvas;
   final double endXCanvas;
   final double topYCanvas;
@@ -22,6 +24,8 @@ class SequenceMessageEntry {
   const SequenceMessageEntry({
     required this.link,
     required this.laneYCanvas,
+    required this.leftXCanvas,
+    required this.rightXCanvas,
     required this.startXCanvas,
     required this.endXCanvas,
     required this.topYCanvas,
@@ -32,7 +36,7 @@ class SequenceMessageEntry {
 class SequenceMessageLayer extends StatelessWidget {
   final List<SequenceMessageEntry> entries;
   final SequenceGroupSpan? groupSpan;
-  final BlockLink? selectedLink;
+  final Set<BlockLink> selectedLinks;
   final void Function(BlockLink link) onSelect;
   final void Function(BlockLink link) onDragStart;
   final void Function(BlockLink link, Offset globalPosition) onDragUpdate;
@@ -42,7 +46,7 @@ class SequenceMessageLayer extends StatelessWidget {
     super.key,
     required this.entries,
     this.groupSpan,
-    required this.selectedLink,
+    required this.selectedLinks,
     required this.onSelect,
     required this.onDragStart,
     required this.onDragUpdate,
@@ -73,7 +77,11 @@ class SequenceMessageLayer extends StatelessWidget {
             ),
           ),
         for (final entry in entries)
-          _buildMessageHandle(context, entry, selectedLink == entry.link),
+          _buildMessageHandle(
+            context,
+            entry,
+            selectedLinks.contains(entry.link),
+          ),
       ],
     );
   }
@@ -215,10 +223,8 @@ class SequenceMessageLayer extends StatelessWidget {
     SequenceMessageEntry entry,
     bool isSelected,
   ) {
-    final left = entry.startXCanvas < entry.endXCanvas
-        ? entry.startXCanvas
-        : entry.endXCanvas;
-    final width = (entry.endXCanvas - entry.startXCanvas).abs().clamp(
+    final left = entry.leftXCanvas;
+    final width = (entry.rightXCanvas - entry.leftXCanvas).abs().clamp(
       44.0,
       double.infinity,
     );
@@ -413,6 +419,24 @@ class _SequenceMessageHandlePainter extends CustomPainter {
         : const Color.fromARGB(200, 124, 216, 255);
 
     final y = size.height / 2;
+    final lineStart = Offset(6.0, y);
+    final lineEnd = Offset(size.width - 6.0, y);
+
+    if (isSelected) {
+      final glowPaint = Paint()
+        ..color = const Color.fromARGB(120, 255, 165, 0)
+        ..strokeWidth = 8.0
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(lineStart, lineEnd, glowPaint);
+    }
+
+    // final linePaint = Paint()
+    //   ..color = lineColor.withValues(alpha: 0.95)
+    //   ..strokeWidth = isSelected ? 3.0 : 2.0
+    //   ..strokeCap = StrokeCap.round
+    //   ..style = PaintingStyle.stroke;
+    // canvas.drawLine(lineStart, lineEnd, linePaint);
 
     final knobPaint = Paint()
       ..color = lineColor.withValues(alpha: 0.95)

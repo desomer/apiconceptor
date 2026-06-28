@@ -99,12 +99,15 @@ class MiroCanvasWorkspace extends StatelessWidget {
             color: canvasBackgroundColor,
             child: Stack(
               children: [
-                GestureDetector(
-                  onPanStart: onCanvasPrimaryDragStart,
-                  onPanUpdate: onCanvasPrimaryDragUpdate,
-                  onPanEnd: onCanvasPrimaryDragEnd,
-                  onTapDown: onCanvasTapDown,
-                  onSecondaryTapDown: onCanvasSecondaryTapDown,
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanStart: onCanvasPrimaryDragStart,
+                    onPanUpdate: onCanvasPrimaryDragUpdate,
+                    onPanEnd: onCanvasPrimaryDragEnd,
+                    onTapDown: onCanvasTapDown,
+                    onSecondaryTapDown: onCanvasSecondaryTapDown,
+                  ),
                 ),
                 ...paintOrderedBlocks.map((block) {
                   if (block.isZone) {
