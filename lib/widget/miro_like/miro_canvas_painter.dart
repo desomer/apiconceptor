@@ -48,6 +48,7 @@ class MiroCanvasPainter extends CustomPainter {
   final Block? linkSourceBlock;
   final Animation<double>? flowAnimation;
   final List<Offset> pendingInflectionPoints;
+  final bool showSequenceParticipantLifelines;
 
   MiroCanvasPainter({
     required this.blocks,
@@ -61,6 +62,7 @@ class MiroCanvasPainter extends CustomPainter {
     this.linkSourceBlock,
     this.flowAnimation,
     this.pendingInflectionPoints = const [],
+    this.showSequenceParticipantLifelines = false,
   }) : super(repaint: flowAnimation);
 
   double _linkStrokeWidth() {
@@ -74,6 +76,9 @@ class MiroCanvasPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     _drawDottedGrid(canvas, size);
+    if (showSequenceParticipantLifelines) {
+      _drawSequenceParticipantLifelines(canvas, size);
+    }
 
     // Dessiner les liens
     final linkPaint = Paint()
@@ -257,6 +262,33 @@ class MiroCanvasPainter extends CustomPainter {
             ..color = colorInflectionPoint
             ..style = PaintingStyle.fill,
         );
+      }
+    }
+  }
+
+  void _drawSequenceParticipantLifelines(Canvas canvas, Size size) {
+    final lifelinePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.28)
+      ..strokeWidth = (1.2 * zoomLevel).clamp(0.8, 2.2)
+      ..style = PaintingStyle.stroke;
+
+    final dashLength = (12.0 * zoomLevel).clamp(6.0, 18.0);
+    final gapLength = (8.0 * zoomLevel).clamp(4.0, 14.0);
+    final yMax = size.height + 400;
+
+    for (final block in blocks) {
+      if (block.isZone) {
+        continue;
+      }
+
+      final rect = _blockRectCanvas(block);
+      final x = rect.center.dx;
+      var y = rect.bottom + (8.0 * zoomLevel);
+
+      while (y < yMax) {
+        final segmentEnd = math.min(y + dashLength, yMax);
+        canvas.drawLine(Offset(x, y), Offset(x, segmentEnd), lifelinePaint);
+        y += dashLength + gapLength;
       }
     }
   }

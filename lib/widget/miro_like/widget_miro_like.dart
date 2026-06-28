@@ -14,10 +14,14 @@ import 'link_model.dart';
 import 'block_model.dart';
 import 'auto_layout_engine.dart';
 import 'import_export_manager.dart';
+import 'mermaid_flowchart_codec.dart';
+import 'mermaid_sequence_codec.dart';
 import 'widgets/anchor_handle_widget.dart';
 import 'widgets/inflection_handle_widget.dart';
 import 'widgets/link_label_handle_widget.dart';
 import 'widgets/miro_canvas_workspace.dart';
+
+part 'widget_miro_like_imports.dart';
 
 // ============================================================================
 // THEME COLORS - Centralized color definitions for the entire application
@@ -76,8 +80,14 @@ const double _alignmentSnapReleaseDistance = 24.0;
 const double _minZoneWidth = 180.0;
 const double _minZoneHeight = 120.0;
 const double _zoneHandleSize = 14.0;
+const double _sequenceParticipantGap = 280.0;
+const double _sequenceParticipantTop = 80.0;
+const double _sequenceMessageStartY = 360.0;
+const double _sequenceMessageStepY = 120.0;
 
 enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
+
+enum _DiagramLayoutMode { flowchart, sequence }
 
 class _UndoIntent extends Intent {
   const _UndoIntent();
@@ -139,6 +149,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   DateTime? _lastSecondaryTapTime;
   Offset? _lastSecondaryTapCanvasPosition;
   String? _draggedZoneId;
+  bool _isSequenceDiagramView = false;
   bool _hasUnsavedChanges = false;
 
   static const int _historyLimit = 30;
@@ -224,6 +235,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           !importedIds.contains(l.fromBlockId) ||
           !importedIds.contains(l.toBlockId),
     );
+    final isSequenceDiagramView =
+        decoded['diagramMode']?.toString() == 'sequence';
 
     setState(() {
       blocks
@@ -251,6 +264,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       _selectionStartCanvas = null;
       _selectionCurrentCanvas = null;
       _draggedZoneId = null;
+      _isSequenceDiagramView = isSequenceDiagramView;
       _updateUnsavedStateFromSnapshot();
     });
   }
@@ -1015,6 +1029,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Map<String, dynamic> _boardToJson() {
     return {
       'version': 1,
+      'diagramMode': _isSequenceDiagramView ? 'sequence' : 'flowchart',
       'zoomLevel': zoomLevel,
       'canvasOffset': _offsetToJson(canvasOffset),
       'blocks': blocks.map(_blockToJson).toList(),
@@ -1034,47 +1049,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         .replaceAll('/n', '\n');
   }
 
-  String _escapeMermaidText(String text) {
-    final normalized = _normalizeBlockTitleLineBreaks(text);
-    return normalized
-        .replaceAll('\\', r'\\')
-        .replaceAll('"', r'\"')
-        .replaceAll('\n', r'\n')
-        .trim();
-  }
-
   String _generateMermaid() {
-    final exportBlocks = blocks.where((b) => !b.isZone).toList(growable: false);
-    final blockIds = <String, String>{};
-    for (var i = 0; i < exportBlocks.length; i++) {
-      blockIds[exportBlocks[i].id] = 'm$i';
+    if (_isSequenceDiagramView) {
+      return MermaidSequenceCodec.generate(blocks: blocks, links: links);
     }
 
-    final buffer = StringBuffer('flowchart $_mermaidLayoutDirection\n');
-    for (final block in exportBlocks) {
-      final nodeId = blockIds[block.id];
-      if (nodeId == null) {
-        continue;
-      }
-      buffer.writeln('  $nodeId["${_escapeMermaidText(block.title)}"]');
-    }
-
-    for (final link in links) {
-      final fromId = blockIds[link.fromBlockId];
-      final toId = blockIds[link.toBlockId];
-      if (fromId == null || toId == null) {
-        continue;
-      }
-
-      final label = link.name.trim();
-      if (label.isEmpty) {
-        buffer.writeln('  $fromId --> $toId');
-      } else {
-        buffer.writeln('  $fromId -->|${_escapeMermaidText(label)}| $toId');
-      }
-    }
-
-    return buffer.toString().trimRight();
+    return MermaidFlowchartCodec.generate(
+      blocks: blocks,
+      links: links,
+      direction: _mermaidLayoutDirection,
+    );
   }
 
   ConnectorType _connectorTypeFromName(dynamic value) {
@@ -1209,18 +1193,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       }
     }
     return parsed;
-  }
-
-  String _extractMermaidSource(String text) {
-    final fenced = RegExp(
-      r'```(?:mermaid)?\s*([\s\S]*?)```',
-      caseSensitive: false,
-      multiLine: true,
-    ).firstMatch(text);
-    if (fenced != null) {
-      return fenced.group(1)?.trim() ?? '';
-    }
-    return text.trim();
   }
 
   Map<String, Offset> _computeMermaidAutoLayout(
@@ -1644,26 +1616,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return merged;
   }
 
-  String _extractMermaidDirection(String source) {
-    final match = RegExp(
-      r'^(?:flowchart|graph)\s+([A-Za-z]{2})\b',
-      caseSensitive: false,
-      multiLine: true,
-    ).firstMatch(source);
-    if (match == null) {
-      return _mermaidLayoutDirection;
-    }
-
-    final parsed = (match.group(1) ?? '').toUpperCase();
-    if (parsed == 'TD') {
-      return 'TB';
-    }
-    if (_mermaidDirections.contains(parsed)) {
-      return parsed;
-    }
-    return _mermaidLayoutDirection;
-  }
-
   void _reorganizeGraphLayout() {
     final layoutBlocks = blocks.where((b) => !b.isZone).toList(growable: false);
     if (layoutBlocks.isEmpty) {
@@ -1687,6 +1639,106 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         _mermaidLayoutDirection,
         preserveCurrentPositions: true,
       );
+      _markBoardChanged();
+    });
+  }
+
+  void _reorganizeSequenceLayout() {
+    final participants = blocks.where((b) => !b.isZone).toList(growable: false);
+    if (participants.isEmpty) {
+      return;
+    }
+
+    final orderedParticipants = participants.toList(growable: false)
+      ..sort((a, b) {
+        final byX = a.position.dx.compareTo(b.position.dx);
+        if (byX != 0) {
+          return byX;
+        }
+        return a.position.dy.compareTo(b.position.dy);
+      });
+
+    final validParticipantIds = orderedParticipants.map((b) => b.id).toSet();
+    final orderedLinks = links
+        .where(
+          (l) =>
+              validParticipantIds.contains(l.fromBlockId) &&
+              validParticipantIds.contains(l.toBlockId),
+        )
+        .toList(growable: false);
+
+    _pushUndoSnapshot();
+    setState(() {
+      for (var i = 0; i < orderedParticipants.length; i++) {
+        final block = orderedParticipants[i];
+        block.position = Offset(
+          120 + (i * _sequenceParticipantGap),
+          _sequenceParticipantTop,
+        );
+      }
+
+      final blockById = <String, Block>{
+        for (final block in orderedParticipants) block.id: block,
+      };
+
+      for (var i = 0; i < orderedLinks.length; i++) {
+        final link = orderedLinks[i];
+        final fromBlock = blockById[link.fromBlockId];
+        final toBlock = blockById[link.toBlockId];
+        if (fromBlock == null || toBlock == null) {
+          continue;
+        }
+
+        final messageY = _sequenceMessageStartY + (i * _sequenceMessageStepY);
+        final fromCenterX = fromBlock.position.dx + (fromBlock.size.width / 2);
+        final toCenterX = toBlock.position.dx + (toBlock.size.width / 2);
+
+        final inflections = <Offset>[];
+        if (link.fromBlockId == link.toBlockId) {
+          final loopX = fromBlock.position.dx + fromBlock.size.width + 80;
+          inflections
+            ..add(Offset(loopX, messageY))
+            ..add(Offset(loopX, messageY + 64))
+            ..add(Offset(fromCenterX, messageY + 64));
+        } else {
+          inflections
+            ..add(Offset(fromCenterX, messageY))
+            ..add(Offset(toCenterX, messageY));
+        }
+
+        link.connectorType = ConnectorType.orthogonal;
+        link.sourceAnchorUnit = const Offset(0, 1);
+        link.targetAnchorUnit = const Offset(0, 1);
+        link.autoLayoutLock = true;
+        link.sourceAnchorOrderKey = i.toDouble();
+        link.targetAnchorOrderKey = i.toDouble();
+        link.inflectionPoints
+          ..clear()
+          ..addAll(inflections);
+      }
+
+      _isSequenceDiagramView = true;
+      _markBoardChanged();
+    });
+  }
+
+  void _reorganizeCurrentLayout() {
+    if (_isSequenceDiagramView) {
+      _reorganizeSequenceLayout();
+    } else {
+      _reorganizeGraphLayout();
+    }
+  }
+
+  void _setDiagramLayoutMode(_DiagramLayoutMode mode) {
+    final useSequence = mode == _DiagramLayoutMode.sequence;
+    if (_isSequenceDiagramView == useSequence) {
+      return;
+    }
+
+    _pushUndoSnapshot();
+    setState(() {
+      _isSequenceDiagramView = useSequence;
       _markBoardChanged();
     });
   }
@@ -2061,165 +2113,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     for (final block in layoutBlocks) {
       _ensureBlockHasSpaceForAnchorsInGraph(block, layoutLinks);
     }
-  }
-
-  void _importMermaid(String text) {
-    final source = _extractMermaidSource(text);
-    if (source.isEmpty) {
-      throw const FormatException('Le code Mermaid est vide');
-    }
-    final layoutDirection = _extractMermaidDirection(source);
-
-    final lines = source.split(RegExp(r'\r?\n'));
-    final nodeTitles = <String, String>{};
-    final nodeOrder = <String>[];
-    final edgeData = <({String fromId, String toId, String label})>[];
-
-    void registerNode(String nodeId, [String? title]) {
-      if (!nodeOrder.contains(nodeId)) {
-        nodeOrder.add(nodeId);
-      }
-      if (title != null && title.isNotEmpty) {
-        nodeTitles[nodeId] = _normalizeBlockTitleLineBreaks(title);
-      } else {
-        nodeTitles.putIfAbsent(nodeId, () => nodeId);
-      }
-    }
-
-    for (final rawLine in lines) {
-      final line = rawLine.trim();
-      if (line.isEmpty || line.startsWith('%%')) {
-        continue;
-      }
-
-      if (line.startsWith('flowchart ') || line.startsWith('graph ')) {
-        continue;
-      }
-
-      final nodeMatch = RegExp(
-        r'^([A-Za-z_][A-Za-z0-9_-]*)\s*\[\s*(?:"([^"]*)"|([^\]]*))\s*\]\s*$',
-      ).firstMatch(line);
-      if (nodeMatch != null) {
-        final nodeId = nodeMatch.group(1)!;
-        final title = nodeMatch.group(2) ?? nodeMatch.group(3) ?? nodeId;
-        registerNode(nodeId, title);
-        continue;
-      }
-
-      final edgeMatch = RegExp(
-        r'^([A-Za-z_][A-Za-z0-9_-]*)\s*--?>\s*(?:\|([^|]*)\|\s*)?([A-Za-z_][A-Za-z0-9_-]*)\s*$',
-      ).firstMatch(line);
-      if (edgeMatch != null) {
-        final fromId = edgeMatch.group(1)!;
-        final label = (edgeMatch.group(2) ?? '').trim();
-        final toId = edgeMatch.group(3)!;
-        registerNode(fromId);
-        registerNode(toId);
-        edgeData.add((fromId: fromId, toId: toId, label: label));
-      }
-    }
-
-    if (nodeOrder.isEmpty) {
-      throw const FormatException('Aucun bloc Mermaid reconnu');
-    }
-
-    final importedBlocks = <Block>[];
-    for (var i = 0; i < nodeOrder.length; i++) {
-      final nodeId = nodeOrder[i];
-      importedBlocks.add(
-        Block(
-          id: nodeId,
-          title: nodeTitles[nodeId] ?? nodeId,
-          position: Offset(120 + (i % 4) * 240, 100 + (i ~/ 4) * 170),
-          size: const Size(_minBlockWidth, _minBlockHeight),
-        ),
-      );
-    }
-
-    final importedLinks = <BlockLink>[];
-    for (final edge in edgeData) {
-      importedLinks.add(
-        BlockLink(
-          fromBlockId: edge.fromId,
-          toBlockId: edge.toId,
-          name: edge.label,
-        ),
-      );
-    }
-
-    _runAutoLayoutOnGraph(importedBlocks, importedLinks, layoutDirection);
-
-    _pushUndoSnapshot();
-
-    setState(() {
-      blocks
-        ..clear()
-        ..addAll(importedBlocks);
-      links
-        ..clear()
-        ..addAll(importedLinks);
-      selectedBlock = null;
-      selectedLink = null;
-      linkSourceBlock = null;
-      linkingFromPoint = null;
-      currentMousePosition = null;
-      pendingInflectionPoints.clear();
-      canvasOffset = Offset.zero;
-      zoomLevel = 1.0;
-      _snapLeftModel = null;
-      _snapTopModel = null;
-      _dragFreePositionModel = null;
-      _mermaidLayoutDirection = layoutDirection;
-
-      for (final block in blocks) {
-        _ensureBlockHasSpaceForAnchors(block);
-      }
-      _markBoardChanged();
-    });
-
-    _fitToViewAfterNextFrame();
-  }
-
-  void _importBoard(Map<String, dynamic> decoded, {bool recordHistory = true}) {
-    if (recordHistory) {
-      _pushUndoSnapshot();
-    }
-    final importedBlocks = _blocksFromJson(decoded['blocks']);
-    final legacyType = _connectorTypeFromName(decoded['connectorType']);
-    final importedLinks = _linksFromJson(
-      decoded['links'],
-      fallbackType: legacyType,
-    );
-    final importedIds = importedBlocks.map((b) => b.id).toSet();
-    importedLinks.removeWhere(
-      (l) =>
-          !importedIds.contains(l.fromBlockId) ||
-          !importedIds.contains(l.toBlockId),
-    );
-
-    setState(() {
-      blocks
-        ..clear()
-        ..addAll(importedBlocks);
-      links
-        ..clear()
-        ..addAll(importedLinks);
-
-      final zoom = decoded['zoomLevel'];
-      if (zoom is num) {
-        zoomLevel = zoom.toDouble().clamp(0.2, 4.0);
-      }
-
-      canvasOffset = _offsetFromJson(decoded['canvasOffset']);
-      selectedBlock = null;
-      linkSourceBlock = null;
-      linkingFromPoint = null;
-      currentMousePosition = null;
-      pendingInflectionPoints.clear();
-      _markBoardSaved();
-    });
-
-    _fitToViewAfterNextFrame();
   }
 
   void _endLinking(Block targetBlock) {
@@ -3709,6 +3602,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     links: links,
                     canvasOffset: canvasOffset,
                     zoomLevel: zoomLevel,
+                    showSequenceParticipantLifelines: _isSequenceDiagramView,
                     selectedBlock: selectedBlock,
                     selectedLink: selectedLink,
                     linkingFromPoint: linkingFromPoint,
@@ -4239,19 +4133,58 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       ),
       Row(
         children: [
+          Expanded(
+            child: SegmentedButton<_DiagramLayoutMode>(
+              segments: const [
+                ButtonSegment<_DiagramLayoutMode>(
+                  value: _DiagramLayoutMode.flowchart,
+                  icon: Icon(Icons.account_tree_outlined),
+                  label: Text('Flowchart'),
+                ),
+                ButtonSegment<_DiagramLayoutMode>(
+                  value: _DiagramLayoutMode.sequence,
+                  icon: Icon(Icons.table_rows_outlined),
+                  label: Text('Sequence'),
+                ),
+              ],
+              selected: {
+                _isSequenceDiagramView
+                    ? _DiagramLayoutMode.sequence
+                    : _DiagramLayoutMode.flowchart,
+              },
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) {
+                if (selection.isEmpty) {
+                  return;
+                }
+                _setDiagramLayoutMode(selection.first);
+              },
+            ),
+          ),
+        ],
+      ),
+      Row(
+        children: [
           IconButton(
             icon: const Icon(Icons.auto_fix_high),
-            tooltip: 'Réorganiser le graphe',
-            onPressed: _reorganizeGraphLayout,
+            tooltip: _isSequenceDiagramView
+                ? 'Reorganiser en sequence diagram'
+                : 'Reorganiser en flowchart',
+            onPressed: _reorganizeCurrentLayout,
           ),
           Spacer(),
           PopupMenuButton<String>(
-            tooltip: 'Direction Mermaid ($_mermaidLayoutDirection)',
-            onSelected: (value) {
-              setState(() {
-                _mermaidLayoutDirection = value;
-              });
-            },
+            tooltip: _isSequenceDiagramView
+                ? 'Direction Mermaid indisponible en mode Sequence'
+                : 'Direction Mermaid ($_mermaidLayoutDirection)',
+            enabled: !_isSequenceDiagramView,
+            onSelected: _isSequenceDiagramView
+                ? null
+                : (value) {
+                    setState(() {
+                      _mermaidLayoutDirection = value;
+                    });
+                  },
             itemBuilder: (context) {
               return _mermaidDirections
                   .map(
@@ -4263,7 +4196,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   )
                   .toList();
             },
-            icon: const Icon(Icons.swap_horiz),
+            icon: Icon(
+              Icons.swap_horiz,
+              color: _isSequenceDiagramView ? Colors.white38 : null,
+            ),
           ),
           PopupMenuButton<String>(
             tooltip: 'Qualite placement ($_placementQuality)',
