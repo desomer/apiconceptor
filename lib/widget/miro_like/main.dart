@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
+import 'package:jsonschema/widget/miro_like/widget_flowchart.dart';
 
 void main() {
   runApp(const MiroLikeApp());
