@@ -165,13 +165,11 @@ class MiroLinkLayerPainter {
       final endTangent = Offset(-targetOutward.dx, -targetOutward.dy);
 
       final arrowType = (link.sequenceArrowType ?? '').trim();
-      final isSequenceTyped =
-          showSequenceParticipantLifelines && arrowType.isNotEmpty;
-      final isDashedType = isSequenceTyped && arrowType.startsWith('--');
+      final isTypedArrow = arrowType.isNotEmpty;
+      final isDashedType = isTypedArrow && arrowType.startsWith('--');
       final isDestroyType =
-          isSequenceTyped &&
-          (arrowType.endsWith('x') || arrowType.endsWith('X'));
-      final isOpenType = isSequenceTyped && arrowType.endsWith(')');
+          isTypedArrow && (arrowType.endsWith('x') || arrowType.endsWith('X'));
+      final isOpenType = isTypedArrow && arrowType.endsWith(')');
 
       final resolvedColor = selectedLink == link
           ? colorLinkSelected

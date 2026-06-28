@@ -5,11 +5,13 @@ class MermaidFlowchartEdge {
   final String fromId;
   final String toId;
   final String label;
+  final String arrowType;
 
   const MermaidFlowchartEdge({
     required this.fromId,
     required this.toId,
     required this.label,
+    this.arrowType = '-->',
   });
 }
 
@@ -57,11 +59,16 @@ class MermaidFlowchartCodec {
         continue;
       }
 
+      final arrowType = _normalizedFlowchartArrowTypeOrDefault(
+        link.sequenceArrowType,
+      );
       final label = link.name.trim();
       if (label.isEmpty) {
-        buffer.writeln('  $fromId --> $toId');
+        buffer.writeln('  $fromId $arrowType $toId');
       } else {
-        buffer.writeln('  $fromId -->|${_escapeMermaidText(label)}| $toId');
+        buffer.writeln(
+          '  $fromId $arrowType|${_escapeMermaidText(label)}| $toId',
+        );
       }
     }
 
@@ -121,16 +128,24 @@ class MermaidFlowchartCodec {
       }
 
       final edgeMatch = RegExp(
-        r'^([A-Za-z_][A-Za-z0-9_-]*)\s*--?>\s*(?:\|([^|]*)\|\s*)?([A-Za-z_][A-Za-z0-9_-]*)\s*$',
+        r'^([A-Za-z_][A-Za-z0-9_-]*)\s*(--?>)\s*(?:\|([^|]*)\|\s*)?([A-Za-z_][A-Za-z0-9_-]*)\s*$',
       ).firstMatch(line);
       if (edgeMatch != null) {
         final fromId = edgeMatch.group(1)!;
-        final label = (edgeMatch.group(2) ?? '').trim();
-        final toId = edgeMatch.group(3)!;
+        final arrowType = _normalizedFlowchartArrowTypeOrDefault(
+          edgeMatch.group(2),
+        );
+        final label = (edgeMatch.group(3) ?? '').trim();
+        final toId = edgeMatch.group(4)!;
         registerNode(fromId);
         registerNode(toId);
         edgeData.add(
-          MermaidFlowchartEdge(fromId: fromId, toId: toId, label: label),
+          MermaidFlowchartEdge(
+            fromId: fromId,
+            toId: toId,
+            label: label,
+            arrowType: arrowType,
+          ),
         );
       }
     }
@@ -198,5 +213,13 @@ class MermaidFlowchartCodec {
         .replaceAll('"', r'\"')
         .replaceAll('\n', r'\n')
         .trim();
+  }
+
+  static String _normalizedFlowchartArrowTypeOrDefault(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value == '->' || value == '-->') {
+      return value;
+    }
+    return '-->';
   }
 }

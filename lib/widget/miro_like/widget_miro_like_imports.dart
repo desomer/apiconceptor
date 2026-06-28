@@ -37,6 +37,7 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
           fromBlockId: edge.fromId,
           toBlockId: edge.toId,
           name: edge.label,
+          sequenceArrowType: edge.arrowType,
         ),
       );
     }
@@ -174,6 +175,7 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
       _snapTopModel = null;
       _dragFreePositionModel = null;
       _isSequenceDiagramView = true;
+      _normalizeSequenceMessageGeometryAndSpacing();
       _markBoardChanged();
     });
 
@@ -220,6 +222,9 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
       currentMousePosition = null;
       pendingInflectionPoints.clear();
       _isSequenceDiagramView = isSequenceDiagramView;
+      if (_isSequenceDiagramView) {
+        _normalizeSequenceMessageGeometryAndSpacing();
+      }
       _markBoardSaved();
     });
 

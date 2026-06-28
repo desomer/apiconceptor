@@ -271,6 +271,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       _selectionCurrentCanvas = null;
       _draggedZoneId = null;
       _isSequenceDiagramView = isSequenceDiagramView;
+      if (_isSequenceDiagramView) {
+        _normalizeSequenceMessageGeometryAndSpacing();
+      }
       _updateUnsavedStateFromSnapshot();
     });
   }
@@ -1900,8 +1903,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     _pushUndoSnapshot();
     setState(() {
       _isSequenceDiagramView = useSequence;
+      if (_isSequenceDiagramView) {
+        _normalizeSequenceMessageGeometryAndSpacing();
+      }
       _markBoardChanged();
     });
+  }
+
+  void _normalizeSequenceMessageGeometryAndSpacing() {
+    if (!_isSequenceDiagramView) {
+      return;
+    }
+
+    final sequenceLinks = _sequenceMessageLinks();
+    for (final link in sequenceLinks) {
+      final laneYModel = _sequenceLaneYModel(link);
+      _setSequenceLinkLaneY(link, laneYModel);
+      link.autoLayoutLock = true;
+    }
+
+    _reorderSequenceMessagesByLane();
   }
 
   void _applyAutoLayoutLinkGeometry(
@@ -3312,6 +3333,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return (fallbackCanvasY - canvasOffset.dy) / zoomLevel;
   }
 
+  double _sequenceMessageVisualHeightModel(BlockLink link) {
+    if (link.inflectionPoints.isEmpty) {
+      return 0.0;
+    }
+
+    final yValues = link.inflectionPoints
+        .map((p) => p.dy)
+        .toList(growable: false);
+    final minY = yValues.reduce(math.min);
+    final maxY = yValues.reduce(math.max);
+    var r = math.max(0.0, maxY - minY);
+    //print('Sequence message visual height for link ${link.name}: $r');
+    return r;
+  }
+
+  double _sequenceMinGapAfterMessage(BlockLink previous) {
+    final visualHeight = _sequenceMessageVisualHeightModel(previous);
+    return _sequenceMessageStepY + visualHeight;
+  }
+
   double _minSequenceLaneCanvasY(BlockLink link) {
     final fromBlock = blocks.where((b) => b.id == link.fromBlockId).firstOrNull;
     final toBlock = blocks.where((b) => b.id == link.toBlockId).firstOrNull;
@@ -3337,6 +3378,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final laneYCanvas = via.isNotEmpty
           ? via.first.dy
           : math.max(fromEdge.dy, toEdge.dy);
+      final yValues = <double>[fromEdge.dy, toEdge.dy, ...via.map((p) => p.dy)];
+      final topYCanvas = yValues.reduce(math.min);
+      final bottomYCanvas = yValues.reduce(math.max);
 
       entries.add(
         SequenceMessageEntry(
@@ -3344,10 +3388,36 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           laneYCanvas: laneYCanvas,
           startXCanvas: fromEdge.dx,
           endXCanvas: toEdge.dx,
+          topYCanvas: topYCanvas,
+          bottomYCanvas: bottomYCanvas,
         ),
       );
     }
     return entries;
+  }
+
+  SequenceGroupSpan? _buildSequenceGroupSpan() {
+    final participants = blocks.where((b) => !b.isZone).toList(growable: false);
+    if (participants.isEmpty) {
+      return null;
+    }
+
+    var minLeft = double.infinity;
+    var maxRight = -double.infinity;
+    for (final participant in participants) {
+      final rect = _blockRectCanvas(participant);
+      minLeft = math.min(minLeft, rect.left);
+      maxRight = math.max(maxRight, rect.right);
+    }
+
+    if (!minLeft.isFinite || !maxRight.isFinite || maxRight <= minLeft) {
+      return null;
+    }
+
+    return SequenceGroupSpan(
+      leftCanvas: minLeft - (20.0 * zoomLevel),
+      rightCanvas: maxRight + (20.0 * zoomLevel),
+    );
   }
 
   void _dragSequenceMessageToGlobalPosition(BlockLink link, Offset globalPos) {
@@ -3375,7 +3445,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     for (int i = 1; i < ordered.length; i++) {
       final prevLane = laneByLink[ordered[i - 1]]!;
       final currentLane = laneByLink[ordered[i]]!;
-      final minAllowed = prevLane + _sequenceMessageStepY;
+      final minAllowed = prevLane + _sequenceMinGapAfterMessage(ordered[i - 1]);
       if (currentLane < minAllowed) {
         laneByLink[ordered[i]] = minAllowed;
       }
@@ -3419,7 +3489,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     for (int i = 1; i < ordered.length; i++) {
       final prevLane = laneByLink[ordered[i - 1]]!;
       final currentLane = laneByLink[ordered[i]]!;
-      final minAllowed = prevLane + _sequenceMessageStepY;
+      final minAllowed = prevLane + _sequenceMinGapAfterMessage(ordered[i - 1]);
       if (currentLane < minAllowed) {
         laneByLink[ordered[i]] = minAllowed;
       }
@@ -4119,6 +4189,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     if (_isSequenceDiagramView)
                       SequenceMessageLayer(
                         entries: _buildSequenceMessageEntries(),
+                        groupSpan: _buildSequenceGroupSpan(),
                         selectedLink: selectedLink,
                         onSelect: (link) {
                           setState(() {

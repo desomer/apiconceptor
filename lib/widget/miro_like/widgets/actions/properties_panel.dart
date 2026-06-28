@@ -828,21 +828,21 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     return const Color(0xFF64C8FF);
   }
 
-  IconData _mermaidArrowIcon(String arrowType) {
-    if (arrowType.endsWith('x') || arrowType.endsWith('X')) {
-      return Icons.close_rounded;
-    }
-    if (arrowType.endsWith(')')) {
-      return Icons.arrow_outward_rounded;
-    }
-    return Icons.arrow_forward_rounded;
-  }
+  // IconData _mermaidArrowIcon(String arrowType) {
+  //   if (arrowType.endsWith('x') || arrowType.endsWith('X')) {
+  //     return Icons.close_rounded;
+  //   }
+  //   if (arrowType.endsWith(')')) {
+  //     return Icons.arrow_outward_rounded;
+  //   }
+  //   return Icons.arrow_forward_rounded;
+  // }
 
   Widget _buildLinkProperties(BlockLink link) {
     final arrowType = (link.sequenceArrowType ?? '').trim();
-    final hasSequenceArrowType = arrowType.isNotEmpty;
-    final isDashedArrow = hasSequenceArrowType && arrowType.startsWith('--');
-    final arrowAccent = _mermaidArrowAccentColor(arrowType);
+    final effectiveArrowType = arrowType.isEmpty ? '-->' : arrowType;
+    final isDashedArrow = effectiveArrowType.startsWith('--');
+    final arrowAccent = _mermaidArrowAccentColor(effectiveArrowType);
 
     return _buildPanelContainer(
       child: Column(
@@ -918,48 +918,42 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           //     ),
           //   ),
           // ],
-          if (hasSequenceArrowType) ...[
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _mermaidArrowTypeOptions.contains(arrowType)
-                  ? arrowType
-                  : '->>',
-              dropdownColor: colorBlockBackground,
-              iconEnabledColor: arrowAccent,
-              style: TextStyle(
-                //color: arrowAccent,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _mermaidArrowTypeOptions.contains(effectiveArrowType)
+                ? effectiveArrowType
+                : '-->',
+            dropdownColor: colorBlockBackground,
+            iconEnabledColor: arrowAccent,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            decoration: InputDecoration(
+              labelText: 'Type message',
+              labelStyle: TextStyle(color: arrowAccent),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: arrowAccent.withValues(alpha: 0.65)),
               ),
-              decoration: InputDecoration(
-                labelText: 'Type message',
-                labelStyle: TextStyle(color: arrowAccent),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: arrowAccent.withValues(alpha: 0.65),
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: arrowAccent, width: 1.5),
-                ),
-                border: OutlineInputBorder(borderSide: BorderSide(color: arrowAccent)),
-                isDense: true,
-                helperText: isDashedArrow ? 'Dashed flow style' : null,
-                helperStyle: const TextStyle(fontSize: 12, color: colorTextSecondary),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: arrowAccent, width: 1.5),
               ),
-              items: _mermaidArrowTypeOptions
-                  .map(
-                    (type) => DropdownMenuItem<String>(
-                      value: type,
-                      child: Text(_mermaidArrowTypeLabel(type)),
-                    ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                widget.onLinkSequenceArrowTypeChanged?.call(link, value);
-              },
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: arrowAccent),
+              ),
+              isDense: true,
+              helperText: isDashedArrow ? 'Dashed flow style' : null,
+              helperStyle: const TextStyle(fontSize: 12, color: colorTextSecondary),
             ),
-          ],
+            items: _mermaidArrowTypeOptions
+                .map(
+                  (type) => DropdownMenuItem<String>(
+                    value: type,
+                    child: Text(_mermaidArrowTypeLabel(type)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              widget.onLinkSequenceArrowTypeChanged?.call(link, value);
+            },
+          ),
           const SizedBox(height: 12),
           TextFormField(
             key: ValueKey('link-name-${link.fromBlockId}-${link.toBlockId}'),
