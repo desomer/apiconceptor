@@ -42,7 +42,7 @@ void paintLinkConnectorVisuals({
           startPoint,
           color: color,
           strokeWidth: strokeWidth,
-          markerSize: _arrowHeadSize(zoomLevel)*2,
+          markerSize: _arrowHeadSize(zoomLevel) * 2,
         );
       }
     } else if (isCrossArrow) {
@@ -117,32 +117,31 @@ void _drawNeonTube(
 
   if (!dashed) {
     canvas.drawPath(path, tubePaint);
-    return;
-  }
+  } else {
+    final dashLength = (14.0 * (strokeWidth / 3.0)).clamp(8.0, 22.0);
+    final gapLength = (16.0 * (strokeWidth / 3.0)).clamp(8.0, 26.0);
+    final glowPaint = Paint()
+      ..color = tubeColor.withValues(alpha: 0.58)
+      ..strokeWidth = strokeWidth * 1.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+    // final corePaint = Paint()
+    //   ..color = tubeColor.withValues(alpha: 0.95)
+    //   ..strokeWidth = (strokeWidth * 0.3).clamp(0.3, strokeWidth)
+    //   ..strokeCap = StrokeCap.round
+    //   ..strokeJoin = StrokeJoin.round
+    //   ..style = PaintingStyle.stroke;
 
-  final dashLength = (14.0 * (strokeWidth / 3.0)).clamp(8.0, 22.0);
-  final gapLength = (16.0 * (strokeWidth / 3.0)).clamp(8.0, 26.0);
-  final glowPaint = Paint()
-    ..color = tubeColor.withValues(alpha: 0.58)
-    ..strokeWidth = strokeWidth * 1.0
-    ..strokeCap = StrokeCap.round
-    ..strokeJoin = StrokeJoin.round
-    ..style = PaintingStyle.stroke;
-  // final corePaint = Paint()
-  //   ..color = tubeColor.withValues(alpha: 0.95)
-  //   ..strokeWidth = (strokeWidth * 0.3).clamp(0.3, strokeWidth)
-  //   ..strokeCap = StrokeCap.round
-  //   ..strokeJoin = StrokeJoin.round
-  //   ..style = PaintingStyle.stroke;
-
-  for (final metric in path.computeMetrics()) {
-    var distance = 0.0;
-    while (distance < metric.length) {
-      final next = math.min(distance + dashLength, metric.length);
-      final segment = metric.extractPath(distance, next);
-      canvas.drawPath(segment, glowPaint);
-      //canvas.drawPath(segment, corePaint);
-      distance = next + gapLength;
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final next = math.min(distance + dashLength, metric.length);
+        final segment = metric.extractPath(distance, next);
+        canvas.drawPath(segment, glowPaint);
+        //canvas.drawPath(segment, corePaint);
+        distance = next + gapLength;
+      }
     }
   }
 }
