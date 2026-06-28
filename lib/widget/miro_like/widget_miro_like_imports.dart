@@ -139,6 +139,8 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
             toBlockId: message.toId,
             name: message.label,
             sequenceArrowType: message.arrowType,
+            sequenceBeforeLines: List<String>.from(message.beforeLines),
+            sequenceAfterLines: List<String>.from(message.afterLines),
             connectorType: ConnectorType.orthogonal,
             sourceAnchorUnit: const Offset(0, 1),
             targetAnchorUnit: const Offset(0, 1),

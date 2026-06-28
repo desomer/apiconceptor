@@ -13,12 +13,16 @@ class MermaidSequenceMessage {
   final String toId;
   final String arrowType;
   final String label;
+  final List<String> beforeLines;
+  final List<String> afterLines;
 
   const MermaidSequenceMessage({
     required this.fromId,
     required this.toId,
     required this.arrowType,
     required this.label,
+    this.beforeLines = const [],
+    this.afterLines = const [],
   });
 }
 
@@ -76,6 +80,7 @@ class MermaidSequenceCodec {
     final participantsById = <String, MermaidSequenceParticipant>{};
     final participantOrder = <String>[];
     final messages = <MermaidSequenceMessage>[];
+    final pendingBeforeLines = <String>[];
 
     void registerParticipant(String id, [String? label]) {
       final cleanId = id.trim();
@@ -122,6 +127,46 @@ class MermaidSequenceCodec {
         continue;
       }
 
+      final controlStartMatch = RegExp(
+        r'^(alt|opt|loop)\b\s*(.*)$',
+        caseSensitive: false,
+      ).firstMatch(line);
+      if (controlStartMatch != null) {
+        final keyword = controlStartMatch.group(1)!.toLowerCase();
+        final title = _normalizeControlLine(controlStartMatch.group(2) ?? '');
+        pendingBeforeLines.add(title.isEmpty ? keyword : '$keyword $title');
+        continue;
+      }
+
+      final elseMatch = RegExp(
+        r'^else\b\s*(.*)$',
+        caseSensitive: false,
+      ).firstMatch(line);
+      if (elseMatch != null) {
+        final title = _normalizeControlLine(elseMatch.group(1) ?? '');
+        pendingBeforeLines.add(title.isEmpty ? 'else' : 'else $title');
+        continue;
+      }
+
+      if (line.toLowerCase() == 'end') {
+        if (messages.isEmpty) {
+          pendingBeforeLines.add('end');
+        } else {
+          final last = messages.removeLast();
+          messages.add(
+            MermaidSequenceMessage(
+              fromId: last.fromId,
+              toId: last.toId,
+              arrowType: last.arrowType,
+              label: last.label,
+              beforeLines: last.beforeLines,
+              afterLines: [...last.afterLines, 'end'],
+            ),
+          );
+        }
+        continue;
+      }
+
       final messageMatch = RegExp(
         '^($_participantIdPattern)\\s*(-->>|->>|-->|->|--[xX]|->[xX]|--\\)|-\\))\\s*($_participantIdPattern)\\s*:\\s*(.*)' +
             r'$',
@@ -139,9 +184,25 @@ class MermaidSequenceCodec {
             toId: toId,
             arrowType: arrowType,
             label: label.isEmpty ? 'message' : label,
+            beforeLines: List<String>.from(pendingBeforeLines),
           ),
         );
+        pendingBeforeLines.clear();
       }
+    }
+
+    if (pendingBeforeLines.isNotEmpty && messages.isNotEmpty) {
+      final last = messages.removeLast();
+      messages.add(
+        MermaidSequenceMessage(
+          fromId: last.fromId,
+          toId: last.toId,
+          arrowType: last.arrowType,
+          label: last.label,
+          beforeLines: last.beforeLines,
+          afterLines: [...last.afterLines, ...pendingBeforeLines],
+        ),
+      );
     }
 
     if (participantOrder.isEmpty) {
@@ -183,11 +244,27 @@ class MermaidSequenceCodec {
         continue;
       }
 
+      for (final controlLine in link.sequenceBeforeLines) {
+        final normalized = _normalizeControlLine(controlLine);
+        if (normalized.isEmpty) {
+          continue;
+        }
+        buffer.writeln('  $normalized');
+      }
+
       final label = link.name.trim().isEmpty
           ? 'message'
           : _normalizeInline(link.name);
       final arrowType = _normalizedArrowTypeOrDefault(link.sequenceArrowType);
       buffer.writeln('  $fromId$arrowType$toId: $label');
+
+      for (final controlLine in link.sequenceAfterLines) {
+        final normalized = _normalizeControlLine(controlLine);
+        if (normalized.isEmpty) {
+          continue;
+        }
+        buffer.writeln('  $normalized');
+      }
     }
 
     return buffer.toString().trimRight();
@@ -211,6 +288,15 @@ class MermaidSequenceCodec {
         .replaceAll('\n', ' ')
         .replaceAll('\r', ' ')
         .replaceAll(':', ' -')
+        .trim();
+  }
+
+  static String _normalizeControlLine(String text) {
+    return text
+        .replaceAll('\r\n', ' ')
+        .replaceAll('\n', ' ')
+        .replaceAll('\r', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
 

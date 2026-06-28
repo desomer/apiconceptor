@@ -794,28 +794,28 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   String _describeMermaidArrowType(String arrowType) {
     switch (arrowType) {
       case '->>':
-        return 'Message synchrone';
+        return 'Sync flow (request)';
       case '-->>':
-        return 'Message synchrone pointille';
+        return 'Async flow (event)';
       case '->':
-        return 'Message simple';
+        return 'One-way flow';
       case '-->':
-        return 'Message simple pointille';
+        return 'One-way Async (dashed)';
       case '->x':
-        return 'Message termine (croix)';
+        return 'Termination ';
       case '--x':
-        return 'Message termine pointille (croix)';
+        return 'Termination event';
       case '-)':
-        return 'Message ouvert';
+        return 'Async signal';
       case '--)':
-        return 'Message ouvert pointille';
+        return 'Async signal (dashed)';
       default:
-        return 'Type personnalise';
+        return 'Custom flow type';
     }
   }
 
   String _mermaidArrowTypeLabel(String arrowType) {
-    return '$arrowType - ${_describeMermaidArrowType(arrowType)}';
+    return '$arrowType ${_describeMermaidArrowType(arrowType)}';
   }
 
   Color _mermaidArrowAccentColor(String arrowType) {
@@ -865,59 +865,59 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             'Cible: ${link.toBlockId}',
             style: const TextStyle(color: colorTextSecondary),
           ),
-          if (hasSequenceArrowType) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              decoration: BoxDecoration(
-                color: arrowAccent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: arrowAccent.withValues(alpha: 0.55)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    _mermaidArrowIcon(arrowType),
-                    size: 16,
-                    color: arrowAccent,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Type Mermaid: $arrowType',
-                          style: const TextStyle(
-                            color: colorTextPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _describeMermaidArrowType(arrowType),
-                          style: const TextStyle(
-                            color: colorTextSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (isDashedArrow)
-                          const Text(
-                            'Style de trait: pointille',
-                            style: TextStyle(
-                              color: colorTextSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          // if (hasSequenceArrowType) ...[
+          //   const SizedBox(height: 12),
+          //   Container(
+          //     width: double.infinity,
+          //     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          //     decoration: BoxDecoration(
+          //       color: arrowAccent.withValues(alpha: 0.12),
+          //       borderRadius: BorderRadius.circular(10),
+          //       border: Border.all(color: arrowAccent.withValues(alpha: 0.55)),
+          //     ),
+          //     child: Row(
+          //       crossAxisAlignment: CrossAxisAlignment.start,
+          //       children: [
+          //         Icon(
+          //           _mermaidArrowIcon(arrowType),
+          //           size: 16,
+          //           color: arrowAccent,
+          //         ),
+          //         const SizedBox(width: 8),
+          //         Expanded(
+          //           child: Column(
+          //             crossAxisAlignment: CrossAxisAlignment.start,
+          //             children: [
+          //               Text(
+          //                 'Type Mermaid: $arrowType',
+          //                 style: const TextStyle(
+          //                   color: colorTextPrimary,
+          //                   fontWeight: FontWeight.w600,
+          //                 ),
+          //               ),
+          //               const SizedBox(height: 2),
+          //               Text(
+          //                 _describeMermaidArrowType(arrowType),
+          //                 style: const TextStyle(
+          //                   color: colorTextSecondary,
+          //                   fontSize: 12,
+          //                 ),
+          //               ),
+          //               if (isDashedArrow)
+          //                 const Text(
+          //                   'Style de trait: pointille',
+          //                   style: TextStyle(
+          //                     color: colorTextSecondary,
+          //                     fontSize: 12,
+          //                   ),
+          //                 ),
+          //             ],
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          // ],
           if (hasSequenceArrowType) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -925,23 +925,33 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                   ? arrowType
                   : '->>',
               dropdownColor: colorBlockBackground,
-              style: const TextStyle(color: colorTextPrimary),
+              iconEnabledColor: arrowAccent,
+              style: TextStyle(
+                //color: arrowAccent,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
               decoration: InputDecoration(
-                labelText: 'Type message Mermaid',
-                labelStyle: const TextStyle(color: colorTextSecondary),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: colorPanelBorder),
+                labelText: 'Type message',
+                labelStyle: TextStyle(color: arrowAccent),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: arrowAccent.withValues(alpha: 0.65),
+                  ),
                 ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: arrowAccent, width: 1.5),
+                ),
+                border: OutlineInputBorder(borderSide: BorderSide(color: arrowAccent)),
                 isDense: true,
+                helperText: isDashedArrow ? 'Dashed flow style' : null,
+                helperStyle: const TextStyle(fontSize: 12, color: colorTextSecondary),
               ),
               items: _mermaidArrowTypeOptions
                   .map(
                     (type) => DropdownMenuItem<String>(
                       value: type,
-                      child: Text(
-                        _mermaidArrowTypeLabel(type),
-                        style: const TextStyle(color: colorTextPrimary),
-                      ),
+                      child: Text(_mermaidArrowTypeLabel(type)),
                     ),
                   )
                   .toList(growable: false),

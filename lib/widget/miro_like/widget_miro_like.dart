@@ -843,17 +843,69 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     }
 
     setState(() {
-      // Calculer la bounding box de tous les blocs
-      double minX = blocks[0].position.dx;
-      double minY = blocks[0].position.dy;
-      double maxX = blocks[0].position.dx + blocks[0].size.width;
-      double maxY = blocks[0].position.dy + blocks[0].size.height;
+      // Calculer la bounding box de tous les blocs et des geometries de liens/messages.
+      double minX = double.infinity;
+      double minY = double.infinity;
+      double maxX = -double.infinity;
+      double maxY = -double.infinity;
+
+      void includePoint(Offset point) {
+        minX = math.min(minX, point.dx);
+        minY = math.min(minY, point.dy);
+        maxX = math.max(maxX, point.dx);
+        maxY = math.max(maxY, point.dy);
+      }
+
+      void includeRect(Rect rect) {
+        minX = math.min(minX, rect.left);
+        minY = math.min(minY, rect.top);
+        maxX = math.max(maxX, rect.right);
+        maxY = math.max(maxY, rect.bottom);
+      }
 
       for (final block in blocks) {
-        minX = math.min(minX, block.position.dx);
-        minY = math.min(minY, block.position.dy);
-        maxX = math.max(maxX, block.position.dx + block.size.width);
-        maxY = math.max(maxY, block.position.dy + block.size.height);
+        includeRect(
+          Rect.fromLTWH(
+            block.position.dx,
+            block.position.dy,
+            block.size.width,
+            block.size.height,
+          ),
+        );
+      }
+
+      for (final link in links) {
+        for (final point in link.inflectionPoints) {
+          includePoint(point);
+        }
+
+        final fromBlock = blocks
+            .where((b) => b.id == link.fromBlockId)
+            .firstOrNull;
+        final toBlock = blocks.where((b) => b.id == link.toBlockId).firstOrNull;
+        if (fromBlock == null || toBlock == null) {
+          continue;
+        }
+
+        includePoint(
+          Offset(
+            fromBlock.position.dx + fromBlock.size.width / 2,
+            fromBlock.position.dy + fromBlock.size.height / 2,
+          ),
+        );
+        includePoint(
+          Offset(
+            toBlock.position.dx + toBlock.size.width / 2,
+            toBlock.position.dy + toBlock.size.height / 2,
+          ),
+        );
+      }
+
+      if (!minX.isFinite ||
+          !minY.isFinite ||
+          !maxX.isFinite ||
+          !maxY.isFinite) {
+        return;
       }
 
       final contentWidth = maxX - minX;
@@ -1102,6 +1154,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       'toBlockId': link.toBlockId,
       'name': link.name,
       'sequenceArrowType': link.sequenceArrowType,
+      'sequenceBeforeLines': link.sequenceBeforeLines,
+      'sequenceAfterLines': link.sequenceAfterLines,
       'colorKey': link.colorKey,
       'labelIconKey': link.labelIconKey,
       'particleDensity': link.particleDensity,
@@ -1246,12 +1300,36 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         }
       }
 
+      final sequenceBeforeLines = <String>[];
+      final sequenceBeforeRaw = item['sequenceBeforeLines'];
+      if (sequenceBeforeRaw is List) {
+        for (final raw in sequenceBeforeRaw) {
+          final text = raw?.toString().trim() ?? '';
+          if (text.isNotEmpty) {
+            sequenceBeforeLines.add(text);
+          }
+        }
+      }
+
+      final sequenceAfterLines = <String>[];
+      final sequenceAfterRaw = item['sequenceAfterLines'];
+      if (sequenceAfterRaw is List) {
+        for (final raw in sequenceAfterRaw) {
+          final text = raw?.toString().trim() ?? '';
+          if (text.isNotEmpty) {
+            sequenceAfterLines.add(text);
+          }
+        }
+      }
+
       parsed.add(
         BlockLink(
           fromBlockId: fromId,
           toBlockId: toId,
           name: item['name']?.toString() ?? '',
           sequenceArrowType: item['sequenceArrowType']?.toString(),
+          sequenceBeforeLines: sequenceBeforeLines,
+          sequenceAfterLines: sequenceAfterLines,
           colorKey: item['colorKey']?.toString(),
           labelIconKey: item['labelIconKey']?.toString(),
           particleDensity: item['particleDensity'] is num

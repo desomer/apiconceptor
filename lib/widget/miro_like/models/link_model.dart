@@ -53,6 +53,8 @@ class BlockLink {
   String toBlockId;
   String name;
   String? sequenceArrowType;
+  List<String> sequenceBeforeLines;
+  List<String> sequenceAfterLines;
   String? colorKey;
   String? labelIconKey;
   double particleDensity;
@@ -74,6 +76,8 @@ class BlockLink {
     required this.toBlockId,
     this.name = '',
     this.sequenceArrowType,
+    List<String>? sequenceBeforeLines,
+    List<String>? sequenceAfterLines,
     this.colorKey,
     this.labelIconKey,
     this.particleDensity = 1.0,
@@ -85,5 +89,7 @@ class BlockLink {
     this.sourceAnchorUnit,
     this.targetAnchorUnit,
     this.autoLayoutLock = false,
-  }) : inflectionPoints = inflectionPoints ?? [];
+  }) : sequenceBeforeLines = sequenceBeforeLines ?? [],
+       sequenceAfterLines = sequenceAfterLines ?? [],
+       inflectionPoints = inflectionPoints ?? [];
 }

@@ -27,12 +27,25 @@ void paintLinkConnectorVisuals({
   if (endAngle != null) {
     final arrowType = (link?.sequenceArrowType ?? '').trim();
     final hasSequenceArrowType = arrowType.isNotEmpty;
+    final isNoHeadArrow = hasSequenceArrowType && arrowType == '->';
     final isCrossArrow =
         hasSequenceArrowType &&
         (arrowType.endsWith('x') || arrowType.endsWith('X'));
     final isOpenArrow = hasSequenceArrowType && arrowType.endsWith(')');
 
-    if (isCrossArrow) {
+    if (isNoHeadArrow) {
+      // Mermaid '->' ends without arrowhead and starts with a circular marker.
+      final startPoint = _pathStartPoint(path);
+      if (startPoint != null) {
+        _drawStartCircleMarker(
+          canvas,
+          startPoint,
+          color: color,
+          strokeWidth: strokeWidth,
+          markerSize: _arrowHeadSize(zoomLevel)*2,
+        );
+      }
+    } else if (isCrossArrow) {
       _drawCrossMarker(
         canvas,
         arrowTip,
@@ -61,6 +74,27 @@ void paintLinkConnectorVisuals({
       );
     }
   }
+}
+
+void _drawStartCircleMarker(
+  Canvas canvas,
+  Offset center, {
+  required Color color,
+  required double strokeWidth,
+  required double markerSize,
+}) {
+  final radius = (markerSize * 0.22).clamp(2.6, 8.0);
+
+  final fillPaint = Paint()
+    ..color = color.withValues(alpha: 0.95)
+    ..style = PaintingStyle.fill;
+  final strokePaint = Paint()
+    ..color = color.withValues(alpha: 0.55)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = (strokeWidth * 0.55).clamp(0.7, 2.0);
+
+  canvas.drawCircle(center, radius, fillPaint);
+  canvas.drawCircle(center, radius, strokePaint);
 }
 
 double _arrowHeadSize(double zoomLevel) {
@@ -221,6 +255,21 @@ double? _pathEndAngle(Path path) {
   }
 
   return direction.direction;
+}
+
+Offset? _pathStartPoint(Path path) {
+  final iterator = path.computeMetrics().iterator;
+  if (!iterator.moveNext()) {
+    return null;
+  }
+
+  final metric = iterator.current;
+  if (metric.length <= 0) {
+    return null;
+  }
+
+  final startTangent = metric.getTangentForOffset(0.0);
+  return startTangent?.position;
 }
 
 void _drawFlowParticles(
