@@ -149,8 +149,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset? _dragFreePositionModel;
   Offset? _selectionStartCanvas;
   Offset? _selectionCurrentCanvas;
+  Offset? _pendingBoxSelectionStartCanvas;
   bool _isBoxSelecting = false;
   bool _isSequenceMessageBoxSelecting = false;
+  static const double _boxSelectionStartThreshold = 6.0;
   bool _consumeNextCanvasTap = false;
   DateTime? _lastSecondaryTapTime;
   Offset? _lastSecondaryTapCanvasPosition;
@@ -4298,10 +4300,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                           return;
                         }
                       }
-                      if (_isSequenceDiagramView) {
-                        _isSequenceMessageBoxSelecting = true;
-                      }
-                      _startBoxSelection(details.localPosition);
+                      _isSequenceMessageBoxSelecting = _isSequenceDiagramView;
+                      _pendingBoxSelectionStartCanvas = details.localPosition;
                     });
                   },
                   onCanvasPrimaryDragUpdate: (details) {
@@ -4309,11 +4309,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       if (linkSourceBlock != null) {
                         return;
                       }
+                      final pendingStart = _pendingBoxSelectionStartCanvas;
+                      if (!_isBoxSelecting && pendingStart != null) {
+                        final dragDistance =
+                            (details.localPosition - pendingStart).distance;
+                        if (dragDistance >= _boxSelectionStartThreshold) {
+                          _startBoxSelection(pendingStart);
+                        }
+                      }
                       _updateBoxSelection(details.localPosition);
                     });
                   },
                   onCanvasPrimaryDragEnd: (_) {
                     setState(() {
+                      _pendingBoxSelectionStartCanvas = null;
+                      if (!_isBoxSelecting) {
+                        _isSequenceMessageBoxSelecting = false;
+                        return;
+                      }
                       if (_isSequenceMessageBoxSelecting) {
                         _finishSequenceMessageBoxSelection();
                       } else {
