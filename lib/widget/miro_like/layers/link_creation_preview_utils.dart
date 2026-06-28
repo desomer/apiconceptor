@@ -46,6 +46,10 @@ void paintPendingLinkPreview({
               : currentMousePosition,
         );
 
+  final sequenceDirection = currentMousePosition.dx >= linkingFromCanvas.dx
+      ? 1.0
+      : -1.0;
+
   paintLinkConnector(
     canvas: canvas,
     from: linkingFromCanvas,
@@ -57,8 +61,11 @@ void paintPendingLinkPreview({
     strokeWidth: strokeWidth,
     zoomLevel: zoomLevel,
     startTangent: showSequenceParticipantLifelines
-        ? const Offset(1, 0)
+        ? Offset(sequenceDirection, 0)
         : axisNormalForBorderPoint(sourceRect, linkingFromCanvas),
+    endTangent: showSequenceParticipantLifelines
+        ? Offset(sequenceDirection, 0)
+        : null,
     viaPoints: previewViaCanvas,
   );
 

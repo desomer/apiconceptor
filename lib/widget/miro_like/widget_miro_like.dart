@@ -989,10 +989,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       );
       if (targetParticipant != null) {
         _endLinking(targetParticipant);
-        _cancelLinking();
-        return;
       }
 
+      // Always clear preview state at the end of a sequence creation gesture.
       _cancelLinking();
       return;
     }
@@ -1009,8 +1008,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         b.size.height,
       );
       if (blockBounds.contains(modelPosition)) {
-        _endLinking(b);
-        _cancelLinking();
+        final created = _endLinking(b);
+        if (!created) {
+          _cancelLinking();
+        }
         return;
       }
     }
@@ -2173,7 +2174,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     }
   }
 
-  void _endLinking(Block targetBlock) {
+  bool _endLinking(Block targetBlock) {
     if (linkSourceBlock != null && linkSourceBlock!.id != targetBlock.id) {
       _pushUndoSnapshot();
       final sourceRect = _blockRectCanvas(linkSourceBlock!);
@@ -2244,10 +2245,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         _ensureBlockHasSpaceForAnchors(targetBlock);
         linkSourceBlock = null;
         linkingFromPoint = null;
+        currentMousePosition = null;
+        _sequenceLinkTargetHoverBlockId = null;
+        _sequenceCreationStartCanvasY = null;
         pendingInflectionPoints.clear();
         _markBoardChanged();
       });
+      return true;
     }
+
+    return false;
   }
 
   Offset _calculateOptimalAnchorUnit(Rect fromRect, Rect toRect) {
@@ -3135,6 +3142,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     link.connectorType = ConnectorType.orthogonal;
   }
 
+  void _syncSequenceMessagesForParticipant(String participantId) {
+    if (!_isSequenceDiagramView) {
+      return;
+    }
+
+    for (final link in links) {
+      final touchesParticipant =
+          link.fromBlockId == participantId || link.toBlockId == participantId;
+      if (!touchesParticipant) {
+        continue;
+      }
+
+      final laneYModel = _sequenceLaneYModel(link);
+      _setSequenceLinkLaneY(link, laneYModel);
+    }
+  }
+
   List<BlockLink> _sequenceMessageLinks() {
     final participantIds = blocks
         .where((b) => !b.isZone)
@@ -3146,7 +3170,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               participantIds.contains(l.fromBlockId) &&
               participantIds.contains(l.toBlockId),
         )
-        .toList(growable: false);
+        .toList(growable: true);
   }
 
   double _sequenceLaneYModel(BlockLink link) {
@@ -4131,6 +4155,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     }
 
                     setState(() {
+                      if (_isSequenceDiagramView) {
+                        // Defensive cleanup: ensure sequence creation preview is never left active.
+                        linkSourceBlock = null;
+                        linkingFromPoint = null;
+                        currentMousePosition = null;
+                        _sequenceLinkTargetHoverBlockId = null;
+                        _sequenceCreationStartCanvasY = null;
+                        pendingInflectionPoints.clear();
+                      }
                       _draggedZoneId = null;
                       isPanning = false;
                     });
@@ -4325,18 +4358,26 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                             }
                             blocks[idx].position += deltaModel;
                             if (!blocks[idx].isZone) {
-                              _updateLinksAnchorsForBlock(blocks[idx]);
+                              if (_isSequenceDiagramView) {
+                                _syncSequenceMessagesForParticipant(
+                                  blocks[idx].id,
+                                );
+                              } else {
+                                _updateLinksAnchorsForBlock(blocks[idx]);
+                              }
                             }
                           }
 
                           // Keep manual bends stable while dragging a selected group.
-                          for (final link in linksToMove) {
-                            for (
-                              int i = 0;
-                              i < link.inflectionPoints.length;
-                              i++
-                            ) {
-                              link.inflectionPoints[i] += deltaModel;
+                          if (!_isSequenceDiagramView) {
+                            for (final link in linksToMove) {
+                              for (
+                                int i = 0;
+                                i < link.inflectionPoints.length;
+                                i++
+                              ) {
+                                link.inflectionPoints[i] += deltaModel;
+                              }
                             }
                           }
                         } else {
@@ -4349,7 +4390,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                             proposedPosition,
                           );
                           if (!block.isZone) {
-                            _updateLinksAnchorsForBlock(block);
+                            if (_isSequenceDiagramView) {
+                              _syncSequenceMessagesForParticipant(block.id);
+                            } else {
+                              _updateLinksAnchorsForBlock(block);
+                            }
                           }
                         }
                         _markBoardChanged();
