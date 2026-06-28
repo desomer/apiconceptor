@@ -23,6 +23,7 @@ class PropertiesPanel extends StatefulWidget {
   final SequenceControlGroupInfo? selectedSequenceGroup;
   final Function(SequenceControlGroupInfo, String, String)?
   onSequenceGroupChanged;
+  final Function(SequenceControlGroupInfo)? onDeleteSequenceGroup;
   final Function(String, String)? onBlockTitleChanged;
   final Function(Block, String?)? onBlockColorChanged;
   final Function(Block, List<String>)? onBlockTagsChanged;
@@ -49,6 +50,7 @@ class PropertiesPanel extends StatefulWidget {
     this.selectedLink,
     this.selectedSequenceGroup,
     this.onSequenceGroupChanged,
+    this.onDeleteSequenceGroup,
     this.onBlockTitleChanged,
     this.onBlockColorChanged,
     this.onBlockTagsChanged,
@@ -363,6 +365,19 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           Text(
             'Hauteur visuelle: ${height.toStringAsFixed(1)}',
             style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => widget.onDeleteSequenceGroup?.call(group),
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Supprimer le groupe'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+            ),
           ),
         ],
       ),

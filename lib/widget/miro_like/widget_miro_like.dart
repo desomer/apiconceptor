@@ -155,6 +155,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   bool _isSequenceMessageBoxSelecting = false;
   static const double _boxSelectionStartThreshold = 6.0;
   bool _consumeNextCanvasTap = false;
+  Offset? _consumeNextCanvasTapGlobalPosition;
+  DateTime? _consumeNextCanvasTapAt;
   DateTime? _lastSecondaryTapTime;
   Offset? _lastSecondaryTapCanvasPosition;
   String? _draggedZoneId;
@@ -536,6 +538,116 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       }
       _markBoardChanged();
     });
+  }
+
+  (BlockLink, int)? _findSequenceGroupClosingEndLine(
+    SequenceControlGroupInfo target,
+  ) {
+    final sortedEntries = _buildSequenceMessageEntries()
+      ..sort((a, b) => a.laneYCanvas.compareTo(b.laneYCanvas));
+
+    final openStack = <(BlockLink link, int lineIndex)>[];
+    for (final entry in sortedEntries) {
+      for (
+        var lineIndex = 0;
+        lineIndex < entry.link.sequenceBeforeLines.length;
+        lineIndex++
+      ) {
+        final trimmed = entry.link.sequenceBeforeLines[lineIndex].trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+        final openMatch = RegExp(
+          r'^(alt|opt|loop)\b\s*(.*)$',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        if (openMatch != null) {
+          openStack.add((entry.link, lineIndex));
+        }
+      }
+
+      for (
+        var afterIndex = 0;
+        afterIndex < entry.link.sequenceAfterLines.length;
+        afterIndex++
+      ) {
+        final trimmed = entry.link.sequenceAfterLines[afterIndex].trim();
+        if (!RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed)) {
+          continue;
+        }
+        if (openStack.isEmpty) {
+          continue;
+        }
+        final open = openStack.removeLast();
+        if (identical(open.$1, target.sourceLink) &&
+            open.$2 == target.sourceOpenLineIndex) {
+          return (entry.link, afterIndex);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  void _deleteSequenceGroup(SequenceControlGroupInfo group) {
+    _pushUndoSnapshot();
+    setState(() {
+      final closingEnd = _findSequenceGroupClosingEndLine(group);
+      if (closingEnd != null) {
+        final closeLink = closingEnd.$1;
+        final closeLineIndex = closingEnd.$2;
+        if (closeLineIndex >= 0 &&
+            closeLineIndex < closeLink.sequenceAfterLines.length) {
+          closeLink.sequenceAfterLines.removeAt(closeLineIndex);
+        }
+      }
+
+      final openLineIndex = group.sourceOpenLineIndex;
+      if (openLineIndex >= 0 &&
+          openLineIndex < group.sourceLink.sequenceBeforeLines.length) {
+        group.sourceLink.sequenceBeforeLines.removeAt(openLineIndex);
+      }
+
+      _selectedSequenceGroup = null;
+      _markBoardChanged();
+    });
+  }
+
+  void _deleteSelectedSequenceMessages() {
+    if (_selectedSequenceLinks.isEmpty) {
+      return;
+    }
+    _pushUndoSnapshot();
+    setState(() {
+      final toDelete = List<BlockLink>.from(_selectedSequenceLinks);
+      for (final link in toDelete) {
+        linkManager.deleteLink(links, link);
+      }
+      _selectedSequenceLinks.clear();
+      if (selectedLink != null && !links.contains(selectedLink)) {
+        selectedLink = null;
+      }
+      _selectedSequenceGroup = null;
+      _markBoardChanged();
+    });
+  }
+
+  void _deleteCurrentSelection() {
+    if (_selectedSequenceGroup != null) {
+      _deleteSequenceGroup(_selectedSequenceGroup!);
+      return;
+    }
+    if (_selectedSequenceLinks.isNotEmpty) {
+      _deleteSelectedSequenceMessages();
+      return;
+    }
+    if (selectedLink != null) {
+      _deleteLink(selectedLink!);
+      return;
+    }
+    if (selectedBlock != null) {
+      _deleteBlock(selectedBlock!);
+    }
   }
 
   void _reverseLink(BlockLink link) {
@@ -2822,6 +2934,82 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     ];
   }
 
+  void _handleCanvasTapAtCanvasPosition(Offset canvasPosition) {
+    if (linkSourceBlock != null) {
+      return;
+    }
+
+    final modelPosition = Offset(
+      (canvasPosition.dx - canvasOffset.dx) / zoomLevel,
+      (canvasPosition.dy - canvasOffset.dy) / zoomLevel,
+    );
+
+    final hitLink = _findLinkAtCanvasPosition(canvasPosition);
+    if (hitLink != null) {
+      selectedBlock = null;
+      _selectedBlockIds.clear();
+      selectedLink = hitLink;
+      _selectedSequenceLinks
+        ..clear()
+        ..add(hitLink);
+      _selectedSequenceGroup = null;
+      return;
+    }
+
+    if (_isSequenceDiagramView) {
+      final hitGroup = _findSequenceControlGroupAtCanvasPosition(
+        canvasPosition,
+      );
+      if (hitGroup != null) {
+        _selectedSequenceGroup = hitGroup;
+        selectedBlock = null;
+        _selectedBlockIds.clear();
+        selectedLink = null;
+        _selectedSequenceLinks.clear();
+        return;
+      }
+    }
+
+    for (final block in blocks.reversed) {
+      if (block.isZone) {
+        continue;
+      }
+      final blockRect = Rect.fromLTWH(
+        block.position.dx,
+        block.position.dy,
+        block.size.width,
+        block.size.height,
+      );
+      if (blockRect.contains(modelPosition)) {
+        if (_isCtrlPressed()) {
+          if (_selectedBlockIds.contains(block.id)) {
+            _selectedBlockIds.remove(block.id);
+          } else {
+            _selectedBlockIds.add(block.id);
+          }
+          selectedBlock = _selectedBlockIds.length == 1
+              ? blocks.firstWhere((b) => b.id == _selectedBlockIds.first)
+              : null;
+        } else {
+          selectedBlock = block;
+          _selectedBlockIds
+            ..clear()
+            ..add(block.id);
+        }
+        selectedLink = null;
+        _selectedSequenceLinks.clear();
+        _selectedSequenceGroup = null;
+        return;
+      }
+    }
+
+    selectedBlock = null;
+    _selectedBlockIds.clear();
+    selectedLink = null;
+    _selectedSequenceLinks.clear();
+    _selectedSequenceGroup = null;
+  }
+
   void _resetBlockDragSnap() {
     _snapLeftModel = null;
     _snapTopModel = null;
@@ -4527,9 +4715,13 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   },
                   onCanvasPrimaryDragEnd: (_) {
                     setState(() {
+                      final pendingTapCanvas = _pendingBoxSelectionStartCanvas;
                       _pendingBoxSelectionStartCanvas = null;
                       if (!_isBoxSelecting) {
                         _isSequenceMessageBoxSelecting = false;
+                        if (pendingTapCanvas != null) {
+                          _handleCanvasTapAtCanvasPosition(pendingTapCanvas);
+                        }
                         return;
                       }
                       if (_isSequenceMessageBoxSelecting) {
@@ -4657,88 +4849,29 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   onCanvasTapDown: (details) {
                     setState(() {
                       if (_consumeNextCanvasTap) {
+                        final now = DateTime.now();
+                        final consumeAgeOk =
+                            _consumeNextCanvasTapAt != null &&
+                            now.difference(_consumeNextCanvasTapAt!) <=
+                                const Duration(milliseconds: 350);
+                        final consumeDistanceOk =
+                            _consumeNextCanvasTapGlobalPosition != null &&
+                            (details.globalPosition -
+                                        _consumeNextCanvasTapGlobalPosition!)
+                                    .distance <=
+                                20.0;
                         _consumeNextCanvasTap = false;
-                        return;
+                        _consumeNextCanvasTapGlobalPosition = null;
+                        _consumeNextCanvasTapAt = null;
+                        if (consumeAgeOk && consumeDistanceOk) {
+                          return;
+                        }
                       }
 
                       final canvasPosition = _toCanvasLocal(
                         details.globalPosition,
                       );
-                      final modelPosition = _toModelPosition(
-                        details.globalPosition,
-                      );
-
-                      if (linkSourceBlock != null) {
-                        return;
-                      }
-
-                      final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                      if (hitLink != null) {
-                        selectedBlock = null;
-                        _selectedBlockIds.clear();
-                        selectedLink = hitLink;
-                        _selectedSequenceLinks
-                          ..clear()
-                          ..add(hitLink);
-                        _selectedSequenceGroup = null;
-                        return;
-                      }
-
-                      if (_isSequenceDiagramView) {
-                        final hitGroup =
-                            _findSequenceControlGroupAtCanvasPosition(
-                              canvasPosition,
-                            );
-                        if (hitGroup != null) {
-                          _selectedSequenceGroup = hitGroup;
-                          selectedBlock = null;
-                          _selectedBlockIds.clear();
-                          selectedLink = null;
-                          _selectedSequenceLinks.clear();
-                          return;
-                        }
-                      }
-
-                      for (final block in blocks.reversed) {
-                        if (block.isZone) {
-                          continue;
-                        }
-                        final blockRect = Rect.fromLTWH(
-                          block.position.dx,
-                          block.position.dy,
-                          block.size.width,
-                          block.size.height,
-                        );
-                        if (blockRect.contains(modelPosition)) {
-                          if (_isCtrlPressed()) {
-                            if (_selectedBlockIds.contains(block.id)) {
-                              _selectedBlockIds.remove(block.id);
-                            } else {
-                              _selectedBlockIds.add(block.id);
-                            }
-                            selectedBlock = _selectedBlockIds.length == 1
-                                ? blocks.firstWhere(
-                                    (b) => b.id == _selectedBlockIds.first,
-                                  )
-                                : null;
-                          } else {
-                            selectedBlock = block;
-                            _selectedBlockIds
-                              ..clear()
-                              ..add(block.id);
-                          }
-                          selectedLink = null;
-                          _selectedSequenceLinks.clear();
-                          _selectedSequenceGroup = null;
-                          return;
-                        }
-                      }
-
-                      selectedBlock = null;
-                      _selectedBlockIds.clear();
-                      selectedLink = null;
-                      _selectedSequenceLinks.clear();
-                      _selectedSequenceGroup = null;
+                      _handleCanvasTapAtCanvasPosition(canvasPosition);
                     });
                   },
                   onCanvasSecondaryTapDown: (details) {
@@ -4922,6 +5055,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   onBlockTapDown: (block, details) {
                     setState(() {
                       _consumeNextCanvasTap = true;
+                      _consumeNextCanvasTapGlobalPosition =
+                          details.globalPosition;
+                      _consumeNextCanvasTapAt = DateTime.now();
                       if (!_isSequenceDiagramView) {
                         final canvasPosition = _toCanvasLocal(
                           details.globalPosition,
@@ -4985,6 +5121,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       selectedLink: selectedLink,
                       selectedSequenceGroup: _selectedSequenceGroup,
                       onSequenceGroupChanged: _handleSequenceGroupChanged,
+                      onDeleteSequenceGroup: _deleteSequenceGroup,
                       onBlockTitleChanged: _handleBlockTitleChanged,
                       onBlockColorChanged: _handleBlockColorChanged,
                       onBlockTagsChanged: _handleBlockTagsChanged,
@@ -5022,6 +5159,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   List<Widget> getAction() {
+    final canDeleteCurrentSelection =
+        selectedBlock != null ||
+        selectedLink != null ||
+        _selectedSequenceLinks.isNotEmpty ||
+        _selectedSequenceGroup != null;
+
     return [
       Row(
         children: [
@@ -5086,12 +5229,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           IconButton(
             icon: Icon(
               Icons.delete,
-              color: selectedBlock != null ? Colors.redAccent : null,
+              color: canDeleteCurrentSelection ? Colors.redAccent : null,
             ),
-            onPressed: selectedBlock != null
-                ? () => _deleteBlock(selectedBlock!)
+            onPressed: canDeleteCurrentSelection
+                ? _deleteCurrentSelection
                 : null,
-            tooltip: 'Supprimer le bloc sélectionné',
+            tooltip: 'Supprimer la sélection',
           ),
         ],
       ),
