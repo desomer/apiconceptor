@@ -4285,6 +4285,19 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       if (linkSourceBlock != null) {
                         return;
                       }
+                      if (!_isSequenceDiagramView) {
+                        final modelPosition = Offset(
+                          (details.localPosition.dx - canvasOffset.dx) /
+                              zoomLevel,
+                          (details.localPosition.dy - canvasOffset.dy) /
+                              zoomLevel,
+                        );
+                        if (_isInsideStandardBlockAtModelPosition(
+                          modelPosition,
+                        )) {
+                          return;
+                        }
+                      }
                       if (_isSequenceDiagramView) {
                         _isSequenceMessageBoxSelecting = true;
                       }
@@ -4419,7 +4432,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         _sequenceCreationStartCanvasY = null;
                         pendingInflectionPoints.clear();
                       }
-                      _isSequenceMessageBoxSelecting = false;
                       _draggedZoneId = null;
                       isPanning = false;
                     });
