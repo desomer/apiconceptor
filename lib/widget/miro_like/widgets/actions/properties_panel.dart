@@ -6,6 +6,7 @@ import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'dart:convert';
 import '../../models/block_model.dart';
 import '../../models/link_model.dart';
+import '../../layers/sequence_message_layer.dart';
 import '../image2base64_widget.dart';
 
 // Theme colors (same as in widget_miro_like.dart)
@@ -19,6 +20,9 @@ const Color colorTextSecondary = Color.fromARGB(179, 255, 255, 255);
 class PropertiesPanel extends StatefulWidget {
   final Block? selectedBlock;
   final BlockLink? selectedLink;
+  final SequenceControlGroupInfo? selectedSequenceGroup;
+  final Function(SequenceControlGroupInfo, String, String)?
+  onSequenceGroupChanged;
   final Function(String, String)? onBlockTitleChanged;
   final Function(Block, String?)? onBlockColorChanged;
   final Function(Block, List<String>)? onBlockTagsChanged;
@@ -43,6 +47,8 @@ class PropertiesPanel extends StatefulWidget {
     super.key,
     this.selectedBlock,
     this.selectedLink,
+    this.selectedSequenceGroup,
+    this.onSequenceGroupChanged,
     this.onBlockTitleChanged,
     this.onBlockColorChanged,
     this.onBlockTagsChanged,
@@ -83,6 +89,8 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   late TextEditingController _blockTitleController;
   late TextEditingController _blockJsonController;
   late TextEditingController _linkNameController;
+  late TextEditingController _sequenceGroupLabelController;
+  String _sequenceGroupKind = 'alt';
   String? _blockJsonError;
 
   @override
@@ -91,12 +99,17 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     _blockTitleController = TextEditingController();
     _blockJsonController = TextEditingController();
     _linkNameController = TextEditingController();
+    _sequenceGroupLabelController = TextEditingController();
     if (widget.selectedBlock != null) {
       _blockTitleController.text = widget.selectedBlock!.title;
       _blockJsonController.text = widget.selectedBlock!.propertiesJson ?? '';
     }
     if (widget.selectedLink != null) {
       _linkNameController.text = widget.selectedLink!.name;
+    }
+    if (widget.selectedSequenceGroup != null) {
+      _sequenceGroupLabelController.text = widget.selectedSequenceGroup!.label;
+      _sequenceGroupKind = widget.selectedSequenceGroup!.kind;
     }
   }
 
@@ -116,6 +129,12 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                 widget.selectedLink?.toBlockId)) {
       _linkNameController.text = widget.selectedLink!.name;
     }
+    if (widget.selectedSequenceGroup != null &&
+        oldWidget.selectedSequenceGroup?.selectionKey !=
+            widget.selectedSequenceGroup?.selectionKey) {
+      _sequenceGroupLabelController.text = widget.selectedSequenceGroup!.label;
+      _sequenceGroupKind = widget.selectedSequenceGroup!.kind;
+    }
   }
 
   @override
@@ -123,6 +142,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     _blockTitleController.dispose();
     _blockJsonController.dispose();
     _linkNameController.dispose();
+    _sequenceGroupLabelController.dispose();
     super.dispose();
   }
 
@@ -231,6 +251,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   Widget build(BuildContext context) {
     final block = widget.selectedBlock;
     final link = widget.selectedLink;
+    final sequenceGroup = widget.selectedSequenceGroup;
 
     if (block != null) {
       return _buildBlockProperties(block);
@@ -240,7 +261,112 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       return _buildLinkProperties(link);
     }
 
+    if (sequenceGroup != null) {
+      return _buildSequenceGroupProperties(sequenceGroup);
+    }
+
     return _buildEmptyProperties();
+  }
+
+  Widget _buildSequenceGroupProperties(SequenceControlGroupInfo group) {
+    final height = (group.endYCanvas - group.startYCanvas).clamp(0.0, 1e9);
+    final normalizedKind = group.kind.trim().toLowerCase();
+    final groupKinds = <String>['alt', 'opt', 'loop'];
+    final effectiveKind = groupKinds.contains(_sequenceGroupKind)
+        ? _sequenceGroupKind
+        : (groupKinds.contains(normalizedKind) ? normalizedKind : 'alt');
+
+    return _buildPanelContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Proprietes du groupe',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: colorTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Type: ${normalizedKind.isEmpty ? 'inconnu' : normalizedKind}',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            initialValue: effectiveKind,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Type du groupe',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: groupKinds
+                .map(
+                  (kind) =>
+                      DropdownMenuItem<String>(value: kind, child: Text(kind)),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              setState(() {
+                _sequenceGroupKind = value;
+              });
+              widget.onSequenceGroupChanged?.call(
+                group,
+                value,
+                _sequenceGroupLabelController.text,
+              );
+            },
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            key: ValueKey('sequence-group-label-${group.selectionKey}'),
+            controller: _sequenceGroupLabelController,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Label du groupe',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              hintText: 'ex: success / retry',
+              hintStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            onChanged: (value) {
+              widget.onSequenceGroupChanged?.call(group, effectiveKind, value);
+            },
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Branches else: ${group.branchCount}',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Y debut: ${group.startYCanvas.toStringAsFixed(1)}',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          Text(
+            'Y fin: ${group.endYCanvas.toStringAsFixed(1)}',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Hauteur visuelle: ${height.toStringAsFixed(1)}',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildBlockProperties(Block block) {
@@ -930,7 +1056,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               labelText: 'Type message',
               labelStyle: TextStyle(color: arrowAccent),
               enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: arrowAccent.withValues(alpha: 0.65)),
+                borderSide: BorderSide(
+                  color: arrowAccent.withValues(alpha: 0.65),
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: arrowAccent, width: 1.5),
@@ -940,7 +1068,10 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               ),
               isDense: true,
               helperText: isDashedArrow ? 'Dashed flow style' : null,
-              helperStyle: const TextStyle(fontSize: 12, color: colorTextSecondary),
+              helperStyle: const TextStyle(
+                fontSize: 12,
+                color: colorTextSecondary,
+              ),
             ),
             items: _mermaidArrowTypeOptions
                 .map(
@@ -1251,7 +1382,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           ),
           SizedBox(height: 12),
           Text(
-            'Selectionnez un bloc ou un lien.',
+            'Selectionnez un bloc, un lien ou un groupe sequence.',
             style: TextStyle(color: colorTextSecondary),
           ),
         ],

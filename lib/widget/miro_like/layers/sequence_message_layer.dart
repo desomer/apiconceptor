@@ -11,6 +11,44 @@ class SequenceGroupSpan {
   });
 }
 
+class SequenceControlGroupInfo {
+  final String kind;
+  final String label;
+  final double startYCanvas;
+  final double endYCanvas;
+  final int branchCount;
+  final BlockLink sourceLink;
+  final int sourceOpenLineIndex;
+
+  const SequenceControlGroupInfo({
+    required this.kind,
+    required this.label,
+    required this.startYCanvas,
+    required this.endYCanvas,
+    required this.branchCount,
+    required this.sourceLink,
+    required this.sourceOpenLineIndex,
+  });
+
+  SequenceControlGroupInfo copyWith({String? kind, String? label}) {
+    return SequenceControlGroupInfo(
+      kind: kind ?? this.kind,
+      label: label ?? this.label,
+      startYCanvas: startYCanvas,
+      endYCanvas: endYCanvas,
+      branchCount: branchCount,
+      sourceLink: sourceLink,
+      sourceOpenLineIndex: sourceOpenLineIndex,
+    );
+  }
+
+  String get selectionKey {
+    final startRounded = startYCanvas.toStringAsFixed(2);
+    final endRounded = endYCanvas.toStringAsFixed(2);
+    return '$kind|$label|$startRounded|$endRounded|$branchCount';
+  }
+}
+
 class SequenceMessageEntry {
   final BlockLink link;
   final double laneYCanvas;
@@ -36,7 +74,9 @@ class SequenceMessageEntry {
 class SequenceMessageLayer extends StatelessWidget {
   final List<SequenceMessageEntry> entries;
   final SequenceGroupSpan? groupSpan;
+  final SequenceControlGroupInfo? selectedGroup;
   final Set<BlockLink> selectedLinks;
+  final void Function(SequenceControlGroupInfo group) onSelectGroup;
   final void Function(BlockLink link) onSelect;
   final void Function(BlockLink link) onDragStart;
   final void Function(BlockLink link, Offset globalPosition) onDragUpdate;
@@ -46,7 +86,9 @@ class SequenceMessageLayer extends StatelessWidget {
     super.key,
     required this.entries,
     this.groupSpan,
+    this.selectedGroup,
     required this.selectedLinks,
+    required this.onSelectGroup,
     required this.onSelect,
     required this.onDragStart,
     required this.onDragUpdate,
@@ -66,14 +108,21 @@ class SequenceMessageLayer extends StatelessWidget {
       children: [
         if (span != null && controlFrames.isNotEmpty)
           Positioned.fill(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: _SequenceControlFramePainter(
-                  frames: controlFrames,
-                  leftCanvas: span.leftCanvas,
-                  rightCanvas: span.rightCanvas,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: _SequenceControlFramePainter(
+                        frames: controlFrames,
+                        leftCanvas: span.leftCanvas,
+                        rightCanvas: span.rightCanvas,
+                        selectedGroupKey: selectedGroup?.selectionKey,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         for (final entry in entries)
@@ -105,7 +154,12 @@ class SequenceMessageLayer extends StatelessWidget {
       final entry = sortedEntries[index];
       final separatorY = _separatorYForEntry(sortedEntries, index);
 
-      for (final line in entry.link.sequenceBeforeLines) {
+      for (
+        var lineIndex = 0;
+        lineIndex < entry.link.sequenceBeforeLines.length;
+        lineIndex++
+      ) {
+        final line = entry.link.sequenceBeforeLines[lineIndex];
         final trimmed = line.trim();
         if (trimmed.isEmpty) {
           continue;
@@ -119,7 +173,13 @@ class SequenceMessageLayer extends StatelessWidget {
           final kind = (openMatch.group(1) ?? '').toLowerCase();
           final label = (openMatch.group(2) ?? '').trim();
           openFrames.add(
-            _OpenFrame(kind: kind, label: label, startY: entry.topYCanvas),
+            _OpenFrame(
+              kind: kind,
+              label: label,
+              startY: entry.topYCanvas,
+              sourceLink: entry.link,
+              sourceOpenLineIndex: lineIndex,
+            ),
           );
           continue;
         }
@@ -174,6 +234,8 @@ class SequenceMessageLayer extends StatelessWidget {
               startY: current.startY,
               endY: entry.bottomYCanvas,
               branches: List<_SequenceControlBranch>.from(current.branches),
+              sourceLink: current.sourceLink,
+              sourceOpenLineIndex: current.sourceOpenLineIndex,
             ),
           );
         }
@@ -189,6 +251,8 @@ class SequenceMessageLayer extends StatelessWidget {
           startY: current.startY,
           endY: lastY,
           branches: List<_SequenceControlBranch>.from(current.branches),
+          sourceLink: current.sourceLink,
+          sourceOpenLineIndex: current.sourceOpenLineIndex,
         ),
       );
     }
@@ -260,9 +324,17 @@ class _OpenFrame {
   final String kind;
   final String label;
   final double startY;
+  final BlockLink sourceLink;
+  final int sourceOpenLineIndex;
   final List<_SequenceControlBranch> branches = [];
 
-  _OpenFrame({required this.kind, required this.label, required this.startY});
+  _OpenFrame({
+    required this.kind,
+    required this.label,
+    required this.startY,
+    required this.sourceLink,
+    required this.sourceOpenLineIndex,
+  });
 }
 
 class _SequenceControlBranch {
@@ -277,6 +349,8 @@ class _SequenceControlFrame {
   final String label;
   final double startY;
   final double endY;
+  final BlockLink sourceLink;
+  final int sourceOpenLineIndex;
   final List<_SequenceControlBranch> branches;
 
   const _SequenceControlFrame({
@@ -284,6 +358,8 @@ class _SequenceControlFrame {
     required this.label,
     required this.startY,
     required this.endY,
+    required this.sourceLink,
+    required this.sourceOpenLineIndex,
     required this.branches,
   });
 }
@@ -292,11 +368,13 @@ class _SequenceControlFramePainter extends CustomPainter {
   final List<_SequenceControlFrame> frames;
   final double leftCanvas;
   final double rightCanvas;
+  final String? selectedGroupKey;
 
   const _SequenceControlFramePainter({
     required this.frames,
     required this.leftCanvas,
     required this.rightCanvas,
+    required this.selectedGroupKey,
   });
 
   @override
@@ -323,12 +401,23 @@ class _SequenceControlFramePainter extends CustomPainter {
       final rrect = RRect.fromRectAndRadius(rect, radius);
 
       final accent = _accentFor(frame.kind);
+      final isSelected =
+          selectedGroupKey ==
+          SequenceControlGroupInfo(
+            kind: frame.kind,
+            label: frame.label,
+            startYCanvas: frame.startY,
+            endYCanvas: frame.endY,
+            branchCount: frame.branches.length,
+            sourceLink: frame.sourceLink,
+            sourceOpenLineIndex: frame.sourceOpenLineIndex,
+          ).selectionKey;
       final fillPaint = Paint()
-        ..color = accent.withValues(alpha: 0.09)
+        ..color = accent.withValues(alpha: isSelected ? 0.18 : 0.09)
         ..style = PaintingStyle.fill;
       final borderPaint = Paint()
-        ..color = accent.withValues(alpha: 0.62)
-        ..strokeWidth = 1.25
+        ..color = accent.withValues(alpha: isSelected ? 0.95 : 0.62)
+        ..strokeWidth = isSelected ? 2.2 : 1.25
         ..style = PaintingStyle.stroke;
 
       canvas.drawRRect(rrect, fillPaint);
@@ -403,7 +492,8 @@ class _SequenceControlFramePainter extends CustomPainter {
   bool shouldRepaint(covariant _SequenceControlFramePainter oldDelegate) {
     return oldDelegate.frames != frames ||
         oldDelegate.leftCanvas != leftCanvas ||
-        oldDelegate.rightCanvas != rightCanvas;
+        oldDelegate.rightCanvas != rightCanvas ||
+        oldDelegate.selectedGroupKey != selectedGroupKey;
   }
 }
 

@@ -132,6 +132,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   final Set<String> _selectedBlockIds = <String>{};
   BlockLink? selectedLink;
   final Set<BlockLink> _selectedSequenceLinks = <BlockLink>{};
+  SequenceControlGroupInfo? _selectedSequenceGroup;
   Block? linkSourceBlock;
   Offset? linkingFromPoint;
   Offset? currentMousePosition;
@@ -266,6 +267,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       _selectedBlockIds.clear();
       selectedLink = null;
       _selectedSequenceLinks.clear();
+      _selectedSequenceGroup = null;
       linkSourceBlock = null;
       linkingFromPoint = null;
       currentMousePosition = null;
@@ -806,6 +808,44 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     setState(() {
       final normalized = (value ?? '').trim();
       link.sequenceArrowType = normalized.isEmpty ? null : normalized;
+      _markBoardChanged();
+    });
+  }
+
+  void _handleSequenceGroupChanged(
+    SequenceControlGroupInfo group,
+    String kind,
+    String label,
+  ) {
+    final normalizedKind = kind.trim().toLowerCase();
+    if (normalizedKind != 'alt' &&
+        normalizedKind != 'opt' &&
+        normalizedKind != 'loop') {
+      return;
+    }
+
+    final normalizedLabel = label.trim();
+    final newOpenLine = normalizedLabel.isEmpty
+        ? normalizedKind
+        : '$normalizedKind $normalizedLabel';
+
+    final lineIndex = group.sourceOpenLineIndex;
+    final beforeLines = group.sourceLink.sequenceBeforeLines;
+    if (lineIndex < 0 || lineIndex >= beforeLines.length) {
+      return;
+    }
+
+    if (beforeLines[lineIndex].trim() == newOpenLine) {
+      return;
+    }
+
+    _pushUndoSnapshot();
+    setState(() {
+      beforeLines[lineIndex] = newOpenLine;
+      _selectedSequenceGroup = group.copyWith(
+        kind: normalizedKind,
+        label: normalizedLabel,
+      );
       _markBoardChanged();
     });
   }
@@ -2652,6 +2692,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     _selectionCurrentCanvas = canvasPosition;
     selectedLink = null;
     _selectedSequenceLinks.clear();
+    _selectedSequenceGroup = null;
   }
 
   void _updateBoxSelection(Offset canvasPosition) {
@@ -2703,6 +2744,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           ? blocks.firstWhere((b) => b.id == selectedIds.first)
           : null;
       selectedLink = null;
+      _selectedSequenceGroup = null;
     }
 
     _isBoxSelecting = false;
@@ -2745,6 +2787,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       selectedLink = selectedLinks.length == 1 ? selectedLinks.first : null;
       selectedBlock = null;
       _selectedBlockIds.clear();
+      _selectedSequenceGroup = null;
     }
 
     _isBoxSelecting = false;
@@ -3449,6 +3492,157 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       );
     }
     return entries;
+  }
+
+  List<SequenceControlGroupInfo> _buildSequenceControlGroupsForHitTest(
+    List<SequenceMessageEntry> rawEntries,
+  ) {
+    final sortedEntries = List<SequenceMessageEntry>.from(rawEntries)
+      ..sort((a, b) => a.laneYCanvas.compareTo(b.laneYCanvas));
+    if (sortedEntries.isEmpty) {
+      return const <SequenceControlGroupInfo>[];
+    }
+
+    final result = <SequenceControlGroupInfo>[];
+    final openStack =
+        <
+          (
+            String kind,
+            String label,
+            double startY,
+            BlockLink sourceLink,
+            int sourceOpenLineIndex,
+            List<String> branches,
+          )
+        >[];
+    final lastY = sortedEntries.last.bottomYCanvas;
+
+    double separatorYForEntry(int index) {
+      final current = sortedEntries[index];
+      if (index == 0) {
+        return current.topYCanvas;
+      }
+      final previous = sortedEntries[index - 1];
+      return (previous.bottomYCanvas + current.topYCanvas) / 2;
+    }
+
+    for (var index = 0; index < sortedEntries.length; index++) {
+      final entry = sortedEntries[index];
+      final separatorY = separatorYForEntry(index);
+
+      for (
+        var lineIndex = 0;
+        lineIndex < entry.link.sequenceBeforeLines.length;
+        lineIndex++
+      ) {
+        final trimmed = entry.link.sequenceBeforeLines[lineIndex].trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+
+        final openMatch = RegExp(
+          r'^(alt|opt|loop)\b\s*(.*)$',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        if (openMatch != null) {
+          openStack.add((
+            (openMatch.group(1) ?? '').toLowerCase(),
+            (openMatch.group(2) ?? '').trim(),
+            entry.topYCanvas,
+            entry.link,
+            lineIndex,
+            <String>[],
+          ));
+          continue;
+        }
+
+        final elseMatch = RegExp(
+          r'^else\b\s*(.*)$',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        if (elseMatch != null && openStack.isNotEmpty) {
+          final current = openStack.removeLast();
+          if (current.$1 == 'alt') {
+            current.$6.add('else@${separatorY.toStringAsFixed(2)}');
+          }
+          openStack.add(current);
+        }
+      }
+
+      for (final rawLine in entry.link.sequenceAfterLines) {
+        final trimmed = rawLine.trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+
+        if (RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed) &&
+            openStack.isNotEmpty) {
+          final current = openStack.removeLast();
+          result.add(
+            SequenceControlGroupInfo(
+              kind: current.$1,
+              label: current.$2,
+              startYCanvas: current.$3,
+              endYCanvas: entry.bottomYCanvas,
+              branchCount: current.$6.length,
+              sourceLink: current.$4,
+              sourceOpenLineIndex: current.$5,
+            ),
+          );
+        }
+      }
+    }
+
+    while (openStack.isNotEmpty) {
+      final current = openStack.removeLast();
+      result.add(
+        SequenceControlGroupInfo(
+          kind: current.$1,
+          label: current.$2,
+          startYCanvas: current.$3,
+          endYCanvas: lastY,
+          branchCount: current.$6.length,
+          sourceLink: current.$4,
+          sourceOpenLineIndex: current.$5,
+        ),
+      );
+    }
+
+    result.sort((a, b) {
+      final byStart = a.startYCanvas.compareTo(b.startYCanvas);
+      if (byStart != 0) {
+        return byStart;
+      }
+      return a.endYCanvas.compareTo(b.endYCanvas);
+    });
+
+    return result;
+  }
+
+  SequenceControlGroupInfo? _findSequenceControlGroupAtCanvasPosition(
+    Offset canvasPosition,
+  ) {
+    final span = _buildSequenceGroupSpan();
+    if (span == null) {
+      return null;
+    }
+    if (canvasPosition.dx < span.leftCanvas ||
+        canvasPosition.dx > span.rightCanvas) {
+      return null;
+    }
+
+    final groups = _buildSequenceControlGroupsForHitTest(
+      _buildSequenceMessageEntries(),
+    );
+    for (var i = groups.length - 1; i >= 0; i--) {
+      final group = groups[i];
+      final top = group.startYCanvas - 10.0;
+      final bottom = group.endYCanvas + 10.0;
+      if (canvasPosition.dy >= top && canvasPosition.dy <= bottom) {
+        return group;
+      }
+    }
+    return null;
   }
 
   SequenceGroupSpan? _buildSequenceGroupSpan() {
@@ -4245,13 +4439,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       SequenceMessageLayer(
                         entries: _buildSequenceMessageEntries(),
                         groupSpan: _buildSequenceGroupSpan(),
+                        selectedGroup: _selectedSequenceGroup,
                         selectedLinks: _selectedSequenceLinks,
+                        onSelectGroup: (group) {
+                          setState(() {
+                            _selectedSequenceGroup = group;
+                            selectedBlock = null;
+                            selectedLink = null;
+                            _selectedBlockIds.clear();
+                            _selectedSequenceLinks.clear();
+                          });
+                        },
                         onSelect: (link) {
                           setState(() {
                             selectedLink = link;
                             _selectedSequenceLinks
                               ..clear()
                               ..add(link);
+                            _selectedSequenceGroup = null;
                             selectedBlock = null;
                             _selectedBlockIds.clear();
                           });
@@ -4475,7 +4680,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         _selectedSequenceLinks
                           ..clear()
                           ..add(hitLink);
+                        _selectedSequenceGroup = null;
                         return;
+                      }
+
+                      if (_isSequenceDiagramView) {
+                        final hitGroup =
+                            _findSequenceControlGroupAtCanvasPosition(
+                              canvasPosition,
+                            );
+                        if (hitGroup != null) {
+                          _selectedSequenceGroup = hitGroup;
+                          selectedBlock = null;
+                          _selectedBlockIds.clear();
+                          selectedLink = null;
+                          _selectedSequenceLinks.clear();
+                          return;
+                        }
                       }
 
                       for (final block in blocks.reversed) {
@@ -4508,6 +4729,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                           }
                           selectedLink = null;
                           _selectedSequenceLinks.clear();
+                          _selectedSequenceGroup = null;
                           return;
                         }
                       }
@@ -4516,6 +4738,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       _selectedBlockIds.clear();
                       selectedLink = null;
                       _selectedSequenceLinks.clear();
+                      _selectedSequenceGroup = null;
                     });
                   },
                   onCanvasSecondaryTapDown: (details) {
@@ -4595,17 +4818,22 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   onBlockPanDown: (block, details) {
                     setState(() {
                       _pushUndoSnapshot();
-                      final canvasPosition = _toCanvasLocal(
-                        details.globalPosition,
-                      );
-                      final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                      if (hitLink != null) {
-                        selectedBlock = null;
-                        _selectedBlockIds.clear();
-                        selectedLink = hitLink;
-                        _resetBlockDragSnap();
-                        _dragFreePositionModel = null;
-                        return;
+                      if (!_isSequenceDiagramView) {
+                        final canvasPosition = _toCanvasLocal(
+                          details.globalPosition,
+                        );
+                        final hitLink = _findLinkAtCanvasPosition(
+                          canvasPosition,
+                        );
+                        if (hitLink != null) {
+                          selectedBlock = null;
+                          _selectedBlockIds.clear();
+                          selectedLink = hitLink;
+                          _selectedSequenceGroup = null;
+                          _resetBlockDragSnap();
+                          _dragFreePositionModel = null;
+                          return;
+                        }
                       }
 
                       if (!_isCtrlPressed()) {
@@ -4618,6 +4846,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                         }
                       }
                       selectedLink = null;
+                      _selectedSequenceGroup = null;
                       _resetBlockDragSnap();
                       _dragFreePositionModel = _selectedBlockIds.length == 1
                           ? block.position
@@ -4693,15 +4922,20 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   onBlockTapDown: (block, details) {
                     setState(() {
                       _consumeNextCanvasTap = true;
-                      final canvasPosition = _toCanvasLocal(
-                        details.globalPosition,
-                      );
-                      final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-                      if (hitLink != null) {
-                        selectedBlock = null;
-                        _selectedBlockIds.clear();
-                        selectedLink = hitLink;
-                        return;
+                      if (!_isSequenceDiagramView) {
+                        final canvasPosition = _toCanvasLocal(
+                          details.globalPosition,
+                        );
+                        final hitLink = _findLinkAtCanvasPosition(
+                          canvasPosition,
+                        );
+                        if (hitLink != null) {
+                          selectedBlock = null;
+                          _selectedBlockIds.clear();
+                          selectedLink = hitLink;
+                          _selectedSequenceGroup = null;
+                          return;
+                        }
                       }
 
                       _lastSecondaryTapTime = null;
@@ -4724,6 +4958,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                           ..add(block.id);
                       }
                       selectedLink = null;
+                      _selectedSequenceGroup = null;
                       _resetBlockDragSnap();
                     });
                   },
@@ -4748,6 +4983,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     child: PropertiesPanel(
                       selectedBlock: selectedBlock,
                       selectedLink: selectedLink,
+                      selectedSequenceGroup: _selectedSequenceGroup,
+                      onSequenceGroupChanged: _handleSequenceGroupChanged,
                       onBlockTitleChanged: _handleBlockTitleChanged,
                       onBlockColorChanged: _handleBlockColorChanged,
                       onBlockTagsChanged: _handleBlockTagsChanged,
