@@ -140,8 +140,8 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
             inflectionPoints: inflectionPoints,
             autoLayoutLock: true,
           )
-          ..sourceAnchorOrderKey = i.toDouble()
-          ..targetAnchorOrderKey = i.toDouble(),
+          ..sourceAnchorOrderKey = messageY
+          ..targetAnchorOrderKey = messageY,
       );
     }
 

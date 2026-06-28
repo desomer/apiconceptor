@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:jsonschema/widget/miro_like/block_model.dart';
+import 'package:jsonschema/widget/miro_like/models/block_model.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 
 class BlockWidget extends StatelessWidget {

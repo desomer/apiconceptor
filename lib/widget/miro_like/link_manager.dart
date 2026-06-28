@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'block_model.dart';
-import 'link_model.dart';
+import 'models/block_model.dart';
+import 'models/link_model.dart';
 
 /// Manages all link-related operations for the Miro-like widget
 class LinkManager {

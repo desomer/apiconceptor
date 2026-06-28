@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'link_model.dart';
+import 'models/link_model.dart';
 
 /// Shared path-building utilities used by both the canvas painter and the
 /// widget state (for hit-testing label positions).

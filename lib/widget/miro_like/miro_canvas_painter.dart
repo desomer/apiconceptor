@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:jsonschema/widget/miro_like/block_model.dart';
-import 'package:jsonschema/widget/miro_like/link_model.dart';
+import 'package:jsonschema/widget/miro_like/models/block_model.dart';
+import 'package:jsonschema/widget/miro_like/models/link_model.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 
 const double _painterAnchorHandleRadius = 6.0;
@@ -131,7 +131,18 @@ class MiroCanvasPainter extends CustomPainter {
       final toReference = viaCanvas.isNotEmpty
           ? viaCanvas.last
           : fromBorderForTarget;
-      final fromEdge = link.sourceAnchorUnit != null
+      final fromEdge = showSequenceParticipantLifelines
+          ? Offset(
+              fromRect.center.dx,
+              math.max(
+                fromRect.bottom + (8.0 * zoomLevel),
+                viaCanvas.isNotEmpty
+                    ? viaCanvas.first.dy
+                    : math.max(fromRect.bottom, toRect.bottom) +
+                          (40.0 * zoomLevel),
+              ),
+            )
+          : link.sourceAnchorUnit != null
           ? _borderPointFromUnit(
               fromRect,
               link.sourceAnchorUnit!,
@@ -142,7 +153,18 @@ class MiroCanvasPainter extends CustomPainter {
               ),
             )
           : _pointOnRectBorderTowards(fromRect, fromReference);
-      final toEdge = link.targetAnchorUnit != null
+      final toEdge = showSequenceParticipantLifelines
+          ? Offset(
+              toRect.center.dx,
+              math.max(
+                toRect.bottom + (8.0 * zoomLevel),
+                viaCanvas.isNotEmpty
+                    ? viaCanvas.last.dy
+                    : math.max(fromRect.bottom, toRect.bottom) +
+                          (40.0 * zoomLevel),
+              ),
+            )
+          : link.targetAnchorUnit != null
           ? _borderPointFromUnit(
               toRect,
               link.targetAnchorUnit!,
@@ -388,6 +410,24 @@ class MiroCanvasPainter extends CustomPainter {
     required Rect rect,
     required Offset edgePoint,
   }) {
+    if (showSequenceParticipantLifelines) {
+      final ownId = isSource ? link.fromBlockId : link.toBlockId;
+      final otherId = isSource ? link.toBlockId : link.fromBlockId;
+      final ownIndex = blocks.indexWhere((b) => b.id == ownId);
+      final otherIndex = blocks.indexWhere((b) => b.id == otherId);
+      if (ownIndex != -1 && otherIndex != -1) {
+        final ownCenterX = _blockRectCanvas(blocks[ownIndex]).center.dx;
+        final otherCenterX = _blockRectCanvas(blocks[otherIndex]).center.dx;
+        if ((ownCenterX - otherCenterX).abs() < 0.1) {
+          return isSource ? const Offset(1, 0) : const Offset(-1, 0);
+        }
+        return ownCenterX <= otherCenterX
+            ? const Offset(1, 0)
+            : const Offset(-1, 0);
+      }
+      return isSource ? const Offset(1, 0) : const Offset(-1, 0);
+    }
+
     final anchorUnit = isSource ? link.sourceAnchorUnit : link.targetAnchorUnit;
     if (anchorUnit != null) {
       return _anchorSideUnit(anchorUnit);

@@ -1,5 +1,5 @@
-import 'block_model.dart';
-import 'link_model.dart';
+import 'models/block_model.dart';
+import 'models/link_model.dart';
 
 class MermaidFlowchartEdge {
   final String fromId;

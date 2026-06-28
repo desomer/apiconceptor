@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'block_model.dart';
+import 'models/block_model.dart';
 
 class AutoLayoutQualityProfile {
   final double iterationMul;

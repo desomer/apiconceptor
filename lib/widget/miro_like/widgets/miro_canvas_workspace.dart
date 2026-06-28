@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import '../block_model.dart';
-import '../block_widget.dart';
+import '../models/block_model.dart';
+import 'block_widget.dart';
 
 class MiroCanvasWorkspace extends StatelessWidget {
   final GlobalKey canvasKey;

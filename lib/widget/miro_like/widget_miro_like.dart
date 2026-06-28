@@ -10,8 +10,8 @@ import 'package:jsonschema/widget/miro_like/properties_panel.dart';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'link_manager.dart';
-import 'link_model.dart';
-import 'block_model.dart';
+import 'models/link_model.dart';
+import 'models/block_model.dart';
 import 'auto_layout_engine.dart';
 import 'import_export_manager.dart';
 import 'mermaid_flowchart_codec.dart';
@@ -20,6 +20,7 @@ import 'widgets/anchor_handle_widget.dart';
 import 'widgets/inflection_handle_widget.dart';
 import 'widgets/link_label_handle_widget.dart';
 import 'widgets/miro_canvas_workspace.dart';
+import 'widgets/sequence_message_layer.dart';
 
 part 'widget_miro_like_imports.dart';
 
@@ -1683,38 +1684,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
       for (var i = 0; i < orderedLinks.length; i++) {
         final link = orderedLinks[i];
-        final fromBlock = blockById[link.fromBlockId];
-        final toBlock = blockById[link.toBlockId];
-        if (fromBlock == null || toBlock == null) {
+        if (blockById[link.fromBlockId] == null ||
+            blockById[link.toBlockId] == null) {
           continue;
         }
 
         final messageY = _sequenceMessageStartY + (i * _sequenceMessageStepY);
-        final fromCenterX = fromBlock.position.dx + (fromBlock.size.width / 2);
-        final toCenterX = toBlock.position.dx + (toBlock.size.width / 2);
-
-        final inflections = <Offset>[];
-        if (link.fromBlockId == link.toBlockId) {
-          final loopX = fromBlock.position.dx + fromBlock.size.width + 80;
-          inflections
-            ..add(Offset(loopX, messageY))
-            ..add(Offset(loopX, messageY + 64))
-            ..add(Offset(fromCenterX, messageY + 64));
-        } else {
-          inflections
-            ..add(Offset(fromCenterX, messageY))
-            ..add(Offset(toCenterX, messageY));
-        }
-
-        link.connectorType = ConnectorType.orthogonal;
-        link.sourceAnchorUnit = const Offset(0, 1);
-        link.targetAnchorUnit = const Offset(0, 1);
+        _setSequenceLinkLaneY(link, messageY);
         link.autoLayoutLock = true;
-        link.sourceAnchorOrderKey = i.toDouble();
-        link.targetAnchorOrderKey = i.toDouble();
-        link.inflectionPoints
-          ..clear()
-          ..addAll(inflections);
       }
 
       _isSequenceDiagramView = true;
@@ -2131,6 +2108,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       );
 
       setState(() {
+        final isSequenceMode = _isSequenceDiagramView;
+        final laneYModel = isSequenceMode
+            ? ((math.max(sourceRect.bottom, targetRect.bottom) +
+                          (40.0 * zoomLevel)) -
+                      canvasOffset.dy) /
+                  zoomLevel
+            : null;
+
         links.add(
           BlockLink(
             fromBlockId: linkSourceBlock!.id,
@@ -2141,12 +2126,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             labelOffset: Offset.zero,
             particleDensity: 1.0,
             particleSpeed: 1.0,
-            connectorType: ConnectorType.bezier,
-            inflectionPoints: List<Offset>.from(pendingInflectionPoints),
-            sourceAnchorUnit: sourceAnchorUnit,
-            targetAnchorUnit: targetAnchorUnit,
+            connectorType: isSequenceMode
+                ? ConnectorType.orthogonal
+                : ConnectorType.bezier,
+            inflectionPoints: isSequenceMode
+                ? const <Offset>[]
+                : List<Offset>.from(pendingInflectionPoints),
+            sourceAnchorUnit: isSequenceMode
+                ? const Offset(0, 1)
+                : sourceAnchorUnit,
+            targetAnchorUnit: isSequenceMode
+                ? const Offset(0, 1)
+                : targetAnchorUnit,
+            autoLayoutLock: isSequenceMode,
           ),
         );
+        if (isSequenceMode && laneYModel != null) {
+          _setSequenceLinkLaneY(links.last, laneYModel);
+        }
         _ensureBlockHasSpaceForAnchors(linkSourceBlock!);
         _ensureBlockHasSpaceForAnchors(targetBlock);
         linkSourceBlock = null;
@@ -2882,6 +2879,27 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         ? viaCanvas.last
         : fromBorderForTarget;
 
+    if (_isSequenceDiagramView) {
+      final defaultLaneCanvasY =
+          math.max(fromRect.bottom, toRect.bottom) + (40.0 * zoomLevel);
+      final sourceLaneCanvasY = viaCanvas.isNotEmpty
+          ? viaCanvas.first.dy
+          : defaultLaneCanvasY;
+      final targetLaneCanvasY = viaCanvas.isNotEmpty
+          ? viaCanvas.last.dy
+          : defaultLaneCanvasY;
+
+      final fromEdge = Offset(
+        fromRect.center.dx,
+        math.max(fromRect.bottom + (8.0 * zoomLevel), sourceLaneCanvasY),
+      );
+      final toEdge = Offset(
+        toRect.center.dx,
+        math.max(toRect.bottom + (8.0 * zoomLevel), targetLaneCanvasY),
+      );
+      return (fromEdge, toEdge, viaCanvas, fromRect, toRect);
+    }
+
     final fromEdge = link.sourceAnchorUnit != null
         ? _borderPointFromUnit(
             fromRect,
@@ -2952,11 +2970,149 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     required Rect rect,
     required Offset edgePoint,
   }) {
+    if (_isSequenceDiagramView) {
+      final ownId = isSource ? link.fromBlockId : link.toBlockId;
+      final otherId = isSource ? link.toBlockId : link.fromBlockId;
+      final ownIndex = blocks.indexWhere((b) => b.id == ownId);
+      final otherIndex = blocks.indexWhere((b) => b.id == otherId);
+      if (ownIndex != -1 && otherIndex != -1) {
+        final ownCenterX = _blockRectCanvas(blocks[ownIndex]).center.dx;
+        final otherCenterX = _blockRectCanvas(blocks[otherIndex]).center.dx;
+        if ((ownCenterX - otherCenterX).abs() < 0.1) {
+          return isSource ? const Offset(1, 0) : const Offset(-1, 0);
+        }
+        return ownCenterX <= otherCenterX
+            ? const Offset(1, 0)
+            : const Offset(-1, 0);
+      }
+      return isSource ? const Offset(1, 0) : const Offset(-1, 0);
+    }
+
     final anchorUnit = isSource ? link.sourceAnchorUnit : link.targetAnchorUnit;
     if (anchorUnit != null) {
       return _anchorSideUnit(anchorUnit);
     }
     return axisNormalForBorderPoint(rect, edgePoint);
+  }
+
+  void _setSequenceLinkLaneY(BlockLink link, double laneYModel) {
+    final fromBlock = blocks.where((b) => b.id == link.fromBlockId).firstOrNull;
+    final toBlock = blocks.where((b) => b.id == link.toBlockId).firstOrNull;
+    if (fromBlock == null || toBlock == null) {
+      return;
+    }
+
+    final fromCenterX = fromBlock.position.dx + (fromBlock.size.width / 2);
+    final toCenterX = toBlock.position.dx + (toBlock.size.width / 2);
+
+    if (link.fromBlockId == link.toBlockId) {
+      final loopX = fromBlock.position.dx + fromBlock.size.width + 96;
+      link.inflectionPoints
+        ..clear()
+        ..add(Offset(loopX, laneYModel));
+    } else {
+      link.inflectionPoints
+        ..clear()
+        ..add(Offset(fromCenterX, laneYModel))
+        ..add(Offset(toCenterX, laneYModel));
+    }
+
+    link.sourceAnchorUnit = const Offset(0, 1);
+    link.targetAnchorUnit = const Offset(0, 1);
+    link.sourceAnchorOrderKey = laneYModel;
+    link.targetAnchorOrderKey = laneYModel;
+    link.connectorType = ConnectorType.orthogonal;
+  }
+
+  List<BlockLink> _sequenceMessageLinks() {
+    final participantIds = blocks
+        .where((b) => !b.isZone)
+        .map((b) => b.id)
+        .toSet();
+    return links
+        .where(
+          (l) =>
+              participantIds.contains(l.fromBlockId) &&
+              participantIds.contains(l.toBlockId),
+        )
+        .toList(growable: false);
+  }
+
+  double _sequenceLaneYModel(BlockLink link) {
+    if (link.inflectionPoints.isNotEmpty) {
+      return link.inflectionPoints.first.dy;
+    }
+
+    final fromBlock = blocks.where((b) => b.id == link.fromBlockId).firstOrNull;
+    final toBlock = blocks.where((b) => b.id == link.toBlockId).firstOrNull;
+    if (fromBlock == null || toBlock == null) {
+      return _sequenceMessageStartY;
+    }
+
+    final fallbackCanvasY =
+        math.max(
+          _blockRectCanvas(fromBlock).bottom,
+          _blockRectCanvas(toBlock).bottom,
+        ) +
+        (40.0 * zoomLevel);
+    return (fallbackCanvasY - canvasOffset.dy) / zoomLevel;
+  }
+
+  double _minSequenceLaneCanvasY(BlockLink link) {
+    final fromBlock = blocks.where((b) => b.id == link.fromBlockId).firstOrNull;
+    final toBlock = blocks.where((b) => b.id == link.toBlockId).firstOrNull;
+    if (fromBlock == null || toBlock == null) {
+      return _sequenceMessageStartY * zoomLevel + canvasOffset.dy;
+    }
+    final fromRect = _blockRectCanvas(fromBlock);
+    final toRect = _blockRectCanvas(toBlock);
+    return math.max(fromRect.bottom, toRect.bottom) + (8.0 * zoomLevel);
+  }
+
+  List<SequenceMessageEntry> _buildSequenceMessageEntries() {
+    final entries = <SequenceMessageEntry>[];
+    for (final link in _sequenceMessageLinks()) {
+      final linkData = _resolveLinkAnchorsAndRects(link);
+      if (linkData == null) {
+        continue;
+      }
+      final fromEdge = linkData.$1;
+      final toEdge = linkData.$2;
+      final via = linkData.$3;
+      final laneYCanvas = via.isNotEmpty
+          ? via.first.dy
+          : math.max(fromEdge.dy, toEdge.dy);
+
+      entries.add(
+        SequenceMessageEntry(
+          link: link,
+          laneYCanvas: laneYCanvas,
+          startXCanvas: fromEdge.dx,
+          endXCanvas: toEdge.dx,
+        ),
+      );
+    }
+    return entries;
+  }
+
+  void _dragSequenceMessageToGlobalPosition(BlockLink link, Offset globalPos) {
+    final canvasPos = _toCanvasLocal(globalPos);
+    final minLaneCanvasY = _minSequenceLaneCanvasY(link);
+    final laneCanvasY = math.max(canvasPos.dy, minLaneCanvasY);
+    final laneModelY = (laneCanvasY - canvasOffset.dy) / zoomLevel;
+    _setSequenceLinkLaneY(link, laneModelY);
+  }
+
+  void _reorderSequenceMessagesByLane() {
+    final ordered = _sequenceMessageLinks()
+      ..sort(
+        (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
+      );
+
+    for (int i = 0; i < ordered.length; i++) {
+      final laneY = _sequenceMessageStartY + (i * _sequenceMessageStepY);
+      _setSequenceLinkLaneY(ordered[i], laneY);
+    }
   }
 
   (double, Offset)? _closestDistanceAndPointOnPath(
@@ -3002,6 +3158,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   bool _insertInflectionPointOnLink(Offset tapCanvas) {
+    if (_isSequenceDiagramView) {
+      return false;
+    }
+
     final toleranceSq = _linkHitTolerance * _linkHitTolerance;
 
     for (var linkIndex = links.length - 1; linkIndex >= 0; linkIndex--) {
@@ -3363,6 +3523,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               selectedLink = link;
               selectedBlock = null;
               final canvasPosition = _toCanvasLocal(details.globalPosition);
+
+              if (_isSequenceDiagramView) {
+                final laneYCanvas = math.max(
+                  fromRect.bottom + (8.0 * zoomLevel),
+                  canvasPosition.dy,
+                );
+                final laneYModel = (laneYCanvas - canvasOffset.dy) / zoomLevel;
+                _setSequenceLinkLaneY(link, laneYModel);
+                _markBoardChanged();
+                return;
+              }
+
               final snappedSide = _anchorSideUnit(
                 _anchorUnitFromCanvasPoint(fromRect, canvasPosition),
               );
@@ -3420,6 +3592,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
               selectedLink = link;
               selectedBlock = null;
               final canvasPosition = _toCanvasLocal(details.globalPosition);
+
+              if (_isSequenceDiagramView) {
+                final laneYCanvas = math.max(
+                  toRect.bottom + (8.0 * zoomLevel),
+                  canvasPosition.dy,
+                );
+                final laneYModel = (laneYCanvas - canvasOffset.dy) / zoomLevel;
+                _setSequenceLinkLaneY(link, laneYModel);
+                _markBoardChanged();
+                return;
+              }
+
               final snappedSide = _anchorSideUnit(
                 _anchorUnitFromCanvasPoint(toRect, canvasPosition),
               );
@@ -3614,8 +3798,40 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   overlayWidgets: [
                     ..._buildSelectionOverlay(),
                     ..._buildZoneResizeHandles(),
-                    ..._buildAnchorHandles(),
-                    ..._buildInflectionHandles(),
+                    if (_isSequenceDiagramView)
+                      SequenceMessageLayer(
+                        entries: _buildSequenceMessageEntries(),
+                        selectedLink: selectedLink,
+                        onSelect: (link) {
+                          setState(() {
+                            selectedLink = link;
+                            selectedBlock = null;
+                          });
+                        },
+                        onDragStart: (_) {
+                          _pushUndoSnapshot();
+                        },
+                        onDragUpdate: (link, globalPosition) {
+                          setState(() {
+                            selectedLink = link;
+                            selectedBlock = null;
+                            _dragSequenceMessageToGlobalPosition(
+                              link,
+                              globalPosition,
+                            );
+                            _markBoardChanged();
+                          });
+                        },
+                        onDragEnd: (_) {
+                          setState(() {
+                            _reorderSequenceMessagesByLane();
+                            _markBoardChanged();
+                          });
+                        },
+                      )
+                    else
+                      ..._buildAnchorHandles(),
+                    if (!_isSequenceDiagramView) ..._buildInflectionHandles(),
                     ..._buildLinkLabelHandles(),
                   ],
                   onCanvasPrimaryDragStart: (details) {
@@ -3659,6 +3875,19 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   },
                   onCanvasSecondaryDragStart: (event) {
                     setState(() {
+                      final canvasPosition = _toCanvasLocal(event.position);
+                      if (!_isSequenceDiagramView) {
+                        final hitLink = _findLinkAtCanvasPosition(
+                          canvasPosition,
+                        );
+                        if (hitLink != null) {
+                          // Keep link interactions priority over zones on right click.
+                          _draggedZoneId = null;
+                          isPanning = false;
+                          return;
+                        }
+                      }
+
                       final modelPosition = _toModelPosition(event.position);
                       if (_isInsideStandardBlockAtModelPosition(
                         modelPosition,
@@ -4031,6 +4260,38 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return [
       Row(
         children: [
+          Expanded(
+            child: SegmentedButton<_DiagramLayoutMode>(
+              segments: const [
+                ButtonSegment<_DiagramLayoutMode>(
+                  value: _DiagramLayoutMode.flowchart,
+                  icon: Icon(Icons.account_tree_outlined),
+                  label: Text('Flowchart'),
+                ),
+                ButtonSegment<_DiagramLayoutMode>(
+                  value: _DiagramLayoutMode.sequence,
+                  icon: Icon(Icons.table_rows_outlined),
+                  label: Text('Sequence'),
+                ),
+              ],
+              selected: {
+                _isSequenceDiagramView
+                    ? _DiagramLayoutMode.sequence
+                    : _DiagramLayoutMode.flowchart,
+              },
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) {
+                if (selection.isEmpty) {
+                  return;
+                }
+                _setDiagramLayoutMode(selection.first);
+              },
+            ),
+          ),
+        ],
+      ),
+      Row(
+        children: [
           IconButton(
             icon: const Icon(Icons.fit_screen),
             tooltip: 'Voir tous les blocs',
@@ -4128,38 +4389,6 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             icon: const Icon(Icons.schema_outlined),
             tooltip: 'Import Mermaid',
             onPressed: () => importExportManager.showImportMermaidDialog(),
-          ),
-        ],
-      ),
-      Row(
-        children: [
-          Expanded(
-            child: SegmentedButton<_DiagramLayoutMode>(
-              segments: const [
-                ButtonSegment<_DiagramLayoutMode>(
-                  value: _DiagramLayoutMode.flowchart,
-                  icon: Icon(Icons.account_tree_outlined),
-                  label: Text('Flowchart'),
-                ),
-                ButtonSegment<_DiagramLayoutMode>(
-                  value: _DiagramLayoutMode.sequence,
-                  icon: Icon(Icons.table_rows_outlined),
-                  label: Text('Sequence'),
-                ),
-              ],
-              selected: {
-                _isSequenceDiagramView
-                    ? _DiagramLayoutMode.sequence
-                    : _DiagramLayoutMode.flowchart,
-              },
-              showSelectedIcon: false,
-              onSelectionChanged: (selection) {
-                if (selection.isEmpty) {
-                  return;
-                }
-                _setDiagramLayoutMode(selection.first);
-              },
-            ),
           ),
         ],
       ),
