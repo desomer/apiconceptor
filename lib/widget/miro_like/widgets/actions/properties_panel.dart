@@ -4,9 +4,9 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'dart:convert';
-import 'models/block_model.dart';
-import 'models/link_model.dart';
-import 'widgets/image2base64_widget.dart';
+import '../../models/block_model.dart';
+import '../../models/link_model.dart';
+import '../image2base64_widget.dart';
 
 // Theme colors (same as in widget_miro_like.dart)
 const Color colorPropertiesPanelBg = Color.fromARGB(255, 24, 24, 27);

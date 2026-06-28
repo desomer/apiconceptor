@@ -223,6 +223,7 @@ class MiroLinkLayerPainter {
         pendingInflectionPoints: pendingInflectionPoints,
         zoomLevel: zoomLevel,
         canvasOffset: canvasOffset,
+        showSequenceParticipantLifelines: showSequenceParticipantLifelines,
         color: colorLinkCreation,
         inflectionPointColor: colorInflectionPoint,
         strokeWidth: _linkStrokeWidth(),

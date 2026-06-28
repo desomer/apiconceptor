@@ -7,12 +7,14 @@ class MiroBlockLayerPainter {
   final Offset canvasOffset;
   final double zoomLevel;
   final bool showSequenceParticipantLifelines;
+  final String? highlightedSequenceParticipantId;
 
   const MiroBlockLayerPainter({
     required this.blocks,
     required this.canvasOffset,
     required this.zoomLevel,
     required this.showSequenceParticipantLifelines,
+    this.highlightedSequenceParticipantId,
   });
 
   void paint(Canvas canvas, Size size) {
@@ -61,6 +63,28 @@ class MiroBlockLayerPainter {
       final rect = _blockRectCanvas(block);
       final x = rect.center.dx;
       var y = rect.bottom + (8.0 * zoomLevel);
+
+      if (highlightedSequenceParticipantId == block.id) {
+        final yStart = rect.bottom + (8.0 * zoomLevel);
+        final haloColor = const Color.fromARGB(255, 56, 142, 60);
+
+        canvas.drawCircle(
+          Offset(x, yStart),
+          (11.0 * zoomLevel).clamp(6.0, 18.0),
+          Paint()
+            ..color = haloColor.withValues(alpha: 0.28)
+            ..style = PaintingStyle.fill,
+        );
+
+        canvas.drawLine(
+          Offset(x, yStart),
+          Offset(x, yMax),
+          Paint()
+            ..color = haloColor.withValues(alpha: 0.42)
+            ..strokeWidth = (1.8 * zoomLevel).clamp(1.0, 3.0)
+            ..style = PaintingStyle.stroke,
+        );
+      }
 
       while (y < yMax) {
         final segmentEnd = math.min(y + dashLength, yMax);

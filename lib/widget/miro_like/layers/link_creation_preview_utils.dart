@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/widget/miro_like/connector_path_utils.dart'
+import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart'
     show axisNormalForBorderPoint;
 import 'package:jsonschema/widget/miro_like/layers/link_connector_paint_utils.dart';
 import 'package:jsonschema/widget/miro_like/layers/link_geometry_utils.dart'
@@ -14,6 +14,7 @@ void paintPendingLinkPreview({
   required List<Offset> pendingInflectionPoints,
   required double zoomLevel,
   required Offset canvasOffset,
+  required bool showSequenceParticipantLifelines,
   required Color color,
   required Color inflectionPointColor,
   required double strokeWidth,
@@ -24,35 +25,46 @@ void paintPendingLinkPreview({
     canvasOffset: canvasOffset,
   );
 
-  final previewViaCanvas = pendingInflectionPoints
-      .map(
-        (point) => modelToCanvas(
-          point,
-          zoomLevel: zoomLevel,
-          canvasOffset: canvasOffset,
-        ),
-      )
-      .toList();
+  final previewViaCanvas = showSequenceParticipantLifelines
+      ? const <Offset>[]
+      : pendingInflectionPoints
+            .map(
+              (point) => modelToCanvas(
+                point,
+                zoomLevel: zoomLevel,
+                canvasOffset: canvasOffset,
+              ),
+            )
+            .toList();
 
-  final sourceReference = previewViaCanvas.isNotEmpty
-      ? previewViaCanvas.first
-      : currentMousePosition;
-  final linkingFromCanvas = pointOnRectBorderTowards(
-    sourceRect,
-    sourceReference,
-  );
+  final linkingFromCanvas = showSequenceParticipantLifelines
+      ? Offset(sourceRect.center.dx, currentMousePosition.dy)
+      : pointOnRectBorderTowards(
+          sourceRect,
+          previewViaCanvas.isNotEmpty
+              ? previewViaCanvas.first
+              : currentMousePosition,
+        );
 
   paintLinkConnector(
     canvas: canvas,
     from: linkingFromCanvas,
     to: currentMousePosition,
-    connectorType: ConnectorType.bezier,
+    connectorType: showSequenceParticipantLifelines
+        ? ConnectorType.orthogonal
+        : ConnectorType.bezier,
     color: color,
     strokeWidth: strokeWidth,
     zoomLevel: zoomLevel,
-    startTangent: axisNormalForBorderPoint(sourceRect, linkingFromCanvas),
+    startTangent: showSequenceParticipantLifelines
+        ? const Offset(1, 0)
+        : axisNormalForBorderPoint(sourceRect, linkingFromCanvas),
     viaPoints: previewViaCanvas,
   );
+
+  if (showSequenceParticipantLifelines) {
+    return;
+  }
 
   for (final point in previewViaCanvas) {
     canvas.drawCircle(

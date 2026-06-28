@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/widget/miro_like/connector_path_utils.dart'
+import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart'
     show buildConnectorPath;
 import 'package:jsonschema/widget/miro_like/layers/link_visual_effects_utils.dart';
 import 'package:jsonschema/widget/miro_like/models/link_model.dart';

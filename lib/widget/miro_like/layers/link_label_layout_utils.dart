@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:jsonschema/widget/miro_like/connector_path_utils.dart'
+import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart'
     show buildConnectorPath;
 import 'package:jsonschema/widget/miro_like/models/link_model.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';

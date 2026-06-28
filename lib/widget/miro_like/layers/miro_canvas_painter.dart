@@ -17,6 +17,7 @@ class MiroCanvasPainter extends CustomPainter {
   final Animation<double>? flowAnimation;
   final List<Offset> pendingInflectionPoints;
   final bool showSequenceParticipantLifelines;
+  final String? highlightedSequenceParticipantId;
 
   MiroCanvasPainter({
     required this.blocks,
@@ -31,6 +32,7 @@ class MiroCanvasPainter extends CustomPainter {
     this.flowAnimation,
     this.pendingInflectionPoints = const [],
     this.showSequenceParticipantLifelines = false,
+    this.highlightedSequenceParticipantId,
   }) : super(repaint: flowAnimation);
 
   @override
@@ -40,6 +42,7 @@ class MiroCanvasPainter extends CustomPainter {
       canvasOffset: canvasOffset,
       zoomLevel: zoomLevel,
       showSequenceParticipantLifelines: showSequenceParticipantLifelines,
+      highlightedSequenceParticipantId: highlightedSequenceParticipantId,
     ).paint(canvas, size);
 
     MiroLinkLayerPainter(

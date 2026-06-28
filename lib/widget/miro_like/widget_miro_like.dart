@@ -4,23 +4,23 @@ import 'package:flutter/services.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/start_core.dart';
-import 'package:jsonschema/widget/miro_like/miro_canvas_painter.dart';
-import 'package:jsonschema/widget/miro_like/connector_path_utils.dart';
-import 'package:jsonschema/widget/miro_like/properties_panel.dart';
+import 'package:jsonschema/widget/miro_like/layers/miro_canvas_painter.dart';
+import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart';
+import 'package:jsonschema/widget/miro_like/widgets/actions/properties_panel.dart';
 import 'dart:math' as math;
 import 'dart:convert';
-import 'link_manager.dart';
+import 'models/link_manager.dart';
 import 'models/link_model.dart';
 import 'models/block_model.dart';
 import 'auto_layout_engine.dart';
-import 'import_export_manager.dart';
+import 'widgets/actions/import_export_manager.dart';
 import 'mermaid_flowchart_codec.dart';
 import 'mermaid_sequence_codec.dart';
 import 'widgets/anchor_handle_widget.dart';
 import 'widgets/inflection_handle_widget.dart';
 import 'widgets/link_label_handle_widget.dart';
 import 'widgets/miro_canvas_workspace.dart';
-import 'widgets/sequence_message_layer.dart';
+import 'layers/sequence_message_layer.dart';
 
 part 'widget_miro_like_imports.dart';
 
@@ -152,6 +152,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   String? _draggedZoneId;
   bool _isSequenceDiagramView = false;
   bool _hasUnsavedChanges = false;
+  String? _sequenceLinkTargetHoverBlockId;
+  double? _sequenceCreationStartCanvasY;
 
   static const int _historyLimit = 30;
 
@@ -889,8 +891,59 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     setState(() {
       linkSourceBlock = block;
       linkingFromPoint = _getBlockCenter(block);
+      _sequenceLinkTargetHoverBlockId = null;
+      _sequenceCreationStartCanvasY = null;
       pendingInflectionPoints.clear();
     });
+  }
+
+  Block? _findSequenceParticipantNearCanvasPosition(Offset canvasPosition) {
+    final toleranceX = (20.0 * zoomLevel).clamp(12.0, 34.0);
+    Block? closest;
+    var bestDistance = double.infinity;
+
+    for (final block in blocks) {
+      if (block.isZone) {
+        continue;
+      }
+
+      final rect = _blockRectCanvas(block);
+      final minLifelineY = _sequenceLifelineStartCanvasY(block);
+      if (canvasPosition.dy < minLifelineY) {
+        continue;
+      }
+
+      final distanceX = (canvasPosition.dx - rect.center.dx).abs();
+      if (distanceX > toleranceX || distanceX >= bestDistance) {
+        continue;
+      }
+
+      bestDistance = distanceX;
+      closest = block;
+    }
+
+    return closest;
+  }
+
+  bool _startSequenceLinkingFromCanvas(Offset canvasPosition) {
+    if (!_isSequenceDiagramView) {
+      return false;
+    }
+
+    final participant = _findSequenceParticipantNearCanvasPosition(
+      canvasPosition,
+    );
+    if (participant == null) {
+      return false;
+    }
+
+    linkSourceBlock = participant;
+    linkingFromPoint = _getBlockCenter(participant);
+    currentMousePosition = canvasPosition;
+    _sequenceLinkTargetHoverBlockId = null;
+    _sequenceCreationStartCanvasY = canvasPosition.dy;
+    pendingInflectionPoints.clear();
+    return true;
   }
 
   void _updateLinkPreviewFromGlobal(Offset globalPosition) {
@@ -898,7 +951,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       return;
     }
     setState(() {
-      currentMousePosition = _toCanvasLocal(globalPosition);
+      final canvasPosition = _toCanvasLocal(globalPosition);
+      currentMousePosition = canvasPosition;
+      if (_isSequenceDiagramView) {
+        final target = _findSequenceParticipantNearCanvasPosition(
+          canvasPosition,
+        );
+        if (target != null && target.id != linkSourceBlock!.id) {
+          _sequenceLinkTargetHoverBlockId = target.id;
+        } else {
+          _sequenceLinkTargetHoverBlockId = null;
+        }
+      }
     });
   }
 
@@ -907,12 +971,29 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       linkSourceBlock = null;
       linkingFromPoint = null;
       currentMousePosition = null;
+      _sequenceLinkTargetHoverBlockId = null;
+      _sequenceCreationStartCanvasY = null;
       pendingInflectionPoints.clear();
     });
   }
 
   void _finishLinkingAtGlobal(Offset globalPosition) {
     if (linkSourceBlock == null) {
+      return;
+    }
+
+    if (_isSequenceDiagramView) {
+      final canvasPosition = _toCanvasLocal(globalPosition);
+      final targetParticipant = _findSequenceParticipantNearCanvasPosition(
+        canvasPosition,
+      );
+      if (targetParticipant != null) {
+        _endLinking(targetParticipant);
+        _cancelLinking();
+        return;
+      }
+
+      _cancelLinking();
       return;
     }
 
@@ -2110,10 +2191,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       setState(() {
         final isSequenceMode = _isSequenceDiagramView;
         final laneYModel = isSequenceMode
-            ? ((math.max(sourceRect.bottom, targetRect.bottom) +
-                          (40.0 * zoomLevel)) -
-                      canvasOffset.dy) /
-                  zoomLevel
+            ? (() {
+                final minLaneCanvasY = math.max(
+                  _sequenceLifelineStartCanvasY(linkSourceBlock!),
+                  _sequenceLifelineStartCanvasY(targetBlock),
+                );
+                final fallbackLaneCanvasY = minLaneCanvasY + (32.0 * zoomLevel);
+                final creationStartCanvasY = _sequenceCreationStartCanvasY;
+                final previewLaneCanvasY = currentMousePosition?.dy;
+                final referenceLaneCanvasY =
+                    creationStartCanvasY ??
+                    previewLaneCanvasY ??
+                    fallbackLaneCanvasY;
+                final laneCanvasY = math.max(
+                  referenceLaneCanvasY,
+                  minLaneCanvasY,
+                );
+                return (laneCanvasY - canvasOffset.dy) / zoomLevel;
+              })()
             : null;
 
         links.add(
@@ -2130,7 +2225,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 ? ConnectorType.orthogonal
                 : ConnectorType.bezier,
             inflectionPoints: isSequenceMode
-                ? const <Offset>[]
+                ? <Offset>[]
                 : List<Offset>.from(pendingInflectionPoints),
             sourceAnchorUnit: isSequenceMode
                 ? const Offset(0, 1)
@@ -2143,6 +2238,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         );
         if (isSequenceMode && laneYModel != null) {
           _setSequenceLinkLaneY(links.last, laneYModel);
+          _insertSequenceMessageAtReference(links.last, laneYModel);
         }
         _ensureBlockHasSpaceForAnchors(linkSourceBlock!);
         _ensureBlockHasSpaceForAnchors(targetBlock);
@@ -2566,6 +2662,17 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     );
   }
 
+  double _sequenceLifelineStartCanvasY(Block block) {
+    final logicalParticipantHeight = math.min(
+      block.size.height,
+      _minBlockHeight,
+    );
+    final logicalBottom =
+        (block.position.dy + logicalParticipantHeight) * zoomLevel +
+        canvasOffset.dy;
+    return logicalBottom + (8.0 * zoomLevel);
+  }
+
   Offset _pointOnRectBorderTowards(Rect rect, Offset target) {
     final center = rect.center;
     final vector = target - center;
@@ -2881,7 +2988,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     if (_isSequenceDiagramView) {
       final defaultLaneCanvasY =
-          math.max(fromRect.bottom, toRect.bottom) + (40.0 * zoomLevel);
+          math.max(
+            _sequenceLifelineStartCanvasY(fromBlock),
+            _sequenceLifelineStartCanvasY(toBlock),
+          ) +
+          (32.0 * zoomLevel);
       final sourceLaneCanvasY = viaCanvas.isNotEmpty
           ? viaCanvas.first.dy
           : defaultLaneCanvasY;
@@ -2891,11 +3002,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
       final fromEdge = Offset(
         fromRect.center.dx,
-        math.max(fromRect.bottom + (8.0 * zoomLevel), sourceLaneCanvasY),
+        math.max(_sequenceLifelineStartCanvasY(fromBlock), sourceLaneCanvasY),
       );
       final toEdge = Offset(
         toRect.center.dx,
-        math.max(toRect.bottom + (8.0 * zoomLevel), targetLaneCanvasY),
+        math.max(_sequenceLifelineStartCanvasY(toBlock), targetLaneCanvasY),
       );
       return (fromEdge, toEdge, viaCanvas, fromRect, toRect);
     }
@@ -3064,9 +3175,10 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     if (fromBlock == null || toBlock == null) {
       return _sequenceMessageStartY * zoomLevel + canvasOffset.dy;
     }
-    final fromRect = _blockRectCanvas(fromBlock);
-    final toRect = _blockRectCanvas(toBlock);
-    return math.max(fromRect.bottom, toRect.bottom) + (8.0 * zoomLevel);
+    return math.max(
+      _sequenceLifelineStartCanvasY(fromBlock),
+      _sequenceLifelineStartCanvasY(toBlock),
+    );
   }
 
   List<SequenceMessageEntry> _buildSequenceMessageEntries() {
@@ -3109,9 +3221,69 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
       );
 
-    for (int i = 0; i < ordered.length; i++) {
-      final laneY = _sequenceMessageStartY + (i * _sequenceMessageStepY);
-      _setSequenceLinkLaneY(ordered[i], laneY);
+    if (ordered.isEmpty) {
+      return;
+    }
+
+    final laneByLink = <BlockLink, double>{
+      for (final link in ordered) link: _sequenceLaneYModel(link),
+    };
+
+    for (int i = 1; i < ordered.length; i++) {
+      final prevLane = laneByLink[ordered[i - 1]]!;
+      final currentLane = laneByLink[ordered[i]]!;
+      final minAllowed = prevLane + _sequenceMessageStepY;
+      if (currentLane < minAllowed) {
+        laneByLink[ordered[i]] = minAllowed;
+      }
+    }
+
+    for (final link in ordered) {
+      _setSequenceLinkLaneY(link, laneByLink[link]!);
+    }
+  }
+
+  void _insertSequenceMessageAtReference(
+    BlockLink insertedLink,
+    double referenceLaneYModel,
+  ) {
+    final ordered = _sequenceMessageLinks()
+      ..remove(insertedLink)
+      ..sort(
+        (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
+      );
+
+    final insertionIndex = ordered.indexWhere(
+      (link) => _sequenceLaneYModel(link) >= referenceLaneYModel,
+    );
+    if (insertionIndex == -1) {
+      ordered.add(insertedLink);
+    } else {
+      ordered.insert(insertionIndex, insertedLink);
+    }
+
+    if (ordered.isEmpty) {
+      return;
+    }
+
+    final laneByLink = <BlockLink, double>{
+      for (final link in ordered)
+        link: link == insertedLink
+            ? referenceLaneYModel
+            : _sequenceLaneYModel(link),
+    };
+
+    for (int i = 1; i < ordered.length; i++) {
+      final prevLane = laneByLink[ordered[i - 1]]!;
+      final currentLane = laneByLink[ordered[i]]!;
+      final minAllowed = prevLane + _sequenceMessageStepY;
+      if (currentLane < minAllowed) {
+        laneByLink[ordered[i]] = minAllowed;
+      }
+    }
+
+    for (final link in ordered) {
+      _setSequenceLinkLaneY(link, laneByLink[link]!);
     }
   }
 
@@ -3787,6 +3959,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     canvasOffset: canvasOffset,
                     zoomLevel: zoomLevel,
                     showSequenceParticipantLifelines: _isSequenceDiagramView,
+                    highlightedSequenceParticipantId: linkSourceBlock == null
+                        ? null
+                        : _sequenceLinkTargetHoverBlockId,
                     selectedBlock: selectedBlock,
                     selectedLink: selectedLink,
                     linkingFromPoint: linkingFromPoint,
@@ -3876,6 +4051,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                   onCanvasSecondaryDragStart: (event) {
                     setState(() {
                       final canvasPosition = _toCanvasLocal(event.position);
+                      if (_startSequenceLinkingFromCanvas(canvasPosition)) {
+                        _draggedZoneId = null;
+                        isPanning = false;
+                        return;
+                      }
+
                       if (!_isSequenceDiagramView) {
                         final hitLink = _findLinkAtCanvasPosition(
                           canvasPosition,
@@ -3916,6 +4097,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     });
                   },
                   onCanvasSecondaryDragUpdate: (event) {
+                    if (linkSourceBlock != null) {
+                      _updateLinkPreviewFromGlobal(event.position);
+                      return;
+                    }
+
                     if (_draggedZoneId != null) {
                       setState(() {
                         final zoneIndex = blocks.indexWhere(
@@ -3939,7 +4125,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       });
                     }
                   },
-                  onCanvasSecondaryDragEnd: (_) {
+                  onCanvasSecondaryDragEnd: (event) {
+                    if (linkSourceBlock != null) {
+                      _finishLinkingAtGlobal(event.position);
+                    }
+
                     setState(() {
                       _draggedZoneId = null;
                       isPanning = false;
@@ -4075,7 +4265,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     _showCanvasCreationMenu(details.globalPosition);
                   },
                   isSecondaryButtonPressed: _isSecondaryButtonPressed,
-                  onStartLinkingForBlock: _startLinking,
+                  onStartLinkingForBlock: (block) {
+                    if (_isSequenceDiagramView) {
+                      return;
+                    }
+                    _startLinking(block);
+                  },
                   onUpdateLinkPreviewFromGlobal: _updateLinkPreviewFromGlobal,
                   onFinishLinkingAtGlobal: _finishLinkingAtGlobal,
                   onBlockPanDown: (block, details) {
