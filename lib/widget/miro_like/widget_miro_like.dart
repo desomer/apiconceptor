@@ -81,10 +81,11 @@ const double _alignmentSnapReleaseDistance = 24.0;
 const double _minZoneWidth = 180.0;
 const double _minZoneHeight = 120.0;
 const double _zoneHandleSize = 14.0;
+
 const double _sequenceParticipantGap = 280.0;
 const double _sequenceParticipantTop = 80.0;
-const double _sequenceMessageStartY = 360.0;
-const double _sequenceMessageStepY = 120.0;
+const double _sequenceMessageStartY = 300.0;
+const double _sequenceMessageStepY = 60.0;
 
 enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
 
@@ -1742,13 +1743,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       });
 
     final validParticipantIds = orderedParticipants.map((b) => b.id).toSet();
-    final orderedLinks = links
-        .where(
-          (l) =>
-              validParticipantIds.contains(l.fromBlockId) &&
-              validParticipantIds.contains(l.toBlockId),
-        )
-        .toList(growable: false);
+    final orderedLinks =
+        links
+            .where(
+              (l) =>
+                  validParticipantIds.contains(l.fromBlockId) &&
+                  validParticipantIds.contains(l.toBlockId),
+            )
+            .toList(growable: true)
+          ..sort((a, b) {
+            final byLane = _sequenceLaneYModel(
+              a,
+            ).compareTo(_sequenceLaneYModel(b));
+            if (byLane != 0) {
+              return byLane;
+            }
+            return links.indexOf(a).compareTo(links.indexOf(b));
+          });
 
     _pushUndoSnapshot();
     setState(() {
@@ -2773,7 +2784,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   void _ensureBlockHasSpaceForAnchors(Block block) {
-    if (block.isZone) {
+    if (block.isZone || _isSequenceDiagramView) {
       return;
     }
 
