@@ -577,12 +577,15 @@ extension _MiroLikeWidgetStateAnchorMethods on _MiroLikeWidgetState {
         : fromBorderForTarget;
 
     if (_isSequenceDiagramView) {
-      final defaultLaneCanvasY =
-          math.max(
-            _sequenceLifelineStartCanvasY(fromBlock),
-            _sequenceLifelineStartCanvasY(toBlock),
-          ) +
-          (32.0 * zoomLevel);
+      final laneFromOrderKeysModel =
+          link.sourceAnchorOrderKey ?? link.targetAnchorOrderKey;
+      final defaultLaneCanvasY = laneFromOrderKeysModel != null
+          ? (laneFromOrderKeysModel * zoomLevel) + canvasOffset.dy
+          : math.max(
+                  _sequenceLifelineStartCanvasY(fromBlock),
+                  _sequenceLifelineStartCanvasY(toBlock),
+                ) +
+                (32.0 * zoomLevel);
       final sourceLaneCanvasY = viaCanvas.isNotEmpty
           ? viaCanvas.first.dy
           : defaultLaneCanvasY;
@@ -700,4 +703,3 @@ extension _MiroLikeWidgetStateAnchorMethods on _MiroLikeWidgetState {
     return axisNormalForBorderPoint(rect, edgePoint);
   }
 }
-

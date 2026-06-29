@@ -87,6 +87,12 @@ class MiroLinkLayerPainter {
       final toReference = viaCanvas.isNotEmpty
           ? viaCanvas.last
           : pointOnRectBorderTowards(fromRect, toRect.center);
+      final sequenceLaneYCanvas =
+          link.sourceAnchorOrderKey != null || link.targetAnchorOrderKey != null
+          ? ((link.sourceAnchorOrderKey ?? link.targetAnchorOrderKey!) *
+                    zoomLevel) +
+                canvasOffset.dy
+          : null;
 
       final fromEdge = showSequenceParticipantLifelines
           ? Offset(
@@ -95,8 +101,9 @@ class MiroLinkLayerPainter {
                 fromRect.bottom + (8.0 * zoomLevel),
                 viaCanvas.isNotEmpty
                     ? viaCanvas.first.dy
-                    : math.max(fromRect.bottom, toRect.bottom) +
-                          (40.0 * zoomLevel),
+                    : (sequenceLaneYCanvas ??
+                          math.max(fromRect.bottom, toRect.bottom) +
+                              (40.0 * zoomLevel)),
               ),
             )
           : link.sourceAnchorUnit != null
@@ -122,8 +129,9 @@ class MiroLinkLayerPainter {
                 toRect.bottom + (8.0 * zoomLevel),
                 viaCanvas.isNotEmpty
                     ? viaCanvas.last.dy
-                    : math.max(fromRect.bottom, toRect.bottom) +
-                          (40.0 * zoomLevel),
+                    : (sequenceLaneYCanvas ??
+                          math.max(fromRect.bottom, toRect.bottom) +
+                              (40.0 * zoomLevel)),
               ),
             )
           : link.targetAnchorUnit != null

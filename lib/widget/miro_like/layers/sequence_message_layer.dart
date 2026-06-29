@@ -525,7 +525,7 @@ class _SequenceControlFramePainter extends CustomPainter {
           ).selectionKey;
       final containsChild = hasChildFrame(frame);
       final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
-      final strokeCompensation = 1.0 / safeZoom;
+      final strokeScale = safeZoom;
       final fillAlpha = containsChild
           ? 0.0
           : ((isSelected ? 0.24 : 0.12) - (depthRatio * 0.04)).clamp(
@@ -538,15 +538,17 @@ class _SequenceControlFramePainter extends CustomPainter {
         ..color = accent.withValues(alpha: fillAlpha)
         ..style = PaintingStyle.fill;
       final borderStrokeWidth =
-          ((isSelected ? 2.2 : 1.1) + parentEmphasis) * strokeCompensation;
+          ((isSelected ? 2.2 : 1.1) + parentEmphasis) * strokeScale;
       final borderPaint = Paint()
         ..color = accent.withValues(alpha: borderAlpha)
         ..strokeWidth = borderStrokeWidth.clamp(0.8, 8.0)
         ..style = PaintingStyle.stroke;
       final outlinePaint = Paint()
         ..color = accent.withValues(alpha: isSelected ? 0.35 : 0.20)
-        ..strokeWidth = (borderPaint.strokeWidth + (2.0 * strokeCompensation))
-            .clamp(1.2, 10.0)
+        ..strokeWidth = (borderPaint.strokeWidth + (2.0 * strokeScale)).clamp(
+          1.2,
+          10.0,
+        )
         ..style = PaintingStyle.stroke;
 
       final ribbonWidth = (8.0 - (depthRatio * 2.0)).clamp(5.0, 8.0);

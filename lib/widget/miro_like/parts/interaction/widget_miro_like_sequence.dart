@@ -278,7 +278,6 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     }
 
     final fromCenterX = fromBlock.position.dx + (fromBlock.size.width / 2);
-    final toCenterX = toBlock.position.dx + (toBlock.size.width / 2);
 
     if (link.fromBlockId == link.toBlockId) {
       final loopX =
@@ -292,10 +291,9 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         ..add(Offset(loopX, loopReturnY))
         ..add(Offset(fromCenterX, loopReturnY));
     } else {
-      link.inflectionPoints
-        ..clear()
-        ..add(Offset(fromCenterX, laneYModel))
-        ..add(Offset(toCenterX, laneYModel));
+      // For regular sequence messages, keep the geometry horizontal without
+      // extra trajectory points. The lane is stored on anchor order keys.
+      link.inflectionPoints.clear();
     }
 
     link.sourceAnchorUnit = const Offset(0, 1);
@@ -339,6 +337,11 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
   double _sequenceLaneYModel(BlockLink link) {
     if (link.inflectionPoints.isNotEmpty) {
       return link.inflectionPoints.first.dy;
+    }
+
+    final orderedLaneY = link.sourceAnchorOrderKey ?? link.targetAnchorOrderKey;
+    if (orderedLaneY != null) {
+      return orderedLaneY;
     }
 
     final fromBlock = blocks.where((b) => b.id == link.fromBlockId).firstOrNull;
