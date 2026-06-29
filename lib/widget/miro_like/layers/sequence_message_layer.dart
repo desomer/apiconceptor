@@ -75,6 +75,7 @@ class SequenceMessageEntry {
 class SequenceMessageLayer extends StatelessWidget {
   final List<SequenceMessageEntry> entries;
   final SequenceGroupSpan? groupSpan;
+  final double zoomLevel;
   final SequenceControlGroupInfo? selectedGroup;
   final Set<BlockLink> selectedLinks;
   final void Function(SequenceControlGroupInfo group) onSelectGroup;
@@ -87,6 +88,7 @@ class SequenceMessageLayer extends StatelessWidget {
     super.key,
     required this.entries,
     this.groupSpan,
+    required this.zoomLevel,
     this.selectedGroup,
     required this.selectedLinks,
     required this.onSelectGroup,
@@ -118,6 +120,7 @@ class SequenceMessageLayer extends StatelessWidget {
                         frames: controlFrames,
                         leftCanvas: span.leftCanvas,
                         rightCanvas: span.rightCanvas,
+                        zoomLevel: zoomLevel,
                         selectedGroupKey: selectedGroup?.selectionKey,
                       ),
                     ),
@@ -383,12 +386,14 @@ class _SequenceControlFramePainter extends CustomPainter {
   final List<_SequenceControlFrame> frames;
   final double leftCanvas;
   final double rightCanvas;
+  final double zoomLevel;
   final String? selectedGroupKey;
 
   const _SequenceControlFramePainter({
     required this.frames,
     required this.leftCanvas,
     required this.rightCanvas,
+    required this.zoomLevel,
     required this.selectedGroupKey,
   });
 
@@ -432,13 +437,15 @@ class _SequenceControlFramePainter extends CustomPainter {
     }
 
     for (final frame in layeredFrames) {
+      final safeZoom = zoomLevel.clamp(0.2, 4.0);
       final depthInset = frame.depth * 8.0;
       final depthRatio = maxDepth == 0 ? 0.0 : frame.depth / maxDepth;
-      final top = (frame.startY - 10.0 + (depthInset * 0.8)).clamp(
+      final verticalPadding = (18.0 * safeZoom).clamp(14.0, 84.0);
+      final top = (frame.startY - verticalPadding + (depthInset * 0.8)).clamp(
         0.0,
         size.height,
       );
-      final bottom = (frame.endY + 10.0 - (depthInset * 0.8)).clamp(
+      final bottom = (frame.endY + verticalPadding - (depthInset * 0.8)).clamp(
         0.0,
         size.height,
       );
@@ -473,6 +480,7 @@ class _SequenceControlFramePainter extends CustomPainter {
           ).selectionKey;
       final containsChild = hasChildFrame(frame);
       final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
+      final strokeCompensation = 1.0 / safeZoom;
       final fillAlpha = containsChild
           ? 0.0
           : ((isSelected ? 0.24 : 0.12) - (depthRatio * 0.04)).clamp(
@@ -484,9 +492,16 @@ class _SequenceControlFramePainter extends CustomPainter {
       final fillPaint = Paint()
         ..color = accent.withValues(alpha: fillAlpha)
         ..style = PaintingStyle.fill;
+      final borderStrokeWidth =
+          ((isSelected ? 2.2 : 1.1) + parentEmphasis) * strokeCompensation;
       final borderPaint = Paint()
         ..color = accent.withValues(alpha: borderAlpha)
-        ..strokeWidth = (isSelected ? 2.2 : 1.1) + parentEmphasis
+        ..strokeWidth = borderStrokeWidth.clamp(0.8, 8.0)
+        ..style = PaintingStyle.stroke;
+      final outlinePaint = Paint()
+        ..color = accent.withValues(alpha: isSelected ? 0.35 : 0.20)
+        ..strokeWidth = (borderPaint.strokeWidth + (2.0 * strokeCompensation))
+            .clamp(1.2, 10.0)
         ..style = PaintingStyle.stroke;
 
       final ribbonWidth = (8.0 - (depthRatio * 2.0)).clamp(5.0, 8.0);
@@ -507,6 +522,7 @@ class _SequenceControlFramePainter extends CustomPainter {
         RRect.fromRectAndRadius(ribbonRect, const Radius.circular(6.0)),
         ribbonPaint,
       );
+      canvas.drawRRect(rrect, outlinePaint);
       canvas.drawRRect(rrect, borderPaint);
 
       final title = frame.label.isEmpty
@@ -579,6 +595,7 @@ class _SequenceControlFramePainter extends CustomPainter {
     return oldDelegate.frames != frames ||
         oldDelegate.leftCanvas != leftCanvas ||
         oldDelegate.rightCanvas != rightCanvas ||
+        oldDelegate.zoomLevel != zoomLevel ||
         oldDelegate.selectedGroupKey != selectedGroupKey;
   }
 }

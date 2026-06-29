@@ -30,6 +30,7 @@ class PropertiesPanel extends StatefulWidget {
   final Function(SequenceControlGroupInfo, String, String)?
   onSequenceGroupChanged;
   final Function(SequenceControlGroupInfo)? onDeleteSequenceGroup;
+  final Function(SequenceControlGroupInfo)? onAddElseToSequenceGroup;
   final Function(String, String)? onBlockTitleChanged;
   final Function(Block, String?)? onBlockColorChanged;
   final Function(Block, List<String>)? onBlockTagsChanged;
@@ -62,6 +63,7 @@ class PropertiesPanel extends StatefulWidget {
     this.onCreateSequenceGroupFromSelection,
     this.onSequenceGroupChanged,
     this.onDeleteSequenceGroup,
+    this.onAddElseToSequenceGroup,
     this.onBlockTitleChanged,
     this.onBlockColorChanged,
     this.onBlockTagsChanged,
@@ -534,6 +536,17 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             'Branches else: ${group.branchCount}',
             style: const TextStyle(color: colorTextSecondary),
           ),
+          if (effectiveKind == 'alt') ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => widget.onAddElseToSequenceGroup?.call(group),
+                icon: const Icon(Icons.call_split),
+                label: const Text('Ajouter une branche else'),
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Text(
             'Y debut: ${group.startYCanvas.toStringAsFixed(1)}',

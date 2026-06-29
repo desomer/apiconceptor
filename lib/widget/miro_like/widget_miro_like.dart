@@ -613,6 +613,52 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     });
   }
 
+  void _addElseToSequenceGroup(SequenceControlGroupInfo group) {
+    if (!_isSequenceDiagramView) {
+      return;
+    }
+    if (group.kind.trim().toLowerCase() != 'alt') {
+      return;
+    }
+
+    final closingEnd = _findSequenceGroupClosingEndLine(group);
+    if (closingEnd == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Impossible d\'ajouter else: fin de groupe introuvable.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    _pushUndoSnapshot();
+    setState(() {
+      final closeLink = closingEnd.$1;
+      final closeLineIndex = closingEnd.$2;
+      final insertionIndex = closeLineIndex.clamp(
+        0,
+        closeLink.sequenceAfterLines.length,
+      );
+      closeLink.sequenceAfterLines.insert(insertionIndex, 'else');
+
+      if (_selectedSequenceGroup?.selectionKey == group.selectionKey) {
+        _selectedSequenceGroup = SequenceControlGroupInfo(
+          kind: group.kind,
+          label: group.label,
+          startYCanvas: group.startYCanvas,
+          endYCanvas: group.endYCanvas,
+          branchCount: group.branchCount + 1,
+          sourceLink: group.sourceLink,
+          sourceOpenLineIndex: group.sourceOpenLineIndex,
+        );
+      }
+
+      _markBoardChanged();
+    });
+  }
+
   void _deleteSelectedSequenceMessages() {
     if (_selectedSequenceLinks.isEmpty) {
       return;
@@ -4757,6 +4803,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       SequenceMessageLayer(
                         entries: _buildSequenceMessageEntries(),
                         groupSpan: _buildSequenceGroupSpan(),
+                        zoomLevel: zoomLevel,
                         selectedGroup: _selectedSequenceGroup,
                         selectedLinks: _selectedSequenceLinks,
                         onSelectGroup: (group) {
@@ -5284,6 +5331,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                           _createSequenceGroupFromSelection,
                       onSequenceGroupChanged: _handleSequenceGroupChanged,
                       onDeleteSequenceGroup: _deleteSequenceGroup,
+                      onAddElseToSequenceGroup: _addElseToSequenceGroup,
                       onBlockTitleChanged: _handleBlockTitleChanged,
                       onBlockColorChanged: _handleBlockColorChanged,
                       onBlockTagsChanged: _handleBlockTagsChanged,
