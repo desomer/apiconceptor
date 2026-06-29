@@ -1041,17 +1041,34 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         }
 
         if (nearestNeighbor != null) {
-          final candidates =
-              snapshots
-                  .where(
-                    (snapshot) =>
-                        snapshot.memberLinks.contains(nearestNeighbor),
-                  )
-                  .toList(growable: false)
-                ..sort((a, b) => b.depth.compareTo(a.depth));
+          // Find current frame(s) containing the dragged message
+          final currentFrames = snapshots
+              .where((s) => s.memberLinks.contains(draggedLink))
+              .toList(growable: false);
 
-          if (candidates.isNotEmpty) {
-            targetSnapshot = candidates.first;
+          if (currentFrames.isNotEmpty) {
+            // Sort by depth to find the deepest (most specific) frame
+            currentFrames.sort((a, b) => b.depth.compareTo(a.depth));
+            final deepestFrame = currentFrames.first;
+
+            // If message is alone in its deepest frame, allow exit via fallback
+            if (deepestFrame.memberLinks.length == 1) {
+              final candidates =
+                  snapshots
+                      .where(
+                        (snapshot) =>
+                            snapshot.memberLinks.contains(nearestNeighbor),
+                      )
+                      .toList(growable: false)
+                    ..sort((a, b) => b.depth.compareTo(a.depth));
+
+              if (candidates.isNotEmpty) {
+                targetSnapshot = candidates.first;
+              }
+            } else {
+              // Multiple messages in frame, keep message in its deepest frame
+              targetSnapshot = deepestFrame;
+            }
           }
         }
       }
