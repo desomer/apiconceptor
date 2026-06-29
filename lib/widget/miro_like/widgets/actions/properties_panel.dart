@@ -25,7 +25,8 @@ class PropertiesPanel extends StatefulWidget {
   final int selectedMessageCount;
   final bool canCreateSequenceGroupFromSelection;
   final String? createSequenceGroupValidationMessage;
-  final Function(String kind, String label)? onCreateSequenceGroupFromSelection;
+  final Function(String kind, String label, bool nested)?
+  onCreateSequenceGroupFromSelection;
   final Function(SequenceControlGroupInfo, String, String)?
   onSequenceGroupChanged;
   final Function(SequenceControlGroupInfo)? onDeleteSequenceGroup;
@@ -105,6 +106,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   late TextEditingController _selectionGroupLabelController;
   String _sequenceGroupKind = 'alt';
   String _selectionGroupKind = 'alt';
+  String _selectionGroupPlacement = 'nested';
   String? _blockJsonError;
 
   @override
@@ -342,6 +344,38 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           if (widget.selectedMessageCount > 0) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
+              initialValue: _selectionGroupPlacement,
+              dropdownColor: colorBlockBackground,
+              style: const TextStyle(color: colorTextPrimary),
+              decoration: InputDecoration(
+                labelText: 'Placement du cadre',
+                labelStyle: const TextStyle(color: colorTextSecondary),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: colorPanelBorder),
+                ),
+                isDense: true,
+              ),
+              items: const [
+                DropdownMenuItem<String>(
+                  value: 'nested',
+                  child: Text('Interne (imbrique)'),
+                ),
+                DropdownMenuItem<String>(
+                  value: 'outer',
+                  child: Text('Externe'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _selectionGroupPlacement = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
               initialValue: effectiveKind,
               dropdownColor: colorBlockBackground,
               style: const TextStyle(color: colorTextPrimary),
@@ -394,6 +428,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                         widget.onCreateSequenceGroupFromSelection?.call(
                           effectiveKind,
                           _selectionGroupLabelController.text,
+                          _selectionGroupPlacement == 'nested',
                         );
                       }
                     : null,

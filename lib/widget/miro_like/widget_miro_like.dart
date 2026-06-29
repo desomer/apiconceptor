@@ -650,7 +650,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     }
   }
 
-  void _createSequenceGroupFromSelection(String kind, String label) {
+  void _createSequenceGroupFromSelection(
+    String kind,
+    String label,
+    bool nested,
+  ) {
     if (!_isSequenceDiagramView || _selectedSequenceLinks.isEmpty) {
       return;
     }
@@ -693,8 +697,18 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       final first = selectedOrdered.first;
       final last = selectedOrdered.last;
 
-      first.sequenceBeforeLines.insert(0, openLine);
-      last.sequenceAfterLines.add('end');
+      int sourceOpenLineIndex;
+      if (nested) {
+        // Keep existing control lines order and create a nested frame.
+        first.sequenceBeforeLines.add(openLine);
+        last.sequenceAfterLines.insert(0, 'end');
+        sourceOpenLineIndex = first.sequenceBeforeLines.length - 1;
+      } else {
+        // Wrap selection from outside by prepending/opening and appending/end.
+        first.sequenceBeforeLines.insert(0, openLine);
+        last.sequenceAfterLines.add('end');
+        sourceOpenLineIndex = 0;
+      }
 
       final entryByLink = <BlockLink, SequenceMessageEntry>{
         for (final entry in _buildSequenceMessageEntries()) entry.link: entry,
@@ -709,7 +723,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           endYCanvas: lastEntry.bottomYCanvas,
           branchCount: 0,
           sourceLink: first,
-          sourceOpenLineIndex: 0,
+          sourceOpenLineIndex: sourceOpenLineIndex,
         );
       }
 

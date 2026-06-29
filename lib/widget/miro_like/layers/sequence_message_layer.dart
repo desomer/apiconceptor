@@ -173,11 +173,13 @@ class SequenceMessageLayer extends StatelessWidget {
         if (openMatch != null) {
           final kind = (openMatch.group(1) ?? '').toLowerCase();
           final label = (openMatch.group(2) ?? '').trim();
+          final depth = openFrames.length;
           openFrames.add(
             _OpenFrame(
               kind: kind,
               label: label,
               startY: entry.topYCanvas,
+              depth: depth,
               sourceLink: entry.link,
               sourceOpenLineIndex: lineIndex,
             ),
@@ -234,6 +236,7 @@ class SequenceMessageLayer extends StatelessWidget {
               label: current.label,
               startY: current.startY,
               endY: entry.bottomYCanvas,
+              depth: current.depth,
               branches: List<_SequenceControlBranch>.from(current.branches),
               sourceLink: current.sourceLink,
               sourceOpenLineIndex: current.sourceOpenLineIndex,
@@ -251,6 +254,7 @@ class SequenceMessageLayer extends StatelessWidget {
           label: current.label,
           startY: current.startY,
           endY: lastY,
+          depth: current.depth,
           branches: List<_SequenceControlBranch>.from(current.branches),
           sourceLink: current.sourceLink,
           sourceOpenLineIndex: current.sourceOpenLineIndex,
@@ -331,6 +335,7 @@ class _OpenFrame {
   final String kind;
   final String label;
   final double startY;
+  final int depth;
   final BlockLink sourceLink;
   final int sourceOpenLineIndex;
   final List<_SequenceControlBranch> branches = [];
@@ -339,6 +344,7 @@ class _OpenFrame {
     required this.kind,
     required this.label,
     required this.startY,
+    required this.depth,
     required this.sourceLink,
     required this.sourceOpenLineIndex,
   });
@@ -356,6 +362,7 @@ class _SequenceControlFrame {
   final String label;
   final double startY;
   final double endY;
+  final int depth;
   final BlockLink sourceLink;
   final int sourceOpenLineIndex;
   final List<_SequenceControlBranch> branches;
@@ -365,6 +372,7 @@ class _SequenceControlFrame {
     required this.label,
     required this.startY,
     required this.endY,
+    required this.depth,
     required this.sourceLink,
     required this.sourceOpenLineIndex,
     required this.branches,
@@ -390,20 +398,64 @@ class _SequenceControlFramePainter extends CustomPainter {
       return;
     }
 
+    final maxDepth = frames
+        .map((f) => f.depth)
+        .fold<int>(0, (current, value) => value > current ? value : current);
+
     final left = leftCanvas.clamp(0.0, size.width);
     final right = rightCanvas.clamp(0.0, size.width);
     if (right <= left + 8.0) {
       return;
     }
 
-    for (final frame in frames) {
-      final top = (frame.startY - 10.0).clamp(0.0, size.height);
-      final bottom = (frame.endY + 10.0).clamp(0.0, size.height);
+    final layeredFrames = List<_SequenceControlFrame>.from(frames)
+      ..sort((a, b) {
+        final byDepth = a.depth.compareTo(b.depth);
+        if (byDepth != 0) {
+          return byDepth;
+        }
+        final byStart = a.startY.compareTo(b.startY);
+        if (byStart != 0) {
+          return byStart;
+        }
+        return a.endY.compareTo(b.endY);
+      });
+
+    bool hasChildFrame(_SequenceControlFrame parent) {
+      return layeredFrames.any((candidate) {
+        if (candidate.depth <= parent.depth) {
+          return false;
+        }
+        return candidate.startY >= parent.startY &&
+            candidate.endY <= parent.endY;
+      });
+    }
+
+    for (final frame in layeredFrames) {
+      final depthInset = frame.depth * 8.0;
+      final depthRatio = maxDepth == 0 ? 0.0 : frame.depth / maxDepth;
+      final top = (frame.startY - 10.0 + (depthInset * 0.8)).clamp(
+        0.0,
+        size.height,
+      );
+      final bottom = (frame.endY + 10.0 - (depthInset * 0.8)).clamp(
+        0.0,
+        size.height,
+      );
       if (bottom <= top + 8.0) {
         continue;
       }
 
-      final rect = Rect.fromLTRB(left, top, right, bottom);
+      final insetX = depthInset;
+      final rect = Rect.fromLTRB(
+        (left + insetX).clamp(0.0, size.width),
+        top,
+        (right - insetX).clamp(0.0, size.width),
+        bottom,
+      );
+      if (rect.width <= 8.0 || rect.height <= 8.0) {
+        continue;
+      }
       final radius = Radius.circular(8.0);
       final rrect = RRect.fromRectAndRadius(rect, radius);
 
@@ -419,15 +471,42 @@ class _SequenceControlFramePainter extends CustomPainter {
             sourceLink: frame.sourceLink,
             sourceOpenLineIndex: frame.sourceOpenLineIndex,
           ).selectionKey;
+      final containsChild = hasChildFrame(frame);
+      final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
+      final fillAlpha = containsChild
+          ? 0.0
+          : ((isSelected ? 0.24 : 0.12) - (depthRatio * 0.04)).clamp(
+              0.06,
+              0.28,
+            );
+      final borderAlpha = ((isSelected ? 0.98 : 0.72) - (depthRatio * 0.10))
+          .clamp(0.45, 1.0);
       final fillPaint = Paint()
-        ..color = accent.withValues(alpha: isSelected ? 0.18 : 0.09)
+        ..color = accent.withValues(alpha: fillAlpha)
         ..style = PaintingStyle.fill;
       final borderPaint = Paint()
-        ..color = accent.withValues(alpha: isSelected ? 0.95 : 0.62)
-        ..strokeWidth = isSelected ? 2.2 : 1.25
+        ..color = accent.withValues(alpha: borderAlpha)
+        ..strokeWidth = (isSelected ? 2.2 : 1.1) + parentEmphasis
         ..style = PaintingStyle.stroke;
 
+      final ribbonWidth = (8.0 - (depthRatio * 2.0)).clamp(5.0, 8.0);
+      final ribbonRect = Rect.fromLTWH(
+        rect.left + 2.0,
+        rect.top + 2.0,
+        ribbonWidth,
+        (rect.height - 4.0).clamp(8.0, rect.height),
+      );
+      final ribbonPaint = Paint()
+        ..color = accent.withValues(
+          alpha: (0.30 - (depthRatio * 0.08)).clamp(0.16, 0.32),
+        )
+        ..style = PaintingStyle.fill;
+
       canvas.drawRRect(rrect, fillPaint);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(ribbonRect, const Radius.circular(6.0)),
+        ribbonPaint,
+      );
       canvas.drawRRect(rrect, borderPaint);
 
       final title = frame.label.isEmpty
