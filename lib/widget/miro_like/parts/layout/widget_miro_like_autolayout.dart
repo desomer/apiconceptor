@@ -452,7 +452,6 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
 
         final messageY = _sequenceMessageStartY + (i * _sequenceMessageStepY);
         _setSequenceLinkLaneY(link, messageY);
-        link.autoLayoutLock = true;
       }
 
       _isSequenceDiagramView = true;
@@ -857,4 +856,3 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
     }
   }
 }
-

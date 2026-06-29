@@ -210,7 +210,7 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
           targetAnchorUnit: isSequenceMode
               ? const Offset(0, 1)
               : targetAnchorUnit,
-          autoLayoutLock: isSequenceMode,
+          autoLayoutLock: false,
         ),
       );
       if (isSequenceMode && laneYModel != null) {
@@ -268,4 +268,3 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
     }
   }
 }
-

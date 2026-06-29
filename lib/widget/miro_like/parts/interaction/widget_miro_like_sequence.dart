@@ -265,7 +265,6 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     for (final link in sequenceLinks) {
       final laneYModel = _sequenceLaneYModel(link);
       _setSequenceLinkLaneY(link, laneYModel);
-      link.autoLayoutLock = true;
     }
 
     _reorderSequenceMessagesByLane();
@@ -685,4 +684,3 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     }
   }
 }
-
