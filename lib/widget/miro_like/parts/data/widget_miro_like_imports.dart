@@ -146,7 +146,7 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
             sourceAnchorUnit: const Offset(0, 1),
             targetAnchorUnit: const Offset(0, 1),
             inflectionPoints: inflectionPoints,
-            autoLayoutLock: true,
+            autoLayoutLock: false,
           )
           ..sourceAnchorOrderKey = messageY
           ..targetAnchorOrderKey = messageY,

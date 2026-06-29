@@ -1,5 +1,46 @@
 part of '../../widget_miro_like.dart';
 
+class _SequenceControlSnapshot {
+  final int startIndex;
+  final int endIndex;
+  final int depth;
+  final String openLine;
+  final List<String> elseLines;
+  final String endLine;
+  final BlockLink sourceLink;
+  final int sourceOpenLineIndex;
+  final List<BlockLink> memberLinks;
+
+  const _SequenceControlSnapshot({
+    required this.startIndex,
+    required this.endIndex,
+    required this.depth,
+    required this.openLine,
+    required this.elseLines,
+    required this.endLine,
+    required this.sourceLink,
+    required this.sourceOpenLineIndex,
+    required this.memberLinks,
+  });
+}
+
+class _SequenceOpenCapture {
+  final int startIndex;
+  final int depth;
+  final String openLine;
+  final BlockLink sourceLink;
+  final int sourceOpenLineIndex;
+  final List<String> elseLines = <String>[];
+
+  _SequenceOpenCapture({
+    required this.startIndex,
+    required this.depth,
+    required this.openLine,
+    required this.sourceLink,
+    required this.sourceOpenLineIndex,
+  });
+}
+
 extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
   (BlockLink, int)? _findSequenceGroupClosingEndLine(
     SequenceControlGroupInfo target,
@@ -621,8 +662,9 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
   }
 
   SequenceControlGroupInfo? _findSequenceControlGroupAtCanvasPosition(
-    Offset canvasPosition,
-  ) {
+    Offset canvasPosition, {
+    List<SequenceMessageEntry>? rawEntriesOverride,
+  }) {
     final span = _buildSequenceGroupSpan();
     if (span == null) {
       return null;
@@ -633,7 +675,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     }
 
     final groups = _buildSequenceControlGroupsForHitTest(
-      _buildSequenceMessageEntries(),
+      rawEntriesOverride ?? _buildSequenceMessageEntries(),
     );
     for (var i = groups.length - 1; i >= 0; i--) {
       final group = groups[i];
@@ -678,6 +720,199 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     _setSequenceLinkLaneY(link, laneModelY);
   }
 
+  List<_SequenceControlSnapshot> _captureSequenceControlSnapshotsByOrder(
+    List<BlockLink> ordered,
+  ) {
+    if (ordered.isEmpty) {
+      return const <_SequenceControlSnapshot>[];
+    }
+
+    final snapshots = <_SequenceControlSnapshot>[];
+    final stack = <_SequenceOpenCapture>[];
+
+    for (var messageIndex = 0; messageIndex < ordered.length; messageIndex++) {
+      final link = ordered[messageIndex];
+
+      for (final raw in link.sequenceBeforeLines) {
+        final trimmed = raw.trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+
+        if (RegExp(
+          r'^(alt|opt|loop)\b',
+          caseSensitive: false,
+        ).hasMatch(trimmed)) {
+          stack.add(
+            _SequenceOpenCapture(
+              startIndex: messageIndex,
+              depth: stack.length,
+              openLine: raw,
+              sourceLink: link,
+              sourceOpenLineIndex: link.sequenceBeforeLines.indexOf(raw),
+            ),
+          );
+          continue;
+        }
+
+        if (RegExp(r'^else\b', caseSensitive: false).hasMatch(trimmed) &&
+            stack.isNotEmpty) {
+          stack.last.elseLines.add(raw);
+        }
+      }
+
+      for (final raw in link.sequenceAfterLines) {
+        final trimmed = raw.trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+
+        if (RegExp(r'^else\b', caseSensitive: false).hasMatch(trimmed) &&
+            stack.isNotEmpty) {
+          stack.last.elseLines.add(raw);
+          continue;
+        }
+
+        if (!RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed) ||
+            stack.isEmpty) {
+          continue;
+        }
+
+        final openCapture = stack.removeLast();
+        snapshots.add(
+          _SequenceControlSnapshot(
+            startIndex: openCapture.startIndex,
+            endIndex: messageIndex,
+            depth: openCapture.depth,
+            openLine: openCapture.openLine,
+            elseLines: List<String>.from(openCapture.elseLines),
+            endLine: raw,
+            sourceLink: openCapture.sourceLink,
+            sourceOpenLineIndex: openCapture.sourceOpenLineIndex,
+            memberLinks: List<BlockLink>.from(
+              ordered.sublist(openCapture.startIndex, messageIndex + 1),
+            ),
+          ),
+        );
+      }
+    }
+
+    return snapshots;
+  }
+
+  void _captureSequenceControlSnapshotsForDrag() {
+    final ordered = _sequenceMessageLinks()
+      ..sort(
+        (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
+      );
+    _sequenceDragControlSnapshots = _captureSequenceControlSnapshotsByOrder(
+      ordered,
+    );
+  }
+
+  void _restoreSequenceControlSnapshotsByOrder(
+    List<BlockLink> ordered,
+    List<_SequenceControlSnapshot> snapshots,
+  ) {
+    if (ordered.isEmpty || snapshots.isEmpty) {
+      return;
+    }
+
+    final controlLinePattern = RegExp(
+      r'^(alt|opt|loop|else|end)\b',
+      caseSensitive: false,
+    );
+
+    for (final link in ordered) {
+      link.sequenceBeforeLines.removeWhere(
+        (line) => controlLinePattern.hasMatch(line.trim()),
+      );
+      link.sequenceAfterLines.removeWhere(
+        (line) => controlLinePattern.hasMatch(line.trim()),
+      );
+    }
+
+    final normalized = snapshots
+        .map(
+          (s) => _SequenceControlSnapshot(
+            startIndex: s.startIndex.clamp(0, ordered.length - 1),
+            endIndex: s.endIndex.clamp(0, ordered.length - 1),
+            depth: s.depth,
+            openLine: s.openLine,
+            elseLines: List<String>.from(s.elseLines),
+            endLine: s.endLine,
+            sourceLink: s.sourceLink,
+            sourceOpenLineIndex: s.sourceOpenLineIndex,
+            memberLinks: List<BlockLink>.from(s.memberLinks),
+          ),
+        )
+        .map((s) {
+          final memberIndices = s.memberLinks
+              .map(ordered.indexOf)
+              .where((index) => index >= 0)
+              .toList(growable: false);
+          if (memberIndices.isEmpty) {
+            return null;
+          }
+          final startIndex = memberIndices.reduce(math.min);
+          final endIndex = memberIndices.reduce(math.max);
+          return _SequenceControlSnapshot(
+            startIndex: startIndex,
+            endIndex: endIndex,
+            depth: s.depth,
+            openLine: s.openLine,
+            elseLines: List<String>.from(s.elseLines),
+            endLine: s.endLine,
+            sourceLink: s.sourceLink,
+            sourceOpenLineIndex: s.sourceOpenLineIndex,
+            memberLinks: List<BlockLink>.from(s.memberLinks),
+          );
+        })
+        .whereType<_SequenceControlSnapshot>()
+        .where((s) => s.endIndex >= s.startIndex)
+        .toList(growable: true);
+
+    normalized.sort((a, b) {
+      final byStart = a.startIndex.compareTo(b.startIndex);
+      if (byStart != 0) {
+        return byStart;
+      }
+      final byEnd = a.endIndex.compareTo(b.endIndex);
+      if (byEnd != 0) {
+        return byEnd;
+      }
+      return a.depth.compareTo(b.depth);
+    });
+
+    final byStartIndex = <int, List<_SequenceControlSnapshot>>{};
+    final byEndIndex = <int, List<_SequenceControlSnapshot>>{};
+    for (final snapshot in normalized) {
+      byStartIndex
+          .putIfAbsent(snapshot.startIndex, () => <_SequenceControlSnapshot>[])
+          .add(snapshot);
+      byEndIndex
+          .putIfAbsent(snapshot.endIndex, () => <_SequenceControlSnapshot>[])
+          .add(snapshot);
+    }
+
+    for (final entry in byStartIndex.entries) {
+      entry.value.sort((a, b) => a.depth.compareTo(b.depth));
+      final link = ordered[entry.key];
+      for (final snapshot in entry.value) {
+        link.sequenceBeforeLines.add(snapshot.openLine);
+      }
+    }
+
+    for (final entry in byEndIndex.entries) {
+      entry.value.sort((a, b) => b.depth.compareTo(a.depth));
+      final link = ordered[entry.key];
+      for (final snapshot in entry.value) {
+        link.sequenceAfterLines.addAll(snapshot.elseLines);
+        link.sequenceAfterLines.add(snapshot.endLine);
+      }
+    }
+  }
+
   void _applyCanonicalSequenceLayout(
     List<Block> orderedParticipants,
     List<BlockLink> orderedLinks, {
@@ -712,7 +947,11 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     _normalizeSequenceMessageGeometryAndSpacing();
   }
 
-  void _reorderSequenceMessagesByLane() {
+  void _reorderSequenceMessagesByLane({
+    List<_SequenceControlSnapshot>? controlSnapshots,
+    BlockLink? draggedLink,
+    SequenceControlGroupInfo? dropTargetGroup,
+  }) {
     final ordered = _sequenceMessageLinks()
       ..sort(
         (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
@@ -739,6 +978,74 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     for (final link in ordered) {
       _setSequenceLinkLaneY(link, laneByLink[link]!);
     }
+
+    final snapshots = controlSnapshots;
+    if (snapshots != null && snapshots.isNotEmpty) {
+      final adjustedSnapshots = _adjustSequenceControlSnapshotsForDrop(
+        snapshots,
+        draggedLink: draggedLink,
+        dropTargetGroup: dropTargetGroup,
+      );
+      _restoreSequenceControlSnapshotsByOrder(ordered, adjustedSnapshots);
+    }
+  }
+
+  List<_SequenceControlSnapshot> _adjustSequenceControlSnapshotsForDrop(
+    List<_SequenceControlSnapshot> snapshots, {
+    BlockLink? draggedLink,
+    SequenceControlGroupInfo? dropTargetGroup,
+  }) {
+    if (draggedLink == null) {
+      return snapshots;
+    }
+
+    _SequenceControlSnapshot? targetSnapshot;
+    if (dropTargetGroup != null) {
+      for (final snapshot in snapshots) {
+        if (identical(snapshot.sourceLink, dropTargetGroup.sourceLink) &&
+            snapshot.sourceOpenLineIndex ==
+                dropTargetGroup.sourceOpenLineIndex) {
+          targetSnapshot = snapshot;
+          break;
+        }
+      }
+    }
+
+    final targetChain = <_SequenceControlSnapshot>{};
+    if (targetSnapshot != null) {
+      for (final snapshot in snapshots) {
+        final containsTarget =
+            snapshot.startIndex <= targetSnapshot.startIndex &&
+            snapshot.endIndex >= targetSnapshot.endIndex &&
+            snapshot.depth <= targetSnapshot.depth;
+        if (containsTarget) {
+          targetChain.add(snapshot);
+        }
+      }
+    }
+
+    return snapshots
+        .map((snapshot) {
+          final members = List<BlockLink>.from(snapshot.memberLinks);
+          final shouldContainDragged = targetChain.contains(snapshot);
+          members.removeWhere((link) => identical(link, draggedLink));
+          if (shouldContainDragged) {
+            members.add(draggedLink);
+          }
+          return _SequenceControlSnapshot(
+            startIndex: snapshot.startIndex,
+            endIndex: snapshot.endIndex,
+            depth: snapshot.depth,
+            openLine: snapshot.openLine,
+            elseLines: List<String>.from(snapshot.elseLines),
+            endLine: snapshot.endLine,
+            sourceLink: snapshot.sourceLink,
+            sourceOpenLineIndex: snapshot.sourceOpenLineIndex,
+            memberLinks: members,
+          );
+        })
+        .where((snapshot) => snapshot.memberLinks.isNotEmpty)
+        .toList(growable: false);
   }
 
   void _insertSequenceMessageAtReference(

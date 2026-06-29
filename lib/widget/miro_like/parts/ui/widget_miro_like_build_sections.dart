@@ -35,9 +35,11 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         if (_isSequenceDiagramView)
           SequenceMessageLayer(
             entries: _buildSequenceMessageEntries(),
+            frameEntries: _frozenSequenceFrameEntriesDuringDrag,
             groupSpan: _buildSequenceGroupSpan(),
             zoomLevel: zoomLevel,
             selectedGroup: _selectedSequenceGroup,
+            previewGroup: _dragPreviewSequenceGroup,
             selectedLinks: _selectedSequenceLinks,
             onSelectGroup: (group) {
               setState(() {
@@ -72,18 +74,35 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             },
             onDragStart: (_) {
               _pushUndoSnapshot();
+              _captureSequenceControlSnapshotsForDrag();
+              _frozenSequenceFrameEntriesDuringDrag =
+                  _buildSequenceMessageEntries();
+              _dragPreviewSequenceGroup = null;
             },
             onDragUpdate: (link, globalPosition) {
               setState(() {
                 selectedLink = link;
                 selectedBlock = null;
                 _dragSequenceMessageToGlobalPosition(link, globalPosition);
+                final canvasPosition = _toCanvasLocal(globalPosition);
+                _dragPreviewSequenceGroup =
+                    _findSequenceControlGroupAtCanvasPosition(
+                      canvasPosition,
+                      rawEntriesOverride: _frozenSequenceFrameEntriesDuringDrag,
+                    );
                 _markBoardChanged();
               });
             },
-            onDragEnd: (_) {
+            onDragEnd: (link) {
               setState(() {
-                _reorderSequenceMessagesByLane();
+                _reorderSequenceMessagesByLane(
+                  controlSnapshots: _sequenceDragControlSnapshots,
+                  draggedLink: link,
+                  dropTargetGroup: _dragPreviewSequenceGroup,
+                );
+                _sequenceDragControlSnapshots = null;
+                _frozenSequenceFrameEntriesDuringDrag = null;
+                _dragPreviewSequenceGroup = null;
                 _markBoardChanged();
               });
             },
@@ -543,4 +562,3 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
     );
   }
 }
-

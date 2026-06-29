@@ -79,9 +79,11 @@ class SequenceMessageEntry {
 
 class SequenceMessageLayer extends StatelessWidget {
   final List<SequenceMessageEntry> entries;
+  final List<SequenceMessageEntry>? frameEntries;
   final SequenceGroupSpan? groupSpan;
   final double zoomLevel;
   final SequenceControlGroupInfo? selectedGroup;
+  final SequenceControlGroupInfo? previewGroup;
   final Set<BlockLink> selectedLinks;
   final void Function(SequenceControlGroupInfo group) onSelectGroup;
   final void Function(BlockLink link, bool additive) onSelect;
@@ -92,9 +94,11 @@ class SequenceMessageLayer extends StatelessWidget {
   const SequenceMessageLayer({
     super.key,
     required this.entries,
+    this.frameEntries,
     this.groupSpan,
     required this.zoomLevel,
     this.selectedGroup,
+    this.previewGroup,
     required this.selectedLinks,
     required this.onSelectGroup,
     required this.onSelect,
@@ -109,7 +113,7 @@ class SequenceMessageLayer extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final controlFrames = _buildControlFrames(entries);
+    final controlFrames = _buildControlFrames(frameEntries ?? entries);
     final span = groupSpan;
 
     return Stack(
@@ -127,6 +131,7 @@ class SequenceMessageLayer extends StatelessWidget {
                         rightCanvas: span.rightCanvas,
                         zoomLevel: zoomLevel,
                         selectedGroupKey: selectedGroup?.selectionKey,
+                        previewGroupKey: previewGroup?.selectionKey,
                       ),
                     ),
                   ),
@@ -427,6 +432,7 @@ class _SequenceControlFramePainter extends CustomPainter {
   final double rightCanvas;
   final double zoomLevel;
   final String? selectedGroupKey;
+  final String? previewGroupKey;
 
   const _SequenceControlFramePainter({
     required this.frames,
@@ -434,6 +440,7 @@ class _SequenceControlFramePainter extends CustomPainter {
     required this.rightCanvas,
     required this.zoomLevel,
     required this.selectedGroupKey,
+    required this.previewGroupKey,
   });
 
   @override
@@ -523,6 +530,18 @@ class _SequenceControlFramePainter extends CustomPainter {
             sourceLink: frame.sourceLink,
             sourceOpenLineIndex: frame.sourceOpenLineIndex,
           ).selectionKey;
+      final isPreview =
+          !isSelected &&
+          previewGroupKey ==
+              SequenceControlGroupInfo(
+                kind: frame.kind,
+                label: frame.label,
+                startYCanvas: frame.startY,
+                endYCanvas: frame.endY,
+                branchCount: frame.branches.length,
+                sourceLink: frame.sourceLink,
+                sourceOpenLineIndex: frame.sourceOpenLineIndex,
+              ).selectionKey;
       final containsChild = hasChildFrame(frame);
       final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
       final strokeScale = safeZoom;
@@ -533,23 +552,27 @@ class _SequenceControlFramePainter extends CustomPainter {
       final titleInsetY = (4.0 * textScale).clamp(1.0, 20.0);
       final fillAlpha = containsChild
           ? 0.0
-          : ((isSelected ? 0.24 : 0.12) - (depthRatio * 0.04)).clamp(
-              0.06,
-              0.28,
-            );
-      final borderAlpha = ((isSelected ? 0.98 : 0.72) - (depthRatio * 0.10))
-          .clamp(0.45, 1.0);
+          : ((isSelected ? 0.24 : (isPreview ? 0.18 : 0.12)) -
+                    (depthRatio * 0.04))
+                .clamp(0.06, 0.28);
+      final borderAlpha =
+          ((isSelected ? 0.98 : (isPreview ? 0.90 : 0.72)) -
+                  (depthRatio * 0.10))
+              .clamp(0.45, 1.0);
       final fillPaint = Paint()
         ..color = accent.withValues(alpha: fillAlpha)
         ..style = PaintingStyle.fill;
       final borderStrokeWidth =
-          ((isSelected ? 2.2 : 1.1) + parentEmphasis) * strokeScale;
+          ((isSelected ? 2.2 : (isPreview ? 1.8 : 1.1)) + parentEmphasis) *
+          strokeScale;
       final borderPaint = Paint()
         ..color = accent.withValues(alpha: borderAlpha)
         ..strokeWidth = borderStrokeWidth.clamp(0.8, 8.0)
         ..style = PaintingStyle.stroke;
       final outlinePaint = Paint()
-        ..color = accent.withValues(alpha: isSelected ? 0.35 : 0.20)
+        ..color = accent.withValues(
+          alpha: isSelected ? 0.35 : (isPreview ? 0.30 : 0.20),
+        )
         ..strokeWidth = (borderPaint.strokeWidth + (2.0 * strokeScale)).clamp(
           1.2,
           10.0,
@@ -654,7 +677,8 @@ class _SequenceControlFramePainter extends CustomPainter {
         oldDelegate.leftCanvas != leftCanvas ||
         oldDelegate.rightCanvas != rightCanvas ||
         oldDelegate.zoomLevel != zoomLevel ||
-        oldDelegate.selectedGroupKey != selectedGroupKey;
+        oldDelegate.selectedGroupKey != selectedGroupKey ||
+        oldDelegate.previewGroupKey != previewGroupKey;
   }
 }
 

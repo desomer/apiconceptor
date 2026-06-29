@@ -185,6 +185,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   bool _hasUnsavedChanges = false;
   String? _sequenceLinkTargetHoverBlockId;
   double? _sequenceCreationStartCanvasY;
+  List<_SequenceControlSnapshot>? _sequenceDragControlSnapshots;
+  List<SequenceMessageEntry>? _frozenSequenceFrameEntriesDuringDrag;
+  SequenceControlGroupInfo? _dragPreviewSequenceGroup;
 
   static const int _historyLimit = 30;
 
