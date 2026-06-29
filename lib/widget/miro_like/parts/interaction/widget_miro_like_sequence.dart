@@ -373,9 +373,72 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     return r;
   }
 
-  double _sequenceMinGapAfterMessage(BlockLink previous) {
+  int _countSequenceOpenLines(List<String> lines) {
+    var count = 0;
+    for (final raw in lines) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        continue;
+      }
+      if (RegExp(
+        r'^(alt|opt|loop)\b',
+        caseSensitive: false,
+      ).hasMatch(trimmed)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  int _countSequenceElseLines(List<String> lines) {
+    var count = 0;
+    for (final raw in lines) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        continue;
+      }
+      if (RegExp(r'^else\b', caseSensitive: false).hasMatch(trimmed)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  int _countSequenceEndLines(List<String> lines) {
+    var count = 0;
+    for (final raw in lines) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        continue;
+      }
+      if (RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  double _sequenceMinGapBetweenMessages(BlockLink previous, BlockLink current) {
     final visualHeight = _sequenceMessageVisualHeightModel(previous);
-    return _sequenceMessageStepY + visualHeight;
+    final baseGap = _sequenceMessageStepY + visualHeight;
+
+    // Extra spacing keeps nested frame labels readable and avoids parent/child
+    // title overlap when control groups open on consecutive messages.
+    final openCountOnCurrent = _countSequenceOpenLines(
+      current.sequenceBeforeLines,
+    );
+    final elseCountAroundCurrent =
+        _countSequenceElseLines(current.sequenceBeforeLines) +
+        _countSequenceElseLines(current.sequenceAfterLines);
+    final endCountOnPrevious = _countSequenceEndLines(
+      previous.sequenceAfterLines,
+    );
+
+    final openGap = openCountOnCurrent * 20.0;
+    final elseGap = elseCountAroundCurrent * 12.0;
+    final closeGap = endCountOnPrevious * 8.0;
+
+    return baseGap + openGap + elseGap + closeGap;
   }
 
   double _minSequenceLaneCanvasY(BlockLink link) {
@@ -632,7 +695,8 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     for (int i = 1; i < ordered.length; i++) {
       final prevLane = laneByLink[ordered[i - 1]]!;
       final currentLane = laneByLink[ordered[i]]!;
-      final minAllowed = prevLane + _sequenceMinGapAfterMessage(ordered[i - 1]);
+      final minAllowed =
+          prevLane + _sequenceMinGapBetweenMessages(ordered[i - 1], ordered[i]);
       if (currentLane < minAllowed) {
         laneByLink[ordered[i]] = minAllowed;
       }
@@ -676,7 +740,8 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     for (int i = 1; i < ordered.length; i++) {
       final prevLane = laneByLink[ordered[i - 1]]!;
       final currentLane = laneByLink[ordered[i]]!;
-      final minAllowed = prevLane + _sequenceMinGapAfterMessage(ordered[i - 1]);
+      final minAllowed =
+          prevLane + _sequenceMinGapBetweenMessages(ordered[i - 1], ordered[i]);
       if (currentLane < minAllowed) {
         laneByLink[ordered[i]] = minAllowed;
       }
