@@ -985,6 +985,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         snapshots,
         draggedLink: draggedLink,
         dropTargetGroup: dropTargetGroup,
+        orderedLinks: ordered,
       );
       _restoreSequenceControlSnapshotsByOrder(ordered, adjustedSnapshots);
     }
@@ -994,6 +995,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     List<_SequenceControlSnapshot> snapshots, {
     BlockLink? draggedLink,
     SequenceControlGroupInfo? dropTargetGroup,
+    List<BlockLink>? orderedLinks,
   }) {
     if (draggedLink == null) {
       return snapshots;
@@ -1011,15 +1013,46 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       }
     }
 
-    final targetChain = <_SequenceControlSnapshot>{};
-    if (targetSnapshot != null) {
-      for (final snapshot in snapshots) {
-        final containsTarget =
-            snapshot.startIndex <= targetSnapshot.startIndex &&
-            snapshot.endIndex >= targetSnapshot.endIndex &&
-            snapshot.depth <= targetSnapshot.depth;
-        if (containsTarget) {
-          targetChain.add(snapshot);
+    if (targetSnapshot == null && orderedLinks != null) {
+      final draggedIndex = orderedLinks.indexOf(draggedLink);
+      if (draggedIndex != -1) {
+        final previousLink = draggedIndex > 0
+            ? orderedLinks[draggedIndex - 1]
+            : null;
+        final nextLink = draggedIndex + 1 < orderedLinks.length
+            ? orderedLinks[draggedIndex + 1]
+            : null;
+
+        final draggedY = _sequenceLaneYModel(draggedLink);
+        final previousY = previousLink != null
+            ? _sequenceLaneYModel(previousLink)
+            : null;
+        final nextY = nextLink != null ? _sequenceLaneYModel(nextLink) : null;
+
+        BlockLink? nearestNeighbor;
+        if (previousY != null && nextY != null) {
+          final distToPrev = (draggedY - previousY).abs();
+          final distToNext = (nextY - draggedY).abs();
+          nearestNeighbor = distToPrev <= distToNext ? previousLink : nextLink;
+        } else if (previousY != null) {
+          nearestNeighbor = previousLink;
+        } else if (nextY != null) {
+          nearestNeighbor = nextLink;
+        }
+
+        if (nearestNeighbor != null) {
+          final candidates =
+              snapshots
+                  .where(
+                    (snapshot) =>
+                        snapshot.memberLinks.contains(nearestNeighbor),
+                  )
+                  .toList(growable: false)
+                ..sort((a, b) => b.depth.compareTo(a.depth));
+
+          if (candidates.isNotEmpty) {
+            targetSnapshot = candidates.first;
+          }
         }
       }
     }
@@ -1027,7 +1060,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     return snapshots
         .map((snapshot) {
           final members = List<BlockLink>.from(snapshot.memberLinks);
-          final shouldContainDragged = targetChain.contains(snapshot);
+          final shouldContainDragged = identical(snapshot, targetSnapshot);
           members.removeWhere((link) => identical(link, draggedLink));
           if (shouldContainDragged) {
             members.add(draggedLink);
