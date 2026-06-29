@@ -21,6 +21,11 @@ class PropertiesPanel extends StatefulWidget {
   final Block? selectedBlock;
   final BlockLink? selectedLink;
   final SequenceControlGroupInfo? selectedSequenceGroup;
+  final int selectedBlockCount;
+  final int selectedMessageCount;
+  final bool canCreateSequenceGroupFromSelection;
+  final String? createSequenceGroupValidationMessage;
+  final Function(String kind, String label)? onCreateSequenceGroupFromSelection;
   final Function(SequenceControlGroupInfo, String, String)?
   onSequenceGroupChanged;
   final Function(SequenceControlGroupInfo)? onDeleteSequenceGroup;
@@ -49,6 +54,11 @@ class PropertiesPanel extends StatefulWidget {
     this.selectedBlock,
     this.selectedLink,
     this.selectedSequenceGroup,
+    this.selectedBlockCount = 0,
+    this.selectedMessageCount = 0,
+    this.canCreateSequenceGroupFromSelection = false,
+    this.createSequenceGroupValidationMessage,
+    this.onCreateSequenceGroupFromSelection,
     this.onSequenceGroupChanged,
     this.onDeleteSequenceGroup,
     this.onBlockTitleChanged,
@@ -92,7 +102,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   late TextEditingController _blockJsonController;
   late TextEditingController _linkNameController;
   late TextEditingController _sequenceGroupLabelController;
+  late TextEditingController _selectionGroupLabelController;
   String _sequenceGroupKind = 'alt';
+  String _selectionGroupKind = 'alt';
   String? _blockJsonError;
 
   @override
@@ -102,6 +114,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     _blockJsonController = TextEditingController();
     _linkNameController = TextEditingController();
     _sequenceGroupLabelController = TextEditingController();
+    _selectionGroupLabelController = TextEditingController();
     if (widget.selectedBlock != null) {
       _blockTitleController.text = widget.selectedBlock!.title;
       _blockJsonController.text = widget.selectedBlock!.propertiesJson ?? '';
@@ -145,6 +158,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     _blockJsonController.dispose();
     _linkNameController.dispose();
     _sequenceGroupLabelController.dispose();
+    _selectionGroupLabelController.dispose();
     super.dispose();
   }
 
@@ -254,6 +268,8 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     final block = widget.selectedBlock;
     final link = widget.selectedLink;
     final sequenceGroup = widget.selectedSequenceGroup;
+    final hasMultiSelection =
+        widget.selectedBlockCount > 1 || widget.selectedMessageCount > 1;
 
     if (block != null) {
       return _buildBlockProperties(block);
@@ -267,7 +283,138 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       return _buildSequenceGroupProperties(sequenceGroup);
     }
 
+    if (hasMultiSelection) {
+      return _buildSelectionProperties();
+    }
+
     return _buildEmptyProperties();
+  }
+
+  Widget _buildSelectionProperties() {
+    final blockCount = widget.selectedBlockCount;
+    final messageCount = widget.selectedMessageCount;
+    final totalCount = blockCount + messageCount;
+    final groupKinds = <String>['alt', 'opt', 'loop'];
+    final effectiveKind = groupKinds.contains(_selectionGroupKind)
+        ? _selectionGroupKind
+        : 'alt';
+
+    return _buildPanelContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Proprietes de la selection',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: colorTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Elements selectionnes: $totalCount',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Blocs: $blockCount',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          Text(
+            'Messages: $messageCount',
+            style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: colorBlockBackground,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: colorPanelBorder),
+            ),
+            child: const Text(
+              'Cette zone servira pour les actions de selection (ex: creation de cadre).',
+              style: TextStyle(color: colorTextSecondary, fontSize: 12),
+            ),
+          ),
+          if (widget.selectedMessageCount > 0) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: effectiveKind,
+              dropdownColor: colorBlockBackground,
+              style: const TextStyle(color: colorTextPrimary),
+              decoration: InputDecoration(
+                labelText: 'Type du cadre',
+                labelStyle: const TextStyle(color: colorTextSecondary),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: colorPanelBorder),
+                ),
+                isDense: true,
+              ),
+              items: groupKinds
+                  .map(
+                    (kind) => DropdownMenuItem<String>(
+                      value: kind,
+                      child: Text(kind),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() {
+                  _selectionGroupKind = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _selectionGroupLabelController,
+              style: const TextStyle(color: colorTextPrimary),
+              decoration: InputDecoration(
+                labelText: 'Label du cadre (optionnel)',
+                labelStyle: const TextStyle(color: colorTextSecondary),
+                hintText: 'ex: auth flow',
+                hintStyle: const TextStyle(color: colorTextSecondary),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: colorPanelBorder),
+                ),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: widget.canCreateSequenceGroupFromSelection
+                    ? () {
+                        widget.onCreateSequenceGroupFromSelection?.call(
+                          effectiveKind,
+                          _selectionGroupLabelController.text,
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.crop_square),
+                label: const Text('Creer un cadre'),
+              ),
+            ),
+            if (widget.createSequenceGroupValidationMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                widget.createSequenceGroupValidationMessage!,
+                style: const TextStyle(
+                  color: Colors.orangeAccent,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildSequenceGroupProperties(SequenceControlGroupInfo group) {

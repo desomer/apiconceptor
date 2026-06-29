@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/link_model.dart';
 
 class SequenceGroupSpan {
@@ -77,7 +78,7 @@ class SequenceMessageLayer extends StatelessWidget {
   final SequenceControlGroupInfo? selectedGroup;
   final Set<BlockLink> selectedLinks;
   final void Function(SequenceControlGroupInfo group) onSelectGroup;
-  final void Function(BlockLink link) onSelect;
+  final void Function(BlockLink link, bool additive) onSelect;
   final void Function(BlockLink link) onDragStart;
   final void Function(BlockLink link, Offset globalPosition) onDragUpdate;
   final void Function(BlockLink link) onDragEnd;
@@ -303,9 +304,9 @@ class SequenceMessageLayer extends StatelessWidget {
         cursor: SystemMouseCursors.resizeUpDown,
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
-          onTapDown: (_) => onSelect(entry.link),
+          onTapDown: (_) => onSelect(entry.link, _isCtrlPressedNow()),
           onPanStart: (_) {
-            onSelect(entry.link);
+            onSelect(entry.link, false);
             onDragStart(entry.link);
           },
           onPanUpdate: (details) =>
@@ -317,6 +318,12 @@ class SequenceMessageLayer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  bool _isCtrlPressedNow() {
+    final pressed = HardwareKeyboard.instance.logicalKeysPressed;
+    return pressed.contains(LogicalKeyboardKey.controlLeft) ||
+        pressed.contains(LogicalKeyboardKey.controlRight);
   }
 }
 

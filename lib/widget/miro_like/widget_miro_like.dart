@@ -650,6 +650,107 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     }
   }
 
+  void _createSequenceGroupFromSelection(String kind, String label) {
+    if (!_isSequenceDiagramView || _selectedSequenceLinks.isEmpty) {
+      return;
+    }
+
+    if (!_isSelectedSequenceMessageRangeContiguous()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selection de messages non continue: impossible de creer un cadre.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final normalizedKind = kind.trim().toLowerCase();
+    if (normalizedKind != 'alt' &&
+        normalizedKind != 'opt' &&
+        normalizedKind != 'loop') {
+      return;
+    }
+    final normalizedLabel = label.trim();
+    final openLine = normalizedLabel.isEmpty
+        ? normalizedKind
+        : '$normalizedKind $normalizedLabel';
+
+    final selectedOrdered =
+        _sequenceMessageLinks()
+            .where((link) => _selectedSequenceLinks.contains(link))
+            .toList(growable: true)
+          ..sort(
+            (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
+          );
+    if (selectedOrdered.isEmpty) {
+      return;
+    }
+
+    _pushUndoSnapshot();
+    setState(() {
+      final first = selectedOrdered.first;
+      final last = selectedOrdered.last;
+
+      first.sequenceBeforeLines.insert(0, openLine);
+      last.sequenceAfterLines.add('end');
+
+      final entryByLink = <BlockLink, SequenceMessageEntry>{
+        for (final entry in _buildSequenceMessageEntries()) entry.link: entry,
+      };
+      final firstEntry = entryByLink[first];
+      final lastEntry = entryByLink[last];
+      if (firstEntry != null && lastEntry != null) {
+        _selectedSequenceGroup = SequenceControlGroupInfo(
+          kind: normalizedKind,
+          label: normalizedLabel,
+          startYCanvas: firstEntry.topYCanvas,
+          endYCanvas: lastEntry.bottomYCanvas,
+          branchCount: 0,
+          sourceLink: first,
+          sourceOpenLineIndex: 0,
+        );
+      }
+
+      _markBoardChanged();
+    });
+  }
+
+  bool _isSelectedSequenceMessageRangeContiguous() {
+    final orderedAll = _sequenceMessageLinks()
+      ..sort(
+        (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
+      );
+    if (orderedAll.isEmpty || _selectedSequenceLinks.isEmpty) {
+      return false;
+    }
+
+    final selectedIndices = <int>[];
+    for (var i = 0; i < orderedAll.length; i++) {
+      if (_selectedSequenceLinks.contains(orderedAll[i])) {
+        selectedIndices.add(i);
+      }
+    }
+    if (selectedIndices.isEmpty) {
+      return false;
+    }
+
+    final minIndex = selectedIndices.reduce(math.min);
+    final maxIndex = selectedIndices.reduce(math.max);
+    return (maxIndex - minIndex + 1) == selectedIndices.length;
+  }
+
+  String? _sequenceGroupCreationValidationMessage() {
+    if (!_isSequenceDiagramView || _selectedSequenceLinks.isEmpty) {
+      return null;
+    }
+    if (_isSelectedSequenceMessageRangeContiguous()) {
+      return null;
+    }
+    return 'Selection non continue: selectionnez des messages consecutifs pour creer un cadre.';
+  }
+
   void _reverseLink(BlockLink link) {
     _pushUndoSnapshot();
     setState(() {
@@ -2946,6 +3047,21 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
     final hitLink = _findLinkAtCanvasPosition(canvasPosition);
     if (hitLink != null) {
+      if (_isSequenceDiagramView && _isCtrlPressed()) {
+        selectedBlock = null;
+        _selectedBlockIds.clear();
+        _selectedSequenceGroup = null;
+        if (_selectedSequenceLinks.contains(hitLink)) {
+          _selectedSequenceLinks.remove(hitLink);
+        } else {
+          _selectedSequenceLinks.add(hitLink);
+        }
+        selectedLink = _selectedSequenceLinks.length == 1
+            ? _selectedSequenceLinks.first
+            : null;
+        return;
+      }
+
       selectedBlock = null;
       _selectedBlockIds.clear();
       selectedLink = hitLink;
@@ -4638,12 +4754,23 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                             _selectedSequenceLinks.clear();
                           });
                         },
-                        onSelect: (link) {
+                        onSelect: (link, additive) {
                           setState(() {
-                            selectedLink = link;
-                            _selectedSequenceLinks
-                              ..clear()
-                              ..add(link);
+                            if (additive && _isSequenceDiagramView) {
+                              if (_selectedSequenceLinks.contains(link)) {
+                                _selectedSequenceLinks.remove(link);
+                              } else {
+                                _selectedSequenceLinks.add(link);
+                              }
+                              selectedLink = _selectedSequenceLinks.length == 1
+                                  ? _selectedSequenceLinks.first
+                                  : null;
+                            } else {
+                              selectedLink = link;
+                              _selectedSequenceLinks
+                                ..clear()
+                                ..add(link);
+                            }
                             _selectedSequenceGroup = null;
                             selectedBlock = null;
                             _selectedBlockIds.clear();
@@ -4889,6 +5016,17 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                     final hitLink = _findLinkAtCanvasPosition(canvasPosition);
                     if (hitLink != null) {
                       setState(() {
+                        if (_isSequenceDiagramView) {
+                          selectedBlock = null;
+                          _selectedBlockIds.clear();
+                          _selectedSequenceGroup = null;
+                          selectedLink = hitLink;
+                          _selectedSequenceLinks
+                            ..clear()
+                            ..add(hitLink);
+                          return;
+                        }
+
                         selectedBlock = null;
                         _selectedBlockIds.clear();
                         if (selectedLink != hitLink) {
@@ -5120,6 +5258,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                       selectedBlock: selectedBlock,
                       selectedLink: selectedLink,
                       selectedSequenceGroup: _selectedSequenceGroup,
+                      selectedBlockCount: _selectedBlockIds.length,
+                      selectedMessageCount: _selectedSequenceLinks.length,
+                      canCreateSequenceGroupFromSelection:
+                          _isSequenceDiagramView &&
+                          _selectedSequenceLinks.isNotEmpty &&
+                          _isSelectedSequenceMessageRangeContiguous(),
+                      createSequenceGroupValidationMessage:
+                          _sequenceGroupCreationValidationMessage(),
+                      onCreateSequenceGroupFromSelection:
+                          _createSequenceGroupFromSelection,
                       onSequenceGroupChanged: _handleSequenceGroupChanged,
                       onDeleteSequenceGroup: _deleteSequenceGroup,
                       onBlockTitleChanged: _handleBlockTitleChanged,
