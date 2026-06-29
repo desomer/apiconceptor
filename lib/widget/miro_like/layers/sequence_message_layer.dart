@@ -479,7 +479,7 @@ class _SequenceControlFramePainter extends CustomPainter {
       final safeZoom = zoomLevel.clamp(0.2, 4.0);
       final depthInset = frame.depth * 8.0;
       final depthRatio = maxDepth == 0 ? 0.0 : frame.depth / maxDepth;
-      final verticalPadding = (18.0 * safeZoom).clamp(14.0, 84.0);
+      final verticalPadding = 30.0 * zoomLevel;
       final top = (frame.startY - verticalPadding + (depthInset * 0.8)).clamp(
         0.0,
         size.height,
@@ -526,6 +526,11 @@ class _SequenceControlFramePainter extends CustomPainter {
       final containsChild = hasChildFrame(frame);
       final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
       final strokeScale = safeZoom;
+      final textScale = zoomLevel;
+      final titleFontSize = (11.0 * textScale).clamp(1.0, 40.0);
+      final branchFontSize = (10.0 * textScale).clamp(1.0, 36.0);
+      final labelInsetX = (8.0 * textScale).clamp(2.0, 32.0);
+      final titleInsetY = (4.0 * textScale).clamp(1.0, 20.0);
       final fillAlpha = containsChild
           ? 0.0
           : ((isSelected ? 0.24 : 0.12) - (depthRatio * 0.04)).clamp(
@@ -580,15 +585,18 @@ class _SequenceControlFramePainter extends CustomPainter {
           text: title,
           style: TextStyle(
             color: accent.withValues(alpha: 0.95),
-            fontSize: 11,
+            fontSize: titleFontSize,
             fontWeight: FontWeight.w700,
           ),
         ),
         textDirection: TextDirection.ltr,
         maxLines: 1,
         ellipsis: '...',
-      )..layout(maxWidth: rect.width - 16.0);
-      titlePainter.paint(canvas, Offset(rect.left + 8.0, rect.top + 4.0));
+      )..layout(maxWidth: rect.width - (labelInsetX * 2));
+      titlePainter.paint(
+        canvas,
+        Offset(rect.left + labelInsetX, rect.top + titleInsetY),
+      );
 
       if (frame.kind == 'alt' && frame.branches.isNotEmpty) {
         final branchPaint = Paint()
@@ -610,15 +618,18 @@ class _SequenceControlFramePainter extends CustomPainter {
                 text: 'else ${branch.label}',
                 style: TextStyle(
                   color: accent.withValues(alpha: 0.88),
-                  fontSize: 10,
+                  fontSize: branchFontSize,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               textDirection: TextDirection.ltr,
               maxLines: 1,
               ellipsis: '...',
-            )..layout(maxWidth: rect.width - 18.0);
-            branchLabelPainter.paint(canvas, Offset(rect.left + 8.0, y + 2.0));
+            )..layout(maxWidth: rect.width - ((labelInsetX * 2) + 2.0));
+            branchLabelPainter.paint(
+              canvas,
+              Offset(rect.left + labelInsetX, y + (2.0 * textScale)),
+            );
           }
         }
       }
