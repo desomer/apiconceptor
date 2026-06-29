@@ -678,6 +678,40 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     _setSequenceLinkLaneY(link, laneModelY);
   }
 
+  void _applyCanonicalSequenceLayout(
+    List<Block> orderedParticipants,
+    List<BlockLink> orderedLinks, {
+    bool repositionParticipants = true,
+  }) {
+    if (repositionParticipants) {
+      for (var i = 0; i < orderedParticipants.length; i++) {
+        final block = orderedParticipants[i];
+        block.position = Offset(
+          120 + (i * _sequenceParticipantGap),
+          _sequenceParticipantTop,
+        );
+      }
+    }
+
+    final blockById = <String, Block>{
+      for (final block in orderedParticipants) block.id: block,
+    };
+
+    for (var i = 0; i < orderedLinks.length; i++) {
+      final link = orderedLinks[i];
+      if (blockById[link.fromBlockId] == null ||
+          blockById[link.toBlockId] == null) {
+        continue;
+      }
+
+      final messageY = _sequenceMessageStartY + (i * _sequenceMessageStepY);
+      _setSequenceLinkLaneY(link, messageY);
+    }
+
+    _isSequenceDiagramView = true;
+    _normalizeSequenceMessageGeometryAndSpacing();
+  }
+
   void _reorderSequenceMessagesByLane() {
     final ordered = _sequenceMessageLinks()
       ..sort(

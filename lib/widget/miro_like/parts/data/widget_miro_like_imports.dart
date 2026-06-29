@@ -174,8 +174,7 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
       _snapLeftModel = null;
       _snapTopModel = null;
       _dragFreePositionModel = null;
-      _isSequenceDiagramView = true;
-      _normalizeSequenceMessageGeometryAndSpacing();
+      _applyCanonicalSequenceLayout(importedBlocks, importedLinks);
       _markBoardChanged();
     });
 
@@ -231,4 +230,3 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
     _fitToViewAfterNextFrame();
   }
 }
-

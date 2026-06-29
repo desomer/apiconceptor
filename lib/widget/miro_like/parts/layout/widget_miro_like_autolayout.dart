@@ -431,30 +431,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
     _pushUndoSnapshot();
     // ignore: invalid_use_of_protected_member
     setState(() {
-      for (var i = 0; i < orderedParticipants.length; i++) {
-        final block = orderedParticipants[i];
-        block.position = Offset(
-          120 + (i * _sequenceParticipantGap),
-          _sequenceParticipantTop,
-        );
-      }
-
-      final blockById = <String, Block>{
-        for (final block in orderedParticipants) block.id: block,
-      };
-
-      for (var i = 0; i < orderedLinks.length; i++) {
-        final link = orderedLinks[i];
-        if (blockById[link.fromBlockId] == null ||
-            blockById[link.toBlockId] == null) {
-          continue;
-        }
-
-        final messageY = _sequenceMessageStartY + (i * _sequenceMessageStepY);
-        _setSequenceLinkLaneY(link, messageY);
-      }
-
-      _isSequenceDiagramView = true;
+      _applyCanonicalSequenceLayout(orderedParticipants, orderedLinks);
       _markBoardChanged();
     });
   }
