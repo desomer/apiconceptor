@@ -1,4 +1,4 @@
-part of 'widget_miro_like.dart';
+part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
   void _importMermaid(String text) {
@@ -231,3 +231,4 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
     _fitToViewAfterNextFrame();
   }
 }
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
 import '../models/link_model.dart';
 
 class SequenceGroupSpan {
@@ -55,6 +56,8 @@ class SequenceMessageEntry {
   final double laneYCanvas;
   final double leftXCanvas;
   final double rightXCanvas;
+  final double concernedLeftCanvas;
+  final double concernedRightCanvas;
   final double startXCanvas;
   final double endXCanvas;
   final double topYCanvas;
@@ -65,6 +68,8 @@ class SequenceMessageEntry {
     required this.laneYCanvas,
     required this.leftXCanvas,
     required this.rightXCanvas,
+    required this.concernedLeftCanvas,
+    required this.concernedRightCanvas,
     required this.startXCanvas,
     required this.endXCanvas,
     required this.topYCanvas,
@@ -154,6 +159,24 @@ class SequenceMessageLayer extends StatelessWidget {
     final firstY = sortedEntries.first.topYCanvas;
     final lastY = sortedEntries.last.bottomYCanvas;
 
+    (double left, double right) frameHorizontalSpan(
+      int startIndex,
+      int endIndex,
+    ) {
+      var minLeft = double.infinity;
+      var maxRight = -double.infinity;
+      for (var i = startIndex; i <= endIndex; i++) {
+        final candidate = sortedEntries[i];
+        minLeft = math.min(minLeft, candidate.concernedLeftCanvas);
+        maxRight = math.max(maxRight, candidate.concernedRightCanvas);
+      }
+      if (!minLeft.isFinite || !maxRight.isFinite || maxRight <= minLeft) {
+        minLeft = sortedEntries[startIndex].leftXCanvas;
+        maxRight = sortedEntries[endIndex].rightXCanvas;
+      }
+      return (minLeft, maxRight);
+    }
+
     for (var index = 0; index < sortedEntries.length; index++) {
       final entry = sortedEntries[index];
       final separatorY = _separatorYForEntry(sortedEntries, index);
@@ -182,6 +205,7 @@ class SequenceMessageLayer extends StatelessWidget {
               kind: kind,
               label: label,
               startY: entry.topYCanvas,
+              startEntryIndex: index,
               depth: depth,
               sourceLink: entry.link,
               sourceOpenLineIndex: lineIndex,
@@ -233,12 +257,15 @@ class SequenceMessageLayer extends StatelessWidget {
         if (RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed) &&
             openFrames.isNotEmpty) {
           final current = openFrames.removeLast();
+          final span = frameHorizontalSpan(current.startEntryIndex, index);
           frames.add(
             _SequenceControlFrame(
               kind: current.kind,
               label: current.label,
               startY: current.startY,
               endY: entry.bottomYCanvas,
+              leftCanvas: span.$1,
+              rightCanvas: span.$2,
               depth: current.depth,
               branches: List<_SequenceControlBranch>.from(current.branches),
               sourceLink: current.sourceLink,
@@ -251,12 +278,18 @@ class SequenceMessageLayer extends StatelessWidget {
 
     while (openFrames.isNotEmpty) {
       final current = openFrames.removeLast();
+      final span = frameHorizontalSpan(
+        current.startEntryIndex,
+        sortedEntries.length - 1,
+      );
       frames.add(
         _SequenceControlFrame(
           kind: current.kind,
           label: current.label,
           startY: current.startY,
           endY: lastY,
+          leftCanvas: span.$1,
+          rightCanvas: span.$2,
           depth: current.depth,
           branches: List<_SequenceControlBranch>.from(current.branches),
           sourceLink: current.sourceLink,
@@ -338,6 +371,7 @@ class _OpenFrame {
   final String kind;
   final String label;
   final double startY;
+  final int startEntryIndex;
   final int depth;
   final BlockLink sourceLink;
   final int sourceOpenLineIndex;
@@ -347,6 +381,7 @@ class _OpenFrame {
     required this.kind,
     required this.label,
     required this.startY,
+    required this.startEntryIndex,
     required this.depth,
     required this.sourceLink,
     required this.sourceOpenLineIndex,
@@ -365,6 +400,8 @@ class _SequenceControlFrame {
   final String label;
   final double startY;
   final double endY;
+  final double leftCanvas;
+  final double rightCanvas;
   final int depth;
   final BlockLink sourceLink;
   final int sourceOpenLineIndex;
@@ -375,6 +412,8 @@ class _SequenceControlFrame {
     required this.label,
     required this.startY,
     required this.endY,
+    required this.leftCanvas,
+    required this.rightCanvas,
     required this.depth,
     required this.sourceLink,
     required this.sourceOpenLineIndex,
@@ -453,11 +492,17 @@ class _SequenceControlFramePainter extends CustomPainter {
         continue;
       }
 
-      final insetX = depthInset;
+      final frameLeft = frame.leftCanvas.clamp(left, right);
+      final frameRight = frame.rightCanvas.clamp(left, right);
+      if (frameRight <= frameLeft + 8.0) {
+        continue;
+      }
+      final maxInset = ((frameRight - frameLeft) - 16.0) / 2;
+      final insetX = math.max(0.0, math.min(depthInset, maxInset));
       final rect = Rect.fromLTRB(
-        (left + insetX).clamp(0.0, size.width),
+        (frameLeft + insetX).clamp(0.0, size.width),
         top,
-        (right - insetX).clamp(0.0, size.width),
+        (frameRight - insetX).clamp(0.0, size.width),
         bottom,
       );
       if (rect.width <= 8.0 || rect.height <= 8.0) {
