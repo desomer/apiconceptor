@@ -985,7 +985,6 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         snapshots,
         draggedLink: draggedLink,
         dropTargetGroup: dropTargetGroup,
-        orderedLinks: ordered,
       );
       _restoreSequenceControlSnapshotsByOrder(ordered, adjustedSnapshots);
     }
@@ -995,7 +994,6 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     List<_SequenceControlSnapshot> snapshots, {
     BlockLink? draggedLink,
     SequenceControlGroupInfo? dropTargetGroup,
-    List<BlockLink>? orderedLinks,
   }) {
     if (draggedLink == null) {
       return snapshots;
@@ -1009,67 +1007,6 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
                 dropTargetGroup.sourceOpenLineIndex) {
           targetSnapshot = snapshot;
           break;
-        }
-      }
-    }
-
-    if (targetSnapshot == null && orderedLinks != null) {
-      final draggedIndex = orderedLinks.indexOf(draggedLink);
-      if (draggedIndex != -1) {
-        final previousLink = draggedIndex > 0
-            ? orderedLinks[draggedIndex - 1]
-            : null;
-        final nextLink = draggedIndex + 1 < orderedLinks.length
-            ? orderedLinks[draggedIndex + 1]
-            : null;
-
-        final draggedY = _sequenceLaneYModel(draggedLink);
-        final previousY = previousLink != null
-            ? _sequenceLaneYModel(previousLink)
-            : null;
-        final nextY = nextLink != null ? _sequenceLaneYModel(nextLink) : null;
-
-        BlockLink? nearestNeighbor;
-        if (previousY != null && nextY != null) {
-          final distToPrev = (draggedY - previousY).abs();
-          final distToNext = (nextY - draggedY).abs();
-          nearestNeighbor = distToPrev <= distToNext ? previousLink : nextLink;
-        } else if (previousY != null) {
-          nearestNeighbor = previousLink;
-        } else if (nextY != null) {
-          nearestNeighbor = nextLink;
-        }
-
-        if (nearestNeighbor != null) {
-          // Find current frame(s) containing the dragged message
-          final currentFrames = snapshots
-              .where((s) => s.memberLinks.contains(draggedLink))
-              .toList(growable: false);
-
-          if (currentFrames.isNotEmpty) {
-            // Sort by depth to find the deepest (most specific) frame
-            currentFrames.sort((a, b) => b.depth.compareTo(a.depth));
-            final deepestFrame = currentFrames.first;
-
-            // If message is alone in its deepest frame, allow exit via fallback
-            if (deepestFrame.memberLinks.length == 1) {
-              final candidates =
-                  snapshots
-                      .where(
-                        (snapshot) =>
-                            snapshot.memberLinks.contains(nearestNeighbor),
-                      )
-                      .toList(growable: false)
-                    ..sort((a, b) => b.depth.compareTo(a.depth));
-
-              if (candidates.isNotEmpty) {
-                targetSnapshot = candidates.first;
-              }
-            } else {
-              // Multiple messages in frame, keep message in its deepest frame
-              targetSnapshot = deepestFrame;
-            }
-          }
         }
       }
     }
