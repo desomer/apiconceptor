@@ -527,8 +527,8 @@ class _SequenceControlFramePainter extends CustomPainter {
       final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
       final strokeScale = safeZoom;
       final textScale = zoomLevel;
-      final titleFontSize = (11.0 * textScale).clamp(1.0, 40.0);
-      final branchFontSize = (10.0 * textScale).clamp(1.0, 36.0);
+      final titleFontSize = 11.0 * textScale;
+      final branchFontSize = 10.0 * textScale;
       final labelInsetX = (8.0 * textScale).clamp(2.0, 32.0);
       final titleInsetY = (4.0 * textScale).clamp(1.0, 20.0);
       final fillAlpha = containsChild
