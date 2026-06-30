@@ -106,10 +106,6 @@ class SequenceMessageLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (entries.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     final controlFrames = _buildControlFrames(frameEntries ?? entries);
     final span = groupSpan;
 
