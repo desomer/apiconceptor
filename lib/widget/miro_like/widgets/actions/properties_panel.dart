@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'dart:convert';
 import '../../models/block_model.dart';
 import '../../models/link_model.dart';
-import '../../layers/sequence_message_layer.dart';
 import '../image2base64_widget.dart';
 
 // Theme colors (same as in widget_miro_like.dart)

@@ -85,20 +85,79 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
                 selectedBlock = null;
                 _dragSequenceMessageToGlobalPosition(link, globalPosition);
                 final canvasPosition = _toCanvasLocal(globalPosition);
-                _dragPreviewSequenceGroup =
+                final candidateGroup =
                     _findSequenceControlGroupAtCanvasPosition(
                       canvasPosition,
                       rawEntriesOverride: _frozenSequenceFrameEntriesDuringDrag,
                     );
+                final previousGroup = _dragPreviewSequenceGroup;
+                final verticalPadding = _sequenceFramePadding * zoomLevel;
+                SequenceControlGroupInfo? resolvedGroup = candidateGroup;
+
+                if (previousGroup != null) {
+                  final insidePrevious =
+                      canvasPosition.dy >=
+                          previousGroup.startYCanvas - verticalPadding &&
+                      canvasPosition.dy <=
+                          previousGroup.endYCanvas + verticalPadding;
+
+                  if (insidePrevious) {
+                    if (candidateGroup == null) {
+                      resolvedGroup = previousGroup;
+                    } else {
+                      final candidateContainsPrevious =
+                          candidateGroup.startYCanvas <=
+                              previousGroup.startYCanvas &&
+                          candidateGroup.endYCanvas >= previousGroup.endYCanvas;
+                      if (candidateContainsPrevious) {
+                        resolvedGroup = previousGroup;
+                      }
+                    }
+                  }
+                }
+
+                _dragPreviewSequenceGroup = resolvedGroup;
                 _markBoardChanged();
               });
             },
-            onDragEnd: (link) {
+            onDragEnd: (link, globalPosition) {
               setState(() {
+                final previewGroupAtDrop = _dragPreviewSequenceGroup;
+                final canvasPosition = _toCanvasLocal(globalPosition);
+                final recomputedGroup =
+                    _findSequenceControlGroupAtCanvasPosition(
+                      canvasPosition,
+                      rawEntriesOverride: _frozenSequenceFrameEntriesDuringDrag,
+                    );
+                SequenceControlGroupInfo? finalGroup = previewGroupAtDrop;
+                if (previewGroupAtDrop == null) {
+                  finalGroup = recomputedGroup;
+                } else if (recomputedGroup != null &&
+                    previewGroupAtDrop.selectionKey !=
+                        recomputedGroup.selectionKey) {
+                  final previewContainsRecomputed =
+                      previewGroupAtDrop.startYCanvas <=
+                          recomputedGroup.startYCanvas &&
+                      previewGroupAtDrop.endYCanvas >=
+                          recomputedGroup.endYCanvas;
+                  final recomputedContainsPreview =
+                      recomputedGroup.startYCanvas <=
+                          previewGroupAtDrop.startYCanvas &&
+                      recomputedGroup.endYCanvas >=
+                          previewGroupAtDrop.endYCanvas;
+
+                  if (previewContainsRecomputed) {
+                    finalGroup = recomputedGroup;
+                  } else if (recomputedContainsPreview) {
+                    finalGroup = previewGroupAtDrop;
+                  } else {
+                    finalGroup = recomputedGroup;
+                  }
+                }
                 _reorderSequenceMessagesByLane(
                   controlSnapshots: _sequenceDragControlSnapshots,
                   draggedLink: link,
-                  dropTargetGroup: _dragPreviewSequenceGroup,
+                  dropTargetGroup: finalGroup,
                 );
                 _sequenceDragControlSnapshots = null;
                 _frozenSequenceFrameEntriesDuringDrag = null;

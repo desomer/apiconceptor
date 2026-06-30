@@ -3,6 +3,62 @@
 part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
+  Future<void> _confirmDeleteAll() async {
+    if (blocks.isEmpty && links.isEmpty) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Supprimer tout ?'),
+          content: const Text(
+            'Cette action supprimera tous les blocs, liens et selections.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Supprimer tout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    _pushUndoSnapshot();
+    setState(() {
+      blocks.clear();
+      links.clear();
+      selectedBlock = null;
+      _selectedBlockIds.clear();
+      selectedLink = null;
+      _selectedSequenceLinks.clear();
+      _selectedSequenceGroup = null;
+      linkSourceBlock = null;
+      linkingFromPoint = null;
+      currentMousePosition = null;
+      pendingInflectionPoints.clear();
+      _resetBlockDragSnap();
+      _isBoxSelecting = false;
+      _selectionStartCanvas = null;
+      _selectionCurrentCanvas = null;
+      _draggedZoneId = null;
+      _sequenceDragControlSnapshots = null;
+      _frozenSequenceFrameEntriesDuringDrag = null;
+      _dragPreviewSequenceGroup = null;
+      _markBoardChanged();
+    });
+  }
+
   void _addBlock(Offset position) {
     _pushUndoSnapshot();
     setState(() {
@@ -440,4 +496,3 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
         .replaceAll('/n', '\n');
   }
 }
-

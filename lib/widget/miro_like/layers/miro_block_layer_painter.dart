@@ -46,6 +46,12 @@ class MiroBlockLayerPainter {
   }
 
   void _drawSequenceParticipantLifelines(Canvas canvas, Size size) {
+    final participants = blocks.where((b) => !b.isZone).toList(growable: false);
+    if (participants.isEmpty) {
+      _drawEmptySequenceGuides(canvas, size);
+      return;
+    }
+
     final lifelinePaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.28)
       ..strokeWidth = (1.2 * zoomLevel).clamp(0.8, 2.2)
@@ -55,11 +61,7 @@ class MiroBlockLayerPainter {
     final gapLength = (8.0 * zoomLevel).clamp(4.0, 14.0);
     final yMax = size.height + 400;
 
-    for (final block in blocks) {
-      if (block.isZone) {
-        continue;
-      }
-
+    for (final block in participants) {
       final rect = _blockRectCanvas(block);
       final x = rect.center.dx;
       var y = rect.bottom + (8.0 * zoomLevel);
@@ -89,6 +91,32 @@ class MiroBlockLayerPainter {
       while (y < yMax) {
         final segmentEnd = math.min(y + dashLength, yMax);
         canvas.drawLine(Offset(x, y), Offset(x, segmentEnd), lifelinePaint);
+        y += dashLength + gapLength;
+      }
+    }
+  }
+
+  void _drawEmptySequenceGuides(Canvas canvas, Size size) {
+    final guidePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.18)
+      ..strokeWidth = (1.0 * zoomLevel).clamp(0.8, 2.0)
+      ..style = PaintingStyle.stroke;
+
+    final dashLength = (10.0 * zoomLevel).clamp(6.0, 16.0);
+    final gapLength = (8.0 * zoomLevel).clamp(4.0, 12.0);
+    final top = 24.0;
+    final bottom = size.height;
+    final xPositions = <double>[
+      size.width * 0.2,
+      size.width * 0.5,
+      size.width * 0.8,
+    ];
+
+    for (final x in xPositions) {
+      var y = top;
+      while (y < bottom) {
+        final segmentEnd = math.min(y + dashLength, bottom);
+        canvas.drawLine(Offset(x, y), Offset(x, segmentEnd), guidePaint);
         y += dashLength + gapLength;
       }
     }

@@ -20,11 +20,13 @@ import 'widgets/anchor_handle_widget.dart';
 import 'widgets/inflection_handle_widget.dart';
 import 'widgets/link_label_handle_widget.dart';
 import 'widgets/miro_canvas_workspace.dart';
-import 'layers/sequence_message_layer.dart';
 
 // Data import/export and serialization.
 part 'parts/data/widget_miro_like_imports.dart';
 part 'parts/data/widget_miro_like_json.dart';
+
+// Sequence diagram layer and rendering.
+part 'layers/sequence_message_layer.dart';
 
 // User interaction and editing handlers.
 part 'parts/interaction/widget_miro_like_sequence.dart';
@@ -109,6 +111,7 @@ const double _sequenceMessageStartY = 300.0;
 const double _sequenceMessageStepY = 60.0;
 const double _sequenceSelfLoopHorizontalOffset = 56.0;
 const double _sequenceSelfLoopVerticalOffset = 36.0;
+const double _sequenceFramePadding = 30.0;
 
 enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
 

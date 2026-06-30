@@ -7,6 +7,7 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
         selectedLink != null ||
         _selectedSequenceLinks.isNotEmpty ||
         _selectedSequenceGroup != null;
+    final canDeleteAll = blocks.isNotEmpty || links.isNotEmpty;
 
     return [
       Row(
@@ -78,6 +79,14 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
                 ? _deleteCurrentSelection
                 : null,
             tooltip: 'Supprimer la sélection',
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.delete_forever,
+              color: canDeleteAll ? Colors.redAccent : null,
+            ),
+            onPressed: canDeleteAll ? _confirmDeleteAll : null,
+            tooltip: 'Supprimer tout',
           ),
         ],
       ),
@@ -272,4 +281,3 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
     ];
   }
 }
-

@@ -165,6 +165,33 @@ extension _MiroLikeWidgetStateCanvasSelectionMethods on _MiroLikeWidgetState {
       (canvasPosition.dy - canvasOffset.dy) / zoomLevel,
     );
 
+    if (_isSequenceDiagramView) {
+      final participants = blocks
+          .where((b) => !b.isZone)
+          .toList(growable: false);
+      if (participants.isEmpty) {
+        _pushUndoSnapshot();
+        final blockId = DateTime.now().millisecondsSinceEpoch.toString();
+        blocks.add(
+          Block(
+            id: blockId,
+            title: 'Participant 1',
+            position: modelPosition,
+            size: const Size(_minBlockWidth, _minBlockHeight),
+          ),
+        );
+        selectedBlock = blocks.last;
+        _selectedBlockIds
+          ..clear()
+          ..add(blockId);
+        selectedLink = null;
+        _selectedSequenceLinks.clear();
+        _selectedSequenceGroup = null;
+        _markBoardChanged();
+        return;
+      }
+    }
+
     final hitLink = _findLinkAtCanvasPosition(canvasPosition);
     if (hitLink != null) {
       if (_isSequenceDiagramView && _isCtrlPressed()) {
@@ -246,4 +273,3 @@ extension _MiroLikeWidgetStateCanvasSelectionMethods on _MiroLikeWidgetState {
     _selectedSequenceGroup = null;
   }
 }
-

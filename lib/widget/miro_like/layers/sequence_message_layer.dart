@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:math' as math;
-import '../models/link_model.dart';
+part of '../widget_miro_like.dart';
 
 class SequenceGroupSpan {
   final double leftCanvas;
@@ -89,7 +86,7 @@ class SequenceMessageLayer extends StatelessWidget {
   final void Function(BlockLink link, bool additive) onSelect;
   final void Function(BlockLink link) onDragStart;
   final void Function(BlockLink link, Offset globalPosition) onDragUpdate;
-  final void Function(BlockLink link) onDragEnd;
+  final void Function(BlockLink link, Offset globalPosition) onDragEnd;
 
   const SequenceMessageLayer({
     super.key,
@@ -350,15 +347,14 @@ class SequenceMessageLayer extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTapDown: (_) => onSelect(entry.link, _isCtrlPressedNow()),
-          onPanStart: (_) {
-            onSelect(entry.link, false);
-            onDragStart(entry.link);
-          },
-          onPanUpdate: (details) =>
-              onDragUpdate(entry.link, details.globalPosition),
-          onPanEnd: (_) => onDragEnd(entry.link),
-          child: CustomPaint(
-            painter: _SequenceMessageHandlePainter(isSelected: isSelected),
+          child: _SequenceMessageHandle(
+            entry: entry,
+            isSelected: isSelected,
+            selectedLinks: selectedLinks,
+            onSelect: onSelect,
+            onDragStart: onDragStart,
+            onDragUpdate: onDragUpdate,
+            onDragEnd: onDragEnd,
           ),
         ),
       ),
@@ -486,7 +482,7 @@ class _SequenceControlFramePainter extends CustomPainter {
       final safeZoom = zoomLevel.clamp(0.2, 4.0);
       final depthInset = frame.depth * 8.0;
       final depthRatio = maxDepth == 0 ? 0.0 : frame.depth / maxDepth;
-      final verticalPadding = 30.0 * zoomLevel;
+      final verticalPadding = _sequenceFramePadding * zoomLevel;
       final top = (frame.startY - verticalPadding + (depthInset * 0.8)).clamp(
         0.0,
         size.height,
@@ -679,6 +675,61 @@ class _SequenceControlFramePainter extends CustomPainter {
         oldDelegate.zoomLevel != zoomLevel ||
         oldDelegate.selectedGroupKey != selectedGroupKey ||
         oldDelegate.previewGroupKey != previewGroupKey;
+  }
+}
+
+class _SequenceMessageHandle extends StatefulWidget {
+  final SequenceMessageEntry entry;
+  final bool isSelected;
+  final Set<BlockLink> selectedLinks;
+  final void Function(BlockLink link, bool additive) onSelect;
+  final void Function(BlockLink link) onDragStart;
+  final void Function(BlockLink link, Offset globalPosition) onDragUpdate;
+  final void Function(BlockLink link, Offset globalPosition) onDragEnd;
+
+  const _SequenceMessageHandle({
+    required this.entry,
+    required this.isSelected,
+    required this.selectedLinks,
+    required this.onSelect,
+    required this.onDragStart,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+  });
+
+  @override
+  State<_SequenceMessageHandle> createState() => _SequenceMessageHandleState();
+}
+
+class _SequenceMessageHandleState extends State<_SequenceMessageHandle> {
+  Offset? _lastGlobalPosition;
+
+  @override
+  Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final isSelected = widget.selectedLinks.contains(entry.link);
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onPanStart: (_) {
+        widget.onSelect(entry.link, false);
+        widget.onDragStart(entry.link);
+      },
+      onPanUpdate: (details) {
+        _lastGlobalPosition = details.globalPosition;
+        widget.onDragUpdate(entry.link, details.globalPosition);
+      },
+      onPanEnd: (_) {
+        if (_lastGlobalPosition != null) {
+          widget.onDragEnd(entry.link, _lastGlobalPosition!);
+        }
+        _lastGlobalPosition = null;
+      },
+      child: SizedBox.expand(
+        child: CustomPaint(
+          painter: _SequenceMessageHandlePainter(isSelected: isSelected),
+        ),
+      ),
+    );
   }
 }
 

@@ -677,15 +677,67 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     final groups = _buildSequenceControlGroupsForHitTest(
       rawEntriesOverride ?? _buildSequenceMessageEntries(),
     );
-    for (var i = groups.length - 1; i >= 0; i--) {
-      final group = groups[i];
-      final top = group.startYCanvas - 10.0;
-      final bottom = group.endYCanvas + 10.0;
-      if (canvasPosition.dy >= top && canvasPosition.dy <= bottom) {
-        return group;
-      }
+    final verticalPadding = _sequenceFramePadding * zoomLevel;
+    final matches = groups
+        .where((group) {
+          final top = group.startYCanvas - verticalPadding;
+          final bottom = group.endYCanvas + verticalPadding;
+          return canvasPosition.dy >= top && canvasPosition.dy <= bottom;
+        })
+        .toList(growable: false);
+
+    if (matches.isEmpty) {
+      return null;
     }
-    return null;
+
+    int nestingDepth(SequenceControlGroupInfo candidate) {
+      var depth = 0;
+      for (final group in groups) {
+        if (identical(group, candidate)) {
+          continue;
+        }
+        final containsCandidate =
+            group.startYCanvas <= candidate.startYCanvas &&
+            group.endYCanvas >= candidate.endYCanvas &&
+            (group.startYCanvas < candidate.startYCanvas ||
+                group.endYCanvas > candidate.endYCanvas);
+        if (containsCandidate) {
+          depth++;
+        }
+      }
+      return depth;
+    }
+
+    final sorted = List<SequenceControlGroupInfo>.from(matches)
+      ..sort((a, b) {
+        final depthCompare = nestingDepth(b).compareTo(nestingDepth(a));
+        if (depthCompare != 0) {
+          return depthCompare;
+        }
+
+        final heightA = a.endYCanvas - a.startYCanvas;
+        final heightB = b.endYCanvas - b.startYCanvas;
+        final byHeight = heightA.compareTo(heightB);
+        if (byHeight != 0) {
+          return byHeight;
+        }
+
+        final byStartDesc = b.startYCanvas.compareTo(a.startYCanvas);
+        if (byStartDesc != 0) {
+          return byStartDesc;
+        }
+
+        final byOpenLineIndexDesc = b.sourceOpenLineIndex.compareTo(
+          a.sourceOpenLineIndex,
+        );
+        if (byOpenLineIndexDesc != 0) {
+          return byOpenLineIndexDesc;
+        }
+
+        return a.endYCanvas.compareTo(b.endYCanvas);
+      });
+
+    return sorted.first;
   }
 
   SequenceGroupSpan? _buildSequenceGroupSpan() {
@@ -733,7 +785,12 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     for (var messageIndex = 0; messageIndex < ordered.length; messageIndex++) {
       final link = ordered[messageIndex];
 
-      for (final raw in link.sequenceBeforeLines) {
+      for (
+        var lineIndex = 0;
+        lineIndex < link.sequenceBeforeLines.length;
+        lineIndex++
+      ) {
+        final raw = link.sequenceBeforeLines[lineIndex];
         final trimmed = raw.trim();
         if (trimmed.isEmpty) {
           continue;
@@ -749,7 +806,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
               depth: stack.length,
               openLine: raw,
               sourceLink: link,
-              sourceOpenLineIndex: link.sequenceBeforeLines.indexOf(raw),
+              sourceOpenLineIndex: lineIndex,
             ),
           );
           continue;
