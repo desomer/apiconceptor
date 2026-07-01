@@ -127,7 +127,20 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       _linkNameController.text = widget.selectedLink!.name;
     }
     if (widget.selectedSequenceGroup != null) {
-      _sequenceGroupLabelController.text = widget.selectedSequenceGroup!.label;
+      final group = widget.selectedSequenceGroup!;
+      final isElseBranchSelection =
+          group.kind == 'alt' &&
+          group.targetBranchIndex != null &&
+          group.targetBranchIndex! > 0;
+      if (isElseBranchSelection) {
+        final elseIdx = group.targetBranchIndex! - 1;
+        final elseLabel = elseIdx >= 0 && elseIdx < group.branchLabels.length
+            ? group.branchLabels[elseIdx]
+            : '';
+        _sequenceGroupLabelController.text = elseLabel;
+      } else {
+        _sequenceGroupLabelController.text = group.label;
+      }
       _sequenceGroupKind = widget.selectedSequenceGroup!.kind;
     }
   }
@@ -151,8 +164,21 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     if (widget.selectedSequenceGroup != null &&
         oldWidget.selectedSequenceGroup?.selectionKey !=
             widget.selectedSequenceGroup?.selectionKey) {
-      _sequenceGroupLabelController.text = widget.selectedSequenceGroup!.label;
-      _sequenceGroupKind = widget.selectedSequenceGroup!.kind;
+      final group = widget.selectedSequenceGroup!;
+      final isElseBranchSelection =
+          group.kind == 'alt' &&
+          group.targetBranchIndex != null &&
+          group.targetBranchIndex! > 0;
+      if (isElseBranchSelection) {
+        final elseIdx = group.targetBranchIndex! - 1;
+        final elseLabel = elseIdx >= 0 && elseIdx < group.branchLabels.length
+            ? group.branchLabels[elseIdx]
+            : '';
+        _sequenceGroupLabelController.text = elseLabel;
+      } else {
+        _sequenceGroupLabelController.text = group.label;
+      }
+      _sequenceGroupKind = group.kind;
     }
   }
 
@@ -464,6 +490,17 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   Widget _buildSequenceGroupProperties(SequenceControlGroupInfo group) {
     final height = (group.endYCanvas - group.startYCanvas).clamp(0.0, 1e9);
     final normalizedKind = group.kind.trim().toLowerCase();
+    final isElseBranchSelection =
+        normalizedKind == 'alt' &&
+        group.targetBranchIndex != null &&
+        group.targetBranchIndex! > 0;
+    final selectedBranchIndex = group.targetBranchIndex ?? 0;
+    final selectedElseLabel =
+        isElseBranchSelection &&
+            selectedBranchIndex - 1 >= 0 &&
+            selectedBranchIndex - 1 < group.branchLabels.length
+        ? group.branchLabels[selectedBranchIndex - 1]
+        : '';
     final groupKinds = <String>['alt', 'opt', 'loop'];
     final effectiveKind = groupKinds.contains(_sequenceGroupKind)
         ? _sequenceGroupKind
@@ -483,7 +520,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Type: ${normalizedKind.isEmpty ? 'inconnu' : normalizedKind}',
+            isElseBranchSelection
+                ? 'Type: else (branche ${selectedBranchIndex})'
+                : 'Type: ${normalizedKind.isEmpty ? 'inconnu' : normalizedKind}',
             style: const TextStyle(color: colorTextSecondary),
           ),
           const SizedBox(height: 10),
@@ -509,6 +548,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               if (value == null) {
                 return;
               }
+              if (isElseBranchSelection) {
+                return;
+              }
               setState(() {
                 _sequenceGroupKind = value;
               });
@@ -525,7 +567,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             controller: _sequenceGroupLabelController,
             style: const TextStyle(color: colorTextPrimary),
             decoration: InputDecoration(
-              labelText: 'Label du groupe',
+              labelText: isElseBranchSelection
+                  ? 'Label de la branche else'
+                  : 'Label du groupe',
               labelStyle: const TextStyle(color: colorTextSecondary),
               hintText: 'ex: success / retry',
               hintStyle: const TextStyle(color: colorTextSecondary),
@@ -535,9 +579,20 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               isDense: true,
             ),
             onChanged: (value) {
-              widget.onSequenceGroupChanged?.call(group, effectiveKind, value);
+              widget.onSequenceGroupChanged?.call(
+                group,
+                isElseBranchSelection ? 'alt' : effectiveKind,
+                value,
+              );
             },
           ),
+          if (isElseBranchSelection) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Label actuel else: ${selectedElseLabel.isEmpty ? '(vide)' : selectedElseLabel}',
+              style: const TextStyle(color: colorTextSecondary),
+            ),
+          ],
           const SizedBox(height: 6),
           Text(
             'Branches else: ${group.branchCount}',

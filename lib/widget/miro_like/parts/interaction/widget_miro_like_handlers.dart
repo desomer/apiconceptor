@@ -415,6 +415,52 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     String kind,
     String label,
   ) {
+    final targetBranchIndex = group.targetBranchIndex;
+    if (group.kind == 'alt' &&
+        targetBranchIndex != null &&
+        targetBranchIndex > 0) {
+      final elseIndex = targetBranchIndex - 1;
+      final newElseLine = label.trim().isEmpty
+          ? 'else'
+          : 'else ${label.trim()}';
+      final targetElse = _findSequenceGroupElseLine(group, elseIndex);
+      if (targetElse == null) {
+        return;
+      }
+      final elseLink = targetElse.$1;
+      final elseLineIndex = targetElse.$2;
+      if (elseLineIndex < 0 ||
+          elseLineIndex >= elseLink.sequenceBeforeLines.length) {
+        return;
+      }
+      if (elseLink.sequenceBeforeLines[elseLineIndex].trim() == newElseLine) {
+        return;
+      }
+
+      _pushUndoSnapshot();
+      setState(() {
+        elseLink.sequenceBeforeLines[elseLineIndex] = newElseLine;
+        final updatedBranchLabels = List<String>.from(group.branchLabels);
+        if (elseIndex >= 0 && elseIndex < updatedBranchLabels.length) {
+          updatedBranchLabels[elseIndex] = label.trim();
+        }
+        _selectedSequenceGroup = SequenceControlGroupInfo(
+          kind: group.kind,
+          label: newElseLine.substring(4).trim(),
+          startYCanvas: group.startYCanvas,
+          endYCanvas: group.endYCanvas,
+          branchCount: group.branchCount,
+          branchSeparatorYCanvas: group.branchSeparatorYCanvas,
+          branchLabels: updatedBranchLabels,
+          targetBranchIndex: group.targetBranchIndex,
+          sourceLink: group.sourceLink,
+          sourceOpenLineIndex: group.sourceOpenLineIndex,
+        );
+        _markBoardChanged();
+      });
+      return;
+    }
+
     final normalizedKind = kind.trim().toLowerCase();
     if (normalizedKind != 'alt' &&
         normalizedKind != 'opt' &&

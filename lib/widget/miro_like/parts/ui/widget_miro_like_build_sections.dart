@@ -102,11 +102,22 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
                     if (candidateGroup == null) {
                       resolvedGroup = previousGroup;
                     } else {
+                      final sameControlGroup =
+                          identical(
+                            candidateGroup.sourceLink,
+                            previousGroup.sourceLink,
+                          ) &&
+                          candidateGroup.sourceOpenLineIndex ==
+                              previousGroup.sourceOpenLineIndex;
+                      final branchChanged =
+                          sameControlGroup &&
+                          candidateGroup.targetBranchIndex !=
+                              previousGroup.targetBranchIndex;
                       final candidateContainsPrevious =
                           candidateGroup.startYCanvas <=
                               previousGroup.startYCanvas &&
                           candidateGroup.endYCanvas >= previousGroup.endYCanvas;
-                      if (candidateContainsPrevious) {
+                      if (candidateContainsPrevious && !branchChanged) {
                         resolvedGroup = previousGroup;
                       }
                     }

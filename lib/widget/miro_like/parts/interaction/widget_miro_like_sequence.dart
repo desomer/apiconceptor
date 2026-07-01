@@ -10,6 +10,7 @@ class _SequenceControlSnapshot {
   final BlockLink sourceLink;
   final int sourceOpenLineIndex;
   final List<BlockLink> memberLinks;
+  final List<int> memberBranchIndices;
 
   const _SequenceControlSnapshot({
     required this.startIndex,
@@ -21,6 +22,7 @@ class _SequenceControlSnapshot {
     required this.sourceLink,
     required this.sourceOpenLineIndex,
     required this.memberLinks,
+    required this.memberBranchIndices,
   });
 }
 
@@ -31,6 +33,9 @@ class _SequenceOpenCapture {
   final BlockLink sourceLink;
   final int sourceOpenLineIndex;
   final List<String> elseLines = <String>[];
+  final List<BlockLink> memberLinks = <BlockLink>[];
+  final List<int> memberBranchIndices = <int>[];
+  int currentBranchIndex = 0;
 
   _SequenceOpenCapture({
     required this.startIndex,
@@ -58,6 +63,11 @@ class _SequenceLayoutSlotMetrics {
 }
 
 extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
+  bool _isAltControlOpenLine(String rawOpenLine) {
+    final trimmed = rawOpenLine.trim().toLowerCase();
+    return trimmed.startsWith('alt');
+  }
+
   (BlockLink, int)? _findSequenceGroupClosingEndLine(
     SequenceControlGroupInfo target,
   ) {
@@ -101,6 +111,78 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
             open.$2 == target.sourceOpenLineIndex) {
           return (entry.link, afterIndex);
         }
+      }
+    }
+
+    return null;
+  }
+
+  (BlockLink, int)? _findSequenceGroupElseLine(
+    SequenceControlGroupInfo target,
+    int elseIndex,
+  ) {
+    if (elseIndex < 0) {
+      return null;
+    }
+
+    final sortedEntries = _buildSequenceMessageEntries()
+      ..sort((a, b) => a.laneYCanvas.compareTo(b.laneYCanvas));
+
+    final openStack = <(BlockLink link, int lineIndex)>[];
+    var remainingElse = elseIndex;
+    for (final entry in sortedEntries) {
+      for (
+        var lineIndex = 0;
+        lineIndex < entry.link.sequenceBeforeLines.length;
+        lineIndex++
+      ) {
+        final trimmed = entry.link.sequenceBeforeLines[lineIndex].trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+
+        final openMatch = RegExp(
+          r'^(alt|opt|loop)\b\s*(.*)$',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        if (openMatch != null) {
+          openStack.add((entry.link, lineIndex));
+          continue;
+        }
+
+        final elseMatch = RegExp(
+          r'^else\b\s*(.*)$',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        if (elseMatch != null && openStack.isNotEmpty) {
+          final open = openStack.last;
+          final isTarget =
+              identical(open.$1, target.sourceLink) &&
+              open.$2 == target.sourceOpenLineIndex;
+          if (!isTarget) {
+            continue;
+          }
+
+          if (remainingElse == 0) {
+            return (entry.link, lineIndex);
+          }
+          remainingElse--;
+        }
+      }
+
+      for (
+        var afterIndex = 0;
+        afterIndex < entry.link.sequenceAfterLines.length;
+        afterIndex++
+      ) {
+        final trimmed = entry.link.sequenceAfterLines[afterIndex].trim();
+        if (!RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed)) {
+          continue;
+        }
+        if (openStack.isEmpty) {
+          continue;
+        }
+        openStack.removeLast();
       }
     }
 
@@ -753,6 +835,12 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
                 startYCanvas: resolved.top,
                 endYCanvas: resolved.bottom,
                 branchCount: resolved.frame.branches.length,
+                branchSeparatorYCanvas: resolved.frame.branches
+                    .map((branch) => branch.y)
+                    .toList(growable: false),
+                branchLabels: resolved.frame.branches
+                    .map((branch) => branch.label)
+                    .toList(growable: false),
                 sourceLink: resolved.frame.sourceLink,
                 sourceOpenLineIndex: resolved.frame.sourceOpenLineIndex,
               ),
@@ -843,7 +931,57 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         return a.endYCanvas.compareTo(b.endYCanvas);
       });
 
-    return sorted.first;
+    final selected = sorted.first;
+    if (selected.kind != 'alt') {
+      return selected;
+    }
+
+    final separators = <double>[
+      selected.startYCanvas,
+      ...selected.branchSeparatorYCanvas,
+      selected.endYCanvas,
+    ]..sort();
+
+    var branchIndex = 0;
+    var matched = false;
+    for (var i = 0; i < separators.length - 1; i++) {
+      final top = separators[i];
+      final bottom = separators[i + 1];
+      final within = canvasPosition.dy >= top && canvasPosition.dy <= bottom;
+      if (within) {
+        branchIndex = i;
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched && separators.length >= 2) {
+      final center = canvasPosition.dy.clamp(separators.first, separators.last);
+      var bestDistance = double.infinity;
+      for (var i = 0; i < separators.length - 1; i++) {
+        final mid = (separators[i] + separators[i + 1]) / 2;
+        final distance = (center - mid).abs();
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          branchIndex = i;
+        }
+      }
+    }
+
+    final selectedBranchTop = separators[branchIndex];
+    final selectedBranchBottom = separators[branchIndex + 1];
+    return SequenceControlGroupInfo(
+      kind: selected.kind,
+      label: selected.label,
+      startYCanvas: selectedBranchTop,
+      endYCanvas: selectedBranchBottom,
+      branchCount: selected.branchCount,
+      branchSeparatorYCanvas: selected.branchSeparatorYCanvas,
+      branchLabels: selected.branchLabels,
+      targetBranchIndex: branchIndex,
+      sourceLink: selected.sourceLink,
+      sourceOpenLineIndex: selected.sourceOpenLineIndex,
+    );
   }
 
   SequenceGroupSpan? _buildSequenceGroupSpan() {
@@ -920,8 +1058,17 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
 
         if (RegExp(r'^else\b', caseSensitive: false).hasMatch(trimmed) &&
             stack.isNotEmpty) {
-          stack.last.elseLines.add(raw);
+          final current = stack.last;
+          current.elseLines.add(raw);
+          if (_isAltControlOpenLine(current.openLine)) {
+            current.currentBranchIndex++;
+          }
         }
+      }
+
+      for (final openCapture in stack) {
+        openCapture.memberLinks.add(link);
+        openCapture.memberBranchIndices.add(openCapture.currentBranchIndex);
       }
 
       for (final raw in link.sequenceAfterLines) {
@@ -932,7 +1079,11 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
 
         if (RegExp(r'^else\b', caseSensitive: false).hasMatch(trimmed) &&
             stack.isNotEmpty) {
-          stack.last.elseLines.add(raw);
+          final current = stack.last;
+          current.elseLines.add(raw);
+          if (_isAltControlOpenLine(current.openLine)) {
+            current.currentBranchIndex++;
+          }
           continue;
         }
 
@@ -952,8 +1103,9 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
             endLine: raw,
             sourceLink: openCapture.sourceLink,
             sourceOpenLineIndex: openCapture.sourceOpenLineIndex,
-            memberLinks: List<BlockLink>.from(
-              ordered.sublist(openCapture.startIndex, messageIndex + 1),
+            memberLinks: List<BlockLink>.from(openCapture.memberLinks),
+            memberBranchIndices: List<int>.from(
+              openCapture.memberBranchIndices,
             ),
           ),
         );
@@ -1008,18 +1160,36 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
             sourceLink: s.sourceLink,
             sourceOpenLineIndex: s.sourceOpenLineIndex,
             memberLinks: List<BlockLink>.from(s.memberLinks),
+            memberBranchIndices: List<int>.from(s.memberBranchIndices),
           ),
         )
         .map((s) {
-          final memberIndices = s.memberLinks
-              .map(ordered.indexOf)
-              .where((index) => index >= 0)
-              .toList(growable: false);
-          if (memberIndices.isEmpty) {
+          final zipped = <(int index, BlockLink link, int branch)>[];
+          final count = math.min(
+            s.memberLinks.length,
+            s.memberBranchIndices.length,
+          );
+          for (var i = 0; i < count; i++) {
+            final link = s.memberLinks[i];
+            final index = ordered.indexOf(link);
+            if (index < 0) {
+              continue;
+            }
+            zipped.add((index, link, s.memberBranchIndices[i]));
+          }
+          if (zipped.isEmpty) {
             return null;
           }
-          final startIndex = memberIndices.reduce(math.min);
-          final endIndex = memberIndices.reduce(math.max);
+          zipped.sort((a, b) => a.$1.compareTo(b.$1));
+          final memberIndices = zipped.map((e) => e.$1).toList(growable: false);
+          final normalizedMembers = zipped
+              .map((e) => e.$2)
+              .toList(growable: false);
+          final normalizedBranches = zipped
+              .map((e) => e.$3)
+              .toList(growable: false);
+          final startIndex = memberIndices.first;
+          final endIndex = memberIndices.last;
           return _SequenceControlSnapshot(
             startIndex: startIndex,
             endIndex: endIndex,
@@ -1029,7 +1199,8 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
             endLine: s.endLine,
             sourceLink: s.sourceLink,
             sourceOpenLineIndex: s.sourceOpenLineIndex,
-            memberLinks: List<BlockLink>.from(s.memberLinks),
+            memberLinks: normalizedMembers,
+            memberBranchIndices: normalizedBranches,
           );
         })
         .whereType<_SequenceControlSnapshot>()
@@ -1049,6 +1220,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     });
 
     final byStartIndex = <int, List<_SequenceControlSnapshot>>{};
+    final byElseStartIndex = <int, List<(int depth, String elseLine)>>{};
     final byEndIndex = <int, List<_SequenceControlSnapshot>>{};
     for (final snapshot in normalized) {
       byStartIndex
@@ -1057,6 +1229,40 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       byEndIndex
           .putIfAbsent(snapshot.endIndex, () => <_SequenceControlSnapshot>[])
           .add(snapshot);
+
+      final isAlt = _isAltControlOpenLine(snapshot.openLine);
+      if (!isAlt || snapshot.elseLines.isEmpty) {
+        continue;
+      }
+      final firstIndexByBranch = <int, int>{};
+      final branchCount = math.min(
+        snapshot.memberLinks.length,
+        snapshot.memberBranchIndices.length,
+      );
+      for (var i = 0; i < branchCount; i++) {
+        final branch = snapshot.memberBranchIndices[i];
+        if (branch <= 0) {
+          continue;
+        }
+        final index = ordered.indexOf(snapshot.memberLinks[i]);
+        if (index < 0) {
+          continue;
+        }
+        final previous = firstIndexByBranch[branch];
+        if (previous == null || index < previous) {
+          firstIndexByBranch[branch] = index;
+        }
+      }
+
+      for (var branch = 1; branch <= snapshot.elseLines.length; branch++) {
+        final elseStartIndex = firstIndexByBranch[branch];
+        if (elseStartIndex == null) {
+          continue;
+        }
+        byElseStartIndex
+            .putIfAbsent(elseStartIndex, () => <(int depth, String elseLine)>[])
+            .add((snapshot.depth, snapshot.elseLines[branch - 1]));
+      }
     }
 
     for (final entry in byStartIndex.entries) {
@@ -1067,11 +1273,18 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       }
     }
 
+    for (final entry in byElseStartIndex.entries) {
+      entry.value.sort((a, b) => a.$1.compareTo(b.$1));
+      final link = ordered[entry.key];
+      for (final elseData in entry.value) {
+        link.sequenceBeforeLines.add(elseData.$2);
+      }
+    }
+
     for (final entry in byEndIndex.entries) {
       entry.value.sort((a, b) => b.depth.compareTo(a.depth));
       final link = ordered[entry.key];
       for (final snapshot in entry.value) {
-        link.sequenceAfterLines.addAll(snapshot.elseLines);
         link.sequenceAfterLines.add(snapshot.endLine);
       }
     }
@@ -1216,13 +1429,33 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       }
     }
 
-    return snapshots
+    final movedSnapshots = snapshots
         .map((snapshot) {
           final members = List<BlockLink>.from(snapshot.memberLinks);
+          final memberBranches = List<int>.from(snapshot.memberBranchIndices);
           final shouldContainDragged = targetChain.contains(snapshot);
-          members.removeWhere((link) => identical(link, draggedLink));
+          for (var i = members.length - 1; i >= 0; i--) {
+            if (identical(members[i], draggedLink)) {
+              members.removeAt(i);
+              if (i < memberBranches.length) {
+                memberBranches.removeAt(i);
+              }
+            }
+          }
+
+          final shouldUseTargetBranch =
+              dropTargetGroup?.targetBranchIndex != null &&
+              identical(snapshot.sourceLink, dropTargetGroup!.sourceLink) &&
+              snapshot.sourceOpenLineIndex ==
+                  dropTargetGroup.sourceOpenLineIndex &&
+              _isAltControlOpenLine(snapshot.openLine);
           if (shouldContainDragged) {
             members.add(draggedLink);
+            memberBranches.add(
+              shouldUseTargetBranch
+                  ? math.max(0, dropTargetGroup.targetBranchIndex!)
+                  : 0,
+            );
           }
           return _SequenceControlSnapshot(
             startIndex: snapshot.startIndex,
@@ -1234,6 +1467,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
             sourceLink: snapshot.sourceLink,
             sourceOpenLineIndex: snapshot.sourceOpenLineIndex,
             memberLinks: members,
+            memberBranchIndices: memberBranches,
           );
         })
         .where((snapshot) => snapshot.memberLinks.isNotEmpty)
@@ -1256,6 +1490,46 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
             }
           }
           return true;
+        })
+        .toList(growable: false);
+
+    final targetBranchIndex = dropTargetGroup?.targetBranchIndex;
+    final branchTargetSnapshot = targetSnapshot;
+    if (targetBranchIndex == null || branchTargetSnapshot == null) {
+      return movedSnapshots;
+    }
+
+    return movedSnapshots
+        .map((snapshot) {
+          if (!identical(
+                snapshot.sourceLink,
+                branchTargetSnapshot.sourceLink,
+              ) ||
+              snapshot.sourceOpenLineIndex !=
+                  branchTargetSnapshot.sourceOpenLineIndex ||
+              snapshot.openLine.trim().toLowerCase().startsWith('alt') ==
+                  false) {
+            return snapshot;
+          }
+
+          final requiredElseCount = math.max(0, targetBranchIndex);
+          final updatedElseLines = List<String>.from(snapshot.elseLines);
+          while (updatedElseLines.length < requiredElseCount) {
+            updatedElseLines.add('else');
+          }
+
+          return _SequenceControlSnapshot(
+            startIndex: snapshot.startIndex,
+            endIndex: snapshot.endIndex,
+            depth: snapshot.depth,
+            openLine: snapshot.openLine,
+            elseLines: updatedElseLines,
+            endLine: snapshot.endLine,
+            sourceLink: snapshot.sourceLink,
+            sourceOpenLineIndex: snapshot.sourceOpenLineIndex,
+            memberLinks: List<BlockLink>.from(snapshot.memberLinks),
+            memberBranchIndices: List<int>.from(snapshot.memberBranchIndices),
+          );
         })
         .toList(growable: false);
   }

@@ -16,6 +16,9 @@ class SequenceControlGroupInfo {
   final double startYCanvas;
   final double endYCanvas;
   final int branchCount;
+  final List<double> branchSeparatorYCanvas;
+  final List<String> branchLabels;
+  final int? targetBranchIndex;
   final BlockLink sourceLink;
   final int sourceOpenLineIndex;
 
@@ -25,24 +28,34 @@ class SequenceControlGroupInfo {
     required this.startYCanvas,
     required this.endYCanvas,
     required this.branchCount,
+    this.branchSeparatorYCanvas = const <double>[],
+    this.branchLabels = const <String>[],
+    this.targetBranchIndex,
     required this.sourceLink,
     required this.sourceOpenLineIndex,
   });
 
-  SequenceControlGroupInfo copyWith({String? kind, String? label}) {
+  SequenceControlGroupInfo copyWith({
+    String? kind,
+    String? label,
+    int? targetBranchIndex,
+  }) {
     return SequenceControlGroupInfo(
       kind: kind ?? this.kind,
       label: label ?? this.label,
       startYCanvas: startYCanvas,
       endYCanvas: endYCanvas,
       branchCount: branchCount,
+      branchSeparatorYCanvas: branchSeparatorYCanvas,
+      branchLabels: branchLabels,
+      targetBranchIndex: targetBranchIndex ?? this.targetBranchIndex,
       sourceLink: sourceLink,
       sourceOpenLineIndex: sourceOpenLineIndex,
     );
   }
 
   String get selectionKey {
-    return '${sourceLink.hashCode}|$sourceOpenLineIndex|$kind|$label|$branchCount';
+    return '${sourceLink.hashCode}|$sourceOpenLineIndex|${targetBranchIndex ?? -1}';
   }
 }
 
@@ -122,6 +135,8 @@ class SequenceMessageLayer extends StatelessWidget {
                         leftCanvas: span.leftCanvas,
                         rightCanvas: span.rightCanvas,
                         zoomLevel: zoomLevel,
+                        selectedGroup: selectedGroup,
+                        previewGroup: previewGroup,
                         selectedGroupKey: selectedGroup?.selectionKey,
                         previewGroupKey: previewGroup?.selectionKey,
                       ),
@@ -567,6 +582,8 @@ class _SequenceControlFramePainter extends CustomPainter {
   final double leftCanvas;
   final double rightCanvas;
   final double zoomLevel;
+  final SequenceControlGroupInfo? selectedGroup;
+  final SequenceControlGroupInfo? previewGroup;
   final String? selectedGroupKey;
   final String? previewGroupKey;
 
@@ -576,6 +593,8 @@ class _SequenceControlFramePainter extends CustomPainter {
     required this.leftCanvas,
     required this.rightCanvas,
     required this.zoomLevel,
+    required this.selectedGroup,
+    required this.previewGroup,
     required this.selectedGroupKey,
     required this.previewGroupKey,
   });
@@ -660,8 +679,19 @@ class _SequenceControlFramePainter extends CustomPainter {
         sourceLink: frame.sourceLink,
         sourceOpenLineIndex: frame.sourceOpenLineIndex,
       ).selectionKey;
-      final isSelected = selectedGroupKey == frameSelectionKey;
-      final isPreview = !isSelected && previewGroupKey == frameSelectionKey;
+      final selectedOnSameFrame =
+          selectedGroup != null &&
+          identical(selectedGroup!.sourceLink, frame.sourceLink) &&
+          selectedGroup!.sourceOpenLineIndex == frame.sourceOpenLineIndex;
+      final previewOnSameFrame =
+          previewGroup != null &&
+          identical(previewGroup!.sourceLink, frame.sourceLink) &&
+          previewGroup!.sourceOpenLineIndex == frame.sourceOpenLineIndex;
+      final isSelected =
+          selectedGroupKey == frameSelectionKey || selectedOnSameFrame;
+      final isPreview =
+          !isSelected &&
+          (previewGroupKey == frameSelectionKey || previewOnSameFrame);
       final containsChild = resolved.hasChildFrame;
       final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
       final strokeScale = safeZoom;
@@ -711,6 +741,71 @@ class _SequenceControlFramePainter extends CustomPainter {
           alpha: (0.30 - (depthRatio * 0.08)).clamp(0.16, 0.32),
         )
         ..style = PaintingStyle.fill;
+
+      final selectedBranchIndex = selectedOnSameFrame
+          ? selectedGroup?.targetBranchIndex
+          : null;
+      if (isSelected && frame.kind == 'alt' && selectedBranchIndex != null) {
+        final separators = <double>[
+          rect.top,
+          ...frame.branches.map((b) => b.y),
+          rect.bottom,
+        ]..sort();
+        final branchIndex = selectedBranchIndex.clamp(0, separators.length - 2);
+        final branchTop = separators[branchIndex].clamp(rect.top, rect.bottom);
+        final branchBottom = separators[branchIndex + 1].clamp(
+          rect.top,
+          rect.bottom,
+        );
+        if (branchBottom > branchTop + 2.0) {
+          final selectedBranchPaint = Paint()
+            ..color = accent.withValues(alpha: 0.36)
+            ..style = PaintingStyle.fill;
+          canvas.drawRect(
+            Rect.fromLTRB(
+              rect.left + 2.0,
+              branchTop,
+              rect.right - 2.0,
+              branchBottom,
+            ),
+            selectedBranchPaint,
+          );
+        }
+      }
+
+      if (isPreview &&
+          frame.kind == 'alt' &&
+          previewGroup != null &&
+          previewGroup!.targetBranchIndex != null) {
+        final separators = <double>[
+          rect.top,
+          ...frame.branches.map((b) => b.y),
+          rect.bottom,
+        ]..sort();
+        final branchIndex = previewGroup!.targetBranchIndex!.clamp(
+          0,
+          separators.length - 2,
+        );
+        final branchTop = separators[branchIndex].clamp(rect.top, rect.bottom);
+        final branchBottom = separators[branchIndex + 1].clamp(
+          rect.top,
+          rect.bottom,
+        );
+        if (branchBottom > branchTop + 2.0) {
+          final branchHighlight = Paint()
+            ..color = accent.withValues(alpha: 0.28)
+            ..style = PaintingStyle.fill;
+          canvas.drawRect(
+            Rect.fromLTRB(
+              rect.left + 2.0,
+              branchTop,
+              rect.right - 2.0,
+              branchBottom,
+            ),
+            branchHighlight,
+          );
+        }
+      }
 
       canvas.drawRRect(rrect, fillPaint);
       canvas.drawRRect(
@@ -798,6 +893,8 @@ class _SequenceControlFramePainter extends CustomPainter {
         oldDelegate.leftCanvas != leftCanvas ||
         oldDelegate.rightCanvas != rightCanvas ||
         oldDelegate.zoomLevel != zoomLevel ||
+        oldDelegate.selectedGroup != selectedGroup ||
+        oldDelegate.previewGroup != previewGroup ||
         oldDelegate.selectedGroupKey != selectedGroupKey ||
         oldDelegate.previewGroupKey != previewGroupKey;
   }
