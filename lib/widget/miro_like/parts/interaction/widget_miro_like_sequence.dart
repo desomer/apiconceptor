@@ -230,13 +230,9 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         ? normalizedKind
         : '$normalizedKind $normalizedLabel';
 
-    final selectedOrdered =
-        _sequenceMessageLinks()
-            .where((link) => _selectedSequenceLinks.contains(link))
-            .toList(growable: true)
-          ..sort(
-            (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
-          );
+    final selectedOrdered = _orderedSequenceLinks()
+        .where((link) => _selectedSequenceLinks.contains(link))
+        .toList(growable: true);
     if (selectedOrdered.isEmpty) {
       return;
     }
@@ -282,10 +278,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
   }
 
   bool _isSelectedSequenceMessageRangeContiguous() {
-    final orderedAll = _sequenceMessageLinks()
-      ..sort(
-        (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
-      );
+    final orderedAll = _orderedSequenceLinks();
     if (orderedAll.isEmpty || _selectedSequenceLinks.isEmpty) {
       return false;
     }
@@ -320,7 +313,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       return;
     }
 
-    final sequenceLinks = _sequenceMessageLinks();
+    final sequenceLinks = _orderedSequenceLinks();
     for (final link in sequenceLinks) {
       final laneYModel = _sequenceLaneYModel(link);
       _setSequenceLinkLaneY(link, laneYModel);
@@ -396,6 +389,18 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
               participantIds.contains(l.toBlockId),
         )
         .toList(growable: true);
+  }
+
+  List<BlockLink> _orderedSequenceLinks() {
+    final ordered = _sequenceMessageLinks();
+    ordered.sort((a, b) {
+      final byLane = _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b));
+      if (byLane != 0) {
+        return byLane;
+      }
+      return links.indexOf(a).compareTo(links.indexOf(b));
+    });
+    return ordered;
   }
 
   double _sequenceLaneYModel(BlockLink link) {
@@ -959,10 +964,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
   }
 
   void _captureSequenceControlSnapshotsForDrag() {
-    final ordered = _sequenceMessageLinks()
-      ..sort(
-        (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
-      );
+    final ordered = _orderedSequenceLinks();
     _sequenceDragControlSnapshots = _captureSequenceControlSnapshotsByOrder(
       ordered,
     );
@@ -972,7 +974,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     List<BlockLink> ordered,
     List<_SequenceControlSnapshot> snapshots,
   ) {
-    if (ordered.isEmpty || snapshots.isEmpty) {
+    if (ordered.isEmpty) {
       return;
     }
 
@@ -988,6 +990,10 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       link.sequenceAfterLines.removeWhere(
         (line) => controlLinePattern.hasMatch(line.trim()),
       );
+    }
+
+    if (snapshots.isEmpty) {
+      return;
     }
 
     final normalized = snapshots
@@ -1110,10 +1116,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     BlockLink? draggedLink,
     SequenceControlGroupInfo? dropTargetGroup,
   }) {
-    final ordered = _sequenceMessageLinks()
-      ..sort(
-        (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
-      );
+    final ordered = _orderedSequenceLinks();
 
     if (ordered.isEmpty) {
       return;
@@ -1172,6 +1175,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         snapshots,
         draggedLink: draggedLink,
         dropTargetGroup: dropTargetGroup,
+        orderedLinks: ordered,
       );
       _restoreSequenceControlSnapshotsByOrder(ordered, adjustedSnapshots);
     }
@@ -1181,6 +1185,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     List<_SequenceControlSnapshot> snapshots, {
     BlockLink? draggedLink,
     SequenceControlGroupInfo? dropTargetGroup,
+    List<BlockLink>? orderedLinks,
   }) {
     if (draggedLink == null) {
       return snapshots;
@@ -1198,10 +1203,23 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       }
     }
 
+    final targetChain = <_SequenceControlSnapshot>{};
+    if (targetSnapshot != null) {
+      for (final snapshot in snapshots) {
+        final containsTarget =
+            snapshot.startIndex <= targetSnapshot.startIndex &&
+            snapshot.endIndex >= targetSnapshot.endIndex &&
+            snapshot.depth <= targetSnapshot.depth;
+        if (containsTarget) {
+          targetChain.add(snapshot);
+        }
+      }
+    }
+
     return snapshots
         .map((snapshot) {
           final members = List<BlockLink>.from(snapshot.memberLinks);
-          final shouldContainDragged = identical(snapshot, targetSnapshot);
+          final shouldContainDragged = targetChain.contains(snapshot);
           members.removeWhere((link) => identical(link, draggedLink));
           if (shouldContainDragged) {
             members.add(draggedLink);
@@ -1219,6 +1237,26 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
           );
         })
         .where((snapshot) => snapshot.memberLinks.isNotEmpty)
+        .where((snapshot) {
+          if (orderedLinks == null) {
+            return true;
+          }
+          final memberIndices =
+              snapshot.memberLinks
+                  .map(orderedLinks.indexOf)
+                  .where((index) => index >= 0)
+                  .toList(growable: true)
+                ..sort();
+          if (memberIndices.isEmpty) {
+            return false;
+          }
+          for (var i = 1; i < memberIndices.length; i++) {
+            if (memberIndices[i] != memberIndices[i - 1] + 1) {
+              return false;
+            }
+          }
+          return true;
+        })
         .toList(growable: false);
   }
 
@@ -1226,11 +1264,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     BlockLink insertedLink,
     double referenceLaneYModel,
   ) {
-    final ordered = _sequenceMessageLinks()
-      ..remove(insertedLink)
-      ..sort(
-        (a, b) => _sequenceLaneYModel(a).compareTo(_sequenceLaneYModel(b)),
-      );
+    final ordered = _orderedSequenceLinks()..remove(insertedLink);
 
     final insertionIndex = ordered.indexWhere(
       (link) => _sequenceLaneYModel(link) >= referenceLaneYModel,

@@ -91,15 +91,12 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
                       rawEntriesOverride: _frozenSequenceFrameEntriesDuringDrag,
                     );
                 final previousGroup = _dragPreviewSequenceGroup;
-                final verticalPadding = _sequenceFramePadding * zoomLevel;
                 SequenceControlGroupInfo? resolvedGroup = candidateGroup;
 
                 if (previousGroup != null) {
                   final insidePrevious =
-                      canvasPosition.dy >=
-                          previousGroup.startYCanvas - verticalPadding &&
-                      canvasPosition.dy <=
-                          previousGroup.endYCanvas + verticalPadding;
+                      canvasPosition.dy >= previousGroup.startYCanvas &&
+                      canvasPosition.dy <= previousGroup.endYCanvas;
 
                   if (insidePrevious) {
                     if (candidateGroup == null) {
@@ -122,38 +119,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             },
             onDragEnd: (link, globalPosition) {
               setState(() {
-                final previewGroupAtDrop = _dragPreviewSequenceGroup;
-                final canvasPosition = _toCanvasLocal(globalPosition);
-                final recomputedGroup =
-                    _findSequenceControlGroupAtCanvasPosition(
-                      canvasPosition,
-                      rawEntriesOverride: _frozenSequenceFrameEntriesDuringDrag,
-                    );
-                SequenceControlGroupInfo? finalGroup = previewGroupAtDrop;
-                if (previewGroupAtDrop == null) {
-                  finalGroup = recomputedGroup;
-                } else if (recomputedGroup != null &&
-                    previewGroupAtDrop.selectionKey !=
-                        recomputedGroup.selectionKey) {
-                  final previewContainsRecomputed =
-                      previewGroupAtDrop.startYCanvas <=
-                          recomputedGroup.startYCanvas &&
-                      previewGroupAtDrop.endYCanvas >=
-                          recomputedGroup.endYCanvas;
-                  final recomputedContainsPreview =
-                      recomputedGroup.startYCanvas <=
-                          previewGroupAtDrop.startYCanvas &&
-                      recomputedGroup.endYCanvas >=
-                          previewGroupAtDrop.endYCanvas;
-
-                  if (previewContainsRecomputed) {
-                    finalGroup = recomputedGroup;
-                  } else if (recomputedContainsPreview) {
-                    finalGroup = previewGroupAtDrop;
-                  } else {
-                    finalGroup = recomputedGroup;
-                  }
-                }
+                final finalGroup = _dragPreviewSequenceGroup;
                 _reorderSequenceMessagesByLane(
                   controlSnapshots: _sequenceDragControlSnapshots,
                   draggedLink: link,

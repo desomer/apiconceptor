@@ -42,9 +42,7 @@ class SequenceControlGroupInfo {
   }
 
   String get selectionKey {
-    final startRounded = startYCanvas.toStringAsFixed(2);
-    final endRounded = endYCanvas.toStringAsFixed(2);
-    return '$kind|$label|$startRounded|$endRounded|$branchCount';
+    return '${sourceLink.hashCode}|$sourceOpenLineIndex|$kind|$label|$branchCount';
   }
 }
 
@@ -525,14 +523,15 @@ List<_ResolvedSequenceControlFrame> _resolveSequenceControlFrameLayout(
       if (entryIndex < 0 || entryIndex >= sortedEntries.length) {
         continue;
       }
-      final laneY = sortedEntries[entryIndex].laneYCanvas;
+      final entryTop = sortedEntries[entryIndex].topYCanvas;
+      final entryBottom = sortedEntries[entryIndex].bottomYCanvas;
       if (!hasOwnMessage) {
-        ownMessageTop = laneY;
-        ownMessageBottom = laneY;
+        ownMessageTop = entryTop;
+        ownMessageBottom = entryBottom;
         hasOwnMessage = true;
       } else {
-        ownMessageTop = math.min(ownMessageTop, laneY);
-        ownMessageBottom = math.max(ownMessageBottom, laneY);
+        ownMessageTop = math.min(ownMessageTop, entryTop);
+        ownMessageBottom = math.max(ownMessageBottom, entryBottom);
       }
     }
 
@@ -587,6 +586,11 @@ class _SequenceControlFramePainter extends CustomPainter {
       return;
     }
 
+    // Frame indices are computed from lane-sorted entries in _buildControlFrames.
+    // Keep the same ordering here so resolved frame bounds target the right messages.
+    final sortedEntries = List<SequenceMessageEntry>.from(entries)
+      ..sort((a, b) => a.laneYCanvas.compareTo(b.laneYCanvas));
+
     final maxDepth = frames
         .map((f) => f.depth)
         .fold<int>(0, (current, value) => value > current ? value : current);
@@ -599,7 +603,7 @@ class _SequenceControlFramePainter extends CustomPainter {
 
     final resolvedFrames = _resolveSequenceControlFrameLayout(
       frames,
-      sortedEntries: entries,
+      sortedEntries: sortedEntries,
       zoomLevel: zoomLevel,
     );
 
@@ -647,29 +651,17 @@ class _SequenceControlFramePainter extends CustomPainter {
       final rrect = RRect.fromRectAndRadius(rect, radius);
 
       final accent = _accentFor(frame.kind);
-      final isSelected =
-          selectedGroupKey ==
-          SequenceControlGroupInfo(
-            kind: frame.kind,
-            label: frame.label,
-            startYCanvas: frame.startY,
-            endYCanvas: frame.endY,
-            branchCount: frame.branches.length,
-            sourceLink: frame.sourceLink,
-            sourceOpenLineIndex: frame.sourceOpenLineIndex,
-          ).selectionKey;
-      final isPreview =
-          !isSelected &&
-          previewGroupKey ==
-              SequenceControlGroupInfo(
-                kind: frame.kind,
-                label: frame.label,
-                startYCanvas: frame.startY,
-                endYCanvas: frame.endY,
-                branchCount: frame.branches.length,
-                sourceLink: frame.sourceLink,
-                sourceOpenLineIndex: frame.sourceOpenLineIndex,
-              ).selectionKey;
+      final frameSelectionKey = SequenceControlGroupInfo(
+        kind: frame.kind,
+        label: frame.label,
+        startYCanvas: resolved.top,
+        endYCanvas: resolved.bottom,
+        branchCount: frame.branches.length,
+        sourceLink: frame.sourceLink,
+        sourceOpenLineIndex: frame.sourceOpenLineIndex,
+      ).selectionKey;
+      final isSelected = selectedGroupKey == frameSelectionKey;
+      final isPreview = !isSelected && previewGroupKey == frameSelectionKey;
       final containsChild = resolved.hasChildFrame;
       final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
       final strokeScale = safeZoom;
@@ -680,18 +672,18 @@ class _SequenceControlFramePainter extends CustomPainter {
       final titleInsetY = (4.0 * textScale).clamp(1.0, 20.0);
       final fillAlpha = containsChild
           ? 0.0
-          : ((isSelected ? 0.24 : (isPreview ? 0.18 : 0.12)) -
+          : ((isSelected ? 0.24 : (isPreview ? 0.24 : 0.12)) -
                     (depthRatio * 0.04))
                 .clamp(0.06, 0.28);
       final borderAlpha =
-          ((isSelected ? 0.98 : (isPreview ? 0.90 : 0.72)) -
+          ((isSelected ? 0.98 : (isPreview ? 0.98 : 0.72)) -
                   (depthRatio * 0.10))
               .clamp(0.45, 1.0);
       final fillPaint = Paint()
         ..color = accent.withValues(alpha: fillAlpha)
         ..style = PaintingStyle.fill;
       final borderStrokeWidth =
-          ((isSelected ? 2.2 : (isPreview ? 1.8 : 1.1)) + parentEmphasis) *
+          ((isSelected ? 2.2 : (isPreview ? 2.6 : 1.1)) + parentEmphasis) *
           strokeScale;
       final borderPaint = Paint()
         ..color = accent.withValues(alpha: borderAlpha)

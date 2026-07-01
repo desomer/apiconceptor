@@ -237,7 +237,35 @@ class MermaidSequenceCodec {
       buffer.writeln('  participant $participantId as $name');
     }
 
-    for (final link in links) {
+    final orderedLinks =
+        links
+            .where(
+              (link) =>
+                  participantIds.containsKey(link.fromBlockId) &&
+                  participantIds.containsKey(link.toBlockId),
+            )
+            .toList(growable: true)
+          ..sort((a, b) {
+            double laneFor(BlockLink link) {
+              final orderedLane =
+                  link.sourceAnchorOrderKey ?? link.targetAnchorOrderKey;
+              if (orderedLane != null) {
+                return orderedLane;
+              }
+              if (link.inflectionPoints.isNotEmpty) {
+                return link.inflectionPoints.first.dy;
+              }
+              return double.infinity;
+            }
+
+            final byLane = laneFor(a).compareTo(laneFor(b));
+            if (byLane != 0) {
+              return byLane;
+            }
+            return links.indexOf(a).compareTo(links.indexOf(b));
+          });
+
+    for (final link in orderedLinks) {
       final fromId = participantIds[link.fromBlockId];
       final toId = participantIds[link.toBlockId];
       if (fromId == null || toId == null) {
