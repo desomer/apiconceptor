@@ -235,7 +235,9 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
     if (tangent == null) return null;
 
     final normal = Offset(-math.sin(tangent.angle), math.cos(tangent.angle));
-    return tangent.position + normal * 18 + link.labelOffset * zoomLevel;
+    return tangent.position +
+        (normal * (18.0 * zoomLevel)) +
+        (link.labelOffset * zoomLevel);
   }
 
   List<Widget> _buildLinkLabelHandles() {
@@ -280,7 +282,10 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
             setState(() {
               selectedLink = link;
               selectedBlock = null;
-              link.labelOffset += details.delta / zoomLevel;
+              link.labelOffset += Offset(
+                details.delta.dx / zoomLevel,
+                details.delta.dy / zoomLevel,
+              );
               _markBoardChanged();
             });
           },
@@ -457,4 +462,3 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
     return widgets;
   }
 }
-

@@ -72,7 +72,9 @@ LinkLabelLayout? buildLinkLabelLayout({
 
   final normal = Offset(-math.sin(midpoint.angle), math.cos(midpoint.angle));
   final labelCenter =
-      midpoint.position + normal * 18 + link.labelOffset * zoomLevel;
+      midpoint.position +
+      (normal * (18.0 * zoomLevel)) +
+      (link.labelOffset * zoomLevel);
   final textScale = zoomLevel;
 
   final iconData = kLinkLabelIconMap[link.labelIconKey];

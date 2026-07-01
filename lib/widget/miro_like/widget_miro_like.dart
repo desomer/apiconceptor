@@ -108,8 +108,8 @@ const double _zoneHandleSize = 14.0;
 const double _sequenceParticipantGap = 280.0;
 const double _sequenceParticipantTop = 80.0;
 const double _sequenceMessageStartY = 300.0;
-const double _sequenceMessageStepY = 40.0;
-const double _sequenceSelfLoopHorizontalOffset = 50.0;
+const double _sequenceMessageStepY = 30.0;
+const double _sequenceSelfLoopHorizontalOffset = 80.0;
 const double _sequenceSelfLoopVerticalOffset = 50.0;
 const double _sequenceFramePadding = 30.0;
 const double _sequenceFrameNestGap = 30.0;
@@ -537,6 +537,20 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         maxY = math.max(maxY, rect.bottom);
       }
 
+      Offset canvasToModelPoint(Offset canvasPoint) {
+        return Offset(
+          (canvasPoint.dx - canvasOffset.dx) / zoomLevel,
+          (canvasPoint.dy - canvasOffset.dy) / zoomLevel,
+        );
+      }
+
+      Rect canvasToModelRect(Rect canvasRect) {
+        return Rect.fromPoints(
+          canvasToModelPoint(canvasRect.topLeft),
+          canvasToModelPoint(canvasRect.bottomRight),
+        );
+      }
+
       for (final block in blocks) {
         includeRect(
           Rect.fromLTWH(
@@ -573,6 +587,41 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
             toBlock.position.dy + toBlock.size.height / 2,
           ),
         );
+      }
+
+      if (_isSequenceDiagramView) {
+        final sequenceEntries = _buildSequenceMessageEntries();
+        for (final entry in sequenceEntries) {
+          includeRect(
+            canvasToModelRect(
+              Rect.fromLTRB(
+                entry.leftXCanvas,
+                entry.topYCanvas,
+                entry.rightXCanvas,
+                entry.bottomYCanvas,
+              ),
+            ),
+          );
+        }
+
+        final frameGroups = _buildSequenceControlGroupsForHitTest(
+          sequenceEntries,
+        );
+        final groupSpan = _buildSequenceGroupSpan();
+        if (groupSpan != null) {
+          for (final group in frameGroups) {
+            includeRect(
+              canvasToModelRect(
+                Rect.fromLTRB(
+                  groupSpan.leftCanvas,
+                  group.startYCanvas,
+                  groupSpan.rightCanvas,
+                  group.endYCanvas,
+                ),
+              ),
+            );
+          }
+        }
       }
 
       if (!minX.isFinite ||
