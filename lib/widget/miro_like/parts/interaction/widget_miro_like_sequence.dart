@@ -62,6 +62,18 @@ class _SequenceLayoutSlotMetrics {
   });
 }
 
+class _SequenceNormalizeOpenCapture {
+  final String kind;
+  int currentBranchIndex;
+  final List<int> branchMessageCounts;
+  final List<(BlockLink link, bool isBefore, int lineIndex)> elseRefs;
+
+  _SequenceNormalizeOpenCapture(this.kind)
+    : currentBranchIndex = 0,
+      branchMessageCounts = <int>[0],
+      elseRefs = <(BlockLink link, bool isBefore, int lineIndex)>[];
+}
+
 extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
   bool _isAltControlOpenLine(String rawOpenLine) {
     final trimmed = rawOpenLine.trim().toLowerCase();
@@ -1299,6 +1311,201 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       final link = ordered[entry.key];
       for (final snapshot in entry.value) {
         link.sequenceAfterLines.add(snapshot.endLine);
+      }
+    }
+
+    _normalizeSequenceControlLinesForMermaid(ordered);
+  }
+
+  void _normalizeSequenceControlLinesForMermaid(List<BlockLink> ordered) {
+    final openKindStack = <String>[];
+
+    String? normalizeLine(String rawLine) {
+      final trimmed = rawLine.trim();
+      if (trimmed.isEmpty) {
+        return rawLine;
+      }
+
+      final openMatch = RegExp(
+        r'^(alt|opt|loop)\b\s*(.*)$',
+        caseSensitive: false,
+      ).firstMatch(trimmed);
+      if (openMatch != null) {
+        openKindStack.add((openMatch.group(1) ?? '').toLowerCase());
+        return rawLine;
+      }
+
+      final elseMatch = RegExp(
+        r'^else\b\s*(.*)$',
+        caseSensitive: false,
+      ).firstMatch(trimmed);
+      if (elseMatch != null) {
+        final hasOpenAlt =
+            openKindStack.isNotEmpty && openKindStack.last == 'alt';
+        if (!hasOpenAlt) {
+          final label = (elseMatch.group(1) ?? '').trim();
+          // Converted else opens a new alt block, keep stack consistent
+          // so the subsequent end remains valid.
+          openKindStack.add('alt');
+          return label.isEmpty ? 'alt' : 'alt $label';
+        }
+        return rawLine;
+      }
+
+      if (RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed)) {
+        if (openKindStack.isEmpty) {
+          // Orphan end: drop it to keep Mermaid structure valid.
+          return null;
+        }
+        openKindStack.removeLast();
+      }
+
+      return rawLine;
+    }
+
+    for (final link in ordered) {
+      for (var i = 0; i < link.sequenceBeforeLines.length; i++) {
+        final normalized = normalizeLine(link.sequenceBeforeLines[i]);
+        if (normalized == null) {
+          link.sequenceBeforeLines.removeAt(i);
+          i--;
+          continue;
+        }
+        link.sequenceBeforeLines[i] = normalized;
+      }
+      for (var i = 0; i < link.sequenceAfterLines.length; i++) {
+        final normalized = normalizeLine(link.sequenceAfterLines[i]);
+        if (normalized == null) {
+          link.sequenceAfterLines.removeAt(i);
+          i--;
+          continue;
+        }
+        link.sequenceAfterLines[i] = normalized;
+      }
+    }
+
+    _collapseEmptyAltHeadElseBranches(ordered);
+  }
+
+  void _collapseEmptyAltHeadElseBranches(List<BlockLink> ordered) {
+    final stack = <_SequenceNormalizeOpenCapture>[];
+    final refsToRemove = <(BlockLink link, bool isBefore, int lineIndex)>[];
+
+    void registerElseLine(
+      _SequenceNormalizeOpenCapture capture,
+      BlockLink link,
+      bool isBefore,
+      int lineIndex,
+    ) {
+      if (capture.kind != 'alt') {
+        return;
+      }
+      capture.currentBranchIndex += 1;
+      while (capture.branchMessageCounts.length <= capture.currentBranchIndex) {
+        capture.branchMessageCounts.add(0);
+      }
+      capture.elseRefs.add((link, isBefore, lineIndex));
+    }
+
+    bool hasMessagesOnlyInElse(_SequenceNormalizeOpenCapture capture) {
+      if (capture.kind != 'alt') {
+        return false;
+      }
+      final headCount = capture.branchMessageCounts.isEmpty
+          ? 0
+          : capture.branchMessageCounts.first;
+      final tailCount = capture.branchMessageCounts.length <= 1
+          ? 0
+          : capture.branchMessageCounts
+                .sublist(1)
+                .fold<int>(0, (sum, value) => sum + value);
+      return headCount == 0 && tailCount > 0 && capture.elseRefs.isNotEmpty;
+    }
+
+    for (final link in ordered) {
+      for (var i = 0; i < link.sequenceBeforeLines.length; i++) {
+        final trimmed = link.sequenceBeforeLines[i].trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+
+        final openMatch = RegExp(
+          r'^(alt|opt|loop)\b',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        if (openMatch != null) {
+          final kind = (openMatch.group(1) ?? '').toLowerCase();
+          stack.add(_SequenceNormalizeOpenCapture(kind));
+          continue;
+        }
+
+        if (RegExp(r'^else\b', caseSensitive: false).hasMatch(trimmed) &&
+            stack.isNotEmpty) {
+          registerElseLine(stack.last, link, true, i);
+        }
+      }
+
+      for (final capture in stack) {
+        if (capture.kind != 'alt') {
+          continue;
+        }
+        if (capture.currentBranchIndex >= 0 &&
+            capture.currentBranchIndex < capture.branchMessageCounts.length) {
+          capture.branchMessageCounts[capture.currentBranchIndex] += 1;
+        }
+      }
+
+      for (var i = 0; i < link.sequenceAfterLines.length; i++) {
+        final trimmed = link.sequenceAfterLines[i].trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+
+        if (RegExp(r'^else\b', caseSensitive: false).hasMatch(trimmed) &&
+            stack.isNotEmpty) {
+          registerElseLine(stack.last, link, false, i);
+          continue;
+        }
+
+        if (RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed) &&
+            stack.isNotEmpty) {
+          final closed = stack.removeLast();
+          if (hasMessagesOnlyInElse(closed)) {
+            refsToRemove.addAll(closed.elseRefs);
+          }
+        }
+      }
+    }
+
+    final byLinkBefore = <BlockLink, List<int>>{};
+    final byLinkAfter = <BlockLink, List<int>>{};
+    for (final ref in refsToRemove) {
+      if (ref.$2) {
+        byLinkBefore.putIfAbsent(ref.$1, () => <int>[]).add(ref.$3);
+      } else {
+        byLinkAfter.putIfAbsent(ref.$1, () => <int>[]).add(ref.$3);
+      }
+    }
+
+    for (final entry in byLinkBefore.entries) {
+      final indices = entry.value.toSet().toList(growable: false)
+        ..sort((a, b) => b.compareTo(a));
+      for (final index in indices) {
+        if (index < 0 || index >= entry.key.sequenceBeforeLines.length) {
+          continue;
+        }
+        entry.key.sequenceBeforeLines.removeAt(index);
+      }
+    }
+
+    for (final entry in byLinkAfter.entries) {
+      final indices = entry.value.toSet().toList(growable: false)
+        ..sort((a, b) => b.compareTo(a));
+      for (final index in indices) {
+        if (index < 0 || index >= entry.key.sequenceAfterLines.length) {
+          continue;
+        }
+        entry.key.sequenceAfterLines.removeAt(index);
       }
     }
   }
