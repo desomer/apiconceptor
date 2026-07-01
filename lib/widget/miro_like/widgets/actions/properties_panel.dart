@@ -427,11 +427,18 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               child: FilledButton.icon(
                 onPressed: widget.canCreateSequenceGroupFromSelection
                     ? () {
+                        FocusScope.of(context).unfocus();
                         widget.onCreateSequenceGroupFromSelection?.call(
                           effectiveKind,
                           _selectionGroupLabelController.text,
                           _selectionGroupPlacement == 'nested',
                         );
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) {
+                            return;
+                          }
+                          setState(() {});
+                        });
                       }
                     : null,
                 icon: const Icon(Icons.crop_square),

@@ -41,6 +41,22 @@ class _SequenceOpenCapture {
   });
 }
 
+class _SequenceLayoutSlotMetrics {
+  final int depthAtMessage;
+  final int openCountBefore;
+  final int elseCountBefore;
+  final int elseCountAfter;
+  final int endCountAfter;
+
+  const _SequenceLayoutSlotMetrics({
+    required this.depthAtMessage,
+    required this.openCountBefore,
+    required this.elseCountBefore,
+    required this.elseCountAfter,
+    required this.endCountAfter,
+  });
+}
+
 extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
   (BlockLink, int)? _findSequenceGroupClosingEndLine(
     SequenceControlGroupInfo target,
@@ -242,6 +258,8 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         sourceOpenLineIndex = 0;
       }
 
+      _finalizeSequenceLayoutCommon();
+
       final entryByLink = <BlockLink, SequenceMessageEntry>{
         for (final entry in _buildSequenceMessageEntries()) entry.link: entry,
       };
@@ -309,6 +327,11 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     }
 
     _reorderSequenceMessagesByLane();
+  }
+
+  void _finalizeSequenceLayoutCommon() {
+    _isSequenceDiagramView = true;
+    _normalizeSequenceMessageGeometryAndSpacing();
   }
 
   void _setSequenceLinkLaneY(BlockLink link, double laneYModel) {
@@ -461,25 +484,37 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
 
   double _sequenceMinGapBetweenMessages(BlockLink previous, BlockLink current) {
     final visualHeight = _sequenceMessageVisualHeightModel(previous);
-    final baseGap = _sequenceMessageStepY + visualHeight;
+    return _sequenceMessageStepY + visualHeight;
+  }
 
-    // Extra spacing keeps nested frame labels readable and avoids parent/child
-    // title overlap when control groups open on consecutive messages.
-    final openCountOnCurrent = _countSequenceOpenLines(
-      current.sequenceBeforeLines,
-    );
-    final elseCountAroundCurrent =
-        _countSequenceElseLines(current.sequenceBeforeLines) +
-        _countSequenceElseLines(current.sequenceAfterLines);
-    final endCountOnPrevious = _countSequenceEndLines(
-      previous.sequenceAfterLines,
-    );
+  Map<BlockLink, _SequenceLayoutSlotMetrics> _sequenceLayoutMetricsByOrder(
+    List<BlockLink> ordered,
+  ) {
+    final metricsByLink = <BlockLink, _SequenceLayoutSlotMetrics>{};
+    var activeDepth = 0;
 
-    final openGap = openCountOnCurrent * 20.0;
-    final elseGap = elseCountAroundCurrent * 12.0;
-    final closeGap = endCountOnPrevious * 8.0;
+    for (final link in ordered) {
+      final openCountBefore = _countSequenceOpenLines(link.sequenceBeforeLines);
+      final elseCountBefore = _countSequenceElseLines(link.sequenceBeforeLines);
+      final elseCountAfter = _countSequenceElseLines(link.sequenceAfterLines);
+      final depthAtMessage = activeDepth + openCountBefore;
+      final endCountAfter = _countSequenceEndLines(link.sequenceAfterLines);
 
-    return baseGap + openGap + elseGap + closeGap;
+      metricsByLink[link] = _SequenceLayoutSlotMetrics(
+        depthAtMessage: depthAtMessage,
+        openCountBefore: openCountBefore,
+        elseCountBefore: elseCountBefore,
+        elseCountAfter: elseCountAfter,
+        endCountAfter: endCountAfter,
+      );
+
+      activeDepth = depthAtMessage - endCountAfter;
+      if (activeDepth < 0) {
+        activeDepth = 0;
+      }
+    }
+
+    return metricsByLink;
   }
 
   double _minSequenceLaneCanvasY(BlockLink link) {
@@ -545,19 +580,27 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       return const <SequenceControlGroupInfo>[];
     }
 
-    final result = <SequenceControlGroupInfo>[];
-    final openStack =
-        <
-          (
-            String kind,
-            String label,
-            double startY,
-            BlockLink sourceLink,
-            int sourceOpenLineIndex,
-            List<String> branches,
-          )
-        >[];
+    final frames = <_SequenceControlFrame>[];
+    final openFrames = <_OpenFrame>[];
     final lastY = sortedEntries.last.bottomYCanvas;
+
+    (double left, double right) frameHorizontalSpan(
+      int startIndex,
+      int endIndex,
+    ) {
+      var minLeft = double.infinity;
+      var maxRight = -double.infinity;
+      for (var i = startIndex; i <= endIndex; i++) {
+        final candidate = sortedEntries[i];
+        minLeft = math.min(minLeft, candidate.concernedLeftCanvas);
+        maxRight = math.max(maxRight, candidate.concernedRightCanvas);
+      }
+      if (!minLeft.isFinite || !maxRight.isFinite || maxRight <= minLeft) {
+        minLeft = sortedEntries[startIndex].leftXCanvas;
+        maxRight = sortedEntries[endIndex].rightXCanvas;
+      }
+      return (minLeft, maxRight);
+    }
 
     double separatorYForEntry(int index) {
       final current = sortedEntries[index];
@@ -577,7 +620,8 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         lineIndex < entry.link.sequenceBeforeLines.length;
         lineIndex++
       ) {
-        final trimmed = entry.link.sequenceBeforeLines[lineIndex].trim();
+        final line = entry.link.sequenceBeforeLines[lineIndex];
+        final trimmed = line.trim();
         if (trimmed.isEmpty) {
           continue;
         }
@@ -587,14 +631,17 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
           caseSensitive: false,
         ).firstMatch(trimmed);
         if (openMatch != null) {
-          openStack.add((
-            (openMatch.group(1) ?? '').toLowerCase(),
-            (openMatch.group(2) ?? '').trim(),
-            entry.topYCanvas,
-            entry.link,
-            lineIndex,
-            <String>[],
-          ));
+          openFrames.add(
+            _OpenFrame(
+              kind: (openMatch.group(1) ?? '').toLowerCase(),
+              label: (openMatch.group(2) ?? '').trim(),
+              startY: entry.topYCanvas,
+              startEntryIndex: index,
+              depth: openFrames.length,
+              sourceLink: entry.link,
+              sourceOpenLineIndex: lineIndex,
+            ),
+          );
           continue;
         }
 
@@ -602,12 +649,16 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
           r'^else\b\s*(.*)$',
           caseSensitive: false,
         ).firstMatch(trimmed);
-        if (elseMatch != null && openStack.isNotEmpty) {
-          final current = openStack.removeLast();
-          if (current.$1 == 'alt') {
-            current.$6.add('else@${separatorY.toStringAsFixed(2)}');
+        if (elseMatch != null && openFrames.isNotEmpty) {
+          final current = openFrames.last;
+          if (current.kind == 'alt') {
+            current.branches.add(
+              _SequenceControlBranch(
+                y: separatorY,
+                label: (elseMatch.group(1) ?? '').trim(),
+              ),
+            );
           }
-          openStack.add(current);
         }
       }
 
@@ -617,46 +668,98 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
           continue;
         }
 
+        final elseMatch = RegExp(
+          r'^else\b\s*(.*)$',
+          caseSensitive: false,
+        ).firstMatch(trimmed);
+        if (elseMatch != null && openFrames.isNotEmpty) {
+          final current = openFrames.last;
+          if (current.kind == 'alt') {
+            current.branches.add(
+              _SequenceControlBranch(
+                y: separatorY,
+                label: (elseMatch.group(1) ?? '').trim(),
+              ),
+            );
+          }
+          continue;
+        }
+
         if (RegExp(r'^end\b', caseSensitive: false).hasMatch(trimmed) &&
-            openStack.isNotEmpty) {
-          final current = openStack.removeLast();
-          result.add(
-            SequenceControlGroupInfo(
-              kind: current.$1,
-              label: current.$2,
-              startYCanvas: current.$3,
-              endYCanvas: entry.bottomYCanvas,
-              branchCount: current.$6.length,
-              sourceLink: current.$4,
-              sourceOpenLineIndex: current.$5,
+            openFrames.isNotEmpty) {
+          final current = openFrames.removeLast();
+          final span = frameHorizontalSpan(current.startEntryIndex, index);
+          frames.add(
+            _SequenceControlFrame(
+              kind: current.kind,
+              label: current.label,
+              startY: current.startY,
+              endY: entry.bottomYCanvas,
+              leftCanvas: span.$1,
+              rightCanvas: span.$2,
+              depth: current.depth,
+              startEntryIndex: current.startEntryIndex,
+              endEntryIndex: index,
+              branches: List<_SequenceControlBranch>.from(current.branches),
+              sourceLink: current.sourceLink,
+              sourceOpenLineIndex: current.sourceOpenLineIndex,
             ),
           );
         }
       }
     }
 
-    while (openStack.isNotEmpty) {
-      final current = openStack.removeLast();
-      result.add(
-        SequenceControlGroupInfo(
-          kind: current.$1,
-          label: current.$2,
-          startYCanvas: current.$3,
-          endYCanvas: lastY,
-          branchCount: current.$6.length,
-          sourceLink: current.$4,
-          sourceOpenLineIndex: current.$5,
+    while (openFrames.isNotEmpty) {
+      final current = openFrames.removeLast();
+      final span = frameHorizontalSpan(
+        current.startEntryIndex,
+        sortedEntries.length - 1,
+      );
+      frames.add(
+        _SequenceControlFrame(
+          kind: current.kind,
+          label: current.label,
+          startY: current.startY,
+          endY: lastY,
+          leftCanvas: span.$1,
+          rightCanvas: span.$2,
+          depth: current.depth,
+          startEntryIndex: current.startEntryIndex,
+          endEntryIndex: sortedEntries.length - 1,
+          branches: List<_SequenceControlBranch>.from(current.branches),
+          sourceLink: current.sourceLink,
+          sourceOpenLineIndex: current.sourceOpenLineIndex,
         ),
       );
     }
 
-    result.sort((a, b) {
-      final byStart = a.startYCanvas.compareTo(b.startYCanvas);
-      if (byStart != 0) {
-        return byStart;
-      }
-      return a.endYCanvas.compareTo(b.endYCanvas);
-    });
+    final resolvedFrames = _resolveSequenceControlFrameLayout(
+      frames,
+      sortedEntries: sortedEntries,
+      zoomLevel: zoomLevel,
+    );
+
+    final result =
+        resolvedFrames
+            .map(
+              (resolved) => SequenceControlGroupInfo(
+                kind: resolved.frame.kind,
+                label: resolved.frame.label,
+                startYCanvas: resolved.top,
+                endYCanvas: resolved.bottom,
+                branchCount: resolved.frame.branches.length,
+                sourceLink: resolved.frame.sourceLink,
+                sourceOpenLineIndex: resolved.frame.sourceOpenLineIndex,
+              ),
+            )
+            .toList(growable: false)
+          ..sort((a, b) {
+            final byStart = a.startYCanvas.compareTo(b.startYCanvas);
+            if (byStart != 0) {
+              return byStart;
+            }
+            return a.endYCanvas.compareTo(b.endYCanvas);
+          });
 
     return result;
   }
@@ -677,12 +780,10 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     final groups = _buildSequenceControlGroupsForHitTest(
       rawEntriesOverride ?? _buildSequenceMessageEntries(),
     );
-    final verticalPadding = _sequenceFramePadding * zoomLevel;
     final matches = groups
         .where((group) {
-          final top = group.startYCanvas - verticalPadding;
-          final bottom = group.endYCanvas + verticalPadding;
-          return canvasPosition.dy >= top && canvasPosition.dy <= bottom;
+          return canvasPosition.dy >= group.startYCanvas &&
+              canvasPosition.dy <= group.endYCanvas;
         })
         .toList(growable: false);
 
@@ -1022,13 +1123,42 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       for (final link in ordered) link: _sequenceLaneYModel(link),
     };
 
+    final metricsByLink = _sequenceLayoutMetricsByOrder(ordered);
+    final firstLink = ordered.first;
+    final firstMetrics = metricsByLink[firstLink]!;
+    final firstMinLane =
+        _sequenceMessageStartY +
+        (firstMetrics.depthAtMessage * _sequenceFrameNestGap) +
+        (firstMetrics.elseCountBefore * _sequenceElseGap);
+    if (laneByLink[firstLink]! < firstMinLane) {
+      laneByLink[firstLink] = firstMinLane;
+    }
+
     for (int i = 1; i < ordered.length; i++) {
+      final previousLink = ordered[i - 1];
+      final currentLink = ordered[i];
+      final previousMetrics = metricsByLink[previousLink]!;
+      final currentMetrics = metricsByLink[currentLink]!;
       final prevLane = laneByLink[ordered[i - 1]]!;
-      final currentLane = laneByLink[ordered[i]]!;
+      final currentLane = laneByLink[currentLink]!;
+      final structuralMin =
+          _sequenceMessageStartY +
+          (currentMetrics.depthAtMessage * _sequenceFrameNestGap) +
+          (currentMetrics.elseCountBefore * _sequenceElseGap);
+      final transitionGap =
+          (currentMetrics.openCountBefore * _sequenceFrameNestGap) +
+          (previousMetrics.endCountAfter * _sequenceFrameNestGap) +
+          (previousMetrics.elseCountAfter * _sequenceElseGap) +
+          (currentMetrics.elseCountBefore * _sequenceElseGap);
       final minAllowed =
-          prevLane + _sequenceMinGapBetweenMessages(ordered[i - 1], ordered[i]);
+          prevLane +
+          _sequenceMinGapBetweenMessages(previousLink, currentLink) +
+          transitionGap;
       if (currentLane < minAllowed) {
-        laneByLink[ordered[i]] = minAllowed;
+        laneByLink[currentLink] = minAllowed;
+      }
+      if (laneByLink[currentLink]! < structuralMin) {
+        laneByLink[currentLink] = structuralMin;
       }
     }
 

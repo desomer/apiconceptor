@@ -120,6 +120,7 @@ class SequenceMessageLayer extends StatelessWidget {
                     child: CustomPaint(
                       painter: _SequenceControlFramePainter(
                         frames: controlFrames,
+                        entries: frameEntries ?? entries,
                         leftCanvas: span.leftCanvas,
                         rightCanvas: span.rightCanvas,
                         zoomLevel: zoomLevel,
@@ -265,6 +266,8 @@ class SequenceMessageLayer extends StatelessWidget {
               leftCanvas: span.$1,
               rightCanvas: span.$2,
               depth: current.depth,
+              startEntryIndex: current.startEntryIndex,
+              endEntryIndex: index,
               branches: List<_SequenceControlBranch>.from(current.branches),
               sourceLink: current.sourceLink,
               sourceOpenLineIndex: current.sourceOpenLineIndex,
@@ -289,6 +292,8 @@ class SequenceMessageLayer extends StatelessWidget {
           leftCanvas: span.$1,
           rightCanvas: span.$2,
           depth: current.depth,
+          startEntryIndex: current.startEntryIndex,
+          endEntryIndex: sortedEntries.length - 1,
           branches: List<_SequenceControlBranch>.from(current.branches),
           sourceLink: current.sourceLink,
           sourceOpenLineIndex: current.sourceOpenLineIndex,
@@ -400,6 +405,8 @@ class _SequenceControlFrame {
   final double leftCanvas;
   final double rightCanvas;
   final int depth;
+  final int startEntryIndex;
+  final int endEntryIndex;
   final BlockLink sourceLink;
   final int sourceOpenLineIndex;
   final List<_SequenceControlBranch> branches;
@@ -412,14 +419,152 @@ class _SequenceControlFrame {
     required this.leftCanvas,
     required this.rightCanvas,
     required this.depth,
+    required this.startEntryIndex,
+    required this.endEntryIndex,
     required this.sourceLink,
     required this.sourceOpenLineIndex,
     required this.branches,
   });
 }
 
+class _ResolvedSequenceControlFrame {
+  final _SequenceControlFrame frame;
+  final double top;
+  final double bottom;
+  final bool hasChildFrame;
+
+  const _ResolvedSequenceControlFrame({
+    required this.frame,
+    required this.top,
+    required this.bottom,
+    required this.hasChildFrame,
+  });
+}
+
+List<_ResolvedSequenceControlFrame> _resolveSequenceControlFrameLayout(
+  List<_SequenceControlFrame> frames, {
+  required List<SequenceMessageEntry> sortedEntries,
+  required double zoomLevel,
+}) {
+  if (frames.isEmpty) {
+    return const <_ResolvedSequenceControlFrame>[];
+  }
+
+  final resolvedByFrame =
+      <_SequenceControlFrame, _ResolvedSequenceControlFrame>{};
+  final sortedByDepth = List<_SequenceControlFrame>.from(frames)
+    ..sort((a, b) {
+      final byDepth = b.depth.compareTo(a.depth);
+      if (byDepth != 0) {
+        return byDepth;
+      }
+      final byStart = a.startEntryIndex.compareTo(b.startEntryIndex);
+      if (byStart != 0) {
+        return byStart;
+      }
+      return a.endEntryIndex.compareTo(b.endEntryIndex);
+    });
+
+  bool containsFrame(
+    _SequenceControlFrame parent,
+    _SequenceControlFrame child,
+  ) {
+    return child.depth > parent.depth &&
+        child.startEntryIndex >= parent.startEntryIndex &&
+        child.endEntryIndex <= parent.endEntryIndex;
+  }
+
+  bool isImmediateChild(
+    _SequenceControlFrame parent,
+    _SequenceControlFrame child,
+  ) {
+    if (!containsFrame(parent, child)) {
+      return false;
+    }
+    for (final candidate in frames) {
+      if (identical(candidate, parent) || identical(candidate, child)) {
+        continue;
+      }
+      if (containsFrame(parent, candidate) && containsFrame(candidate, child)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool isEntryCoveredByImmediateChild(
+    int entryIndex,
+    List<_SequenceControlFrame> immediateChildren,
+  ) {
+    for (final child in immediateChildren) {
+      if (entryIndex >= child.startEntryIndex &&
+          entryIndex <= child.endEntryIndex) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  for (final frame in sortedByDepth) {
+    final verticalPadding = _sequenceFramePadding * zoomLevel;
+    final immediateChildren = frames
+        .where((candidate) => isImmediateChild(frame, candidate))
+        .toList(growable: false);
+
+    var ownMessageTop = frame.startY;
+    var ownMessageBottom = frame.endY;
+    var hasOwnMessage = false;
+    for (
+      var entryIndex = frame.startEntryIndex;
+      entryIndex <= frame.endEntryIndex;
+      entryIndex++
+    ) {
+      if (isEntryCoveredByImmediateChild(entryIndex, immediateChildren)) {
+        continue;
+      }
+      if (entryIndex < 0 || entryIndex >= sortedEntries.length) {
+        continue;
+      }
+      final laneY = sortedEntries[entryIndex].laneYCanvas;
+      if (!hasOwnMessage) {
+        ownMessageTop = laneY;
+        ownMessageBottom = laneY;
+        hasOwnMessage = true;
+      } else {
+        ownMessageTop = math.min(ownMessageTop, laneY);
+        ownMessageBottom = math.max(ownMessageBottom, laneY);
+      }
+    }
+
+    var resolvedTop =
+        (hasOwnMessage ? ownMessageTop : frame.startY) - verticalPadding;
+    var resolvedBottom =
+        (hasOwnMessage ? ownMessageBottom : frame.endY) + verticalPadding;
+
+    for (final child in immediateChildren) {
+      final resolvedChild = resolvedByFrame[child];
+      if (resolvedChild == null) {
+        continue;
+      }
+      final nestGap = _sequenceFrameNestGap * zoomLevel;
+      resolvedTop = math.min(resolvedTop, resolvedChild.top - nestGap);
+      resolvedBottom = math.max(resolvedBottom, resolvedChild.bottom + nestGap);
+    }
+
+    resolvedByFrame[frame] = _ResolvedSequenceControlFrame(
+      frame: frame,
+      top: resolvedTop,
+      bottom: resolvedBottom,
+      hasChildFrame: immediateChildren.isNotEmpty,
+    );
+  }
+
+  return frames.map((frame) => resolvedByFrame[frame]!).toList(growable: false);
+}
+
 class _SequenceControlFramePainter extends CustomPainter {
   final List<_SequenceControlFrame> frames;
+  final List<SequenceMessageEntry> entries;
   final double leftCanvas;
   final double rightCanvas;
   final double zoomLevel;
@@ -428,6 +573,7 @@ class _SequenceControlFramePainter extends CustomPainter {
 
   const _SequenceControlFramePainter({
     required this.frames,
+    required this.entries,
     required this.leftCanvas,
     required this.rightCanvas,
     required this.zoomLevel,
@@ -451,42 +597,32 @@ class _SequenceControlFramePainter extends CustomPainter {
       return;
     }
 
-    final layeredFrames = List<_SequenceControlFrame>.from(frames)
-      ..sort((a, b) {
-        final byDepth = a.depth.compareTo(b.depth);
-        if (byDepth != 0) {
-          return byDepth;
-        }
-        final byStart = a.startY.compareTo(b.startY);
-        if (byStart != 0) {
-          return byStart;
-        }
-        return a.endY.compareTo(b.endY);
-      });
+    final resolvedFrames = _resolveSequenceControlFrameLayout(
+      frames,
+      sortedEntries: entries,
+      zoomLevel: zoomLevel,
+    );
 
-    bool hasChildFrame(_SequenceControlFrame parent) {
-      return layeredFrames.any((candidate) {
-        if (candidate.depth <= parent.depth) {
-          return false;
-        }
-        return candidate.startY >= parent.startY &&
-            candidate.endY <= parent.endY;
-      });
-    }
+    final layeredFrames =
+        List<_ResolvedSequenceControlFrame>.from(resolvedFrames)..sort((a, b) {
+          final byDepth = a.frame.depth.compareTo(b.frame.depth);
+          if (byDepth != 0) {
+            return byDepth;
+          }
+          final byStart = a.frame.startY.compareTo(b.frame.startY);
+          if (byStart != 0) {
+            return byStart;
+          }
+          return a.frame.endY.compareTo(b.frame.endY);
+        });
 
-    for (final frame in layeredFrames) {
+    for (final resolved in layeredFrames) {
+      final frame = resolved.frame;
       final safeZoom = zoomLevel.clamp(0.2, 4.0);
-      final depthInset = frame.depth * 8.0;
+      final depthInset = frame.depth * (_sequenceFrameNestGap * zoomLevel);
       final depthRatio = maxDepth == 0 ? 0.0 : frame.depth / maxDepth;
-      final verticalPadding = _sequenceFramePadding * zoomLevel;
-      final top = (frame.startY - verticalPadding + (depthInset * 0.8)).clamp(
-        0.0,
-        size.height,
-      );
-      final bottom = (frame.endY + verticalPadding - (depthInset * 0.8)).clamp(
-        0.0,
-        size.height,
-      );
+      final top = resolved.top.clamp(0.0, size.height);
+      final bottom = resolved.bottom.clamp(0.0, size.height);
       if (bottom <= top + 8.0) {
         continue;
       }
@@ -534,7 +670,7 @@ class _SequenceControlFramePainter extends CustomPainter {
                 sourceLink: frame.sourceLink,
                 sourceOpenLineIndex: frame.sourceOpenLineIndex,
               ).selectionKey;
-      final containsChild = hasChildFrame(frame);
+      final containsChild = resolved.hasChildFrame;
       final parentEmphasis = ((maxDepth - frame.depth) * 0.55).clamp(0.0, 2.0);
       final strokeScale = safeZoom;
       final textScale = zoomLevel;
@@ -666,6 +802,7 @@ class _SequenceControlFramePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SequenceControlFramePainter oldDelegate) {
     return oldDelegate.frames != frames ||
+        oldDelegate.entries != entries ||
         oldDelegate.leftCanvas != leftCanvas ||
         oldDelegate.rightCanvas != rightCanvas ||
         oldDelegate.zoomLevel != zoomLevel ||
