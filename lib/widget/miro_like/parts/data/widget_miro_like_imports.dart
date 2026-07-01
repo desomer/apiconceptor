@@ -119,10 +119,7 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
 
       final inflectionPoints = <Offset>[];
       if (message.fromId == message.toId) {
-        final loopX =
-            fromBlock.position.dx +
-            fromBlock.size.width +
-            _sequenceSelfLoopHorizontalOffset;
+        final loopX = fromCenterX + _sequenceSelfLoopHorizontalOffset;
         final loopReturnY = messageY + _sequenceSelfLoopVerticalOffset;
         inflectionPoints
           ..add(Offset(loopX, messageY))

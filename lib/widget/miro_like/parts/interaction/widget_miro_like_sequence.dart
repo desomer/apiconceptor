@@ -431,10 +431,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     final fromCenterX = fromBlock.position.dx + (fromBlock.size.width / 2);
 
     if (link.fromBlockId == link.toBlockId) {
-      final loopX =
-          fromBlock.position.dx +
-          fromBlock.size.width +
-          _sequenceSelfLoopHorizontalOffset;
+      final loopX = fromCenterX + _sequenceSelfLoopHorizontalOffset;
       final loopReturnY = laneYModel + _sequenceSelfLoopVerticalOffset;
       link.inflectionPoints
         ..clear()

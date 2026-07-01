@@ -108,12 +108,12 @@ const double _zoneHandleSize = 14.0;
 const double _sequenceParticipantGap = 280.0;
 const double _sequenceParticipantTop = 80.0;
 const double _sequenceMessageStartY = 300.0;
-const double _sequenceMessageStepY = 60.0;
-const double _sequenceSelfLoopHorizontalOffset = 56.0;
-const double _sequenceSelfLoopVerticalOffset = 36.0;
+const double _sequenceMessageStepY = 40.0;
+const double _sequenceSelfLoopHorizontalOffset = 50.0;
+const double _sequenceSelfLoopVerticalOffset = 50.0;
 const double _sequenceFramePadding = 30.0;
-const double _sequenceFrameNestGap = 20.0;
-const double _sequenceElseGap = 20.0;
+const double _sequenceFrameNestGap = 30.0;
+const double _sequenceElseGap = 30.0;
 const double _sequenceFrameRightGap = 20.0;
 
 enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
