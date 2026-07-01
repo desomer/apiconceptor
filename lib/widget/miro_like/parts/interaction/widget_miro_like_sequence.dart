@@ -1789,8 +1789,9 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
 
   void _insertSequenceMessageAtReference(
     BlockLink insertedLink,
-    double referenceLaneYModel,
-  ) {
+    double referenceLaneYModel, {
+    SequenceControlGroupInfo? dropTargetGroup,
+  }) {
     final ordered = _orderedSequenceLinks()..remove(insertedLink);
 
     final insertionIndex = ordered.indexWhere(
@@ -1826,5 +1827,26 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     for (final link in ordered) {
       _setSequenceLinkLaneY(link, laneByLink[link]!);
     }
+
+    if (dropTargetGroup == null) {
+      return;
+    }
+
+    final snapshots = _captureSequenceControlSnapshotsByOrder(ordered);
+    if (snapshots.isEmpty) {
+      return;
+    }
+
+    final adjustedSnapshots = _adjustSequenceControlSnapshotsForDrop(
+      snapshots,
+      draggedLink: insertedLink,
+      dropTargetGroup: dropTargetGroup,
+      orderedLinks: ordered,
+    );
+    if (adjustedSnapshots.isEmpty) {
+      return;
+    }
+
+    _restoreSequenceControlSnapshotsByOrder(ordered, adjustedSnapshots);
   }
 }

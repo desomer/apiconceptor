@@ -60,6 +60,9 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
     currentMousePosition = canvasPosition;
     _sequenceLinkTargetHoverBlockId = null;
     _sequenceCreationStartCanvasY = canvasPosition.dy;
+    _dragPreviewSequenceGroup = _findSequenceControlGroupAtCanvasPosition(
+      canvasPosition,
+    );
     pendingInflectionPoints.clear();
     return true;
   }
@@ -81,6 +84,9 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
         } else {
           _sequenceLinkTargetHoverBlockId = null;
         }
+        _dragPreviewSequenceGroup = _findSequenceControlGroupAtCanvasPosition(
+          canvasPosition,
+        );
       }
     });
   }
@@ -93,6 +99,7 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
       currentMousePosition = null;
       _sequenceLinkTargetHoverBlockId = null;
       _sequenceCreationStartCanvasY = null;
+      _dragPreviewSequenceGroup = null;
       pendingInflectionPoints.clear();
     });
   }
@@ -215,7 +222,11 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
       );
       if (isSequenceMode && laneYModel != null) {
         _setSequenceLinkLaneY(links.last, laneYModel);
-        _insertSequenceMessageAtReference(links.last, laneYModel);
+        _insertSequenceMessageAtReference(
+          links.last,
+          laneYModel,
+          dropTargetGroup: _dragPreviewSequenceGroup,
+        );
       }
       _ensureBlockHasSpaceForAnchors(sourceBlock);
       _ensureBlockHasSpaceForAnchors(targetBlock);
@@ -224,6 +235,7 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
       currentMousePosition = null;
       _sequenceLinkTargetHoverBlockId = null;
       _sequenceCreationStartCanvasY = null;
+      _dragPreviewSequenceGroup = null;
       pendingInflectionPoints.clear();
       _markBoardChanged();
     });
