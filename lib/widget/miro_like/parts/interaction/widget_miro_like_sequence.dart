@@ -1219,13 +1219,16 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       return a.depth.compareTo(b.depth);
     });
 
-    final byStartIndex = <int, List<_SequenceControlSnapshot>>{};
+    final byBeforeIndex = <int, List<(int depth, int priority, String line)>>{};
     final byElseStartIndex = <int, List<(int depth, String elseLine)>>{};
     final byEndIndex = <int, List<_SequenceControlSnapshot>>{};
     for (final snapshot in normalized) {
-      byStartIndex
-          .putIfAbsent(snapshot.startIndex, () => <_SequenceControlSnapshot>[])
-          .add(snapshot);
+      byBeforeIndex
+          .putIfAbsent(
+            snapshot.startIndex,
+            () => <(int depth, int priority, String line)>[],
+          )
+          .add((snapshot.depth, 1, snapshot.openLine));
       byEndIndex
           .putIfAbsent(snapshot.endIndex, () => <_SequenceControlSnapshot>[])
           .add(snapshot);
@@ -1265,19 +1268,29 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       }
     }
 
-    for (final entry in byStartIndex.entries) {
-      entry.value.sort((a, b) => a.depth.compareTo(b.depth));
-      final link = ordered[entry.key];
-      for (final snapshot in entry.value) {
-        link.sequenceBeforeLines.add(snapshot.openLine);
+    for (final entry in byElseStartIndex.entries) {
+      entry.value.sort((a, b) => a.$1.compareTo(b.$1));
+      for (final elseData in entry.value) {
+        byBeforeIndex
+            .putIfAbsent(
+              entry.key,
+              () => <(int depth, int priority, String line)>[],
+            )
+            .add((elseData.$1, 0, elseData.$2));
       }
     }
 
-    for (final entry in byElseStartIndex.entries) {
-      entry.value.sort((a, b) => a.$1.compareTo(b.$1));
+    for (final entry in byBeforeIndex.entries) {
+      entry.value.sort((a, b) {
+        final byDepth = a.$1.compareTo(b.$1);
+        if (byDepth != 0) {
+          return byDepth;
+        }
+        return a.$2.compareTo(b.$2);
+      });
       final link = ordered[entry.key];
-      for (final elseData in entry.value) {
-        link.sequenceBeforeLines.add(elseData.$2);
+      for (final beforeData in entry.value) {
+        link.sequenceBeforeLines.add(beforeData.$3);
       }
     }
 
