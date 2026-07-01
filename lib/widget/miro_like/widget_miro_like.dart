@@ -114,6 +114,7 @@ const double _sequenceSelfLoopVerticalOffset = 36.0;
 const double _sequenceFramePadding = 30.0;
 const double _sequenceFrameNestGap = 20.0;
 const double _sequenceElseGap = 20.0;
+const double _sequenceFrameRightGap = 20.0;
 
 enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
 

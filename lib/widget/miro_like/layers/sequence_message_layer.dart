@@ -179,14 +179,28 @@ class SequenceMessageLayer extends StatelessWidget {
       var maxRight = -double.infinity;
       for (var i = startIndex; i <= endIndex; i++) {
         final candidate = sortedEntries[i];
-        minLeft = math.min(minLeft, candidate.concernedLeftCanvas);
-        maxRight = math.max(maxRight, candidate.concernedRightCanvas);
+        final messageLeft = math.min(
+          candidate.concernedLeftCanvas,
+          math.min(
+            candidate.leftXCanvas,
+            math.min(candidate.startXCanvas, candidate.endXCanvas),
+          ),
+        );
+        final messageRight = math.max(
+          candidate.concernedRightCanvas,
+          math.max(
+            candidate.rightXCanvas,
+            math.max(candidate.startXCanvas, candidate.endXCanvas),
+          ),
+        );
+        minLeft = math.min(minLeft, messageLeft);
+        maxRight = math.max(maxRight, messageRight);
       }
       if (!minLeft.isFinite || !maxRight.isFinite || maxRight <= minLeft) {
         minLeft = sortedEntries[startIndex].leftXCanvas;
         maxRight = sortedEntries[endIndex].rightXCanvas;
       }
-      return (minLeft, maxRight);
+      return (minLeft, maxRight + (_sequenceFrameRightGap * zoomLevel));
     }
 
     for (var index = 0; index < sortedEntries.length; index++) {
@@ -442,12 +456,16 @@ class _SequenceControlFrame {
 
 class _ResolvedSequenceControlFrame {
   final _SequenceControlFrame frame;
+  final double left;
+  final double right;
   final double top;
   final double bottom;
   final bool hasChildFrame;
 
   const _ResolvedSequenceControlFrame({
     required this.frame,
+    required this.left,
+    required this.right,
     required this.top,
     required this.bottom,
     required this.hasChildFrame,
@@ -520,6 +538,8 @@ List<_ResolvedSequenceControlFrame> _resolveSequenceControlFrameLayout(
 
   for (final frame in sortedByDepth) {
     final verticalPadding = _sequenceFramePadding * zoomLevel;
+    final horizontalNestInset =
+        frame.depth * (_sequenceFrameNestGap * zoomLevel);
     final immediateChildren = frames
         .where((candidate) => isImmediateChild(frame, candidate))
         .toList(growable: false);
@@ -554,6 +574,8 @@ List<_ResolvedSequenceControlFrame> _resolveSequenceControlFrameLayout(
         (hasOwnMessage ? ownMessageTop : frame.startY) - verticalPadding;
     var resolvedBottom =
         (hasOwnMessage ? ownMessageBottom : frame.endY) + verticalPadding;
+    var resolvedLeft = frame.leftCanvas - horizontalNestInset;
+    var resolvedRight = frame.rightCanvas + horizontalNestInset;
 
     for (final child in immediateChildren) {
       final resolvedChild = resolvedByFrame[child];
@@ -561,12 +583,16 @@ List<_ResolvedSequenceControlFrame> _resolveSequenceControlFrameLayout(
         continue;
       }
       final nestGap = _sequenceFrameNestGap * zoomLevel;
+      resolvedLeft = math.min(resolvedLeft, resolvedChild.left - nestGap);
+      resolvedRight = math.max(resolvedRight, resolvedChild.right + nestGap);
       resolvedTop = math.min(resolvedTop, resolvedChild.top - nestGap);
       resolvedBottom = math.max(resolvedBottom, resolvedChild.bottom + nestGap);
     }
 
     resolvedByFrame[frame] = _ResolvedSequenceControlFrame(
       frame: frame,
+      left: resolvedLeft,
+      right: resolvedRight,
       top: resolvedTop,
       bottom: resolvedBottom,
       hasChildFrame: immediateChildren.isNotEmpty,
@@ -650,8 +676,8 @@ class _SequenceControlFramePainter extends CustomPainter {
         continue;
       }
 
-      final frameLeft = frame.leftCanvas.clamp(left, right);
-      final frameRight = frame.rightCanvas.clamp(left, right);
+      final frameLeft = resolved.left.clamp(0.0, size.width);
+      final frameRight = resolved.right.clamp(0.0, size.width);
       if (frameRight <= frameLeft + 8.0) {
         continue;
       }

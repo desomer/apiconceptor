@@ -691,14 +691,28 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       var maxRight = -double.infinity;
       for (var i = startIndex; i <= endIndex; i++) {
         final candidate = sortedEntries[i];
-        minLeft = math.min(minLeft, candidate.concernedLeftCanvas);
-        maxRight = math.max(maxRight, candidate.concernedRightCanvas);
+        final messageLeft = math.min(
+          candidate.concernedLeftCanvas,
+          math.min(
+            candidate.leftXCanvas,
+            math.min(candidate.startXCanvas, candidate.endXCanvas),
+          ),
+        );
+        final messageRight = math.max(
+          candidate.concernedRightCanvas,
+          math.max(
+            candidate.rightXCanvas,
+            math.max(candidate.startXCanvas, candidate.endXCanvas),
+          ),
+        );
+        minLeft = math.min(minLeft, messageLeft);
+        maxRight = math.max(maxRight, messageRight);
       }
       if (!minLeft.isFinite || !maxRight.isFinite || maxRight <= minLeft) {
         minLeft = sortedEntries[startIndex].leftXCanvas;
         maxRight = sortedEntries[endIndex].rightXCanvas;
       }
-      return (minLeft, maxRight);
+      return (minLeft, maxRight + (_sequenceFrameRightGap * zoomLevel));
     }
 
     double separatorYForEntry(int index) {
@@ -998,16 +1012,38 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
 
   SequenceGroupSpan? _buildSequenceGroupSpan() {
     final participants = blocks.where((b) => !b.isZone).toList(growable: false);
-    if (participants.isEmpty) {
-      return null;
-    }
-
     var minLeft = double.infinity;
     var maxRight = -double.infinity;
-    for (final participant in participants) {
-      final rect = _blockRectCanvas(participant);
-      minLeft = math.min(minLeft, rect.left);
-      maxRight = math.max(maxRight, rect.right);
+
+    if (participants.isNotEmpty) {
+      for (final participant in participants) {
+        final rect = _blockRectCanvas(participant);
+        minLeft = math.min(minLeft, rect.left);
+        maxRight = math.max(maxRight, rect.right);
+      }
+    }
+
+    final entries = _buildSequenceMessageEntries();
+    for (final entry in entries) {
+      final messageLeft = math.min(
+        entry.concernedLeftCanvas,
+        math.min(
+          entry.leftXCanvas,
+          math.min(entry.startXCanvas, entry.endXCanvas),
+        ),
+      );
+      final messageRight = math.max(
+        entry.concernedRightCanvas,
+        math.max(
+          entry.rightXCanvas,
+          math.max(entry.startXCanvas, entry.endXCanvas),
+        ),
+      );
+      minLeft = math.min(minLeft, messageLeft);
+      maxRight = math.max(
+        maxRight,
+        messageRight + (_sequenceFrameRightGap * zoomLevel),
+      );
     }
 
     if (!minLeft.isFinite || !maxRight.isFinite || maxRight <= minLeft) {
