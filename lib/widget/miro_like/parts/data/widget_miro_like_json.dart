@@ -53,6 +53,8 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
       'propertiesJson': block.propertiesJson,
       'position': _offsetToJson(block.position),
       'size': _sizeToJson(block.size),
+      'zoneTransparent': block.zoneTransparent,
+      'zoneBorderStyle': block.zoneBorderStyle.name,
     };
   }
 
@@ -152,6 +154,10 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
           propertiesJson: item['propertiesJson']?.toString(),
           position: _offsetFromJson(item['position']),
           size: _sizeFromJson(item['size']),
+          zoneTransparent: item['zoneTransparent'] == true,
+          zoneBorderStyle: _zoneBorderStyleFromJsonName(
+            item['zoneBorderStyle']?.toString(),
+          ),
         ),
       );
       final importedBlock = parsed.last;
@@ -257,5 +263,18 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
     }
     return parsed;
   }
-}
 
+  ZoneBorderStyle _zoneBorderStyleFromJsonName(String? raw) {
+    switch (raw) {
+      case 'dashed1_2':
+        return ZoneBorderStyle.dashed1_2;
+      case 'dashed2_2':
+        return ZoneBorderStyle.dashed2_2;
+      case 'dashed2_1':
+        return ZoneBorderStyle.dashed2_1;
+      case 'plain':
+      default:
+        return ZoneBorderStyle.plain;
+    }
+  }
+}

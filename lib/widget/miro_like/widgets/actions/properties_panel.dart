@@ -41,6 +41,8 @@ class PropertiesPanel extends StatefulWidget {
   final Function(Block, String)? onBlockPropertiesJsonChanged;
   final Function(Block)? onZoneBringToFront;
   final Function(Block)? onZoneSendToBack;
+  final Function(Block, bool)? onZoneTransparencyChanged;
+  final Function(Block, ZoneBorderStyle)? onZoneBorderStyleChanged;
   final Function(BlockLink, String)? onLinkNameChanged;
   final Function(BlockLink, String?)? onLinkColorChanged;
   final Function(BlockLink, String?)? onLinkLabelIconChanged;
@@ -76,6 +78,8 @@ class PropertiesPanel extends StatefulWidget {
     this.onBlockPropertiesJsonChanged,
     this.onZoneBringToFront,
     this.onZoneSendToBack,
+    this.onZoneTransparencyChanged,
+    this.onZoneBorderStyleChanged,
     this.onLinkNameChanged,
     this.onLinkColorChanged,
     this.onLinkLabelIconChanged,
@@ -1078,20 +1082,23 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                               color: Colors.blueGrey.withAlpha(130),
                             ),
                           ),
-                          child: ListTile(
-                            dense: true,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              dense: true,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              onTap: () {
+                                applyProposal(widget.selectedBlock!, r);
+                                Navigator.of(dialogContext).pop();
+                              },
+                              //leading: getColorIndicatorFromScore(r.score),
+                              title: Text(
+                                '${index + 1}.) ${r.name} from ${r.domain}.${r.model} ',
+                              ),
+                              subtitle: Text('${r.path}  score: $scoreTxt'),
                             ),
-                            onTap: () {
-                              applyProposal(widget.selectedBlock!, r);
-                              Navigator.of(dialogContext).pop();
-                            },
-                            //leading: getColorIndicatorFromScore(r.score),
-                            title: Text(
-                              '${index + 1}.) ${r.name} from ${r.domain}.${r.model} ',
-                            ),
-                            subtitle: Text('${r.path}  score: $scoreTxt'),
                           ),
                         ),
                       );
@@ -1110,6 +1117,26 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   }
 
   Widget _buildZoneBlockProperties(Block block) {
+    final zoneBorderStyles = <ZoneBorderStyle>[
+      ZoneBorderStyle.plain,
+      ZoneBorderStyle.dashed1_2,
+      ZoneBorderStyle.dashed2_2,
+      ZoneBorderStyle.dashed2_1,
+    ];
+
+    String zoneBorderLabel(ZoneBorderStyle style) {
+      switch (style) {
+        case ZoneBorderStyle.plain:
+          return 'Plain';
+        case ZoneBorderStyle.dashed1_2:
+          return 'Pointille 1-2';
+        case ZoneBorderStyle.dashed2_2:
+          return 'Pointille 2-2';
+        case ZoneBorderStyle.dashed2_1:
+          return 'Pointille 2-1';
+      }
+    }
+
     return _buildPanelContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1199,6 +1226,54 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ],
             onChanged: (value) {
               widget.onBlockColorChanged?.call(block, value);
+            },
+          ),
+          const SizedBox(height: 10),
+          Material(
+            color: Colors.transparent,
+            child: SwitchListTile.adaptive(
+              value: block.zoneTransparent,
+              onChanged: (value) {
+                widget.onZoneTransparencyChanged?.call(block, value);
+              },
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'Couleur transparente',
+                style: TextStyle(color: colorTextPrimary, fontSize: 13),
+              ),
+              subtitle: const Text(
+                'Conserve uniquement la bordure',
+                style: TextStyle(color: colorTextSecondary, fontSize: 11),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<ZoneBorderStyle>(
+            initialValue: block.zoneBorderStyle,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Style de bordure',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: zoneBorderStyles
+                .map(
+                  (style) => DropdownMenuItem<ZoneBorderStyle>(
+                    value: style,
+                    child: Text(zoneBorderLabel(style)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              widget.onZoneBorderStyleChanged?.call(block, value);
             },
           ),
           const SizedBox(height: 12),

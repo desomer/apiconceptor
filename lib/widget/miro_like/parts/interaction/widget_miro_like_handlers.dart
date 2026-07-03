@@ -217,6 +217,28 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     _reorderZonesOnly(zone, bringToFront: false);
   }
 
+  void _handleZoneTransparencyChanged(Block zone, bool transparent) {
+    if (!zone.isZone) {
+      return;
+    }
+    _pushUndoSnapshot();
+    setState(() {
+      zone.zoneTransparent = transparent;
+      _markBoardChanged();
+    });
+  }
+
+  void _handleZoneBorderStyleChanged(Block zone, ZoneBorderStyle style) {
+    if (!zone.isZone) {
+      return;
+    }
+    _pushUndoSnapshot();
+    setState(() {
+      zone.zoneBorderStyle = style;
+      _markBoardChanged();
+    });
+  }
+
   void _handleBlockTagsChanged(Block block, List<String> tagColorKeys) {
     _pushUndoSnapshot();
     setState(() {

@@ -140,16 +140,20 @@ class BlockWidget extends StatelessWidget {
       final zoneBorder = isSelected
           ? colorBlockBorderSelected.withValues(alpha: 0.95)
           : zoneBorderBase.withValues(alpha: 0.80);
-      final zoneFill = isSelected
+      final styledZoneFill = isSelected
           ? Color.alphaBlend(
               colorBlockBackgroundSelected.withValues(alpha: 0.45),
               zoneBaseColor.withValues(alpha: 0.22),
             )
           : zoneBaseColor.withValues(alpha: 0.18);
+      final zoneFill = block.zoneTransparent
+          ? Colors.transparent
+          : styledZoneFill;
       final radius = BorderRadius.circular(14);
       final labelPadX = 10.0 * textScale;
       final labelPadTop = 8.0 * textScale;
       final labelFontSize = 13.0 * textScale;
+      final borderWidth = isSelected ? 2.0 : 1.2;
 
       return Container(
         width: block.size.width,
@@ -157,7 +161,6 @@ class BlockWidget extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: radius,
           color: zoneFill,
-          border: Border.all(color: zoneBorder, width: isSelected ? 2.0 : 1.2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.18),
@@ -166,21 +169,28 @@ class BlockWidget extends StatelessWidget {
             ),
           ],
         ),
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: Padding(
-            padding: EdgeInsets.only(left: labelPadX, top: labelPadTop),
-            child: FractionallySizedBox(
-              widthFactor: 0.78,
-              alignment: Alignment.topLeft,
-              child: Text(
-                block.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: labelFontSize,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white.withValues(alpha: 0.95),
+        child: CustomPaint(
+          painter: _ZoneBorderPainter(
+            style: block.zoneBorderStyle,
+            borderColor: zoneBorder,
+            borderWidth: borderWidth,
+          ),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: EdgeInsets.only(left: labelPadX, top: labelPadTop),
+              child: FractionallySizedBox(
+                widthFactor: 0.78,
+                alignment: Alignment.topLeft,
+                child: Text(
+                  block.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: labelFontSize,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white.withValues(alpha: 0.95),
+                  ),
                 ),
               ),
             ),
@@ -322,5 +332,87 @@ class BlockWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ZoneBorderPainter extends CustomPainter {
+  final ZoneBorderStyle style;
+  final Color borderColor;
+  final double borderWidth;
+
+  const _ZoneBorderPainter({
+    required this.style,
+    required this.borderColor,
+    required this.borderWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final inset = borderWidth / 2;
+    final rect = Rect.fromLTWH(
+      inset,
+      inset,
+      (size.width - borderWidth).clamp(0.0, double.infinity),
+      (size.height - borderWidth).clamp(0.0, double.infinity),
+    );
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(14));
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..color = borderColor
+      ..strokeWidth = borderWidth;
+
+    if (style == ZoneBorderStyle.plain) {
+      canvas.drawRRect(rrect, paint);
+      return;
+    }
+
+    double dash;
+    double gap;
+    switch (style) {
+      case ZoneBorderStyle.dashed1_2:
+        dash = 4;
+        gap = 8;
+        break;
+      case ZoneBorderStyle.dashed2_2:
+        dash = 8;
+        gap = 8;
+        break;
+      case ZoneBorderStyle.dashed2_1:
+        dash = 8;
+        gap = 4;
+        break;
+      case ZoneBorderStyle.plain:
+        dash = 0;
+        gap = 0;
+        break;
+    }
+
+    final path = Path()..addRRect(rrect);
+    final dashed = _dashPath(path, dashLength: dash, gapLength: gap);
+    canvas.drawPath(dashed, paint);
+  }
+
+  Path _dashPath(
+    Path source, {
+    required double dashLength,
+    required double gapLength,
+  }) {
+    final dashed = Path();
+    for (final metric in source.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final next = (distance + dashLength).clamp(0.0, metric.length);
+        dashed.addPath(metric.extractPath(distance, next), Offset.zero);
+        distance += dashLength + gapLength;
+      }
+    }
+    return dashed;
+  }
+
+  @override
+  bool shouldRepaint(covariant _ZoneBorderPainter oldDelegate) {
+    return oldDelegate.style != style ||
+        oldDelegate.borderColor != borderColor ||
+        oldDelegate.borderWidth != borderWidth;
   }
 }

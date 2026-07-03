@@ -590,6 +590,8 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             onBlockPropertiesJsonChanged: _handleBlockPropertiesJsonChanged,
             onZoneBringToFront: _handleZoneBringToFront,
             onZoneSendToBack: _handleZoneSendToBack,
+            onZoneTransparencyChanged: _handleZoneTransparencyChanged,
+            onZoneBorderStyleChanged: _handleZoneBorderStyleChanged,
             onLinkNameChanged: _handleLinkNameChanged,
             onLinkColorChanged: _handleLinkColorChanged,
             onLinkLabelIconChanged: _handleLinkLabelIconChanged,
