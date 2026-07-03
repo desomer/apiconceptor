@@ -329,6 +329,8 @@ class MermaidFlowchartCodec {
         return '((("$text")))';
       case BlockNodeShape.database:
         return '[("$text")]';
+      case BlockNodeShape.horizontalTube:
+        return '((["$text"]))';
       case BlockNodeShape.hexagon:
         return '{{"$text"}}';
       case BlockNodeShape.parallelogram:
@@ -363,6 +365,7 @@ class MermaidFlowchartCodec {
     ({String open, String close, BlockNodeShape shape})? matched;
     final patterns = <({String open, String close, BlockNodeShape shape})>[
       (open: '(((', close: ')))', shape: BlockNodeShape.doubleCircle),
+      (open: '(([', close: ']))', shape: BlockNodeShape.horizontalTube),
       (open: '[[', close: ']]', shape: BlockNodeShape.subroutine),
       (open: '{{', close: '}}', shape: BlockNodeShape.hexagon),
       (open: '([', close: '])', shape: BlockNodeShape.roundedRectangle),

@@ -705,6 +705,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       BlockNodeShape.circle,
       BlockNodeShape.doubleCircle,
       BlockNodeShape.database,
+      BlockNodeShape.horizontalTube,
       BlockNodeShape.hexagon,
       BlockNodeShape.parallelogram,
       BlockNodeShape.parallelogramInverted,
@@ -728,6 +729,8 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           return 'Double cercle';
         case BlockNodeShape.database:
           return 'Base de donnees';
+        case BlockNodeShape.horizontalTube:
+          return 'Tube horizontal (Topic)';
         case BlockNodeShape.hexagon:
           return 'Hexagone';
         case BlockNodeShape.parallelogram:

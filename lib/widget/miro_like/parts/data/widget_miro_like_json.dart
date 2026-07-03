@@ -294,6 +294,8 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
         return BlockNodeShape.doubleCircle;
       case 'database':
         return BlockNodeShape.database;
+      case 'horizontalTube':
+        return BlockNodeShape.horizontalTube;
       case 'hexagon':
         return BlockNodeShape.hexagon;
       case 'parallelogram':

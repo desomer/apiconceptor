@@ -347,6 +347,11 @@ class _NodeShapePainter extends CustomPainter {
       return;
     }
 
+    if (shape == BlockNodeShape.horizontalTube) {
+      _paintHorizontalTubeNode(canvas, size);
+      return;
+    }
+
     final path = _buildNodeShapePath(size, shape);
     canvas.drawShadow(path, colorShadow1.withValues(alpha: 0.42), 8.0, false);
     canvas.drawShadow(path, baseColor.withValues(alpha: 0.28), 4.0, false);
@@ -396,8 +401,8 @@ class _NodeShapePainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final stroke = borderWidth;
-    final rx = (w * 0.5 - stroke).clamp(10.0, w * 0.5);
-    final ry = (h * 0.12).clamp(8.0, h * 0.22);
+    final rx = _clampSafe(w * 0.5 - stroke, 10.0, w * 0.5);
+    final ry = _clampSafe(h * 0.12, 8.0, h * 0.22);
     final left = stroke * 0.9;
     final right = w - stroke * 0.9;
     final topY = ry + stroke;
@@ -463,8 +468,12 @@ class _NodeShapePainter extends CustomPainter {
       ..color = _shiftStaticLightness(baseColor, 0.18).withValues(alpha: 0.95);
     canvas.drawOval(topCapRect, topCapFill);
 
-    final socleHeight = (ry * 1.2).clamp(10.0, h * 0.24);
-    final socleTopY = (bottomY - ry * 0.06).clamp(topY + ry, h - socleHeight);
+    final socleHeight = _clampSafe(ry * 1.2, 10.0, h * 0.24);
+    final socleTopY = _clampSafe(
+      bottomY - ry * 0.06,
+      topY + ry,
+      h - socleHeight,
+    );
     //final socleRect = Rect.fromLTRB(left, socleTopY, right, h - stroke * 0.4);
     final bottomRingRect = Rect.fromLTRB(
       left,
@@ -480,7 +489,7 @@ class _NodeShapePainter extends CustomPainter {
     canvas.drawOval(bottomRingRect, bottomDiskFill);
 
     // Bridge the tube and pedestal with a dense body tone.
-    final bridgeTop = (bottomY - ry * 0.25).clamp(topY, socleTopY);
+    final bridgeTop = _clampSafe(bottomY - ry * 0.25, topY, socleTopY);
     final bridgeRect = Rect.fromLTRB(
       left + stroke,
       bridgeTop,
@@ -494,7 +503,7 @@ class _NodeShapePainter extends CustomPainter {
 
     final neckRect = Rect.fromLTRB(
       left + w * 0.06,
-      (bottomY - ry * 0.30).clamp(topY, socleTopY),
+      _clampSafe(bottomY - ry * 0.30, topY, socleTopY),
       right - w * 0.06,
       socleTopY,
     );
@@ -552,7 +561,7 @@ class _NodeShapePainter extends CustomPainter {
       ..strokeWidth = math.max(3.0, stroke * 0.75)
       ..color = borderColor.withValues(alpha: 0.72);
     final yStops = <double>[0.40, 0.57, 0.72, 0.84]
-        .map((f) => (h * f).clamp(topY + 3.0, bottomY - 2.0))
+        .map((f) => _clampSafe(h * f, topY + 3.0, bottomY - 2.0))
         .toList(growable: false);
     for (final y in yStops) {
       final ringRect = Rect.fromLTRB(left, y - ry, right, y + ry);
@@ -564,6 +573,151 @@ class _NodeShapePainter extends CustomPainter {
       ..strokeWidth = math.max(1.0, stroke * 0.60)
       ..color = Colors.white.withValues(alpha: 0.24);
     canvas.drawArc(topCapRect, math.pi, math.pi, false, topHighlight);
+  }
+
+  void _paintHorizontalTubeNode(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = borderWidth;
+    final outerPath = _buildNodeShapePath(size, BlockNodeShape.horizontalTube);
+    canvas.drawShadow(
+      outerPath,
+      colorShadow1.withValues(alpha: 0.42),
+      8.0,
+      false,
+    );
+
+    final capRadius = _clampSafe(h * 0.30 - stroke * 0.6, 6.0, h * 0.5);
+    final leftCenterX = stroke + capRadius;
+    final rightCenterX = w - stroke - capRadius;
+
+    if (rightCenterX <= leftCenterX) {
+      final fallbackFill = Paint()
+        ..style = PaintingStyle.fill
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            _shiftStaticLightness(baseColor, 0.18),
+            baseColor,
+            _shiftStaticLightness(baseColor, -0.24),
+          ],
+        ).createShader(Offset.zero & size);
+      canvas.drawPath(outerPath, fallbackFill);
+      final fallbackBorder = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = borderColor;
+      canvas.drawPath(outerPath, fallbackBorder);
+      return;
+    }
+
+    final bodyRect = Rect.fromLTRB(
+      leftCenterX,
+      stroke,
+      rightCenterX,
+      h - stroke,
+    );
+    final leftCapRect = Rect.fromCenter(
+      center: Offset(leftCenterX, h / 2),
+      width: capRadius * 2,
+      height: _clampSafe(h - stroke * 2, 4.0, h),
+    );
+    final rightCapRect = Rect.fromCenter(
+      center: Offset(rightCenterX, h / 2),
+      width: capRadius * 2,
+      height: _clampSafe(h - stroke * 2, 4.0, h),
+    );
+
+    final bodyFill = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          _shiftStaticLightness(baseColor, 0.20),
+          _shiftStaticLightness(baseColor, 0.04),
+          _shiftStaticLightness(baseColor, -0.26),
+        ],
+        stops: const [0.0, 0.46, 1.0],
+      ).createShader(bodyRect);
+    canvas.drawRect(bodyRect, bodyFill);
+
+    final separatorCount = bodyRect.width >= h * 1.6 ? 3 : 2;
+    final separatorStroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(0.8, stroke * 0.55)
+      ..color = borderColor.withValues(alpha: 0.22);
+    final separatorHighlight = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(0.5, stroke * 0.35)
+      ..color = Colors.white.withValues(alpha: 0.12);
+    for (var i = 1; i <= separatorCount; i++) {
+      final t = i / (separatorCount + 1);
+      final x = bodyRect.left + bodyRect.width * t;
+      canvas.drawLine(
+        Offset(x, bodyRect.top + stroke * 0.35),
+        Offset(x, bodyRect.bottom - stroke * 0.35),
+        separatorStroke,
+      );
+      canvas.drawLine(
+        Offset(x - 0.7, bodyRect.top + stroke * 0.5),
+        Offset(x - 0.7, bodyRect.bottom - stroke * 0.5),
+        separatorHighlight,
+      );
+    }
+
+    final leftCapFill = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          _shiftStaticLightness(baseColor, 0.18),
+          _shiftStaticLightness(baseColor, 0.02),
+          _shiftStaticLightness(baseColor, -0.20),
+        ],
+        stops: const [0.0, 0.52, 1.0],
+      ).createShader(leftCapRect);
+    canvas.drawOval(leftCapRect, leftCapFill);
+
+    final rightCapFill = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          _shiftStaticLightness(baseColor, 0.14),
+          _shiftStaticLightness(baseColor, -0.02),
+          _shiftStaticLightness(baseColor, -0.24),
+        ],
+        stops: const [0.0, 0.52, 1.0],
+      ).createShader(rightCapRect);
+    canvas.drawOval(rightCapRect, rightCapFill);
+
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..color = borderColor;
+    canvas.drawPath(outerPath, borderPaint);
+
+    final seamStroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.0, stroke * 0.85)
+      ..color = borderColor.withValues(alpha: 0.55);
+    canvas.drawOval(leftCapRect, seamStroke);
+    canvas.drawOval(rightCapRect, seamStroke);
+
+    final topHighlight = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.0, stroke * 0.65)
+      ..color = Colors.white.withValues(alpha: 0.24);
+    final highlightY = stroke + (h - stroke * 2) * 0.20;
+    canvas.drawLine(
+      Offset(leftCenterX + capRadius * 0.15, highlightY),
+      Offset(rightCenterX - capRadius * 0.15, highlightY),
+      topHighlight,
+    );
   }
 
   @override
@@ -608,7 +762,7 @@ Path _buildNodeShapePath(
       path.addOval(rect);
       break;
     case BlockNodeShape.database:
-      final ry = (height * 0.12).clamp(8.0, height * 0.24);
+      final ry = _clampSafe(height * 0.12, 8.0, height * 0.24);
       final topY = rect.top + ry;
       final bottomY = rect.bottom - ry;
       path
@@ -625,6 +779,10 @@ Path _buildNodeShapePath(
           clockwise: false,
         )
         ..close();
+      break;
+    case BlockNodeShape.horizontalTube:
+      final tubeRadius = math.min(height * 0.30, width * 0.5);
+      path.addRRect(RRect.fromRectAndRadius(rect, Radius.circular(tubeRadius)));
       break;
     case BlockNodeShape.hexagon:
       final dx = width * 0.18;
@@ -682,6 +840,12 @@ Color _shiftStaticLightness(Color color, double amount) {
   final hsl = HSLColor.fromColor(color);
   final shifted = (hsl.lightness + amount).clamp(0.0, 1.0);
   return hsl.withLightness(shifted).toColor();
+}
+
+double _clampSafe(double value, double minValue, double maxValue) {
+  final lower = math.min(minValue, maxValue);
+  final upper = math.max(minValue, maxValue);
+  return value.clamp(lower, upper).toDouble();
 }
 
 class _ZoneBorderPainter extends CustomPainter {

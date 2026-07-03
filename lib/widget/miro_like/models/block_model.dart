@@ -53,6 +53,7 @@ enum BlockNodeShape {
   circle,
   doubleCircle,
   database,
+  horizontalTube,
   hexagon,
   parallelogram,
   parallelogramInverted,
