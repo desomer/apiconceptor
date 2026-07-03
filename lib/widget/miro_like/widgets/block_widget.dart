@@ -342,6 +342,11 @@ class _NodeShapePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (shape == BlockNodeShape.database) {
+      _paintDatabaseNode(canvas, size);
+      return;
+    }
+
     final path = _buildNodeShapePath(size, shape);
     canvas.drawShadow(path, colorShadow1.withValues(alpha: 0.42), 8.0, false);
     canvas.drawShadow(path, baseColor.withValues(alpha: 0.28), 4.0, false);
@@ -387,6 +392,180 @@ class _NodeShapePainter extends CustomPainter {
     }
   }
 
+  void _paintDatabaseNode(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = borderWidth;
+    final rx = (w * 0.5 - stroke).clamp(10.0, w * 0.5);
+    final ry = (h * 0.12).clamp(8.0, h * 0.22);
+    final left = stroke * 0.9;
+    final right = w - stroke * 0.9;
+    final topY = ry + stroke;
+    final bottomY = h - ry - stroke;
+
+    final bodyPath = Path()
+      ..moveTo(left, topY)
+      ..arcToPoint(
+        Offset(right, topY),
+        radius: Radius.elliptical(rx, ry),
+        clockwise: false,
+      )
+      ..lineTo(right, bottomY)
+      ..arcToPoint(
+        Offset(left, bottomY),
+        radius: Radius.elliptical(rx, ry),
+        clockwise: false,
+      )
+      ..close();
+
+    canvas.drawShadow(
+      bodyPath,
+      colorShadow1.withValues(alpha: 0.45),
+      8.0,
+      false,
+    );
+
+    final bodyFill = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          _shiftStaticLightness(baseColor, 0.12),
+          baseColor,
+          _shiftStaticLightness(baseColor, -0.24),
+        ],
+        stops: const [0.0, 0.46, 1.0],
+      ).createShader(Offset.zero & size);
+    canvas.drawPath(bodyPath, bodyFill);
+
+    final sideShade = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.black.withValues(alpha: 0.10);
+    final sideBandW = math.max(6.0, w * 0.06);
+    canvas.drawRect(
+      Rect.fromLTWH(left, topY, sideBandW, math.max(0.0, bottomY - topY)),
+      sideShade,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(
+        right - sideBandW,
+        topY,
+        sideBandW,
+        math.max(0.0, bottomY - topY),
+      ),
+      sideShade,
+    );
+
+    final topCapRect = Rect.fromLTRB(left, stroke, right, stroke + 2 * ry);
+    final topCapFill = Paint()
+      ..style = PaintingStyle.fill
+      ..color = _shiftStaticLightness(baseColor, 0.18).withValues(alpha: 0.95);
+    canvas.drawOval(topCapRect, topCapFill);
+
+    final socleHeight = (ry * 1.2).clamp(10.0, h * 0.24);
+    final socleTopY = (bottomY - ry * 0.06).clamp(topY + ry, h - socleHeight);
+    //final socleRect = Rect.fromLTRB(left, socleTopY, right, h - stroke * 0.4);
+    final bottomRingRect = Rect.fromLTRB(
+      left,
+      bottomY - ry,
+      right,
+      bottomY + ry,
+    );
+
+    // Ensure the lower tube slice is visually solid (no hollow/transparent feel).
+    final bottomDiskFill = Paint()
+      ..style = PaintingStyle.fill
+      ..color = _shiftStaticLightness(baseColor, -0.20).withValues(alpha: 0.95);
+    canvas.drawOval(bottomRingRect, bottomDiskFill);
+
+    // Bridge the tube and pedestal with a dense body tone.
+    final bridgeTop = (bottomY - ry * 0.25).clamp(topY, socleTopY);
+    final bridgeRect = Rect.fromLTRB(
+      left + stroke,
+      bridgeTop,
+      right - stroke,
+      socleTopY,
+    );
+    final bridgeFill = Paint()
+      ..style = PaintingStyle.fill
+      ..color = _shiftStaticLightness(baseColor, -0.24).withValues(alpha: 0.96);
+    canvas.drawRect(bridgeRect, bridgeFill);
+
+    final neckRect = Rect.fromLTRB(
+      left + w * 0.06,
+      (bottomY - ry * 0.30).clamp(topY, socleTopY),
+      right - w * 0.06,
+      socleTopY,
+    );
+    final neckFill = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          _shiftStaticLightness(baseColor, -0.06).withValues(alpha: 0.92),
+          _shiftStaticLightness(baseColor, -0.22).withValues(alpha: 0.95),
+        ],
+      ).createShader(neckRect);
+    canvas.drawRect(neckRect, neckFill);
+
+    // final socleFill = Paint()
+    //   ..style = PaintingStyle.fill
+    //   ..color = _shiftStaticLightness(baseColor, -0.30).withValues(alpha: 0.96);
+    // canvas.drawOval(socleRect, socleFill);
+
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..color = borderColor;
+    canvas.drawPath(bodyPath, borderPaint);
+    canvas.drawOval(topCapRect, borderPaint);
+    canvas.drawArc(bottomRingRect, 0, math.pi, false, borderPaint);
+
+    // final neckBorderPaint = Paint()
+    //   ..style = PaintingStyle.stroke
+    //   ..strokeWidth = math.max(1.0, stroke * 0.9)
+    //   ..color = borderColor.withValues(alpha: 0.82);
+    // canvas.drawLine(
+    //   Offset(neckRect.left, neckRect.top),
+    //   Offset(neckRect.left, neckRect.bottom),
+    //   neckBorderPaint,
+    // );
+    // canvas.drawLine(
+    //   Offset(neckRect.right, neckRect.top),
+    //   Offset(neckRect.right, neckRect.bottom),
+    //   neckBorderPaint,
+    // );
+
+    // final socleTopArcRect = Rect.fromLTRB(
+    //   socleRect.left,
+    //   socleRect.top,
+    //   socleRect.right,
+    //   socleRect.top + 2 * ry,
+    // );
+    // canvas.drawArc(socleTopArcRect, 0, math.pi, false, neckBorderPaint);
+    //canvas.drawArc(socleRect, 0, math.pi, false, borderPaint);
+
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(3.0, stroke * 0.75)
+      ..color = borderColor.withValues(alpha: 0.72);
+    final yStops = <double>[0.40, 0.57, 0.72, 0.84]
+        .map((f) => (h * f).clamp(topY + 3.0, bottomY - 2.0))
+        .toList(growable: false);
+    for (final y in yStops) {
+      final ringRect = Rect.fromLTRB(left, y - ry, right, y + ry);
+      canvas.drawArc(ringRect, 0, math.pi, false, ringPaint);
+    }
+
+    final topHighlight = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.0, stroke * 0.60)
+      ..color = Colors.white.withValues(alpha: 0.24);
+    canvas.drawArc(topCapRect, math.pi, math.pi, false, topHighlight);
+  }
+
   @override
   bool shouldRepaint(covariant _NodeShapePainter oldDelegate) {
     return oldDelegate.shape != shape ||
@@ -429,12 +608,23 @@ Path _buildNodeShapePath(
       path.addOval(rect);
       break;
     case BlockNodeShape.database:
-      path.addRRect(
-        RRect.fromRectAndRadius(
-          rect,
-          Radius.circular(math.max(14.0, height * 0.22)),
-        ),
-      );
+      final ry = (height * 0.12).clamp(8.0, height * 0.24);
+      final topY = rect.top + ry;
+      final bottomY = rect.bottom - ry;
+      path
+        ..moveTo(rect.left, topY)
+        ..arcToPoint(
+          Offset(rect.right, topY),
+          radius: Radius.elliptical(rect.width / 2, ry),
+          clockwise: false,
+        )
+        ..lineTo(rect.right, bottomY)
+        ..arcToPoint(
+          Offset(rect.left, bottomY),
+          radius: Radius.elliptical(rect.width / 2, ry),
+          clockwise: false,
+        )
+        ..close();
       break;
     case BlockNodeShape.hexagon:
       final dx = width * 0.18;
