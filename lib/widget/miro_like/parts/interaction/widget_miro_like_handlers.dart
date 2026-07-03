@@ -114,6 +114,9 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
       if (selectedLink == link) {
         selectedLink = null;
       }
+      if (_isSequenceDiagramView) {
+        _reflowSequenceLayoutAfterMutation();
+      }
       _markBoardChanged();
     });
   }
@@ -456,6 +459,7 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
           sourceLink: group.sourceLink,
           sourceOpenLineIndex: group.sourceOpenLineIndex,
         );
+        _reflowSequenceLayoutAfterMutation();
         _markBoardChanged();
       });
       return;
@@ -490,6 +494,7 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
         kind: normalizedKind,
         label: normalizedLabel,
       );
+      _reflowSequenceLayoutAfterMutation();
       _markBoardChanged();
     });
   }

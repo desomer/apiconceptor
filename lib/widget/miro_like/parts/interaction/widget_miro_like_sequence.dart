@@ -75,6 +75,51 @@ class _SequenceNormalizeOpenCapture {
 }
 
 extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
+  void _reflowSequenceLayoutAfterMutation() {
+    if (!_isSequenceDiagramView) {
+      return;
+    }
+
+    final participants = blocks.where((b) => !b.isZone).toList(growable: false);
+    if (participants.isEmpty) {
+      return;
+    }
+
+    final orderedParticipants = participants.toList(growable: false)
+      ..sort((a, b) {
+        final byX = a.position.dx.compareTo(b.position.dx);
+        if (byX != 0) {
+          return byX;
+        }
+        return a.position.dy.compareTo(b.position.dy);
+      });
+
+    final validParticipantIds = orderedParticipants.map((b) => b.id).toSet();
+    final orderedLinks =
+        links
+            .where(
+              (l) =>
+                  validParticipantIds.contains(l.fromBlockId) &&
+                  validParticipantIds.contains(l.toBlockId),
+            )
+            .toList(growable: true)
+          ..sort((a, b) {
+            final byLane = _sequenceLaneYModel(
+              a,
+            ).compareTo(_sequenceLaneYModel(b));
+            if (byLane != 0) {
+              return byLane;
+            }
+            return links.indexOf(a).compareTo(links.indexOf(b));
+          });
+
+    _applyCanonicalSequenceLayout(
+      orderedParticipants,
+      orderedLinks,
+      repositionParticipants: true,
+    );
+  }
+
   bool _isAltControlOpenLine(String rawOpenLine) {
     final trimmed = rawOpenLine.trim().toLowerCase();
     return trimmed.startsWith('alt');
@@ -221,6 +266,8 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         group.sourceLink.sequenceBeforeLines.removeAt(openLineIndex);
       }
 
+      _reflowSequenceLayoutAfterMutation();
+
       _selectedSequenceGroup = null;
       _markBoardChanged();
     });
@@ -269,6 +316,8 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         );
       }
 
+      _reflowSequenceLayoutAfterMutation();
+
       _markBoardChanged();
     });
   }
@@ -289,6 +338,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
         selectedLink = null;
       }
       _selectedSequenceGroup = null;
+      _reflowSequenceLayoutAfterMutation();
       _markBoardChanged();
     });
   }
@@ -349,6 +399,8 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
       }
 
       _finalizeSequenceLayoutCommon();
+
+      _reflowSequenceLayoutAfterMutation();
 
       final entryByLink = <BlockLink, SequenceMessageEntry>{
         for (final entry in _buildSequenceMessageEntries()) entry.link: entry,
