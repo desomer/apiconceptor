@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:jsonschema/widget/miro_like/mermaid_sequence_codec.dart';
 import 'package:jsonschema/widget/miro_like/models/link_model.dart';
 
 extension _OffsetRotation on Offset {
@@ -27,6 +28,10 @@ void paintLinkConnectorVisuals({
   if (endAngle != null) {
     final arrowType = (link?.sequenceArrowType ?? '').trim();
     final hasSequenceArrowType = arrowType.isNotEmpty;
+    final isNoteOverArrow = MermaidSequenceCodec.isNoteOverType(arrowType);
+    if (isNoteOverArrow) {
+      return;
+    }
     final isNoHeadArrow = hasSequenceArrowType && arrowType == '->';
     final isCrossArrow =
         hasSequenceArrowType &&

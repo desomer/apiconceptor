@@ -39,6 +39,8 @@ class MermaidSequenceParseResult {
 class MermaidSequenceCodec {
   const MermaidSequenceCodec._();
 
+  static const String noteOverType = 'note over';
+
   static const Set<String> _supportedArrowTypes = {
     '->>',
     '-->>',
@@ -68,6 +70,10 @@ class MermaidSequenceCodec {
       return line.toLowerCase().startsWith('sequencediagram');
     }
     return false;
+  }
+
+  static bool isNoteOverType(String? value) {
+    return (value ?? '').trim().toLowerCase() == noteOverType;
   }
 
   static MermaidSequenceParseResult parse(String text) {
@@ -111,7 +117,8 @@ class MermaidSequenceCodec {
       }
 
       final participantMatch = RegExp(
-        '^participant\\s+($_participantIdPattern)(?:\\s+as\\s+(.+))?' + r'$',
+        '^participant\\s+($_participantIdPattern)(?:\\s+as\\s+(.+))?'
+        r'$',
         caseSensitive: false,
       ).firstMatch(line);
       if (participantMatch != null) {
@@ -167,9 +174,33 @@ class MermaidSequenceCodec {
         continue;
       }
 
+      final noteOverMatch = RegExp(
+        '^note\\s+over\\s+($_participantIdPattern)(?:\\s*,\\s*($_participantIdPattern))?\\s*:\\s*(.*)'
+        r'$',
+        caseSensitive: false,
+      ).firstMatch(line);
+      if (noteOverMatch != null) {
+        final fromId = noteOverMatch.group(1)!;
+        final toId = noteOverMatch.group(2) ?? fromId;
+        final label = _normalizeInline((noteOverMatch.group(3) ?? '').trim());
+        registerParticipant(fromId);
+        registerParticipant(toId);
+        messages.add(
+          MermaidSequenceMessage(
+            fromId: fromId,
+            toId: toId,
+            arrowType: noteOverType,
+            label: label.isEmpty ? 'note' : label,
+            beforeLines: List<String>.from(pendingBeforeLines),
+          ),
+        );
+        pendingBeforeLines.clear();
+        continue;
+      }
+
       final messageMatch = RegExp(
-        '^($_participantIdPattern)\\s*(-->>|->>|-->|->|--[xX]|->[xX]|--\\)|-\\))\\s*($_participantIdPattern)\\s*:\\s*(.*)' +
-            r'$',
+        '^($_participantIdPattern)\\s*(-->>|->>|-->|->|--[xX]|->[xX]|--\\)|-\\))\\s*($_participantIdPattern)\\s*:\\s*(.*)'
+        r'$',
       ).firstMatch(line);
       if (messageMatch != null) {
         final fromId = messageMatch.group(1)!;
@@ -281,10 +312,18 @@ class MermaidSequenceCodec {
       }
 
       final label = link.name.trim().isEmpty
-          ? 'message'
+          ? (isNoteOverType(link.sequenceArrowType) ? 'note' : 'message')
           : _normalizeInline(link.name);
-      final arrowType = _normalizedArrowTypeOrDefault(link.sequenceArrowType);
-      buffer.writeln('  $fromId$arrowType$toId: $label');
+      if (isNoteOverType(link.sequenceArrowType)) {
+        if (fromId == toId) {
+          buffer.writeln('  note over $fromId: $label');
+        } else {
+          buffer.writeln('  note over $fromId,$toId: $label');
+        }
+      } else {
+        final arrowType = _normalizedArrowTypeOrDefault(link.sequenceArrowType);
+        buffer.writeln('  $fromId$arrowType$toId: $label');
+      }
 
       for (final controlLine in link.sequenceAfterLines) {
         final normalized = _normalizeControlLine(controlLine);

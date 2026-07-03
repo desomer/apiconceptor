@@ -1,9 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart'
+    show unitOrFallback;
 import 'package:jsonschema/widget/miro_like/layers/link_connector_paint_utils.dart';
 import 'package:jsonschema/widget/miro_like/layers/link_creation_preview_utils.dart';
 import 'package:jsonschema/widget/miro_like/layers/link_geometry_utils.dart';
 import 'package:jsonschema/widget/miro_like/layers/link_label_layout_utils.dart';
+import 'package:jsonschema/widget/miro_like/mermaid_sequence_codec.dart';
 import 'package:jsonschema/widget/miro_like/models/block_model.dart';
 import 'package:jsonschema/widget/miro_like/models/link_model.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
@@ -187,6 +190,23 @@ class MiroLinkLayerPainter {
           ? const Color(0xFFFFC107)
           : (kLinkColorMap[link.colorKey] ?? colorLinkDefault);
 
+      final isNoteOver = MermaidSequenceCodec.isNoteOverType(arrowType);
+
+      if (isNoteOver) {
+        _paintDirectionalNoteArrow(
+          canvas: canvas,
+          link: link,
+          from: fromEdge,
+          to: toEdge,
+          viaPoints: viaCanvas,
+          startTangent: startTangent,
+          endTangent: endTangent,
+          color: resolvedColor,
+          isSelected: selectedLink == link,
+        );
+        continue;
+      }
+
       paintLinkConnector(
         canvas: canvas,
         from: fromEdge,
@@ -255,5 +275,98 @@ class MiroLinkLayerPainter {
 
   double _linkStrokeWidth() {
     return (3.0 * zoomLevel).clamp(0.8, 9.0);
+  }
+
+  void _paintDirectionalNoteArrow({
+    required Canvas canvas,
+    required BlockLink link,
+    required Offset from,
+    required Offset to,
+    required List<Offset> viaPoints,
+    required Offset startTangent,
+    required Offset endTangent,
+    required Color color,
+    required bool isSelected,
+  }) {
+    final direction = unitOrFallback(to - from, const Offset(1, 0));
+    final totalLength = (to - from).distance;
+    if (totalLength <= 1.0) {
+      return;
+    }
+
+    final normal = Offset(-direction.dy, direction.dx);
+
+    final thickness = (30.0 * zoomLevel).clamp(12.0, 56.0);
+    final headLength = (28.0 * zoomLevel).clamp(12.0, 52.0);
+
+    final effectiveHeadLength = math.min(
+      headLength,
+      math.max(8.0, totalLength * 0.45),
+    );
+    final bodyStart = from;
+    final headBase = to - (direction * effectiveHeadLength);
+    final bodyLength = (headBase - bodyStart).distance;
+    if (bodyLength <= 4.0) {
+      return;
+    }
+
+    final topStart = bodyStart + (normal * (thickness / 2));
+    final topEnd = headBase + (normal * (thickness / 2));
+    final bottomEnd = headBase - (normal * (thickness / 2));
+    final bottomStart = bodyStart - (normal * (thickness / 2));
+
+    final shapePath = Path()
+      ..moveTo(topStart.dx, topStart.dy)
+      ..lineTo(topEnd.dx, topEnd.dy)
+      ..lineTo(to.dx, to.dy)
+      ..lineTo(bottomEnd.dx, bottomEnd.dy)
+      ..lineTo(bottomStart.dx, bottomStart.dy)
+      ..close();
+
+    final bodyFill = Paint()
+      ..color = color.withValues(alpha: isSelected ? 0.55 : 0.42)
+      ..style = PaintingStyle.fill;
+    final bodyStroke = Paint()
+      ..color = color.withValues(alpha: isSelected ? 0.98 : 0.78)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (2.6 * zoomLevel).clamp(1.1, 4.2);
+    canvas.drawPath(shapePath, bodyFill);
+    canvas.drawPath(shapePath, bodyStroke);
+
+    // final tipHighlight = Paint()
+    //   ..color = color.withValues(alpha: isSelected ? 1.0 : 0.9)
+    //   ..style = PaintingStyle.fill;
+    // final tipRadius = (2.8 * zoomLevel).clamp(1.4, 5.2);
+    // canvas.drawCircle(to, tipRadius, tipHighlight);
+
+    final label = link.name.trim().isEmpty ? 'note' : link.name.trim();
+    final maxTextWidth = math.max(12.0, bodyLength - (16.0 * zoomLevel));
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: (12.0 * zoomLevel).clamp(9.0, 24.0),
+          fontWeight: FontWeight.w700,
+          shadows: const [
+            Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(0, 1)),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: maxTextWidth);
+
+    final textCenter = Offset(
+      bodyStart.dx + (headBase.dx - bodyStart.dx) * 0.5,
+      bodyStart.dy + (headBase.dy - bodyStart.dy) * 0.5,
+    );
+
+    final textOffset = Offset(
+      textCenter.dx - (textPainter.width / 2),
+      textCenter.dy - (textPainter.height / 2),
+    );
+    textPainter.paint(canvas, textOffset);
   }
 }

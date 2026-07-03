@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/miro_like/mermaid_sequence_codec.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'dart:convert';
@@ -90,6 +91,9 @@ class PropertiesPanel extends StatefulWidget {
 }
 
 class _PropertiesPanelState extends State<PropertiesPanel> {
+  static const String _sequenceMessageKindMessage = 'message';
+  static const String _sequenceMessageKindNoteOver = 'note-over';
+
   static const List<String> _mermaidArrowTypeOptions = [
     '->>',
     '-->>',
@@ -521,7 +525,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           const SizedBox(height: 12),
           Text(
             isElseBranchSelection
-                ? 'Type: else (branche ${selectedBranchIndex})'
+                ? 'Type: else (branche $selectedBranchIndex)'
                 : 'Type: ${normalizedKind.isEmpty ? 'inconnu' : normalizedKind}',
             style: const TextStyle(color: colorTextSecondary),
           ),
@@ -1238,6 +1242,10 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
 
   Widget _buildLinkProperties(BlockLink link) {
     final arrowType = (link.sequenceArrowType ?? '').trim();
+    final isNoteOver = MermaidSequenceCodec.isNoteOverType(arrowType);
+    final sequenceMessageKind = isNoteOver
+        ? _sequenceMessageKindNoteOver
+        : _sequenceMessageKindMessage;
     final effectiveArrowType = arrowType.isEmpty ? '-->' : arrowType;
     final isDashedArrow = effectiveArrowType.startsWith('--');
     final arrowAccent = _mermaidArrowAccentColor(effectiveArrowType);
@@ -1262,6 +1270,48 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           Text(
             'Cible: ${link.toBlockId}',
             style: const TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: sequenceMessageKind,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Type element sequence',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem<String>(
+                value: _sequenceMessageKindMessage,
+                child: Text('Message'),
+              ),
+              DropdownMenuItem<String>(
+                value: _sequenceMessageKindNoteOver,
+                child: Text('Note over'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+
+              if (value == _sequenceMessageKindNoteOver) {
+                widget.onLinkSequenceArrowTypeChanged?.call(
+                  link,
+                  MermaidSequenceCodec.noteOverType,
+                );
+                return;
+              }
+
+              final nextArrowType = _mermaidArrowTypeOptions.contains(arrowType)
+                  ? arrowType
+                  : '-->';
+              widget.onLinkSequenceArrowTypeChanged?.call(link, nextArrowType);
+            },
           ),
           // if (hasSequenceArrowType) ...[
           //   const SizedBox(height: 12),
@@ -1316,47 +1366,56 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           //     ),
           //   ),
           // ],
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _mermaidArrowTypeOptions.contains(effectiveArrowType)
-                ? effectiveArrowType
-                : '-->',
-            dropdownColor: colorBlockBackground,
-            iconEnabledColor: arrowAccent,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            decoration: InputDecoration(
-              labelText: 'Type message',
-              labelStyle: TextStyle(color: arrowAccent),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(
-                  color: arrowAccent.withValues(alpha: 0.65),
+          if (!isNoteOver) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue:
+                  _mermaidArrowTypeOptions.contains(effectiveArrowType)
+                  ? effectiveArrowType
+                  : '-->',
+              dropdownColor: colorBlockBackground,
+              iconEnabledColor: arrowAccent,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              decoration: InputDecoration(
+                labelText: 'Type message',
+                labelStyle: TextStyle(color: arrowAccent),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: arrowAccent.withValues(alpha: 0.65),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: arrowAccent, width: 1.5),
+                ),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: arrowAccent),
+                ),
+                isDense: true,
+                helperText: isDashedArrow ? 'Dashed flow style' : null,
+                helperStyle: const TextStyle(
+                  fontSize: 12,
+                  color: colorTextSecondary,
                 ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: arrowAccent, width: 1.5),
-              ),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: arrowAccent),
-              ),
-              isDense: true,
-              helperText: isDashedArrow ? 'Dashed flow style' : null,
-              helperStyle: const TextStyle(
-                fontSize: 12,
-                color: colorTextSecondary,
-              ),
+              items: _mermaidArrowTypeOptions
+                  .map(
+                    (type) => DropdownMenuItem<String>(
+                      value: type,
+                      child: Text(_mermaidArrowTypeLabel(type)),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                widget.onLinkSequenceArrowTypeChanged?.call(link, value);
+              },
             ),
-            items: _mermaidArrowTypeOptions
-                .map(
-                  (type) => DropdownMenuItem<String>(
-                    value: type,
-                    child: Text(_mermaidArrowTypeLabel(type)),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: (value) {
-              widget.onLinkSequenceArrowTypeChanged?.call(link, value);
-            },
-          ),
+          ] else ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Note over exportee au format Mermaid: note over A,B: texte',
+              style: TextStyle(color: colorTextSecondary, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 12),
           TextFormField(
             key: ValueKey('link-name-${link.fromBlockId}-${link.toBlockId}'),

@@ -585,6 +585,34 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     return r;
   }
 
+  double _sequenceMessageLabelHeightModel(BlockLink link) {
+    final label = link.name.trim().isEmpty ? 'message' : link.name.trim();
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: 220.0);
+
+    final verticalPadding = 8.0;
+    return textPainter.height + verticalPadding;
+  }
+
+  double _sequenceRenderedHeightModel(BlockLink link) {
+    final geometryHeight = _sequenceMessageVisualHeightModel(link);
+    final labelHeight = _sequenceMessageLabelHeightModel(link);
+
+    if (MermaidSequenceCodec.isNoteOverType(link.sequenceArrowType)) {
+      final noteBodyHeight = 30.0;
+      return math.max(noteBodyHeight, labelHeight);
+    }
+
+    return math.max(geometryHeight, labelHeight);
+  }
+
   int _countSequenceOpenLines(List<String> lines) {
     var count = 0;
     for (final raw in lines) {
@@ -631,8 +659,10 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
   }
 
   double _sequenceMinGapBetweenMessages(BlockLink previous, BlockLink current) {
-    final visualHeight = _sequenceMessageVisualHeightModel(previous);
-    return _sequenceMessageStepY + visualHeight;
+    final previousHeight = _sequenceRenderedHeightModel(previous);
+    final currentHeight = _sequenceRenderedHeightModel(current);
+    final collisionFreeGap = (previousHeight / 2) + (currentHeight / 2) + 8.0;
+    return math.max(_sequenceMessageStepY, collisionFreeGap);
   }
 
   Map<BlockLink, _SequenceLayoutSlotMetrics> _sequenceLayoutMetricsByOrder(
