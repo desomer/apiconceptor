@@ -38,6 +38,7 @@ class AutoLayoutEngine {
     required List<Block> effectiveBlocks,
     required AutoLayoutQualityProfile quality,
     Map<String, Offset>? seedPositions,
+    List<List<String>>? subgraphNodeGroups,
   }) {
     if (nodeOrder.isEmpty) {
       return {};
@@ -77,6 +78,10 @@ class AutoLayoutEngine {
       for (final id in nodeOrder)
         id: _sizeForNode(effectiveBlocks, id) ?? const Size(150, 100),
     };
+    final normalizedSubgraphGroups = _normalizeSubgraphGroups(
+      subgraphNodeGroups,
+      nodeSet,
+    );
 
     final hasSeeds = (seedPositions ?? const <String, Offset>{}).isNotEmpty;
     final seeded = seedPositions ?? const <String, Offset>{};
@@ -115,6 +120,8 @@ class AutoLayoutEngine {
     final crossingK = 34.0 * quality.crossingMul;
     final blockCutK = 44.0 * quality.hpwlMul;
     final medianK = 0.018 * quality.hpwlMul;
+    final subgraphCohesionK = 0.025 * quality.springMul;
+    final subgraphCompactK = 0.040 * quality.overlapMul;
     final alignDisabled = quality.alignmentPriority < 0;
     final alignPriority = alignDisabled
         ? 0.0
@@ -240,6 +247,77 @@ class AutoLayoutEngine {
         final spring = dir * ((dist - idealLen) * springK);
         forces[a] = forces[a]! + spring;
         forces[b] = forces[b]! - spring;
+      }
+
+      if (normalizedSubgraphGroups.isNotEmpty) {
+        for (final group in normalizedSubgraphGroups) {
+          final centers = <String, Offset>{
+            for (final id in group)
+              id: _nodeCenter(positions[id]!, sizeByNode[id]!),
+          };
+          final barycenter = _meanOffset(centers.values);
+
+          var avgHalfDiagonal = 0.0;
+          for (final id in group) {
+            final s = sizeByNode[id]!;
+            avgHalfDiagonal += math.sqrt(
+              (s.width * s.width + s.height * s.height) / 4,
+            );
+          }
+          avgHalfDiagonal /= group.length;
+          final targetRadius = math.max(
+            120.0,
+            math.sqrt(group.length.toDouble()) *
+                (blockGap * 0.95 + avgHalfDiagonal * 1.15),
+          );
+
+          for (final id in group) {
+            final center = centers[id]!;
+            final delta = center - barycenter;
+            final dist = delta.distance;
+            if (dist <= 1e-6) {
+              continue;
+            }
+
+            final dir = delta / dist;
+            final cohesion = delta * (-subgraphCohesionK * (0.45 + cooling));
+            forces[id] = forces[id]! + cohesion;
+
+            if (dist > targetRadius) {
+              final excess = dist - targetRadius;
+              final compact =
+                  dir * (excess * subgraphCompactK * (0.8 + cooling));
+              forces[id] = forces[id]! - compact;
+              conflictScore[id] = conflictScore[id]! + 0.35;
+            }
+          }
+
+          for (int i = 0; i < group.length - 1; i++) {
+            final a = group[i];
+            final ca = centers[a]!;
+            final sa = sizeByNode[a]!;
+            for (int j = i + 1; j < group.length; j++) {
+              final b = group[j];
+              final cb = centers[b]!;
+              final sb = sizeByNode[b]!;
+
+              final delta = cb - ca;
+              final dist = math.max(1.0, delta.distance);
+              final dir = delta / dist;
+              final targetDist =
+                  ((sa.longestSide + sb.longestSide) * 0.56 + blockGap * 0.65)
+                      .clamp(60.0, 380.0);
+              if (dist <= targetDist) {
+                continue;
+              }
+
+              final pull =
+                  dir * ((dist - targetDist) * subgraphCohesionK * 0.55);
+              forces[a] = forces[a]! + pull;
+              forces[b] = forces[b]! - pull;
+            }
+          }
+        }
       }
 
       if (isHorizontal || direction == 'TB' || direction == 'BT') {
@@ -479,6 +557,7 @@ class AutoLayoutEngine {
         direction: direction,
         minGap: blockGap,
         alignmentPriority: alignPriority,
+        subgraphNodeGroups: normalizedSubgraphGroups,
       );
     }
 
@@ -489,6 +568,7 @@ class AutoLayoutEngine {
       sizeByNode: sizeByNode,
       allEdges: allEdges,
       minGap: blockGap,
+      subgraphNodeGroups: normalizedSubgraphGroups,
     );
 
     if (hasSeeds) {
@@ -498,6 +578,7 @@ class AutoLayoutEngine {
         sizeByNode: sizeByNode,
         allEdges: allEdges,
         minGap: blockGap,
+        subgraphNodeGroups: normalizedSubgraphGroups,
       );
       final finalLength = _totalEdgeLength(positions, sizeByNode, allEdges);
 
@@ -510,6 +591,7 @@ class AutoLayoutEngine {
         sizeByNode: sizeByNode,
         allEdges: allEdges,
         minGap: blockGap,
+        subgraphNodeGroups: normalizedSubgraphGroups,
       );
       final seedLength = _totalEdgeLength(
         seededPositions,
@@ -547,6 +629,7 @@ class AutoLayoutEngine {
     required String direction,
     required double minGap,
     required double alignmentPriority,
+    required List<List<String>> subgraphNodeGroups,
   }) {
     if (nodeOrder.length < 2) {
       return;
@@ -564,6 +647,7 @@ class AutoLayoutEngine {
       sizeByNode: sizeByNode,
       allEdges: allEdges,
       minGap: minGap,
+      subgraphNodeGroups: subgraphNodeGroups,
     );
     var currentPenalty = baselinePenalty;
     var currentLength = _totalEdgeLength(positions, sizeByNode, allEdges);
@@ -625,6 +709,7 @@ class AutoLayoutEngine {
         sizeByNode: sizeByNode,
         allEdges: allEdges,
         minGap: minGap,
+        subgraphNodeGroups: subgraphNodeGroups,
       );
       final length = _totalEdgeLength(candidate, sizeByNode, allEdges);
       final alignment = _edgeAlignmentScore(candidate, sizeByNode);
@@ -675,6 +760,7 @@ class AutoLayoutEngine {
     required Map<String, Size> sizeByNode,
     required List<(String, String)> allEdges,
     required double minGap,
+    required List<List<String>> subgraphNodeGroups,
   }) {
     if (seedPositions.isEmpty) {
       return;
@@ -686,6 +772,7 @@ class AutoLayoutEngine {
       sizeByNode: sizeByNode,
       allEdges: allEdges,
       minGap: minGap,
+      subgraphNodeGroups: subgraphNodeGroups,
     );
     final baselineLength = _totalEdgeLength(positions, sizeByNode, allEdges);
 
@@ -708,6 +795,7 @@ class AutoLayoutEngine {
         sizeByNode: sizeByNode,
         allEdges: allEdges,
         minGap: minGap,
+        subgraphNodeGroups: subgraphNodeGroups,
       );
       final length = _totalEdgeLength(positions, sizeByNode, allEdges);
       if (penalty > baselinePenalty + 1e-6 || length > baselineLength * 1.02) {
@@ -790,6 +878,7 @@ class AutoLayoutEngine {
     required Map<String, Size> sizeByNode,
     required List<(String, String)> allEdges,
     required double minGap,
+    required List<List<String>> subgraphNodeGroups,
   }) {
     var penalty = 0.0;
 
@@ -858,6 +947,39 @@ class AutoLayoutEngine {
         )) {
           penalty += 120000;
         }
+      }
+    }
+
+    for (final group in subgraphNodeGroups) {
+      if (group.length < 2) {
+        continue;
+      }
+
+      final centers = <Offset>[
+        for (final id in group) _nodeCenter(positions[id]!, sizeByNode[id]!),
+      ];
+      final barycenter = _meanOffset(centers);
+      var avgHalfDiagonal = 0.0;
+      for (final id in group) {
+        final s = sizeByNode[id]!;
+        avgHalfDiagonal += math.sqrt(
+          (s.width * s.width + s.height * s.height) / 4,
+        );
+      }
+      avgHalfDiagonal /= group.length;
+      final targetRadius = math.max(
+        120.0,
+        math.sqrt(group.length.toDouble()) *
+            (minGap * 0.95 + avgHalfDiagonal * 1.25),
+      );
+
+      for (final center in centers) {
+        final distance = (center - barycenter).distance;
+        if (distance <= targetRadius) {
+          continue;
+        }
+        final excess = distance - targetRadius;
+        penalty += excess * excess * 38.0;
       }
     }
 
@@ -1067,6 +1189,41 @@ class AutoLayoutEngine {
       return Offset.zero;
     }
     return Offset(sx / count, sy / count);
+  }
+
+  static List<List<String>> _normalizeSubgraphGroups(
+    List<List<String>>? rawGroups,
+    Set<String> allowedNodeIds,
+  ) {
+    if (rawGroups == null || rawGroups.isEmpty) {
+      return const <List<String>>[];
+    }
+
+    final output = <List<String>>[];
+    final seenGroups = <String>{};
+    for (final raw in rawGroups) {
+      final seenNodes = <String>{};
+      final cleaned = <String>[];
+      for (final id in raw) {
+        if (!allowedNodeIds.contains(id) || !seenNodes.add(id)) {
+          continue;
+        }
+        cleaned.add(id);
+      }
+
+      if (cleaned.length < 2) {
+        continue;
+      }
+
+      final key = [...cleaned]..sort();
+      final signature = key.join('|');
+      if (!seenGroups.add(signature)) {
+        continue;
+      }
+      output.add(cleaned);
+    }
+
+    return output;
   }
 
   static Offset _segmentNormal(Offset a, Offset b) {

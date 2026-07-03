@@ -444,6 +444,9 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
       },
       onBlockPanUpdate: (block, details) {
         if (_selectedBlockIds.contains(block.id)) {
+          if (block.isZone && _isAutoSubgraphZone(block)) {
+            return;
+          }
           setState(() {
             final deltaModel = Offset(
               details.delta.dx / zoomLevel,
@@ -454,6 +457,9 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
               for (final selectedId in _selectedBlockIds) {
                 final idx = blocks.indexWhere((b) => b.id == selectedId);
                 if (idx == -1) {
+                  continue;
+                }
+                if (blocks[idx].isZone && _isAutoSubgraphZone(blocks[idx])) {
                   continue;
                 }
                 blocks[idx].position += deltaModel;
@@ -490,6 +496,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
                 }
               }
             }
+            _syncAutoSubgraphZones();
             _markBoardChanged();
           });
         }

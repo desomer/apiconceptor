@@ -42,7 +42,17 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
       );
     }
 
-    _runAutoLayoutOnGraph(importedBlocks, importedLinks, layoutDirection);
+    final subgraphNodeGroups = parsed.subgraphs
+        .map((subgraph) => subgraph.nodeIds)
+        .where((ids) => ids.length >= 2)
+        .toList(growable: false);
+
+    _runAutoLayoutOnGraph(
+      importedBlocks,
+      importedLinks,
+      layoutDirection,
+      subgraphNodeGroups: subgraphNodeGroups,
+    );
 
     _pushUndoSnapshot();
 
@@ -67,8 +77,12 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
       _dragFreePositionModel = null;
       _mermaidLayoutDirection = layoutDirection;
       _isSequenceDiagramView = false;
+      _upsertAutoSubgraphZonesFromMermaid(parsed.subgraphs);
 
       for (final block in blocks) {
+        if (block.isZone) {
+          continue;
+        }
         _ensureBlockHasSpaceForAnchors(block);
       }
       _markBoardChanged();
@@ -172,6 +186,7 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
       _snapTopModel = null;
       _dragFreePositionModel = null;
       _applyCanonicalSequenceLayout(importedBlocks, importedLinks);
+      _syncAutoSubgraphZones();
       _markBoardChanged();
     });
 
@@ -220,6 +235,8 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
       _isSequenceDiagramView = isSequenceDiagramView;
       if (_isSequenceDiagramView) {
         _normalizeSequenceMessageGeometryAndSpacing();
+      } else {
+        _syncAutoSubgraphZones();
       }
       _markBoardSaved();
     });

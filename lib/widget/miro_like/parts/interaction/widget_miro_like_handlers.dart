@@ -98,6 +98,7 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
       links.removeWhere(
         (link) => link.fromBlockId == block.id || link.toBlockId == block.id,
       );
+      _syncAutoSubgraphZones();
       selectedBlock = null;
       if (selectedLink != null && !links.contains(selectedLink)) {
         selectedLink = null;

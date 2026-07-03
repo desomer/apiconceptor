@@ -15,17 +15,31 @@ class MermaidFlowchartEdge {
   });
 }
 
+class MermaidFlowchartSubgraph {
+  final String id;
+  final String title;
+  final List<String> nodeIds;
+
+  const MermaidFlowchartSubgraph({
+    required this.id,
+    required this.title,
+    required this.nodeIds,
+  });
+}
+
 class MermaidFlowchartParseResult {
   final String layoutDirection;
   final List<String> nodeOrder;
   final Map<String, String> nodeTitles;
   final List<MermaidFlowchartEdge> edges;
+  final List<MermaidFlowchartSubgraph> subgraphs;
 
   const MermaidFlowchartParseResult({
     required this.layoutDirection,
     required this.nodeOrder,
     required this.nodeTitles,
     required this.edges,
+    required this.subgraphs,
   });
 }
 
@@ -95,6 +109,10 @@ class MermaidFlowchartCodec {
     final nodeTitles = <String, String>{};
     final nodeOrder = <String>[];
     final edgeData = <MermaidFlowchartEdge>[];
+    final subgraphStack = <String>[];
+    final subgraphTitles = <String, String>{};
+    final subgraphNodeSets = <String, Set<String>>{};
+    var autoSubgraphIndex = 0;
 
     void registerNode(String nodeId, [String? title]) {
       if (!nodeOrder.contains(nodeId)) {
@@ -104,6 +122,9 @@ class MermaidFlowchartCodec {
         nodeTitles[nodeId] = _normalizeLineBreaks(title);
       } else {
         nodeTitles.putIfAbsent(nodeId, () => nodeId);
+      }
+      for (final subgraphId in subgraphStack) {
+        subgraphNodeSets.putIfAbsent(subgraphId, () => <String>{}).add(nodeId);
       }
     }
 
@@ -117,6 +138,58 @@ class MermaidFlowchartCodec {
         continue;
       }
 
+      final subgraphMatch = RegExp(
+        r'^subgraph\s+(.+)$',
+        caseSensitive: false,
+      ).firstMatch(line);
+      if (subgraphMatch != null) {
+        final body = (subgraphMatch.group(1) ?? '').trim();
+        if (body.isEmpty) {
+          continue;
+        }
+
+        final quotedMatch = RegExp(r'^"([^"]+)"$').firstMatch(body);
+        final bracketMatch = RegExp(
+          r'^([A-Za-z_][A-Za-z0-9_-]*)\s*\[\s*(?:"([^"]*)"|([^\]]*))\s*\]$',
+        ).firstMatch(body);
+
+        String subgraphId;
+        String subgraphTitle;
+        if (bracketMatch != null) {
+          subgraphId = bracketMatch.group(1)!;
+          subgraphTitle =
+              (bracketMatch.group(2) ?? bracketMatch.group(3) ?? subgraphId)
+                  .trim();
+        } else if (quotedMatch != null) {
+          subgraphId = 'sg${autoSubgraphIndex++}';
+          subgraphTitle = quotedMatch.group(1)!.trim();
+        } else {
+          final tokenIdMatch = RegExp(
+            r'^([A-Za-z_][A-Za-z0-9_-]*)(?:\s+"([^"]+)")?$',
+          ).firstMatch(body);
+          if (tokenIdMatch != null) {
+            subgraphId = tokenIdMatch.group(1)!;
+            subgraphTitle = (tokenIdMatch.group(2) ?? tokenIdMatch.group(1)!)
+                .trim();
+          } else {
+            subgraphId = 'sg${autoSubgraphIndex++}';
+            subgraphTitle = body;
+          }
+        }
+
+        subgraphTitles[subgraphId] = _normalizeLineBreaks(subgraphTitle);
+        subgraphNodeSets.putIfAbsent(subgraphId, () => <String>{});
+        subgraphStack.add(subgraphId);
+        continue;
+      }
+
+      if (line.toLowerCase() == 'end') {
+        if (subgraphStack.isNotEmpty) {
+          subgraphStack.removeLast();
+        }
+        continue;
+      }
+
       final nodeMatch = RegExp(
         r'^([A-Za-z_][A-Za-z0-9_-]*)\s*\[\s*(?:"([^"]*)"|([^\]]*))\s*\]\s*$',
       ).firstMatch(line);
@@ -127,26 +200,13 @@ class MermaidFlowchartCodec {
         continue;
       }
 
-      final edgeMatch = RegExp(
-        r'^([A-Za-z_][A-Za-z0-9_-]*)\s*(--?>)\s*(?:\|([^|]*)\|\s*)?([A-Za-z_][A-Za-z0-9_-]*)\s*$',
-      ).firstMatch(line);
-      if (edgeMatch != null) {
-        final fromId = edgeMatch.group(1)!;
-        final arrowType = _normalizedFlowchartArrowTypeOrDefault(
-          edgeMatch.group(2),
-        );
-        final label = (edgeMatch.group(3) ?? '').trim();
-        final toId = edgeMatch.group(4)!;
-        registerNode(fromId);
-        registerNode(toId);
-        edgeData.add(
-          MermaidFlowchartEdge(
-            fromId: fromId,
-            toId: toId,
-            label: label,
-            arrowType: arrowType,
-          ),
-        );
+      final chainedEdges = _parseChainedEdges(line);
+      if (chainedEdges.isNotEmpty) {
+        for (final edge in chainedEdges) {
+          registerNode(edge.fromId);
+          registerNode(edge.toId);
+          edgeData.add(edge);
+        }
       }
     }
 
@@ -159,6 +219,16 @@ class MermaidFlowchartCodec {
       nodeOrder: nodeOrder,
       nodeTitles: nodeTitles,
       edges: edgeData,
+      subgraphs: subgraphNodeSets.entries
+          .where((entry) => entry.value.isNotEmpty)
+          .map(
+            (entry) => MermaidFlowchartSubgraph(
+              id: entry.key,
+              title: subgraphTitles[entry.key] ?? entry.key,
+              nodeIds: entry.value.toList(growable: false),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -221,5 +291,89 @@ class MermaidFlowchartCodec {
       return value;
     }
     return '-->';
+  }
+
+  static List<MermaidFlowchartEdge> _parseChainedEdges(String line) {
+    final result = <MermaidFlowchartEdge>[];
+    var cursor = _skipSpaces(line, 0);
+    final firstNode = _readNodeId(line, cursor);
+    if (firstNode == null) {
+      return const <MermaidFlowchartEdge>[];
+    }
+
+    var currentNode = firstNode.$1;
+    cursor = firstNode.$2;
+
+    while (true) {
+      cursor = _skipSpaces(line, cursor);
+      final arrow = _readArrow(line, cursor);
+      if (arrow == null) {
+        break;
+      }
+
+      final arrowType = _normalizedFlowchartArrowTypeOrDefault(arrow.$1);
+      cursor = _skipSpaces(line, arrow.$2);
+      var label = '';
+
+      if (cursor < line.length && line.codeUnitAt(cursor) == 124) {
+        final labelEnd = line.indexOf('|', cursor + 1);
+        if (labelEnd < 0) {
+          return const <MermaidFlowchartEdge>[];
+        }
+        label = line.substring(cursor + 1, labelEnd).trim();
+        cursor = _skipSpaces(line, labelEnd + 1);
+      }
+
+      final nextNode = _readNodeId(line, cursor);
+      if (nextNode == null) {
+        return const <MermaidFlowchartEdge>[];
+      }
+
+      result.add(
+        MermaidFlowchartEdge(
+          fromId: currentNode,
+          toId: nextNode.$1,
+          label: label,
+          arrowType: arrowType,
+        ),
+      );
+      currentNode = nextNode.$1;
+      cursor = nextNode.$2;
+    }
+
+    cursor = _skipSpaces(line, cursor);
+    if (result.isEmpty || cursor != line.length) {
+      return const <MermaidFlowchartEdge>[];
+    }
+    return result;
+  }
+
+  static (String, int)? _readNodeId(String line, int start) {
+    final match = RegExp(
+      r'^[A-Za-z_][A-Za-z0-9_-]*',
+    ).firstMatch(line.substring(start));
+    if (match == null) {
+      return null;
+    }
+    final value = match.group(0)!;
+    return (value, start + value.length);
+  }
+
+  static (String, int)? _readArrow(String line, int start) {
+    if (line.startsWith('-->', start)) {
+      return ('-->', start + 3);
+    }
+    if (line.startsWith('->', start)) {
+      return ('->', start + 2);
+    }
+    return null;
+  }
+
+  static int _skipSpaces(String value, int start) {
+    var i = start;
+    while (i < value.length && value.codeUnitAt(i) <= 32) {
+      i++;
+    }
+    return i;
   }
 }

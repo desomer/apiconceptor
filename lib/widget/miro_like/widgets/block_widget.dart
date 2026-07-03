@@ -132,7 +132,7 @@ class BlockWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textScale = zoomLevel;
-    final titleFontSize = (14.0 * textScale).clamp(1.0, 44.0);
+    final normalTitleFontSize = 14.0 * textScale;
     if (block.isZone) {
       final zoneBaseColor =
           kBlockColorMap[block.colorKey] ?? colorBlockBackground;
@@ -147,6 +147,9 @@ class BlockWidget extends StatelessWidget {
             )
           : zoneBaseColor.withValues(alpha: 0.18);
       final radius = BorderRadius.circular(14);
+      final labelPadX = 10.0 * textScale;
+      final labelPadTop = 8.0 * textScale;
+      final labelFontSize = 13.0 * textScale;
 
       return Container(
         width: block.size.width,
@@ -166,15 +169,19 @@ class BlockWidget extends StatelessWidget {
         child: Align(
           alignment: Alignment.topLeft,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Text(
-              block.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: (13.0 * textScale).clamp(1.0, 34.0),
-                fontWeight: FontWeight.w700,
-                color: Colors.white.withValues(alpha: 0.95),
+            padding: EdgeInsets.only(left: labelPadX, top: labelPadTop),
+            child: FractionallySizedBox(
+              widthFactor: 0.78,
+              alignment: Alignment.topLeft,
+              child: Text(
+                block.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: labelFontSize,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white.withValues(alpha: 0.95),
+                ),
               ),
             ),
           ),
@@ -263,7 +270,7 @@ class BlockWidget extends StatelessWidget {
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: titleFontSize,
+                    fontSize: normalTitleFontSize,
                     fontWeight: FontWeight.w600,
                     color: isSelected ? colorBlockTextSelected : colorBlockText,
                     shadows: [

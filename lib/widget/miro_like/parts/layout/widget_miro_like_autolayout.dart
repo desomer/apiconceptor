@@ -7,6 +7,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
     String direction,
     List<Block>? layoutBlocks, {
     Map<String, Offset>? seedPositions,
+    List<List<String>>? subgraphNodeGroups,
   }) {
     final effectiveBlocks = layoutBlocks ?? blocks;
     final quality = _placementQualityProfile();
@@ -28,6 +29,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
         alignmentPriority: _alignmentPriorityMultiplier(),
       ),
       seedPositions: seedPositions,
+      subgraphNodeGroups: subgraphNodeGroups,
     );
   }
 
@@ -390,6 +392,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
         _mermaidLayoutDirection,
         preserveCurrentPositions: true,
       );
+      _syncAutoSubgraphZones();
       _markBoardChanged();
     });
   }
@@ -784,6 +787,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
     List<BlockLink> targetLinks,
     String direction, {
     bool preserveCurrentPositions = false,
+    List<List<String>>? subgraphNodeGroups,
   }) {
     final layoutBlocks = targetBlocks
         .where((b) => !b.isZone)
@@ -818,6 +822,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
       seedPositions: preserveCurrentPositions
           ? {for (final block in layoutBlocks) block.id: block.position}
           : null,
+      subgraphNodeGroups: subgraphNodeGroups,
     );
 
     for (final block in layoutBlocks) {
