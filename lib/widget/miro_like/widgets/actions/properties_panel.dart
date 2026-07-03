@@ -36,6 +36,7 @@ class PropertiesPanel extends StatefulWidget {
   final Function(SequenceControlGroupInfo)? onAddElseToSequenceGroup;
   final Function(String, String)? onBlockTitleChanged;
   final Function(Block, String?)? onBlockColorChanged;
+  final Function(Block, BlockNodeShape)? onBlockNodeShapeChanged;
   final Function(Block, List<String>)? onBlockTagsChanged;
   final Function(Block, String)? onBlockIconBase64Changed;
   final Function(Block, String)? onBlockPropertiesJsonChanged;
@@ -73,6 +74,7 @@ class PropertiesPanel extends StatefulWidget {
     this.onAddElseToSequenceGroup,
     this.onBlockTitleChanged,
     this.onBlockColorChanged,
+    this.onBlockNodeShapeChanged,
     this.onBlockTagsChanged,
     this.onBlockIconBase64Changed,
     this.onBlockPropertiesJsonChanged,
@@ -695,6 +697,50 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       return _buildZoneBlockProperties(block);
     }
 
+    final nodeShapes = <BlockNodeShape>[
+      BlockNodeShape.rectangle,
+      BlockNodeShape.roundedRectangle,
+      BlockNodeShape.stadium,
+      BlockNodeShape.subroutine,
+      BlockNodeShape.circle,
+      BlockNodeShape.doubleCircle,
+      BlockNodeShape.database,
+      BlockNodeShape.hexagon,
+      BlockNodeShape.parallelogram,
+      BlockNodeShape.parallelogramInverted,
+      BlockNodeShape.trapezoid,
+      BlockNodeShape.trapezoidInverted,
+    ];
+
+    String nodeShapeLabel(BlockNodeShape shape) {
+      switch (shape) {
+        case BlockNodeShape.rectangle:
+          return 'Rectangle';
+        case BlockNodeShape.roundedRectangle:
+          return 'Rectangle arrondi';
+        case BlockNodeShape.stadium:
+          return 'Stadium';
+        case BlockNodeShape.subroutine:
+          return 'Subroutine';
+        case BlockNodeShape.circle:
+          return 'Cercle';
+        case BlockNodeShape.doubleCircle:
+          return 'Double cercle';
+        case BlockNodeShape.database:
+          return 'Base de donnees';
+        case BlockNodeShape.hexagon:
+          return 'Hexagone';
+        case BlockNodeShape.parallelogram:
+          return 'Parallelogramme';
+        case BlockNodeShape.parallelogramInverted:
+          return 'Parallelogramme inverse';
+        case BlockNodeShape.trapezoid:
+          return 'Trapeze';
+        case BlockNodeShape.trapezoidInverted:
+          return 'Trapeze inverse';
+      }
+    }
+
     return _buildPanelContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -790,6 +836,34 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ],
             onChanged: (value) {
               widget.onBlockColorChanged?.call(block, value);
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<BlockNodeShape>(
+            initialValue: block.nodeShape,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Forme du noeud',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: nodeShapes
+                .map(
+                  (shape) => DropdownMenuItem<BlockNodeShape>(
+                    value: shape,
+                    child: Text(nodeShapeLabel(shape)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              widget.onBlockNodeShapeChanged?.call(block, value);
             },
           ),
           const SizedBox(height: 12),

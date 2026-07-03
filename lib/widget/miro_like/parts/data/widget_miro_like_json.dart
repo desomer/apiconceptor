@@ -55,6 +55,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
       'size': _sizeToJson(block.size),
       'zoneTransparent': block.zoneTransparent,
       'zoneBorderStyle': block.zoneBorderStyle.name,
+      'nodeShape': block.nodeShape.name,
     };
   }
 
@@ -158,6 +159,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
           zoneBorderStyle: _zoneBorderStyleFromJsonName(
             item['zoneBorderStyle']?.toString(),
           ),
+          nodeShape: _blockNodeShapeFromJsonName(item['nodeShape']?.toString()),
         ),
       );
       final importedBlock = parsed.last;
@@ -275,6 +277,36 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
       case 'plain':
       default:
         return ZoneBorderStyle.plain;
+    }
+  }
+
+  BlockNodeShape _blockNodeShapeFromJsonName(String? raw) {
+    switch (raw) {
+      case 'roundedRectangle':
+        return BlockNodeShape.roundedRectangle;
+      case 'stadium':
+        return BlockNodeShape.stadium;
+      case 'subroutine':
+        return BlockNodeShape.subroutine;
+      case 'circle':
+        return BlockNodeShape.circle;
+      case 'doubleCircle':
+        return BlockNodeShape.doubleCircle;
+      case 'database':
+        return BlockNodeShape.database;
+      case 'hexagon':
+        return BlockNodeShape.hexagon;
+      case 'parallelogram':
+        return BlockNodeShape.parallelogram;
+      case 'parallelogramInverted':
+        return BlockNodeShape.parallelogramInverted;
+      case 'trapezoid':
+        return BlockNodeShape.trapezoid;
+      case 'trapezoidInverted':
+        return BlockNodeShape.trapezoidInverted;
+      case 'rectangle':
+      default:
+        return BlockNodeShape.rectangle;
     }
   }
 }

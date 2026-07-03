@@ -31,6 +31,7 @@ class MermaidFlowchartParseResult {
   final String layoutDirection;
   final List<String> nodeOrder;
   final Map<String, String> nodeTitles;
+  final Map<String, BlockNodeShape> nodeShapes;
   final List<MermaidFlowchartEdge> edges;
   final List<MermaidFlowchartSubgraph> subgraphs;
 
@@ -38,6 +39,7 @@ class MermaidFlowchartParseResult {
     required this.layoutDirection,
     required this.nodeOrder,
     required this.nodeTitles,
+    required this.nodeShapes,
     required this.edges,
     required this.subgraphs,
   });
@@ -63,7 +65,11 @@ class MermaidFlowchartCodec {
       if (nodeId == null) {
         continue;
       }
-      buffer.writeln('  $nodeId["${_escapeMermaidText(block.title)}"]');
+      final shapeSyntax = _nodeShapeSyntax(
+        shape: block.nodeShape,
+        text: _escapeMermaidText(block.title),
+      );
+      buffer.writeln('  $nodeId$shapeSyntax');
     }
 
     for (final link in links) {
@@ -107,6 +113,7 @@ class MermaidFlowchartCodec {
 
     final lines = source.split(RegExp(r'\r?\n'));
     final nodeTitles = <String, String>{};
+    final nodeShapes = <String, BlockNodeShape>{};
     final nodeOrder = <String>[];
     final edgeData = <MermaidFlowchartEdge>[];
     final subgraphStack = <String>[];
@@ -114,7 +121,11 @@ class MermaidFlowchartCodec {
     final subgraphNodeSets = <String, Set<String>>{};
     var autoSubgraphIndex = 0;
 
-    void registerNode(String nodeId, [String? title]) {
+    void registerNode(
+      String nodeId, [
+      String? title,
+      BlockNodeShape? nodeShape,
+    ]) {
       if (!nodeOrder.contains(nodeId)) {
         nodeOrder.add(nodeId);
       }
@@ -122,6 +133,11 @@ class MermaidFlowchartCodec {
         nodeTitles[nodeId] = _normalizeLineBreaks(title);
       } else {
         nodeTitles.putIfAbsent(nodeId, () => nodeId);
+      }
+      if (nodeShape != null) {
+        nodeShapes[nodeId] = nodeShape;
+      } else {
+        nodeShapes.putIfAbsent(nodeId, () => BlockNodeShape.rectangle);
       }
       for (final subgraphId in subgraphStack) {
         subgraphNodeSets.putIfAbsent(subgraphId, () => <String>{}).add(nodeId);
@@ -190,13 +206,13 @@ class MermaidFlowchartCodec {
         continue;
       }
 
-      final nodeMatch = RegExp(
-        r'^([A-Za-z_][A-Za-z0-9_-]*)\s*\[\s*(?:"([^"]*)"|([^\]]*))\s*\]\s*$',
-      ).firstMatch(line);
-      if (nodeMatch != null) {
-        final nodeId = nodeMatch.group(1)!;
-        final title = nodeMatch.group(2) ?? nodeMatch.group(3) ?? nodeId;
-        registerNode(nodeId, title);
+      final nodeDeclaration = _parseNodeDeclaration(line);
+      if (nodeDeclaration != null) {
+        registerNode(
+          nodeDeclaration.id,
+          nodeDeclaration.title,
+          nodeDeclaration.shape,
+        );
         continue;
       }
 
@@ -218,6 +234,7 @@ class MermaidFlowchartCodec {
       layoutDirection: layoutDirection,
       nodeOrder: nodeOrder,
       nodeTitles: nodeTitles,
+      nodeShapes: nodeShapes,
       edges: edgeData,
       subgraphs: subgraphNodeSets.entries
           .where((entry) => entry.value.isNotEmpty)
@@ -291,6 +308,105 @@ class MermaidFlowchartCodec {
       return value;
     }
     return '-->';
+  }
+
+  static String _nodeShapeSyntax({
+    required BlockNodeShape shape,
+    required String text,
+  }) {
+    switch (shape) {
+      case BlockNodeShape.rectangle:
+        return '["$text"]';
+      case BlockNodeShape.roundedRectangle:
+        return '(["$text"])';
+      case BlockNodeShape.stadium:
+        return '(["$text"])';
+      case BlockNodeShape.subroutine:
+        return '[["$text"]]';
+      case BlockNodeShape.circle:
+        return '(("$text"))';
+      case BlockNodeShape.doubleCircle:
+        return '((("$text")))';
+      case BlockNodeShape.database:
+        return '[("$text")]';
+      case BlockNodeShape.hexagon:
+        return '{{"$text"}}';
+      case BlockNodeShape.parallelogram:
+        return '[/"$text"/]';
+      case BlockNodeShape.parallelogramInverted:
+        return '[\\"$text"\\]';
+      case BlockNodeShape.trapezoid:
+        return '[/"$text"\\]';
+      case BlockNodeShape.trapezoidInverted:
+        return '[\\"$text"/]';
+    }
+  }
+
+  static ({String id, String title, BlockNodeShape shape})?
+  _parseNodeDeclaration(String line) {
+    final idMatch = RegExp(
+      r'^([A-Za-z_][A-Za-z0-9_-]*)\s*(.+)$',
+    ).firstMatch(line);
+    if (idMatch == null) {
+      return null;
+    }
+
+    final nodeId = idMatch.group(1)!;
+    final suffix = (idMatch.group(2) ?? '').trim();
+    if (suffix.isEmpty) {
+      return null;
+    }
+
+    String? text;
+    BlockNodeShape? shape;
+
+    ({String open, String close, BlockNodeShape shape})? matched;
+    final patterns = <({String open, String close, BlockNodeShape shape})>[
+      (open: '(((', close: ')))', shape: BlockNodeShape.doubleCircle),
+      (open: '[[', close: ']]', shape: BlockNodeShape.subroutine),
+      (open: '{{', close: '}}', shape: BlockNodeShape.hexagon),
+      (open: '([', close: '])', shape: BlockNodeShape.roundedRectangle),
+      (open: '((', close: '))', shape: BlockNodeShape.circle),
+      (open: '[(', close: ')]', shape: BlockNodeShape.database),
+      (open: '[/', close: '/]', shape: BlockNodeShape.parallelogram),
+      (open: '[\\', close: '\\]', shape: BlockNodeShape.parallelogramInverted),
+      (open: '[/', close: '\\]', shape: BlockNodeShape.trapezoid),
+      (open: '[\\', close: '/]', shape: BlockNodeShape.trapezoidInverted),
+      (open: '[', close: ']', shape: BlockNodeShape.rectangle),
+    ];
+
+    for (final pattern in patterns) {
+      if (!suffix.startsWith(pattern.open) || !suffix.endsWith(pattern.close)) {
+        continue;
+      }
+      final inner = suffix.substring(
+        pattern.open.length,
+        suffix.length - pattern.close.length,
+      );
+      text = _decodeNodeText(inner);
+      shape = pattern.shape;
+      matched = pattern;
+      break;
+    }
+
+    if (matched == null || text == null || shape == null) {
+      return null;
+    }
+
+    return (id: nodeId, title: text, shape: shape);
+  }
+
+  static String _decodeNodeText(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.length >= 2 &&
+        trimmed.startsWith('"') &&
+        trimmed.endsWith('"')) {
+      final unquoted = trimmed.substring(1, trimmed.length - 1);
+      return _normalizeLineBreaks(
+        unquoted.replaceAll(r'\"', '"').replaceAll(r'\\', r'\'),
+      );
+    }
+    return _normalizeLineBreaks(trimmed);
   }
 
   static List<MermaidFlowchartEdge> _parseChainedEdges(String line) {

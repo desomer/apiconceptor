@@ -180,6 +180,17 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     });
   }
 
+  void _handleBlockNodeShapeChanged(Block block, BlockNodeShape nodeShape) {
+    if (block.isZone) {
+      return;
+    }
+    _pushUndoSnapshot();
+    setState(() {
+      block.nodeShape = nodeShape;
+      _markBoardChanged();
+    });
+  }
+
   void _reorderZonesOnly(Block zone, {required bool bringToFront}) {
     if (!zone.isZone) {
       return;

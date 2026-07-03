@@ -585,6 +585,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             onAddElseToSequenceGroup: _addElseToSequenceGroup,
             onBlockTitleChanged: _handleBlockTitleChanged,
             onBlockColorChanged: _handleBlockColorChanged,
+            onBlockNodeShapeChanged: _handleBlockNodeShapeChanged,
             onBlockTagsChanged: _handleBlockTagsChanged,
             onBlockIconBase64Changed: _handleBlockIconBase64Changed,
             onBlockPropertiesJsonChanged: _handleBlockPropertiesJsonChanged,

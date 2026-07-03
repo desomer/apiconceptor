@@ -24,6 +24,7 @@ extension _MiroLikeWidgetStateImportMethods on _MiroLikeWidgetState {
         Block(
           id: nodeId,
           title: parsed.nodeTitles[nodeId] ?? nodeId,
+          nodeShape: parsed.nodeShapes[nodeId] ?? BlockNodeShape.rectangle,
           position: Offset(120 + (i % 4) * 240, 100 + (i ~/ 4) * 170),
           size: const Size(_minBlockWidth, _minBlockHeight),
         ),

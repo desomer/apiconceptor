@@ -45,6 +45,21 @@ enum BlockKind { normal, zone }
 
 enum ZoneBorderStyle { plain, dashed1_2, dashed2_2, dashed2_1 }
 
+enum BlockNodeShape {
+  rectangle,
+  roundedRectangle,
+  stadium,
+  subroutine,
+  circle,
+  doubleCircle,
+  database,
+  hexagon,
+  parallelogram,
+  parallelogramInverted,
+  trapezoid,
+  trapezoidInverted,
+}
+
 class Block {
   String id;
   String title;
@@ -57,6 +72,7 @@ class Block {
   Size size;
   bool zoneTransparent;
   ZoneBorderStyle zoneBorderStyle;
+  BlockNodeShape nodeShape;
 
   Block({
     required this.id,
@@ -70,6 +86,7 @@ class Block {
     this.size = const Size(150, 100),
     this.zoneTransparent = false,
     this.zoneBorderStyle = ZoneBorderStyle.plain,
+    this.nodeShape = BlockNodeShape.rectangle,
   }) : tagColorKeys = List<String>.from(tagColorKeys ?? const <String>[]);
 
   bool get isZone => kind == BlockKind.zone;

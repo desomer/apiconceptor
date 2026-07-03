@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:jsonschema/widget/miro_like/models/block_model.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 
@@ -206,133 +207,291 @@ class BlockWidget extends StatelessWidget {
     final borderColor = isSelected
         ? colorBlockBorderSelected
         : colorBlockBorder;
-    final radius = BorderRadius.circular(18);
     final iconBytes = _iconBytes();
     final iconSize = (42.0 * textScale).clamp(30.0, 92.0);
     final infoIconSize = (15.0 * textScale).clamp(1.0, 22.0);
 
-    return Container(
+    return SizedBox(
       width: block.size.width,
       height: block.size.height,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: [
-          BoxShadow(
-            color: colorShadow1.withValues(alpha: 0.42),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-          BoxShadow(
-            color: _shiftLightness(baseColor, -0.25).withValues(alpha: 0.28),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          border: Border.all(
-            color: borderColor.withValues(alpha: isSelected ? 0.95 : 0.65),
-            width: isSelected ? 2 : 1.2,
-          ),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              _shiftLightness(baseColor, 0.16),
-              baseColor,
-              _shiftLightness(baseColor, -0.18),
-            ],
-            stops: const [0.0, 0.48, 1.0],
-          ),
+      child: CustomPaint(
+        painter: _NodeShapePainter(
+          shape: block.nodeShape,
+          baseColor: baseColor,
+          borderColor: borderColor.withValues(alpha: isSelected ? 0.95 : 0.65),
+          borderWidth: isSelected ? 2 : 1.2,
         ),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: radius,
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.55, -0.8),
-                      radius: 1.05,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.14),
-                        Colors.white.withValues(alpha: 0.04),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
+        child: ClipPath(
+          clipper: _NodeShapeClipper(shape: block.nodeShape),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.55, -0.8),
+                        radius: 1.05,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.14),
+                          Colors.white.withValues(alpha: 0.04),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            Center(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 10,
-                  right: block.tagColorKeys.isEmpty ? 10 : 30,
-                ),
-                child: Text(
-                  block.title,
-                  textAlign: TextAlign.center,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: normalTitleFontSize,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected ? colorBlockTextSelected : colorBlockText,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        offset: const Offset(0, 1),
-                        blurRadius: 2,
-                      ),
-                    ],
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 10,
+                    right: block.tagColorKeys.isEmpty ? 10 : 30,
+                  ),
+                  child: Text(
+                    block.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: normalTitleFontSize,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? colorBlockTextSelected
+                          : colorBlockText,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            _buildTagIndicators(),
-            if (iconBytes != null)
+              _buildTagIndicators(),
+              if (iconBytes != null)
+                Positioned(
+                  left: 8,
+                  top: 8,
+                  child: Container(
+                    width: iconSize,
+                    height: iconSize,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      color: Colors.black.withValues(alpha: 0.12),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.memory(
+                      iconBytes,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.medium,
+                      gaplessPlayback: true,
+                    ),
+                  ),
+                ),
               Positioned(
-                left: 8,
+                right: 8,
                 top: 8,
-                child: Container(
-                  width: iconSize,
-                  height: iconSize,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: Colors.black.withValues(alpha: 0.12),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.memory(
-                    iconBytes,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.medium,
-                    gaplessPlayback: true,
+                child: GestureDetector(
+                  onTap: onInfoTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: Icon(
+                    Icons.info_outline,
+                    color: Colors.white.withValues(alpha: 0.95),
+                    size: infoIconSize,
                   ),
                 ),
               ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: GestureDetector(
-                onTap: onInfoTap,
-                behavior: HitTestBehavior.opaque,
-                child: Icon(
-                  Icons.info_outline,
-                  color: Colors.white.withValues(alpha: 0.95),
-                  size: infoIconSize,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _NodeShapeClipper extends CustomClipper<Path> {
+  final BlockNodeShape shape;
+
+  const _NodeShapeClipper({required this.shape});
+
+  @override
+  Path getClip(Size size) => _buildNodeShapePath(size, shape);
+
+  @override
+  bool shouldReclip(covariant _NodeShapeClipper oldClipper) {
+    return oldClipper.shape != shape;
+  }
+}
+
+class _NodeShapePainter extends CustomPainter {
+  final BlockNodeShape shape;
+  final Color baseColor;
+  final Color borderColor;
+  final double borderWidth;
+
+  const _NodeShapePainter({
+    required this.shape,
+    required this.baseColor,
+    required this.borderColor,
+    required this.borderWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = _buildNodeShapePath(size, shape);
+    canvas.drawShadow(path, colorShadow1.withValues(alpha: 0.42), 8.0, false);
+    canvas.drawShadow(path, baseColor.withValues(alpha: 0.28), 4.0, false);
+
+    final fillPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          _shiftStaticLightness(baseColor, 0.16),
+          baseColor,
+          _shiftStaticLightness(baseColor, -0.18),
+        ],
+        stops: const [0.0, 0.48, 1.0],
+      ).createShader(Offset.zero & size);
+    canvas.drawPath(path, fillPaint);
+
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderWidth
+      ..color = borderColor;
+    canvas.drawPath(path, borderPaint);
+
+    if (shape == BlockNodeShape.doubleCircle) {
+      final inset = math.max(6.0, size.shortestSide * 0.07);
+      final inner = _buildNodeShapePath(
+        size,
+        BlockNodeShape.circle,
+        inset: inset,
+      );
+      canvas.drawPath(inner, borderPaint);
+    }
+
+    if (shape == BlockNodeShape.subroutine) {
+      final inset = math.max(8.0, size.width * 0.08);
+      final left = Offset(inset, borderWidth);
+      final leftBottom = Offset(inset, size.height - borderWidth);
+      final right = Offset(size.width - inset, borderWidth);
+      final rightBottom = Offset(size.width - inset, size.height - borderWidth);
+      canvas.drawLine(left, leftBottom, borderPaint);
+      canvas.drawLine(right, rightBottom, borderPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _NodeShapePainter oldDelegate) {
+    return oldDelegate.shape != shape ||
+        oldDelegate.baseColor != baseColor ||
+        oldDelegate.borderColor != borderColor ||
+        oldDelegate.borderWidth != borderWidth;
+  }
+}
+
+Path _buildNodeShapePath(
+  Size size,
+  BlockNodeShape shape, {
+  double inset = 0.0,
+}) {
+  final width = math.max(0.0, size.width - inset * 2);
+  final height = math.max(0.0, size.height - inset * 2);
+  final rect = Rect.fromLTWH(inset, inset, width, height);
+  final path = Path();
+
+  switch (shape) {
+    case BlockNodeShape.rectangle:
+      path.addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(6)));
+      break;
+    case BlockNodeShape.roundedRectangle:
+      path.addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(18)));
+      break;
+    case BlockNodeShape.stadium:
+      path.addRRect(
+        RRect.fromRectAndRadius(
+          rect,
+          Radius.circular(math.min(width, height) / 2),
+        ),
+      );
+      break;
+    case BlockNodeShape.subroutine:
+      path.addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(8)));
+      break;
+    case BlockNodeShape.circle:
+    case BlockNodeShape.doubleCircle:
+      path.addOval(rect);
+      break;
+    case BlockNodeShape.database:
+      path.addRRect(
+        RRect.fromRectAndRadius(
+          rect,
+          Radius.circular(math.max(14.0, height * 0.22)),
+        ),
+      );
+      break;
+    case BlockNodeShape.hexagon:
+      final dx = width * 0.18;
+      path
+        ..moveTo(rect.left + dx, rect.top)
+        ..lineTo(rect.right - dx, rect.top)
+        ..lineTo(rect.right, rect.center.dy)
+        ..lineTo(rect.right - dx, rect.bottom)
+        ..lineTo(rect.left + dx, rect.bottom)
+        ..lineTo(rect.left, rect.center.dy)
+        ..close();
+      break;
+    case BlockNodeShape.parallelogram:
+      final skew = width * 0.12;
+      path
+        ..moveTo(rect.left + skew, rect.top)
+        ..lineTo(rect.right, rect.top)
+        ..lineTo(rect.right - skew, rect.bottom)
+        ..lineTo(rect.left, rect.bottom)
+        ..close();
+      break;
+    case BlockNodeShape.parallelogramInverted:
+      final skew = width * 0.12;
+      path
+        ..moveTo(rect.left, rect.top)
+        ..lineTo(rect.right - skew, rect.top)
+        ..lineTo(rect.right, rect.bottom)
+        ..lineTo(rect.left + skew, rect.bottom)
+        ..close();
+      break;
+    case BlockNodeShape.trapezoid:
+      final topInset = width * 0.12;
+      path
+        ..moveTo(rect.left + topInset, rect.top)
+        ..lineTo(rect.right - topInset, rect.top)
+        ..lineTo(rect.right, rect.bottom)
+        ..lineTo(rect.left, rect.bottom)
+        ..close();
+      break;
+    case BlockNodeShape.trapezoidInverted:
+      final bottomInset = width * 0.12;
+      path
+        ..moveTo(rect.left, rect.top)
+        ..lineTo(rect.right, rect.top)
+        ..lineTo(rect.right - bottomInset, rect.bottom)
+        ..lineTo(rect.left + bottomInset, rect.bottom)
+        ..close();
+      break;
+  }
+
+  return path;
+}
+
+Color _shiftStaticLightness(Color color, double amount) {
+  final hsl = HSLColor.fromColor(color);
+  final shifted = (hsl.lightness + amount).clamp(0.0, 1.0);
+  return hsl.withLightness(shifted).toColor();
 }
 
 class _ZoneBorderPainter extends CustomPainter {
