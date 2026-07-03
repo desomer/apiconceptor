@@ -28,6 +28,8 @@ class PropertiesPanel extends StatefulWidget {
   final String? createSequenceGroupValidationMessage;
   final Function(String kind, String label, bool nested)?
   onCreateSequenceGroupFromSelection;
+  final bool canCreateSubgraphFromSelection;
+  final Function(String label)? onCreateSubgraphFromSelection;
   final Function(SequenceControlGroupInfo, String, String)?
   onSequenceGroupChanged;
   final Function(SequenceControlGroupInfo)? onDeleteSequenceGroup;
@@ -62,6 +64,8 @@ class PropertiesPanel extends StatefulWidget {
     this.canCreateSequenceGroupFromSelection = false,
     this.createSequenceGroupValidationMessage,
     this.onCreateSequenceGroupFromSelection,
+    this.canCreateSubgraphFromSelection = false,
+    this.onCreateSubgraphFromSelection,
     this.onSequenceGroupChanged,
     this.onDeleteSequenceGroup,
     this.onAddElseToSequenceGroup,
@@ -111,6 +115,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   late TextEditingController _linkNameController;
   late TextEditingController _sequenceGroupLabelController;
   late TextEditingController _selectionGroupLabelController;
+  late TextEditingController _selectionSubgraphLabelController;
   String _sequenceGroupKind = 'alt';
   String _selectionGroupKind = 'alt';
   String _selectionGroupPlacement = 'nested';
@@ -124,6 +129,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     _linkNameController = TextEditingController();
     _sequenceGroupLabelController = TextEditingController();
     _selectionGroupLabelController = TextEditingController();
+    _selectionSubgraphLabelController = TextEditingController();
     if (widget.selectedBlock != null) {
       _blockTitleController.text = widget.selectedBlock!.title;
       _blockJsonController.text = widget.selectedBlock!.propertiesJson ?? '';
@@ -194,6 +200,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     _linkNameController.dispose();
     _sequenceGroupLabelController.dispose();
     _selectionGroupLabelController.dispose();
+    _selectionSubgraphLabelController.dispose();
     super.dispose();
   }
 
@@ -374,6 +381,39 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               style: TextStyle(color: colorTextSecondary, fontSize: 12),
             ),
           ),
+          if (widget.selectedBlockCount > 1) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _selectionSubgraphLabelController,
+              style: const TextStyle(color: colorTextPrimary),
+              decoration: InputDecoration(
+                labelText: 'Nom du subgraph (optionnel)',
+                labelStyle: const TextStyle(color: colorTextSecondary),
+                hintText: 'ex: Auth domain',
+                hintStyle: const TextStyle(color: colorTextSecondary),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: colorPanelBorder),
+                ),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: widget.canCreateSubgraphFromSelection
+                    ? () {
+                        FocusScope.of(context).unfocus();
+                        widget.onCreateSubgraphFromSelection?.call(
+                          _selectionSubgraphLabelController.text,
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.account_tree_outlined),
+                label: const Text('Creer un subgraph'),
+              ),
+            ),
+          ],
           if (widget.selectedMessageCount > 0) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(

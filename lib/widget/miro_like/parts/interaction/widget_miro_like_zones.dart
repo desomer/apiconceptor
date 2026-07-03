@@ -108,6 +108,75 @@ extension _MiroLikeWidgetStateZoneMethods on _MiroLikeWidgetState {
     _syncAutoSubgraphZones();
   }
 
+  void _createSubgraphFromSelection(String label) {
+    final selectedNodeIds = blocks
+        .where((block) => _selectedBlockIds.contains(block.id) && !block.isZone)
+        .map((block) => block.id)
+        .toList(growable: false);
+    if (selectedNodeIds.length < 2) {
+      return;
+    }
+
+    final usedSubgraphIds = <String>{};
+    for (final zone in blocks.where((block) => block.isZone)) {
+      final descriptor = _autoSubgraphDescriptorFromZone(zone);
+      if (descriptor != null) {
+        usedSubgraphIds.add(descriptor.id);
+      }
+    }
+
+    var subgraphId = 'sg_manual_${DateTime.now().millisecondsSinceEpoch}';
+    var idSuffix = 1;
+    while (usedSubgraphIds.contains(subgraphId)) {
+      subgraphId =
+          'sg_manual_${DateTime.now().millisecondsSinceEpoch}_$idSuffix';
+      idSuffix++;
+    }
+
+    final autoSubgraphCount = blocks
+        .where((block) => block.isZone && _isAutoSubgraphZone(block))
+        .length;
+    final trimmedLabel = label.trim();
+    final title = trimmedLabel.isEmpty
+        ? 'Subgraph ${autoSubgraphCount + 1}'
+        : trimmedLabel;
+
+    _pushUndoSnapshot();
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      final zone = Block(
+        id: 'subgraph_zone_$subgraphId',
+        title: title,
+        kind: BlockKind.zone,
+        colorKey: 'teal',
+        position: const Offset(0, 0),
+        size: const Size(_minZoneWidth, _minZoneHeight),
+      );
+      _setAutoSubgraphDescriptor(
+        zone: zone,
+        id: subgraphId,
+        title: title,
+        nodeIds: selectedNodeIds,
+      );
+
+      final firstNormalIndex = blocks.indexWhere((block) => !block.isZone);
+      final insertIndex = firstNormalIndex < 0
+          ? blocks.length
+          : firstNormalIndex;
+      blocks.insert(insertIndex, zone);
+      _syncAutoSubgraphZones();
+
+      selectedBlock = zone;
+      _selectedBlockIds
+        ..clear()
+        ..add(zone.id);
+      selectedLink = null;
+      _selectedSequenceLinks.clear();
+      _selectedSequenceGroup = null;
+      _markBoardChanged();
+    });
+  }
+
   void _syncAutoSubgraphZones() {
     final nodesById = <String, Block>{
       for (final block in blocks)

@@ -577,6 +577,9 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
                 _sequenceGroupCreationValidationMessage(),
             onCreateSequenceGroupFromSelection:
                 _createSequenceGroupFromSelection,
+            canCreateSubgraphFromSelection:
+                !_isSequenceDiagramView && _selectedBlockIds.length > 1,
+            onCreateSubgraphFromSelection: _createSubgraphFromSelection,
             onSequenceGroupChanged: _handleSequenceGroupChanged,
             onDeleteSequenceGroup: _deleteSequenceGroup,
             onAddElseToSequenceGroup: _addElseToSequenceGroup,

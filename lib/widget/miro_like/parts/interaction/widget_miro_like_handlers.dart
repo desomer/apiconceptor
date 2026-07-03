@@ -153,7 +153,20 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     setState(() {
       final blockIndex = blocks.indexWhere((b) => b.id == blockId);
       if (blockIndex != -1) {
-        blocks[blockIndex].title = _normalizeBlockTitleLineBreaks(newTitle);
+        final normalizedTitle = _normalizeBlockTitleLineBreaks(newTitle);
+        blocks[blockIndex].title = normalizedTitle;
+        final block = blocks[blockIndex];
+        final subgraphDescriptor = block.isZone
+            ? _autoSubgraphDescriptorFromZone(block)
+            : null;
+        if (subgraphDescriptor != null) {
+          _setAutoSubgraphDescriptor(
+            zone: block,
+            id: subgraphDescriptor.id,
+            title: normalizedTitle,
+            nodeIds: subgraphDescriptor.nodeIds,
+          );
+        }
         _markBoardChanged();
       }
     });
