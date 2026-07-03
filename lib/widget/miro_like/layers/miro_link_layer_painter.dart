@@ -347,7 +347,40 @@ class MiroLinkLayerPainter {
     canvas.drawPath(shapePath, bodyStroke);
 
     final label = link.name.trim().isEmpty ? 'note' : link.name.trim();
-    final maxTextWidth = math.max(12.0, bodyLength - (16.0 * zoomLevel));
+    final iconData = kLinkLabelIconMap[link.labelIconKey];
+    final iconSpacing = iconData == null
+        ? 0.0
+        : (6.0 * zoomLevel).clamp(3.0, 16.0);
+    TextPainter? iconPainter;
+    if (iconData != null) {
+      iconPainter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(iconData.codePoint),
+          style: TextStyle(
+            fontSize: (14.0 * zoomLevel).clamp(10.0, 28.0),
+            color: Colors.white,
+            fontFamily: iconData.fontFamily,
+            package: iconData.fontPackage,
+            shadows: const [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+    }
+
+    final maxTextWidth = math.max(
+      12.0,
+      bodyLength -
+          (16.0 * zoomLevel) -
+          (iconPainter?.width ?? 0.0) -
+          iconSpacing,
+    );
     final textPainter = TextPainter(
       text: TextSpan(
         text: label,
@@ -370,8 +403,21 @@ class MiroLinkLayerPainter {
       bodyStart.dy + (headBase.dy - bodyStart.dy) * 0.5,
     );
 
+    final contentWidth =
+        (iconPainter?.width ?? 0.0) + iconSpacing + textPainter.width;
+    var contentLeft = textCenter.dx - (contentWidth / 2);
+
+    if (iconPainter != null) {
+      final iconOffset = Offset(
+        contentLeft,
+        textCenter.dy - (iconPainter.height / 2),
+      );
+      iconPainter.paint(canvas, iconOffset);
+      contentLeft += iconPainter.width + iconSpacing;
+    }
+
     final textOffset = Offset(
-      textCenter.dx - (textPainter.width / 2),
+      contentLeft,
       textCenter.dy - (textPainter.height / 2),
     );
     textPainter.paint(canvas, textOffset);
@@ -412,25 +458,78 @@ class MiroLinkLayerPainter {
     canvas.drawRRect(rrect, stroke);
 
     final label = link.name.trim().isEmpty ? 'note' : link.name.trim();
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: (12.0 * zoomLevel).clamp(9.0, 24.0),
-          fontWeight: FontWeight.w700,
-          shadows: const [
-            Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(0, 1)),
-          ],
+    final iconData = kLinkLabelIconMap[link.labelIconKey];
+    final iconSpacing = iconData == null
+        ? 0.0
+        : (6.0 * zoomLevel).clamp(3.0, 16.0);
+    TextPainter? iconPainter;
+    if (iconData != null) {
+      iconPainter = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(iconData.codePoint),
+          style: TextStyle(
+            fontSize: (14.0 * zoomLevel).clamp(10.0, 28.0),
+            color: Colors.white,
+            fontFamily: iconData.fontFamily,
+            package: iconData.fontPackage,
+            shadows: const [
+              Shadow(
+                color: Colors.black54,
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '…',
-    )..layout(maxWidth: math.max(12.0, width - (16.0 * zoomLevel)));
+        textDirection: TextDirection.ltr,
+      )..layout();
+    }
+
+    final textPainter =
+        TextPainter(
+          text: TextSpan(
+            text: label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: (12.0 * zoomLevel).clamp(9.0, 24.0),
+              fontWeight: FontWeight.w700,
+              shadows: const [
+                Shadow(
+                  color: Colors.black54,
+                  blurRadius: 3,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+          ellipsis: '…',
+        )..layout(
+          maxWidth: math.max(
+            12.0,
+            width -
+                (16.0 * zoomLevel) -
+                (iconPainter?.width ?? 0.0) -
+                iconSpacing,
+          ),
+        );
+
+    final contentWidth =
+        (iconPainter?.width ?? 0.0) + iconSpacing + textPainter.width;
+    var contentLeft = rect.center.dx - (contentWidth / 2);
+
+    if (iconPainter != null) {
+      final iconOffset = Offset(
+        contentLeft,
+        rect.center.dy - (iconPainter.height / 2),
+      );
+      iconPainter.paint(canvas, iconOffset);
+      contentLeft += iconPainter.width + iconSpacing;
+    }
 
     final textOffset = Offset(
-      rect.center.dx - (textPainter.width / 2),
+      contentLeft,
       rect.center.dy - (textPainter.height / 2),
     );
     textPainter.paint(canvas, textOffset);
