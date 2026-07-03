@@ -40,6 +40,7 @@ class MermaidSequenceCodec {
   const MermaidSequenceCodec._();
 
   static const String noteOverType = 'note over';
+  static const String noteFlowType = 'note flow';
 
   static const Set<String> _supportedArrowTypes = {
     '->>',
@@ -74,6 +75,14 @@ class MermaidSequenceCodec {
 
   static bool isNoteOverType(String? value) {
     return (value ?? '').trim().toLowerCase() == noteOverType;
+  }
+
+  static bool isNoteFlowType(String? value) {
+    return (value ?? '').trim().toLowerCase() == noteFlowType;
+  }
+
+  static bool isNoteType(String? value) {
+    return isNoteOverType(value) || isNoteFlowType(value);
   }
 
   static MermaidSequenceParseResult parse(String text) {
@@ -312,9 +321,9 @@ class MermaidSequenceCodec {
       }
 
       final label = link.name.trim().isEmpty
-          ? (isNoteOverType(link.sequenceArrowType) ? 'note' : 'message')
+          ? (isNoteType(link.sequenceArrowType) ? 'note' : 'message')
           : _normalizeInline(link.name);
-      if (isNoteOverType(link.sequenceArrowType)) {
+      if (isNoteType(link.sequenceArrowType)) {
         if (fromId == toId) {
           buffer.writeln('  note over $fromId: $label');
         } else {

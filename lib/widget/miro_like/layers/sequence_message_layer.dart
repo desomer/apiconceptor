@@ -956,6 +956,9 @@ class _SequenceMessageHandleState extends State<_SequenceMessageHandle> {
   Widget build(BuildContext context) {
     final entry = widget.entry;
     final isSelected = widget.selectedLinks.contains(entry.link);
+    final isNoteMessage = MermaidSequenceCodec.isNoteType(
+      entry.link.sequenceArrowType,
+    );
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onPanStart: (_) {
@@ -974,7 +977,10 @@ class _SequenceMessageHandleState extends State<_SequenceMessageHandle> {
       },
       child: SizedBox.expand(
         child: CustomPaint(
-          painter: _SequenceMessageHandlePainter(isSelected: isSelected),
+          painter: _SequenceMessageHandlePainter(
+            isSelected: isSelected,
+            isNoteMessage: isNoteMessage,
+          ),
         ),
       ),
     );
@@ -983,11 +989,19 @@ class _SequenceMessageHandleState extends State<_SequenceMessageHandle> {
 
 class _SequenceMessageHandlePainter extends CustomPainter {
   final bool isSelected;
+  final bool isNoteMessage;
 
-  const _SequenceMessageHandlePainter({required this.isSelected});
+  const _SequenceMessageHandlePainter({
+    required this.isSelected,
+    required this.isNoteMessage,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (isNoteMessage) {
+      return;
+    }
+
     final lineColor = isSelected
         ? const Color.fromARGB(255, 255, 165, 0)
         : const Color.fromARGB(200, 124, 216, 255);
@@ -1028,6 +1042,7 @@ class _SequenceMessageHandlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SequenceMessageHandlePainter oldDelegate) {
-    return oldDelegate.isSelected != isSelected;
+    return oldDelegate.isSelected != isSelected ||
+        oldDelegate.isNoteMessage != isNoteMessage;
   }
 }

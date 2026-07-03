@@ -93,6 +93,7 @@ class PropertiesPanel extends StatefulWidget {
 class _PropertiesPanelState extends State<PropertiesPanel> {
   static const String _sequenceMessageKindMessage = 'message';
   static const String _sequenceMessageKindNoteOver = 'note-over';
+  static const String _sequenceMessageKindNoteFlow = 'note-flow';
 
   static const List<String> _mermaidArrowTypeOptions = [
     '->>',
@@ -1243,9 +1244,13 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
   Widget _buildLinkProperties(BlockLink link) {
     final arrowType = (link.sequenceArrowType ?? '').trim();
     final isNoteOver = MermaidSequenceCodec.isNoteOverType(arrowType);
-    final sequenceMessageKind = isNoteOver
-        ? _sequenceMessageKindNoteOver
-        : _sequenceMessageKindMessage;
+    final isNoteFlow = MermaidSequenceCodec.isNoteFlowType(arrowType);
+    final isNoteLike = MermaidSequenceCodec.isNoteType(arrowType);
+    final sequenceMessageKind = isNoteFlow
+        ? _sequenceMessageKindNoteFlow
+        : (isNoteOver
+              ? _sequenceMessageKindNoteOver
+              : _sequenceMessageKindMessage);
     final effectiveArrowType = arrowType.isEmpty ? '-->' : arrowType;
     final isDashedArrow = effectiveArrowType.startsWith('--');
     final arrowAccent = _mermaidArrowAccentColor(effectiveArrowType);
@@ -1272,46 +1277,74 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             style: const TextStyle(color: colorTextSecondary),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: sequenceMessageKind,
-            dropdownColor: colorBlockBackground,
-            style: const TextStyle(color: colorTextPrimary),
-            decoration: InputDecoration(
-              labelText: 'Type element sequence',
-              labelStyle: const TextStyle(color: colorTextSecondary),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: colorPanelBorder),
+          const Text(
+            'Type element sequence',
+            style: TextStyle(color: colorTextSecondary),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment<String>(
+                  value: _sequenceMessageKindMessage,
+                  label: Text('Message'),
+                ),
+                ButtonSegment<String>(
+                  value: _sequenceMessageKindNoteOver,
+                  label: Text('Note over'),
+                ),
+                ButtonSegment<String>(
+                  value: _sequenceMessageKindNoteFlow,
+                  label: Text('flow'),
+                ),
+              ],
+              selected: <String>{sequenceMessageKind},
+              showSelectedIcon: false,
+              style: ButtonStyle(
+                foregroundColor: WidgetStateProperty.all(colorTextPrimary),
+                side: WidgetStateProperty.all(
+                  const BorderSide(color: colorPanelBorder),
+                ),
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return colorBlockBackground;
+                  }
+                  return Colors.transparent;
+                }),
               ),
-              isDense: true,
-            ),
-            items: const [
-              DropdownMenuItem<String>(
-                value: _sequenceMessageKindMessage,
-                child: Text('Message'),
-              ),
-              DropdownMenuItem<String>(
-                value: _sequenceMessageKindNoteOver,
-                child: Text('Note over'),
-              ),
-            ],
-            onChanged: (value) {
-              if (value == null) {
-                return;
-              }
+              onSelectionChanged: (selection) {
+                if (selection.isEmpty) {
+                  return;
+                }
+                final value = selection.first;
 
-              if (value == _sequenceMessageKindNoteOver) {
+                if (value == _sequenceMessageKindNoteOver) {
+                  widget.onLinkSequenceArrowTypeChanged?.call(
+                    link,
+                    MermaidSequenceCodec.noteOverType,
+                  );
+                  return;
+                }
+
+                if (value == _sequenceMessageKindNoteFlow) {
+                  widget.onLinkSequenceArrowTypeChanged?.call(
+                    link,
+                    MermaidSequenceCodec.noteFlowType,
+                  );
+                  return;
+                }
+
+                final nextArrowType =
+                    _mermaidArrowTypeOptions.contains(arrowType)
+                    ? arrowType
+                    : '-->';
                 widget.onLinkSequenceArrowTypeChanged?.call(
                   link,
-                  MermaidSequenceCodec.noteOverType,
+                  nextArrowType,
                 );
-                return;
-              }
-
-              final nextArrowType = _mermaidArrowTypeOptions.contains(arrowType)
-                  ? arrowType
-                  : '-->';
-              widget.onLinkSequenceArrowTypeChanged?.call(link, nextArrowType);
-            },
+              },
+            ),
           ),
           // if (hasSequenceArrowType) ...[
           //   const SizedBox(height: 12),
@@ -1366,7 +1399,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           //     ),
           //   ),
           // ],
-          if (!isNoteOver) ...[
+          if (!isNoteLike) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue:
@@ -1411,9 +1444,11 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ] else ...[
             const SizedBox(height: 8),
-            const Text(
-              'Note over exportee au format Mermaid: note over A,B: texte',
-              style: TextStyle(color: colorTextSecondary, fontSize: 12),
+            Text(
+              isNoteFlow
+                  ? 'Note flow: rendu fleche epaisse, export Mermaid en note over.'
+                  : 'Note over: rendu bloc rectangulaire, export Mermaid: note over A,B: texte',
+              style: const TextStyle(color: colorTextSecondary, fontSize: 12),
             ),
           ],
           const SizedBox(height: 12),

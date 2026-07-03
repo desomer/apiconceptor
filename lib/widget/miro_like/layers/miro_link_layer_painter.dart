@@ -191,8 +191,9 @@ class MiroLinkLayerPainter {
           : (kLinkColorMap[link.colorKey] ?? colorLinkDefault);
 
       final isNoteOver = MermaidSequenceCodec.isNoteOverType(arrowType);
+      final isNoteFlow = MermaidSequenceCodec.isNoteFlowType(arrowType);
 
-      if (isNoteOver) {
+      if (isNoteFlow) {
         _paintDirectionalNoteArrow(
           canvas: canvas,
           link: link,
@@ -201,6 +202,18 @@ class MiroLinkLayerPainter {
           viaPoints: viaCanvas,
           startTangent: startTangent,
           endTangent: endTangent,
+          color: resolvedColor,
+          isSelected: selectedLink == link,
+        );
+        continue;
+      }
+
+      if (isNoteOver) {
+        _paintNoteOverRect(
+          canvas: canvas,
+          link: link,
+          from: fromEdge,
+          to: toEdge,
           color: resolvedColor,
           isSelected: selectedLink == link,
         );
@@ -333,12 +346,6 @@ class MiroLinkLayerPainter {
     canvas.drawPath(shapePath, bodyFill);
     canvas.drawPath(shapePath, bodyStroke);
 
-    // final tipHighlight = Paint()
-    //   ..color = color.withValues(alpha: isSelected ? 1.0 : 0.9)
-    //   ..style = PaintingStyle.fill;
-    // final tipRadius = (2.8 * zoomLevel).clamp(1.4, 5.2);
-    // canvas.drawCircle(to, tipRadius, tipHighlight);
-
     final label = link.name.trim().isEmpty ? 'note' : link.name.trim();
     final maxTextWidth = math.max(12.0, bodyLength - (16.0 * zoomLevel));
     final textPainter = TextPainter(
@@ -366,6 +373,65 @@ class MiroLinkLayerPainter {
     final textOffset = Offset(
       textCenter.dx - (textPainter.width / 2),
       textCenter.dy - (textPainter.height / 2),
+    );
+    textPainter.paint(canvas, textOffset);
+  }
+
+  void _paintNoteOverRect({
+    required Canvas canvas,
+    required BlockLink link,
+    required Offset from,
+    required Offset to,
+    required Color color,
+    required bool isSelected,
+  }) {
+    final left = math.min(from.dx, to.dx);
+    final right = math.max(from.dx, to.dx);
+    final width = (right - left).clamp(16.0, double.infinity);
+    final y = (from.dy + to.dy) * 0.5;
+    final height = (30.0 * zoomLevel).clamp(12.0, 56.0);
+
+    final rect = Rect.fromCenter(
+      center: Offset((left + right) * 0.5, y),
+      width: width,
+      height: height,
+    );
+
+    final radius = Radius.circular((height * 0.2).clamp(3.0, 14.0));
+    final rrect = RRect.fromRectAndRadius(rect, radius);
+
+    final fill = Paint()
+      ..color = color.withValues(alpha: isSelected ? 0.55 : 0.42)
+      ..style = PaintingStyle.fill;
+    final stroke = Paint()
+      ..color = color.withValues(alpha: isSelected ? 0.98 : 0.78)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (2.4 * zoomLevel).clamp(1.0, 4.0);
+
+    canvas.drawRRect(rrect, fill);
+    canvas.drawRRect(rrect, stroke);
+
+    final label = link.name.trim().isEmpty ? 'note' : link.name.trim();
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: (12.0 * zoomLevel).clamp(9.0, 24.0),
+          fontWeight: FontWeight.w700,
+          shadows: const [
+            Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(0, 1)),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(12.0, width - (16.0 * zoomLevel)));
+
+    final textOffset = Offset(
+      rect.center.dx - (textPainter.width / 2),
+      rect.center.dy - (textPainter.height / 2),
     );
     textPainter.paint(canvas, textOffset);
   }

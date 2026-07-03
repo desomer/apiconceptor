@@ -28,8 +28,8 @@ void paintLinkConnectorVisuals({
   if (endAngle != null) {
     final arrowType = (link?.sequenceArrowType ?? '').trim();
     final hasSequenceArrowType = arrowType.isNotEmpty;
-    final isNoteOverArrow = MermaidSequenceCodec.isNoteOverType(arrowType);
-    if (isNoteOverArrow) {
+    final isNoteArrow = MermaidSequenceCodec.isNoteType(arrowType);
+    if (isNoteArrow) {
       return;
     }
     final isNoHeadArrow = hasSequenceArrowType && arrowType == '->';

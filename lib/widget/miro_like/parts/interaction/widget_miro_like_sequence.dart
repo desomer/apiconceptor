@@ -605,7 +605,7 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     final geometryHeight = _sequenceMessageVisualHeightModel(link);
     final labelHeight = _sequenceMessageLabelHeightModel(link);
 
-    if (MermaidSequenceCodec.isNoteOverType(link.sequenceArrowType)) {
+    if (MermaidSequenceCodec.isNoteType(link.sequenceArrowType)) {
       final noteBodyHeight = 30.0;
       return math.max(noteBodyHeight, labelHeight);
     }
