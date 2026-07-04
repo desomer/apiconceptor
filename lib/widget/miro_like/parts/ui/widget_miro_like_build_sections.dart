@@ -418,20 +418,6 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
       onBlockPanDown: (block, details) {
         setState(() {
           _pushUndoSnapshot();
-          if (!_isSequenceDiagramView) {
-            final canvasPosition = _toCanvasLocal(details.globalPosition);
-            final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-            if (hitLink != null) {
-              selectedBlock = null;
-              _selectedBlockIds.clear();
-              selectedLink = hitLink;
-              _selectedSequenceGroup = null;
-              _resetBlockDragSnap();
-              _dragFreePositionModel = null;
-              return;
-            }
-          }
-
           if (!_isCtrlPressed()) {
             if (!(_selectedBlockIds.length > 1 &&
                 _selectedBlockIds.contains(block.id))) {
@@ -516,18 +502,6 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
           _consumeNextCanvasTap = true;
           _consumeNextCanvasTapGlobalPosition = details.globalPosition;
           _consumeNextCanvasTapAt = DateTime.now();
-          if (!_isSequenceDiagramView) {
-            final canvasPosition = _toCanvasLocal(details.globalPosition);
-            final hitLink = _findLinkAtCanvasPosition(canvasPosition);
-            if (hitLink != null) {
-              selectedBlock = null;
-              _selectedBlockIds.clear();
-              selectedLink = hitLink;
-              _selectedSequenceGroup = null;
-              return;
-            }
-          }
-
           _lastSecondaryTapTime = null;
           _lastSecondaryTapCanvasPosition = null;
           if (_isCtrlPressed()) {
@@ -540,10 +514,17 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
                 ? blocks.firstWhere((b) => b.id == _selectedBlockIds.first)
                 : null;
           } else {
-            selectedBlock = block;
-            _selectedBlockIds
-              ..clear()
-              ..add(block.id);
+            final keepMultiSelection =
+                _selectedBlockIds.length > 1 &&
+                _selectedBlockIds.contains(block.id);
+            if (!keepMultiSelection) {
+              _selectedBlockIds
+                ..clear()
+                ..add(block.id);
+            }
+            selectedBlock = _selectedBlockIds.length == 1
+                ? blocks.firstWhere((b) => b.id == _selectedBlockIds.first)
+                : null;
           }
           selectedLink = null;
           _selectedSequenceGroup = null;
