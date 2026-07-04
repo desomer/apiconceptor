@@ -1441,16 +1441,17 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     final isNoteOver = MermaidSequenceCodec.isNoteOverType(arrowType);
     final isNoteFlow = MermaidSequenceCodec.isNoteFlowType(arrowType);
     final isNoteLike =
-      allowSequenceElementTypeChoice && MermaidSequenceCodec.isNoteType(arrowType);
+        allowSequenceElementTypeChoice &&
+        MermaidSequenceCodec.isNoteType(arrowType);
     final sequenceMessageKind = isNoteFlow
         ? _sequenceMessageKindNoteFlow
         : (isNoteOver
               ? _sequenceMessageKindNoteOver
               : _sequenceMessageKindMessage);
     final effectiveArrowType =
-      (arrowType.isEmpty || !allowSequenceElementTypeChoice)
-      ? '-->'
-      : arrowType;
+        (arrowType.isEmpty || !allowSequenceElementTypeChoice)
+        ? '-->'
+        : arrowType;
     final isDashedArrow = effectiveArrowType.startsWith('--');
     final arrowAccent = _mermaidArrowAccentColor(effectiveArrowType);
 
