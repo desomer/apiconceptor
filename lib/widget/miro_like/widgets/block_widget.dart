@@ -755,10 +755,10 @@ Path _buildNodeShapePath(
 
   switch (shape) {
     case BlockNodeShape.rectangle:
-      path.addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(6)));
+      path.addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(12)));
       break;
     case BlockNodeShape.roundedRectangle:
-      path.addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(18)));
+      path.addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(28)));
       break;
     case BlockNodeShape.stadium:
       path.addRRect(
