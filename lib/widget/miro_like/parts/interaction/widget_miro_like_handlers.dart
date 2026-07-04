@@ -74,7 +74,7 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     });
   }
 
-  void _addZoneBlock(Offset position) {
+  void _addFrameBlock(Offset position) {
     _pushUndoSnapshot();
     setState(() {
       final zoneCount = blocks.where((b) => b.isZone).length;

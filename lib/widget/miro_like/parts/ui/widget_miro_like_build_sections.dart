@@ -31,6 +31,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
       ),
       overlayWidgets: [
         ..._buildSelectionOverlay(),
+        ..._buildAlignmentSnapGuides(),
         ..._buildZoneResizeHandles(),
         if (_isSequenceDiagramView)
           SequenceMessageLayer(

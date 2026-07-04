@@ -261,7 +261,7 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
           child: Text('Ajouter un bloc'),
         ),
         PopupMenuItem<String>(
-          value: 'add_zone',
+          value: 'add_frame',
           child: Text('Ajouter une frame'),
         ),
       ],
@@ -275,8 +275,8 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
       _addBlock(globalPosition);
       return;
     }
-    if (selected == 'add_zone') {
-      _addZoneBlock(globalPosition);
+    if (selected == 'add_frame') {
+      _addFrameBlock(globalPosition);
     }
   }
 }

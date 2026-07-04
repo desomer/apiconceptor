@@ -67,7 +67,7 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
           ),
           IconButton(
             icon: const Icon(Icons.crop_square),
-            onPressed: () => _addZoneBlock(Offset(140, 140)),
+            onPressed: () => _addFrameBlock(Offset(140, 140)),
             tooltip: 'Ajouter une frame',
           ),
           IconButton(

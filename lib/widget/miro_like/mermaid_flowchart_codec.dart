@@ -63,6 +63,22 @@ class MermaidFlowchartCodec {
     '->',
   ];
 
+  static const List<({String open, String close, BlockNodeShape shape})>
+  _nodeShapePatterns = [
+    (open: '(((', close: ')))', shape: BlockNodeShape.doubleCircle),
+    (open: '(([', close: ']))', shape: BlockNodeShape.horizontalTube),
+    (open: '[[', close: ']]', shape: BlockNodeShape.subroutine),
+    (open: '{{', close: '}}', shape: BlockNodeShape.hexagon),
+    (open: '([', close: '])', shape: BlockNodeShape.roundedRectangle),
+    (open: '((', close: '))', shape: BlockNodeShape.circle),
+    (open: '[(', close: ')]', shape: BlockNodeShape.database),
+    (open: '[/', close: '/]', shape: BlockNodeShape.parallelogram),
+    (open: '[\\', close: '\\]', shape: BlockNodeShape.parallelogramInverted),
+    (open: '[/', close: '\\]', shape: BlockNodeShape.trapezoid),
+    (open: '[\\', close: '/]', shape: BlockNodeShape.trapezoidInverted),
+    (open: '[', close: ']', shape: BlockNodeShape.rectangle),
+  ];
+
   static String generate({
     required List<Block> blocks,
     required List<BlockLink> links,
@@ -232,8 +248,11 @@ class MermaidFlowchartCodec {
       }
 
       final chainedEdges = _parseChainedEdges(line);
-      if (chainedEdges.isNotEmpty) {
-        for (final edge in chainedEdges) {
+      if (chainedEdges.edges.isNotEmpty) {
+        for (final node in chainedEdges.nodeDeclarations.entries) {
+          registerNode(node.key, node.value.title, node.value.shape);
+        }
+        for (final edge in chainedEdges.edges) {
           registerNode(edge.fromId);
           registerNode(edge.toId);
           edgeData.add(edge);
@@ -382,22 +401,8 @@ class MermaidFlowchartCodec {
     BlockNodeShape? shape;
 
     ({String open, String close, BlockNodeShape shape})? matched;
-    final patterns = <({String open, String close, BlockNodeShape shape})>[
-      (open: '(((', close: ')))', shape: BlockNodeShape.doubleCircle),
-      (open: '(([', close: ']))', shape: BlockNodeShape.horizontalTube),
-      (open: '[[', close: ']]', shape: BlockNodeShape.subroutine),
-      (open: '{{', close: '}}', shape: BlockNodeShape.hexagon),
-      (open: '([', close: '])', shape: BlockNodeShape.roundedRectangle),
-      (open: '((', close: '))', shape: BlockNodeShape.circle),
-      (open: '[(', close: ')]', shape: BlockNodeShape.database),
-      (open: '[/', close: '/]', shape: BlockNodeShape.parallelogram),
-      (open: '[\\', close: '\\]', shape: BlockNodeShape.parallelogramInverted),
-      (open: '[/', close: '\\]', shape: BlockNodeShape.trapezoid),
-      (open: '[\\', close: '/]', shape: BlockNodeShape.trapezoidInverted),
-      (open: '[', close: ']', shape: BlockNodeShape.rectangle),
-    ];
 
-    for (final pattern in patterns) {
+    for (final pattern in _nodeShapePatterns) {
       if (!suffix.startsWith(pattern.open) || !suffix.endsWith(pattern.close)) {
         continue;
       }
@@ -431,16 +436,30 @@ class MermaidFlowchartCodec {
     return _normalizeLineBreaks(trimmed);
   }
 
-  static List<MermaidFlowchartEdge> _parseChainedEdges(String line) {
+  static ({
+    List<MermaidFlowchartEdge> edges,
+    Map<String, ({String title, BlockNodeShape shape})> nodeDeclarations,
+  })
+  _parseChainedEdges(String line) {
     final result = <MermaidFlowchartEdge>[];
+    final nodeDeclarations = <String, ({String title, BlockNodeShape shape})>{};
     var cursor = _skipSpaces(line, 0);
-    final firstNode = _readNodeId(line, cursor);
+    final firstNode = _readNodeRef(line, cursor);
     if (firstNode == null) {
-      return const <MermaidFlowchartEdge>[];
+      return (
+        edges: const <MermaidFlowchartEdge>[],
+        nodeDeclarations: const {},
+      );
     }
 
     var currentNode = firstNode.$1;
-    cursor = firstNode.$2;
+    if (firstNode.$2 != null && firstNode.$3 != null) {
+      nodeDeclarations[currentNode] = (
+        title: firstNode.$2!,
+        shape: firstNode.$3!,
+      );
+    }
+    cursor = firstNode.$4;
 
     while (true) {
       cursor = _skipSpaces(line, cursor);
@@ -456,15 +475,28 @@ class MermaidFlowchartCodec {
       if (cursor < line.length && line.codeUnitAt(cursor) == 124) {
         final labelEnd = line.indexOf('|', cursor + 1);
         if (labelEnd < 0) {
-          return const <MermaidFlowchartEdge>[];
+          return (
+            edges: const <MermaidFlowchartEdge>[],
+            nodeDeclarations: const {},
+          );
         }
         label = line.substring(cursor + 1, labelEnd).trim();
         cursor = _skipSpaces(line, labelEnd + 1);
       }
 
-      final nextNode = _readNodeId(line, cursor);
+      final nextNode = _readNodeRef(line, cursor);
       if (nextNode == null) {
-        return const <MermaidFlowchartEdge>[];
+        return (
+          edges: const <MermaidFlowchartEdge>[],
+          nodeDeclarations: const {},
+        );
+      }
+
+      if (nextNode.$2 != null && nextNode.$3 != null) {
+        nodeDeclarations[nextNode.$1] = (
+          title: nextNode.$2!,
+          shape: nextNode.$3!,
+        );
       }
 
       result.add(
@@ -476,14 +508,17 @@ class MermaidFlowchartCodec {
         ),
       );
       currentNode = nextNode.$1;
-      cursor = nextNode.$2;
+      cursor = nextNode.$4;
     }
 
     cursor = _skipSpaces(line, cursor);
     if (result.isEmpty || cursor != line.length) {
-      return const <MermaidFlowchartEdge>[];
+      return (
+        edges: const <MermaidFlowchartEdge>[],
+        nodeDeclarations: const {},
+      );
     }
-    return result;
+    return (edges: result, nodeDeclarations: nodeDeclarations);
   }
 
   static (String, int)? _readNodeId(String line, int start) {
@@ -495,6 +530,56 @@ class MermaidFlowchartCodec {
     }
     final value = match.group(0)!;
     return (value, start + value.length);
+  }
+
+  static (String, String?, BlockNodeShape?, int)? _readNodeRef(
+    String line,
+    int start,
+  ) {
+    final id = _readNodeId(line, start);
+    if (id == null) {
+      return null;
+    }
+
+    final nodeId = id.$1;
+    var cursor = id.$2;
+    var text = null as String?;
+    var shape = null as BlockNodeShape?;
+
+    final shapeRead = _readNodeShapeAt(line, cursor);
+    if (shapeRead != null) {
+      text = shapeRead.$1;
+      shape = shapeRead.$2;
+      cursor = shapeRead.$3;
+    }
+
+    return (nodeId, text, shape, cursor);
+  }
+
+  static (String, BlockNodeShape, int)? _readNodeShapeAt(
+    String line,
+    int start,
+  ) {
+    final cursor = _skipSpaces(line, start);
+    for (final pattern in _nodeShapePatterns) {
+      if (!line.startsWith(pattern.open, cursor)) {
+        continue;
+      }
+
+      final closeIndex = line.indexOf(
+        pattern.close,
+        cursor + pattern.open.length,
+      );
+      if (closeIndex < 0) {
+        continue;
+      }
+
+      final inner = line.substring(cursor + pattern.open.length, closeIndex);
+      final text = _decodeNodeText(inner);
+      final end = closeIndex + pattern.close.length;
+      return (text, pattern.shape, end);
+    }
+    return null;
   }
 
   static (String, int)? _readArrow(String line, int start) {
