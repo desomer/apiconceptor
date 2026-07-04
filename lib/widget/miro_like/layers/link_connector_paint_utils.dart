@@ -17,6 +17,7 @@ void paintLinkConnector({
   Offset? endTangent,
   BlockLink? link,
   bool dashed = false,
+  bool useFlowArrowCodification = false,
 }) {
   final path = buildConnectorPath(
     from,
@@ -36,5 +37,6 @@ void paintLinkConnector({
     arrowTip: to,
     link: link,
     dashed: dashed,
+    useFlowArrowCodification: useFlowArrowCodification,
   );
 }

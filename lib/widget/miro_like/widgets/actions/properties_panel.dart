@@ -102,6 +102,88 @@ class PropertiesPanel extends StatefulWidget {
   State<PropertiesPanel> createState() => _PropertiesPanelState();
 }
 
+class _FlowArrowLegendPainter extends CustomPainter {
+  final Color color;
+  final bool dashed;
+  final bool thick;
+  final bool bidirectional;
+  final bool headless;
+
+  const _FlowArrowLegendPainter({
+    required this.color,
+    required this.dashed,
+    required this.thick,
+    required this.bidirectional,
+    required this.headless,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final y = size.height / 2;
+    final startX = 3.0;
+    final endX = size.width - 3.0;
+    final stroke = thick ? 2.4 : 1.5;
+
+    final linePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+
+    if (!dashed) {
+      canvas.drawLine(Offset(startX, y), Offset(endX, y), linePaint);
+    } else {
+      const dash = 4.0;
+      const gap = 2.4;
+      var x = startX;
+      while (x < endX) {
+        final next = (x + dash).clamp(startX, endX).toDouble();
+        canvas.drawLine(Offset(x, y), Offset(next, y), linePaint);
+        x = next + gap;
+      }
+    }
+
+    if (!headless) {
+      _drawHead(canvas, Offset(endX, y), color, stroke, false);
+      if (bidirectional) {
+        _drawHead(canvas, Offset(startX, y), color, stroke, true);
+      }
+    }
+  }
+
+  void _drawHead(
+    Canvas canvas,
+    Offset tip,
+    Color color,
+    double stroke,
+    bool left,
+  ) {
+    final headLen = 4.8;
+    final headHalf = 2.7;
+    final dir = left ? 1.0 : -1.0;
+    final p1 = Offset(tip.dx + dir * headLen, tip.dy - headHalf);
+    final p2 = Offset(tip.dx + dir * headLen, tip.dy + headHalf);
+
+    final headPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(tip, p1, headPaint);
+    canvas.drawLine(tip, p2, headPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FlowArrowLegendPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.dashed != dashed ||
+        oldDelegate.thick != thick ||
+        oldDelegate.bidirectional != bidirectional ||
+        oldDelegate.headless != headless;
+  }
+}
+
 class _PropertiesPanelState extends State<PropertiesPanel> {
   static const String _sequenceMessageKindMessage = 'message';
   static const String _sequenceMessageKindNoteOver = 'note-over';
@@ -116,6 +198,20 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     '--x',
     '-)',
     '--)',
+  ];
+
+  static const List<String> _flowArrowTypeOptions = [
+    '-->',
+    '==>',
+    '=>',
+    '-.->',
+    '.->',
+    '==.=>',
+    '=.=>',
+    '---',
+    '-.-',
+    '<-->',
+    '<.->',
   ];
 
   late TextEditingController _blockTitleController;
@@ -1415,6 +1511,175 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     return '$arrowType ${_describeMermaidArrowType(arrowType)}';
   }
 
+  String _describeFlowArrowType(String arrowType) {
+    switch (arrowType) {
+      case '-->':
+        return 'flux normal';
+      case '==>':
+        return 'flux critique';
+      case '=>':
+        return 'flux important';
+      case '-.->':
+        return 'dependance faible';
+      case '.->':
+        return 'evenement';
+      case '==.=>':
+        return 'event fort';
+      case '=.=>':
+        return 'event fort';
+      case '---':
+        return 'relation neutre';
+      case '-.-':
+        return 'relation faible';
+      case '<-->':
+        return 'sync bidirectionnelle';
+      case '<.->':
+        return 'sync faible bidirectionnelle';
+      default:
+        return 'Type flow personnalise';
+    }
+  }
+
+  String _flowArrowTypeLabel(String arrowType) {
+    return '$arrowType ${_describeFlowArrowType(arrowType)}';
+  }
+
+  bool _isDashedArrowType(String arrowType) {
+    return arrowType.contains('.') || arrowType.startsWith('--');
+  }
+
+  bool _isFlowDashedArrowType(String arrowType) {
+    return arrowType.contains('.');
+  }
+
+  bool _isThickFlowArrowType(String arrowType) {
+    return arrowType.contains('==') || arrowType.startsWith('=>');
+  }
+
+  bool _isBidirectionalFlowArrowType(String arrowType) {
+    return arrowType.contains('<');
+  }
+
+  bool _isHeadlessFlowArrowType(String arrowType) {
+    return arrowType == '---' || arrowType == '-.-';
+  }
+
+  Widget _buildFlowLegendChip(String type, {required bool isSelected}) {
+    final border = isSelected
+        ? const Color(0xFF64C8FF)
+        : colorPanelBorder.withValues(alpha: 0.90);
+    final bg = isSelected
+        ? const Color(0xFF64C8FF).withValues(alpha: 0.14)
+        : colorBlockBackground.withValues(alpha: 0.55);
+
+    return Container(
+      width: 174,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 42,
+            height: 14,
+            child: CustomPaint(
+              painter: _FlowArrowLegendPainter(
+                color: const Color(0xFF64C8FF),
+                dashed: _isFlowDashedArrowType(type),
+                thick: _isThickFlowArrowType(type),
+                bidirectional: _isBidirectionalFlowArrowType(type),
+                headless: _isHeadlessFlowArrowType(type),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  type,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isSelected
+                        ? colorTextPrimary
+                        : colorTextSecondary.withValues(alpha: 0.95),
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  _describeFlowArrowType(type),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: colorTextSecondary,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlowArrowLegend(String selectedType) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colorBlockBackground.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colorPanelBorder.withValues(alpha: 0.9)),
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: _flowArrowTypeOptions
+            .map(
+              (type) =>
+                  _buildFlowLegendChip(type, isSelected: selectedType == type),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  Future<void> _showFlowArrowLegendDialog(String selectedType) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: colorPropertiesPanelBg,
+          title: const Text(
+            'Codification Flow',
+            style: TextStyle(color: colorTextPrimary),
+          ),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: _buildFlowArrowLegend(selectedType),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Fermer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Color _mermaidArrowAccentColor(String arrowType) {
     if (arrowType.endsWith('x') || arrowType.endsWith('X')) {
       return const Color(0xFFE57373);
@@ -1448,11 +1713,15 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         : (isNoteOver
               ? _sequenceMessageKindNoteOver
               : _sequenceMessageKindMessage);
+    final selectableArrowTypes = allowSequenceElementTypeChoice
+        ? _mermaidArrowTypeOptions
+        : _flowArrowTypeOptions;
+    final defaultArrowType = allowSequenceElementTypeChoice ? '-->' : '-->';
     final effectiveArrowType =
-        (arrowType.isEmpty || !allowSequenceElementTypeChoice)
-        ? '-->'
-        : arrowType;
-    final isDashedArrow = effectiveArrowType.startsWith('--');
+        selectableArrowTypes.contains(arrowType) && arrowType.isNotEmpty
+        ? arrowType
+        : defaultArrowType;
+    final isDashedArrow = _isDashedArrowType(effectiveArrowType);
     final arrowAccent = _mermaidArrowAccentColor(effectiveArrowType);
 
     return _buildPanelContainer(
@@ -1603,46 +1872,80 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           // ],
           if (!isNoteLike) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue:
-                  _mermaidArrowTypeOptions.contains(effectiveArrowType)
-                  ? effectiveArrowType
-                  : '-->',
-              dropdownColor: colorBlockBackground,
-              iconEnabledColor: arrowAccent,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-              decoration: InputDecoration(
-                labelText: 'Type message',
-                labelStyle: TextStyle(color: arrowAccent),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: arrowAccent.withValues(alpha: 0.65),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue:
+                        selectableArrowTypes.contains(effectiveArrowType)
+                        ? effectiveArrowType
+                        : defaultArrowType,
+                    dropdownColor: colorBlockBackground,
+                    iconEnabledColor: arrowAccent,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: allowSequenceElementTypeChoice
+                          ? 'Type message'
+                          : 'Type flux (flowchart)',
+                      labelStyle: TextStyle(color: arrowAccent),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: arrowAccent.withValues(alpha: 0.65),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: arrowAccent, width: 1.5),
+                      ),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: arrowAccent),
+                      ),
+                      isDense: true,
+                      helperText: allowSequenceElementTypeChoice
+                          ? (isDashedArrow ? 'Dashed flow style' : null)
+                          : 'Codification Mermaid flow',
+                      helperStyle: const TextStyle(
+                        fontSize: 12,
+                        color: colorTextSecondary,
+                      ),
+                    ),
+                    items: selectableArrowTypes
+                        .map(
+                          (type) => DropdownMenuItem<String>(
+                            value: type,
+                            child: Text(
+                              allowSequenceElementTypeChoice
+                                  ? _mermaidArrowTypeLabel(type)
+                                  : _flowArrowTypeLabel(type),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      widget.onLinkSequenceArrowTypeChanged?.call(link, value);
+                    },
                   ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: arrowAccent, width: 1.5),
-                ),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: arrowAccent),
-                ),
-                isDense: true,
-                helperText: isDashedArrow ? 'Dashed flow style' : null,
-                helperStyle: const TextStyle(
-                  fontSize: 12,
-                  color: colorTextSecondary,
-                ),
-              ),
-              items: _mermaidArrowTypeOptions
-                  .map(
-                    (type) => DropdownMenuItem<String>(
-                      value: type,
-                      child: Text(_mermaidArrowTypeLabel(type)),
+                if (!allowSequenceElementTypeChoice) ...[
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: IconButton(
+                      tooltip: 'Voir la codification flow',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 18,
+                      color: colorTextSecondary.withValues(alpha: 0.92),
+                      onPressed: () {
+                        _showFlowArrowLegendDialog(effectiveArrowType);
+                      },
+                      icon: const Icon(Icons.info_outline),
                     ),
-                  )
-                  .toList(growable: false),
-              onChanged: (value) {
-                widget.onLinkSequenceArrowTypeChanged?.call(link, value);
-              },
+                  ),
+                ],
+              ],
             ),
           ] else ...[
             const SizedBox(height: 8),

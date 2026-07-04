@@ -67,6 +67,7 @@ void paintPendingLinkPreview({
         ? Offset(sequenceDirection, 0)
         : null,
     viaPoints: previewViaCanvas,
+    useFlowArrowCodification: !showSequenceParticipantLifelines,
   );
 
   if (showSequenceParticipantLifelines) {

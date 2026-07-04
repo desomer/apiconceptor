@@ -48,6 +48,21 @@ class MermaidFlowchartParseResult {
 class MermaidFlowchartCodec {
   const MermaidFlowchartCodec._();
 
+  static const List<String> _supportedFlowchartArrowTypes = [
+    '<.->',
+    '<-->',
+    '==.=>',
+    '=.=>',
+    '-.->',
+    '-->',
+    '==>',
+    '=>',
+    '.->',
+    '---',
+    '-.-',
+    '->',
+  ];
+
   static String generate({
     required List<Block> blocks,
     required List<BlockLink> links,
@@ -304,7 +319,11 @@ class MermaidFlowchartCodec {
 
   static String _normalizedFlowchartArrowTypeOrDefault(String? raw) {
     final value = (raw ?? '').trim();
-    if (value == '->' || value == '-->') {
+    if (value == '->') {
+      // Legacy flow syntax normalized to standard solid flow arrow.
+      return '-->';
+    }
+    if (_supportedFlowchartArrowTypes.contains(value)) {
       return value;
     }
     return '-->';
@@ -479,11 +498,11 @@ class MermaidFlowchartCodec {
   }
 
   static (String, int)? _readArrow(String line, int start) {
-    if (line.startsWith('-->', start)) {
-      return ('-->', start + 3);
-    }
-    if (line.startsWith('->', start)) {
-      return ('->', start + 2);
+    for (final arrowType in _supportedFlowchartArrowTypes) {
+      if (!line.startsWith(arrowType, start)) {
+        continue;
+      }
+      return (arrowType, start + arrowType.length);
     }
     return null;
   }

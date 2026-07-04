@@ -20,6 +20,7 @@ void paintLinkConnectorVisuals({
   required Offset arrowTip,
   BlockLink? link,
   bool dashed = false,
+  bool useFlowArrowCodification = false,
 }) {
   _drawNeonTube(canvas, path, color, strokeWidth, dashed: dashed);
   _drawFlowParticles(canvas, path, color, link: link);
@@ -32,11 +33,19 @@ void paintLinkConnectorVisuals({
     if (isNoteArrow) {
       return;
     }
-    final isNoHeadArrow = hasSequenceArrowType && arrowType == '->';
+    final isNoHeadArrow = hasSequenceArrowType
+        ? (useFlowArrowCodification
+              ? (arrowType == '---' || arrowType == '-.-')
+              : (arrowType == '->'))
+        : false;
     final isCrossArrow =
         hasSequenceArrowType &&
         (arrowType.endsWith('x') || arrowType.endsWith('X'));
     final isOpenArrow = hasSequenceArrowType && arrowType.endsWith(')');
+    final isBidirectionalArrow =
+        hasSequenceArrowType &&
+        useFlowArrowCodification &&
+        (arrowType.startsWith('<') || arrowType.contains('<'));
 
     if (isNoHeadArrow) {
       // Mermaid '->' ends without arrowhead and starts with a circular marker.
@@ -77,6 +86,21 @@ void paintLinkConnectorVisuals({
         strokeWidth: strokeWidth,
         arrowHeadSize: _arrowHeadSize(zoomLevel),
       );
+    }
+
+    if (isBidirectionalArrow) {
+      final startPoint = _pathStartPoint(path);
+      final startAngle = _pathStartAngle(path);
+      if (startPoint != null && startAngle != null) {
+        _drawArrowHead(
+          canvas,
+          startPoint,
+          startAngle + math.pi,
+          color: color,
+          strokeWidth: strokeWidth,
+          arrowHeadSize: _arrowHeadSize(zoomLevel),
+        );
+      }
     }
   }
 }
@@ -259,6 +283,36 @@ double? _pathEndAngle(Path path) {
   }
 
   return direction.direction;
+}
+
+double? _pathStartAngle(Path path) {
+  final iterator = path.computeMetrics().iterator;
+  if (!iterator.moveNext()) {
+    return null;
+  }
+
+  final metric = iterator.current;
+  if (metric.length <= 0) {
+    return null;
+  }
+
+  final startTangent = metric.getTangentForOffset(0);
+  if (startTangent == null) {
+    return null;
+  }
+
+  final sampleOffset = math.min(8.0, metric.length);
+  final sampleTangent = metric.getTangentForOffset(sampleOffset);
+  if (sampleTangent == null) {
+    return startTangent.angle;
+  }
+
+  final direction = sampleTangent.position - startTangent.position;
+  if (direction.distanceSquared == 0) {
+    return startTangent.angle;
+  }
+
+  return math.atan2(direction.dy, direction.dx);
 }
 
 Offset? _pathStartPoint(Path path) {

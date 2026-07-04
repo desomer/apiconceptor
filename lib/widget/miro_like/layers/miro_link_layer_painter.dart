@@ -177,10 +177,19 @@ class MiroLinkLayerPainter {
 
       final arrowType = (link.sequenceArrowType ?? '').trim();
       final isTypedArrow = arrowType.isNotEmpty;
-      final isDashedType = isTypedArrow && arrowType.startsWith('--');
+      final isFlowMode = !showSequenceParticipantLifelines;
+      final isDashedType =
+          isTypedArrow &&
+          (isFlowMode ? arrowType.contains('.') : arrowType.startsWith('--'));
+      final isThickType =
+          isTypedArrow &&
+          isFlowMode &&
+          (arrowType.contains('==') || arrowType.startsWith('=>'));
       final isDestroyType =
-          isTypedArrow && (arrowType.endsWith('x') || arrowType.endsWith('X'));
-      final isOpenType = isTypedArrow && arrowType.endsWith(')');
+          isTypedArrow &&
+          !isFlowMode &&
+          (arrowType.endsWith('x') || arrowType.endsWith('X'));
+      final isOpenType = isTypedArrow && !isFlowMode && arrowType.endsWith(')');
 
       final resolvedColor = selectedLink == link
           ? colorLinkSelected
@@ -226,13 +235,16 @@ class MiroLinkLayerPainter {
         to: toEdge,
         connectorType: link.connectorType,
         color: resolvedColor,
-        strokeWidth: linkPaint.strokeWidth,
+        strokeWidth: isThickType
+            ? linkPaint.strokeWidth * 1.6
+            : linkPaint.strokeWidth,
         zoomLevel: zoomLevel,
         link: link,
         viaPoints: viaCanvas,
         startTangent: startTangent,
         endTangent: endTangent,
         dashed: isDashedType,
+        useFlowArrowCodification: isFlowMode,
       );
 
       labelEntries.add((
