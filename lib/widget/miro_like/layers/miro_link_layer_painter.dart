@@ -185,6 +185,8 @@ class MiroLinkLayerPainter {
           isTypedArrow &&
           isFlowMode &&
           (arrowType.contains('==') || arrowType.startsWith('=>'));
+      final isStrongFlowType =
+          isTypedArrow && isFlowMode && arrowType.contains('==');
       final isDestroyType =
           isTypedArrow &&
           !isFlowMode &&
@@ -235,9 +237,9 @@ class MiroLinkLayerPainter {
         to: toEdge,
         connectorType: link.connectorType,
         color: resolvedColor,
-        strokeWidth: isThickType
-            ? linkPaint.strokeWidth * 1.6
-            : linkPaint.strokeWidth,
+        strokeWidth: isStrongFlowType
+            ? linkPaint.strokeWidth * 4
+            : (isThickType ? linkPaint.strokeWidth * 3 : linkPaint.strokeWidth),
         zoomLevel: zoomLevel,
         link: link,
         viaPoints: viaCanvas,
