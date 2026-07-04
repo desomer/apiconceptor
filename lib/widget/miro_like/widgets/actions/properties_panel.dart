@@ -1312,6 +1312,15 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       }
     }
 
+    String zoneTypeLabel(BlockZoneType zoneType) {
+      switch (zoneType) {
+        case BlockZoneType.frame:
+          return 'Cadre';
+        case BlockZoneType.subgraph:
+          return 'Subgraph';
+      }
+    }
+
     return _buildPanelContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1353,6 +1362,29 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
               label: const Text('proposal'),
             ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<BlockZoneType>(
+            initialValue: block.zoneType,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Type de zone',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: BlockZoneType.values
+                .map(
+                  (type) => DropdownMenuItem<BlockZoneType>(
+                    value: type,
+                    child: Text(zoneTypeLabel(type)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: null,
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String?>(

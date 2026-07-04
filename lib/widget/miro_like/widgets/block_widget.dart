@@ -221,92 +221,106 @@ class BlockWidget extends StatelessWidget {
           borderColor: borderColor.withValues(alpha: isSelected ? 0.95 : 0.65),
           borderWidth: isSelected ? 2 : 1.2,
         ),
-        child: ClipPath(
-          clipper: _NodeShapeClipper(shape: block.nodeShape),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: const Alignment(-0.55, -0.8),
-                        radius: 1.05,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.14),
-                          Colors.white.withValues(alpha: 0.04),
-                          Colors.transparent,
-                        ],
-                        stops: const [0.0, 0.5, 1.0],
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: ClipPath(
+                clipper: _NodeShapeClipper(shape: block.nodeShape),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              center: const Alignment(-0.55, -0.8),
+                              radius: 1.05,
+                              colors: [
+                                Colors.white.withValues(alpha: 0.14),
+                                Colors.white.withValues(alpha: 0.04),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.5, 1.0],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-              Center(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 10,
-                    right: block.tagColorKeys.isEmpty ? 10 : 30,
-                  ),
-                  child: Text(
-                    block.title,
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: normalTitleFontSize,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? colorBlockTextSelected
-                          : colorBlockText,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          offset: const Offset(0, 1),
-                          blurRadius: 2,
+                    Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: 10,
+                          right: block.tagColorKeys.isEmpty ? 10 : 30,
                         ),
-                      ],
+                        child: Text(
+                          block.title,
+                          textAlign: TextAlign.center,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: normalTitleFontSize,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? colorBlockTextSelected
+                                : colorBlockText,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                offset: const Offset(0, 1),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    _buildTagIndicators(),
+                    if (iconBytes != null)
+                      Positioned(
+                        left: 8,
+                        top: 8,
+                        child: Container(
+                          width: iconSize,
+                          height: iconSize,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            color: Colors.black.withValues(alpha: 0.12),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Image.memory(
+                            iconBytes,
+                            fit: BoxFit.cover,
+                            filterQuality: FilterQuality.medium,
+                            gaplessPlayback: true,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              _buildTagIndicators(),
-              if (iconBytes != null)
-                Positioned(
-                  left: 8,
-                  top: 8,
-                  child: Container(
-                    width: iconSize,
-                    height: iconSize,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      color: Colors.black.withValues(alpha: 0.12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.memory(
-                      iconBytes,
-                      fit: BoxFit.cover,
-                      filterQuality: FilterQuality.medium,
-                      gaplessPlayback: true,
-                    ),
+            ),
+            Positioned(
+              right: 6,
+              top: 6,
+              child: GestureDetector(
+                onTap: onInfoTap,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.38),
+                    shape: BoxShape.circle,
                   ),
-                ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: GestureDetector(
-                  onTap: onInfoTap,
-                  behavior: HitTestBehavior.opaque,
+                  padding: const EdgeInsets.all(2),
                   child: Icon(
                     Icons.info_outline,
-                    color: Colors.white.withValues(alpha: 0.95),
+                    color: Colors.white.withValues(alpha: 0.98),
                     size: infoIconSize,
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

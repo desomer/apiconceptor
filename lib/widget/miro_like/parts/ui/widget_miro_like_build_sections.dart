@@ -247,14 +247,20 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
 
           final hitBlock = _findTopBlockAtModelPosition(modelPosition);
           if (hitBlock != null && hitBlock.isZone) {
-            _pushUndoSnapshot();
-            _draggedZoneId = hitBlock.id;
             selectedBlock = hitBlock;
             _selectedBlockIds
               ..clear()
               ..add(hitBlock.id);
             selectedLink = null;
-            isPanning = false;
+            if (hitBlock.zoneType == BlockZoneType.frame) {
+              _pushUndoSnapshot();
+              _draggedZoneId = hitBlock.id;
+              isPanning = false;
+            } else {
+              _draggedZoneId = null;
+              // Allow right-drag to pan even when starting on subgraph zones.
+              isPanning = true;
+            }
             return;
           }
           _draggedZoneId = null;

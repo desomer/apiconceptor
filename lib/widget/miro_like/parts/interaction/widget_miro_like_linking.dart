@@ -262,7 +262,7 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
         ),
         PopupMenuItem<String>(
           value: 'add_zone',
-          child: Text('Ajouter une zone'),
+          child: Text('Ajouter une frame'),
         ),
       ],
     );

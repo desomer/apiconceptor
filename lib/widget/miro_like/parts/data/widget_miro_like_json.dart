@@ -55,6 +55,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
       'size': _sizeToJson(block.size),
       'zoneTransparent': block.zoneTransparent,
       'zoneBorderStyle': block.zoneBorderStyle.name,
+      'zoneType': block.zoneType.name,
       'nodeShape': block.nodeShape.name,
     };
   }
@@ -158,6 +159,15 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
           zoneTransparent: item['zoneTransparent'] == true,
           zoneBorderStyle: _zoneBorderStyleFromJsonName(
             item['zoneBorderStyle']?.toString(),
+          ),
+          zoneType: _zoneTypeFromJsonName(
+            item['zoneType']?.toString(),
+            propertiesJson: item['propertiesJson']?.toString(),
+            kind:
+                item['kind']?.toString() == BlockKind.zone.name ||
+                    item['isZone'] == true
+                ? BlockKind.zone
+                : BlockKind.normal,
           ),
           nodeShape: _blockNodeShapeFromJsonName(item['nodeShape']?.toString()),
         ),
@@ -278,6 +288,25 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
       default:
         return ZoneBorderStyle.plain;
     }
+  }
+
+  BlockZoneType _zoneTypeFromJsonName(
+    String? raw, {
+    required String? propertiesJson,
+    required BlockKind kind,
+  }) {
+    if (raw == BlockZoneType.subgraph.name) {
+      return BlockZoneType.subgraph;
+    }
+    if (raw == BlockZoneType.frame.name) {
+      return BlockZoneType.frame;
+    }
+
+    if (kind == BlockKind.zone &&
+        (propertiesJson ?? '').contains('"autoSubgraph"')) {
+      return BlockZoneType.subgraph;
+    }
+    return BlockZoneType.frame;
   }
 
   BlockNodeShape _blockNodeShapeFromJsonName(String? raw) {

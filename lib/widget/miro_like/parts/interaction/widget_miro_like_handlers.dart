@@ -83,6 +83,7 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           title: 'Zone ${zoneCount + 1}',
           kind: BlockKind.zone,
+          zoneType: BlockZoneType.frame,
           position: (position - canvasOffset) / zoomLevel,
           size: const Size(420, 280),
         ),

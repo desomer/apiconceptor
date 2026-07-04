@@ -43,6 +43,8 @@ const Map<String, String> kBlockTagColorLabelMap = {
 /// Represents a block in the Miro-like diagram
 enum BlockKind { normal, zone }
 
+enum BlockZoneType { frame, subgraph }
+
 enum ZoneBorderStyle { plain, dashed1_2, dashed2_2, dashed2_1 }
 
 enum BlockNodeShape {
@@ -73,6 +75,7 @@ class Block {
   Size size;
   bool zoneTransparent;
   ZoneBorderStyle zoneBorderStyle;
+  BlockZoneType zoneType;
   BlockNodeShape nodeShape;
 
   Block({
@@ -87,6 +90,7 @@ class Block {
     this.size = const Size(150, 100),
     this.zoneTransparent = false,
     this.zoneBorderStyle = ZoneBorderStyle.plain,
+    this.zoneType = BlockZoneType.frame,
     this.nodeShape = BlockNodeShape.rectangle,
   }) : tagColorKeys = List<String>.from(tagColorKeys ?? const <String>[]);
 
