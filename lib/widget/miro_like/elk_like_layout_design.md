@@ -200,7 +200,7 @@ La preference de cote de port est modelee dans `_routeOrthogonalForResidualCheck
 - Choix source/cible selon la geometrie relative.
 - Offset de port applique depuis le bord des noeuds.
 
-Au niveau UI, l assignation finale des ancres et le routage obstacle-aware restent geres dans le code de geometrie des liens existant.
+Au niveau UI, l assignation finale des ancres et le respect de la contrainte dure anti-survol des noeuds restent geres dans le code de geometrie des liens existant.
 
 ### 4.4 Contraintes De Taille Minimale
 
@@ -226,10 +226,10 @@ Pile actuelle:
 ### 4.7 Preference De Compacite Rectangulaire
 
 Objectif:
-- Privilegier une empreinte globale proche d un rectangle compact.
+- Privilegier une empreinte globale proche d un rectangle.
 - Eviter un layout trop etire en largeur ou trop etire en hauteur.
 
-Formulation (contrainte douce recommandee):
+Formulation (contrainte trés douce recommandee):
 - Soit `W` la largeur de la bounding box globale et `H` sa hauteur.
 - Definir un ratio `R = W / H`.
 - Cibler un intervalle prefere, par exemple `R in [0.65, 1.60]`.
@@ -250,7 +250,7 @@ Priorite:
   3. le non-recouvrement et les contraintes de subgraphs/ports.
 
 Remarque:
-- Il faut utiliser une contrainte souple (soft constraint), pas une contrainte dure,
+- Il faut utiliser une contrainte souple, pas une contrainte dure,
   pour eviter de degrader fortement le routage ou la lisibilite des flux.
 
 ### 4.8 Alignement Opportuniste Haut/Haut Et Gauche/Gauche
@@ -290,8 +290,9 @@ Cela prepare une extension future vers un plus court chemin exact sur grille d o
 
 ### 5.3 Evitement D Obstacles
 
-Le routage global obstacle-aware reste dans la phase de geometrie UI.
-Le coeur ELK-like conserve une generation orthogonale port-aware pour controler la pression de croisements residuels.
+Le controle global d evitement des noeuds reste dans la phase de geometrie UI.
+Le coeur ELK-like conserve une generation orthogonale port-aware pour reduire la pression de croisements residuels,
+mais la priorite finale est la contrainte dure anti-survol des noeuds.
 
 ### 5.4 Routage Base Sur Les Ports
 
@@ -302,6 +303,22 @@ Les ports source/cible sont choisis depuis la relation directionnelle (`dx`, `dy
 Dans l implementation actuelle:
 - Les candidats favorisent des structures courtes (moins de segments).
 - Le layering + placement reduisent les croisements residuels avant le routage final des connecteurs.
+
+### 5.6 Contrainte Dure Anti-Survol Des Noeuds
+
+Exigence:
+- Un path de lien ne doit pas traverser la bbox d un noeud (hors noeud source et noeud cible).
+- Cette regle est de priorite tres elevee, devant les preferences cosmetiques de courbure.
+
+Regle de validation:
+1. Construire le path effectif du lien (bezier).
+2. Echantillonner ou tester les segments contre les obstacles (bboxes des noeuds non terminaux).
+3. Si intersection detectee, reoptimiser le placement des noeuds/subgraphs jusqu a suppression du survol.
+
+Strategie recommandee:
+- Garder les liens en bezier par defaut.
+- Deplacer prioritairement les noeuds obstructeurs (ou leur subgraph) plutot que modifier le type du connecteur.
+- Reexecuter une passe courte de non-recouvrement pour conserver les separations minimales.
 
 ## 6. Gestion Des Subgraphs
 
@@ -330,6 +347,25 @@ Apres placement parent:
 - Les noeuds enfants ne sont jamais detaches de leur enveloppe parent subgraph.
 - Les subgraphs imbriques conservent la containment sur toute la recursion.
 
+### 6.6 Non-Superposition Des Subgraphs Et Gap Minimal
+
+Exigence:
+- Deux subgraphs sans relation ancetre/descendant ne doivent jamais se superposer visuellement.
+- Un gap minimal doit etre maintenu entre subgraphs voisins.
+- Un gap parent/enfant doit etre maintenu entre bord parent et bord enfant.
+
+Regles pratiques:
+1. Si `A` et `B` sont disjoints ou se recouvrent partiellement sans relation hierarchique stricte:
+  - imposer `distanceBBox(A,B) >= gapSubgraph`.
+2. Si `A` contient `B` (relation parent/enfant):
+  - imposer `insetParentChild(B in A) >= gapParentChild`.
+3. Si l espace parent est insuffisant:
+  - agrandir l empreinte parent (via deplacement des noeuds parent-only) avant de deplacer l enfant.
+
+Valeurs recommandees:
+- `gapSubgraph`: `max(64 px, 1.6 * gapNoeud)`.
+- `gapParentChild`: `max(32 px, 0.9 * gapNoeud)`.
+
 ## Cas Difficiles Couverts
 
 1. Maillages de dependances cycliques:
@@ -348,7 +384,7 @@ Apres placement parent:
 - support rangs + transformation de coordonnees.
 
 6. Pression sur les ports et clutter residuel:
-- generation orthogonale port-aware + routage obstacle-aware aval.
+- generation orthogonale port-aware + enforcement aval de la contrainte anti-survol des noeuds.
 
 ## Resume De Complexite
 
@@ -380,15 +416,18 @@ Soient `V` = noeuds, `E` = aretes, `L` = nombre de couches, `I` = iterations fix
 Objectif:
 - Definir des exigences mesurables pour garantir un rendu stable, lisible et industrialisable.
 
-### 7.1 Contraintes Dures (Hard Constraints)
+### 7.1 Contraintes Dures (Obligatoires)
 
 Ces contraintes doivent toujours etre satisfaites:
 - Aucune intersection noeud/noeud.
 - Containment strict parent/enfant pour les subgraphs imbriques.
 - Respect des tailles minimales de noeuds et de subgraphs.
+- Aucune superposition de subgraphs non lies hierarchiquement.
+- Respect d un gap minimal inter-subgraphs et parent/enfant.
+- Aucun survol de noeud par un path de lien (hors source/cible).
 
 
-### 7.2 Contraintes Souples (Soft Constraints)
+### 7.2 Contraintes Souples (Preferentielles)
 
 Ces contraintes optimisent la qualite sans bloquer la faisabilite:
 - Minimisation des croisements d aretes.
@@ -408,7 +447,7 @@ Recommandation de poids par defaut:
 
 Regle de decision:
 - Accepter un nouveau layout si `Q_new <= Q_old * 1.02`.
-- Sinon, conserver le layout precedent (sauf violation hard constraint).
+- Sinon, conserver le layout precedent (sauf violation d une contrainte dure).
 
 ### 7.4 Seuils Cibles (QA)
 
@@ -435,7 +474,7 @@ Budgets indicatifs de calcul:
 
 Comportement en depassement:
 - Reduire le nombre de phases de crossing minimization.
-- Conserver en priorite les hard constraints.
+- Conserver en priorite les contraintes dures.
 - Reporter les optimisations cosmetiques (alignement opportuniste fin, routage secondaire avance).
 
 ### 7.7 Modes Metier Recommandes
@@ -450,5 +489,137 @@ Prevoir des profils de priorite:
 
 Maintenir un corpus de graphes de non-regression:
 - DAG clairseme, DAG dense, graphe cyclique converti, hubs fan-in/fan-out, subgraphs imbriques multi-niveaux.
-- Mesurer automatiquement `Q`, temps de calcul, nombre de violations hard constraints.
+- Mesurer automatiquement `Q`, temps de calcul, nombre de violations de contraintes dures.
 - Rejeter un changement si regression au-dela de `+5%` sur les metriques critiques.
+
+## 8. Renforcement Anti-Superposition Et Anti-Survol
+
+Objectif:
+- Completer le pipeline actuel par un noyau de reparation robuste pour garantir, en sortie, l absence de superposition et l absence de survol de blocs par les liens bezier.
+
+### 8.1 Priorisation Formelle Des Contraintes
+
+Definir explicitement trois niveaux de priorite:
+
+1. Niveau 1 (contraintes dures absolues):
+- Non-superposition rectangle/rectangle entre blocs.
+- Non-superposition des subgraphs non ancetre/descendant.
+- Containment parent/enfant avec marge minimale.
+
+2. Niveau 2 (contraintes dures de routage):
+- Aucun segment echantillonne du path bezier d un lien ne traverse la bbox d un bloc non terminal (hors source/cible), avec marge de securite.
+
+3. Niveau 3 (contraintes souples):
+- Compacite rectangulaire.
+- Alignements opportunistes.
+- Regularite esthetique et minimisation additionnelle de longueur.
+
+Regle de precedence:
+- Une contrainte souple ne doit jamais provoquer de violation d une contrainte dure.
+
+### 8.2 Corridors De Liens Bezier Reserves
+
+Principe:
+- Conserver le type de connecteur bezier.
+- Reserver un corridor geometrique autour des liens pour guider le deplacement des obstacles (blocs/subgraphs), au lieu de modifier le style des liens.
+
+Specification:
+1. Pour chaque lien, echantillonner la courbe bezier sur `N` points (recommande: `N in [24, 40]`, adapte a la longueur).
+2. Construire un tube de clearance de rayon `rClear` autour de la polyligne echantillonnee.
+3. Interdire l intersection entre ce tube et toute bbox de bloc non terminal.
+4. En cas de conflit:
+- deplacer d abord le plus petit obstacle mobile,
+- puis elargir au subgraph parent si le deplacement local est insuffisant.
+
+Valeurs de depart:
+- `rClear = max(10 px, 0.35 * gapNoeud)`.
+- `maxLocalMovesPerConflict = 3`.
+
+### 8.3 Solveur Local De Reparation Iteratif
+
+Apres le placement principal, executer une boucle de reparation a iterations bornees.
+
+Boucle type:
+1. Detecter tous les conflits actifs:
+- bloc/bloc,
+- subgraph/subgraph,
+- lien(bloc non terminal).
+2. Calculer, pour chaque conflit, un vecteur minimal de separation.
+3. Agreger les vecteurs par objet mobile.
+4. Appliquer un pas amorti (damping) avec projection des contraintes hierarchiques.
+5. Revalider les contraintes dures.
+6. Arreter si plus de conflit ou nombre max d iterations atteint.
+
+Parametrage recommande:
+- `repairMaxIterations = 12`.
+- `repairDamping = 0.60`.
+- `repairEpsilon = 0.5 px`.
+
+Condition de succes:
+- Toutes les metriques de conflits durs doivent etre a `0`.
+
+### 8.4 Acceleration Par Index Spatial
+
+Pour maintenir un runtime interactif, utiliser un index spatial (R-tree ou quadtree) dans les passes de detection:
+- requetes de voisinage bbox/bbox en `O(log n)` attendu,
+- reduction du cout des tests lien/bloc,
+- meilleure scalabilite sur grands graphes et subgraphs denses.
+
+### 8.5 Renforcement Hierarchique Parent/Enfant
+
+Introduire des marges dynamiques pour limiter les collisions recurrentes dans les structures imbriquees:
+
+Formule proposee:
+- `gapParentChildDynamic = baseGap + depthFactor * profondeur + densityFactor * densiteLocale`.
+
+Regles:
+1. Si un enfant est pousse contre un bord parent:
+- agrandir prioritairement le parent avant de deplacer globalement le voisinage.
+2. Si deux parents se penetrent:
+- separer selon l axe de penetration minimale,
+- ajouter une hysteresis pour eviter les oscillations inter-iterations.
+
+Valeurs initiales utiles:
+- `depthFactor = 4 px`.
+- `densityFactor in [6, 14] px` selon charge locale.
+- `hysteresis = 2 px`.
+
+### 8.6 Detection D Infaisabilite Et Fallback
+
+Cas cible:
+- Le solveur ne trouve pas de solution satisfaisant simultanement toutes les contraintes dures dans la zone courante.
+
+Strategie:
+1. Detecter l infaisabilite (stagnation de conflits durs apres `K` iterations).
+2. Augmenter automatiquement l espace disponible (canvas virtuel / bbox globale).
+3. Reexecuter la reparation avec gaps majores moderement.
+4. Relacher uniquement les contraintes souples si necessaire (jamais les contraintes dures).
+
+Parametres:
+- `infeasibleAfterIterations = 6`.
+- `areaScaleStep = 1.15`.
+- `maxAreaScale = 1.60`.
+
+### 8.7 Ordre D Integration Recommande
+
+Pour limiter le risque de regression:
+1. Integrer d abord le solveur local de reparation iteratif.
+2. Ajouter les corridors bezier reserves et la clearance tube/bloc.
+3. Renforcer les marges dynamiques parent/enfant.
+4. Ajouter la detection d infaisabilite et fallback d expansion.
+5. Finaliser par le tuning des poids et seuils.
+
+### 8.8 Metriques Additionnelles Obligatoires
+
+En plus de `Q`, suivre explicitement:
+- `hardNodeOverlaps` (bloc/bloc).
+- `hardSubgraphOverlaps` (subgraph/subgraph hors hierarchie).
+- `hardLinkBlockIntersections` (lien/bloc non terminal).
+- `avgDisplacementPerIteration`.
+- `layoutRuntimeMs`.
+
+Critere de validation production:
+- `hardNodeOverlaps = 0`.
+- `hardSubgraphOverlaps = 0`.
+- `hardLinkBlockIntersections = 0`.
+- Respect des SLO de la section 7.6.
