@@ -82,6 +82,9 @@ class AutoLayoutEngine {
       subgraphNodeGroups,
       nodeSet,
     );
+    final normalizedSubgraphGroupSets = [
+      for (final group in normalizedSubgraphGroups) group.toSet(),
+    ];
 
     final hasSeeds = (seedPositions ?? const <String, Offset>{}).isNotEmpty;
     final seeded = seedPositions ?? const <String, Offset>{};
@@ -122,6 +125,7 @@ class AutoLayoutEngine {
     final medianK = 0.018 * quality.hpwlMul;
     final subgraphCohesionK = 0.025 * quality.springMul;
     final subgraphCompactK = 0.040 * quality.overlapMul;
+    final subgraphSeparationK = 0.85 * quality.overlapMul;
     final alignDisabled = quality.alignmentPriority < 0;
     final alignPriority = alignDisabled
         ? 0.0
@@ -315,6 +319,62 @@ class AutoLayoutEngine {
                   dir * ((dist - targetDist) * subgraphCohesionK * 0.55);
               forces[a] = forces[a]! + pull;
               forces[b] = forces[b]! - pull;
+            }
+          }
+        }
+
+        final subgraphGap = (blockGap * 1.25).clamp(38.0, 260.0);
+        for (int i = 0; i < normalizedSubgraphGroups.length - 1; i++) {
+          final groupA = normalizedSubgraphGroups[i];
+          final setA = normalizedSubgraphGroupSets[i];
+          final rectA = _subgraphBounds(
+            groupA,
+            positions,
+            sizeByNode,
+            padding: blockGap * 0.50,
+          );
+
+          for (int j = i + 1; j < normalizedSubgraphGroups.length; j++) {
+            final groupB = normalizedSubgraphGroups[j];
+            final setB = normalizedSubgraphGroupSets[j];
+            if (_subgraphGroupsCanCoexist(setA, setB)) {
+              continue;
+            }
+
+            final rectB = _subgraphBounds(
+              groupB,
+              positions,
+              sizeByNode,
+              padding: blockGap * 0.50,
+            );
+            final centerA = rectA.center;
+            final centerB = rectB.center;
+            final dx = centerA.dx - centerB.dx;
+            final dy = centerA.dy - centerB.dy;
+            final reqDx = (rectA.width + rectB.width) / 2 + subgraphGap;
+            final reqDy = (rectA.height + rectB.height) / 2 + subgraphGap;
+            final missX = reqDx - dx.abs();
+            final missY = reqDy - dy.abs();
+            if (missX <= 0 || missY <= 0) {
+              continue;
+            }
+
+            final axisX = missX < missY;
+            final dir = axisX
+                ? Offset(dx >= 0 ? 1 : -1, 0)
+                : Offset(0, dy >= 0 ? 1 : -1);
+            final missing = axisX ? missX : missY;
+            final strength = missing * subgraphSeparationK * (0.65 + cooling);
+            final pushA = dir * (strength / math.max(1, groupA.length));
+            final pushB = dir * (strength / math.max(1, groupB.length));
+
+            for (final id in groupA) {
+              forces[id] = forces[id]! + pushA;
+              conflictScore[id] = conflictScore[id]! + 0.40;
+            }
+            for (final id in groupB) {
+              forces[id] = forces[id]! - pushB;
+              conflictScore[id] = conflictScore[id]! + 0.40;
             }
           }
         }
@@ -544,6 +604,13 @@ class AutoLayoutEngine {
       nodeOrder: nodeOrder,
       positions: positions,
       sizeByNode: sizeByNode,
+      minGap: blockGap,
+    );
+    _resolveSubgraphGroupOverlaps(
+      positions: positions,
+      sizeByNode: sizeByNode,
+      subgraphNodeGroups: normalizedSubgraphGroups,
+      subgraphNodeGroupSets: normalizedSubgraphGroupSets,
       minGap: blockGap,
     );
 
@@ -983,6 +1050,44 @@ class AutoLayoutEngine {
       }
     }
 
+    if (subgraphNodeGroups.length > 1) {
+      final groupSets = [for (final group in subgraphNodeGroups) group.toSet()];
+      final subgraphGap = minGap * 1.25;
+      for (int i = 0; i < subgraphNodeGroups.length - 1; i++) {
+        final groupA = subgraphNodeGroups[i];
+        final setA = groupSets[i];
+        final rectA = _subgraphBounds(
+          groupA,
+          positions,
+          sizeByNode,
+          padding: minGap * 0.50,
+        );
+        for (int j = i + 1; j < subgraphNodeGroups.length; j++) {
+          final groupB = subgraphNodeGroups[j];
+          final setB = groupSets[j];
+          if (_subgraphGroupsCanCoexist(setA, setB)) {
+            continue;
+          }
+
+          final rectB = _subgraphBounds(
+            groupB,
+            positions,
+            sizeByNode,
+            padding: minGap * 0.50,
+          );
+          final dx = (rectA.center.dx - rectB.center.dx).abs();
+          final dy = (rectA.center.dy - rectB.center.dy).abs();
+          final reqDx = (rectA.width + rectB.width) / 2 + subgraphGap;
+          final reqDy = (rectA.height + rectB.height) / 2 + subgraphGap;
+          final ox = reqDx - dx;
+          final oy = reqDy - dy;
+          if (ox > 0 && oy > 0) {
+            penalty += 210000 + ox * oy * 920.0;
+          }
+        }
+      }
+    }
+
     return penalty;
   }
 
@@ -1156,6 +1261,117 @@ class AutoLayoutEngine {
         break;
       }
     }
+  }
+
+  static void _resolveSubgraphGroupOverlaps({
+    required Map<String, Offset> positions,
+    required Map<String, Size> sizeByNode,
+    required List<List<String>> subgraphNodeGroups,
+    required List<Set<String>> subgraphNodeGroupSets,
+    required double minGap,
+  }) {
+    if (subgraphNodeGroups.length < 2) {
+      return;
+    }
+
+    final subgraphGap = (minGap * 1.25).clamp(38.0, 260.0);
+    for (int pass = 0; pass < 22; pass++) {
+      var moved = false;
+
+      for (int i = 0; i < subgraphNodeGroups.length - 1; i++) {
+        final groupA = subgraphNodeGroups[i];
+        final setA = subgraphNodeGroupSets[i];
+        final rectA = _subgraphBounds(
+          groupA,
+          positions,
+          sizeByNode,
+          padding: minGap * 0.50,
+        );
+
+        for (int j = i + 1; j < subgraphNodeGroups.length; j++) {
+          final groupB = subgraphNodeGroups[j];
+          final setB = subgraphNodeGroupSets[j];
+          if (_subgraphGroupsCanCoexist(setA, setB)) {
+            continue;
+          }
+
+          final rectB = _subgraphBounds(
+            groupB,
+            positions,
+            sizeByNode,
+            padding: minGap * 0.50,
+          );
+          final centerA = rectA.center;
+          final centerB = rectB.center;
+          final dx = centerA.dx - centerB.dx;
+          final dy = centerA.dy - centerB.dy;
+          final reqDx = (rectA.width + rectB.width) / 2 + subgraphGap;
+          final reqDy = (rectA.height + rectB.height) / 2 + subgraphGap;
+          final missX = reqDx - dx.abs();
+          final missY = reqDy - dy.abs();
+          if (missX <= 0 || missY <= 0) {
+            continue;
+          }
+
+          moved = true;
+          final axisX = missX < missY;
+          final sign = axisX ? (dx >= 0 ? 1.0 : -1.0) : (dy >= 0 ? 1.0 : -1.0);
+          final shift = ((axisX ? missX : missY) + 1.0) * 0.5;
+          final delta = axisX
+              ? Offset(sign * shift, 0)
+              : Offset(0, sign * shift);
+
+          for (final id in groupA) {
+            positions[id] = positions[id]! + delta;
+          }
+          for (final id in groupB) {
+            positions[id] = positions[id]! - delta;
+          }
+        }
+      }
+
+      if (!moved) {
+        break;
+      }
+    }
+  }
+
+  static Rect _subgraphBounds(
+    List<String> nodeIds,
+    Map<String, Offset> positions,
+    Map<String, Size> sizeByNode, {
+    double padding = 0.0,
+  }) {
+    var left = double.infinity;
+    var top = double.infinity;
+    var right = -double.infinity;
+    var bottom = -double.infinity;
+
+    for (final id in nodeIds) {
+      final p = positions[id]!;
+      final s = sizeByNode[id]!;
+      left = math.min(left, p.dx);
+      top = math.min(top, p.dy);
+      right = math.max(right, p.dx + s.width);
+      bottom = math.max(bottom, p.dy + s.height);
+    }
+
+    return Rect.fromLTRB(
+      left - padding,
+      top - padding,
+      right + padding,
+      bottom + padding,
+    );
+  }
+
+  static bool _subgraphGroupsCanCoexist(Set<String> a, Set<String> b) {
+    if (a.containsAll(b) || b.containsAll(a)) {
+      return true;
+    }
+    if (a.intersection(b).isNotEmpty) {
+      return true;
+    }
+    return false;
   }
 
   static Offset _spiralTopLeft({

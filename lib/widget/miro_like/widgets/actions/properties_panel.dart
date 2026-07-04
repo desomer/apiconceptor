@@ -56,6 +56,7 @@ class PropertiesPanel extends StatefulWidget {
   final Function(BlockLink, ConnectorType)? onConnectorTypeChanged;
   final Function(BlockLink, bool)? onLinkAutoLayoutLockChanged;
   final Function(BlockLink, String?)? onLinkSequenceArrowTypeChanged;
+  final bool isSequenceDiagramMode;
 
   const PropertiesPanel({
     super.key,
@@ -94,6 +95,7 @@ class PropertiesPanel extends StatefulWidget {
     this.onConnectorTypeChanged,
     this.onLinkAutoLayoutLockChanged,
     this.onLinkSequenceArrowTypeChanged,
+    this.isSequenceDiagramMode = false,
   });
 
   @override
@@ -1435,15 +1437,20 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
 
   Widget _buildLinkProperties(BlockLink link) {
     final arrowType = (link.sequenceArrowType ?? '').trim();
+    final allowSequenceElementTypeChoice = widget.isSequenceDiagramMode;
     final isNoteOver = MermaidSequenceCodec.isNoteOverType(arrowType);
     final isNoteFlow = MermaidSequenceCodec.isNoteFlowType(arrowType);
-    final isNoteLike = MermaidSequenceCodec.isNoteType(arrowType);
+    final isNoteLike =
+      allowSequenceElementTypeChoice && MermaidSequenceCodec.isNoteType(arrowType);
     final sequenceMessageKind = isNoteFlow
         ? _sequenceMessageKindNoteFlow
         : (isNoteOver
               ? _sequenceMessageKindNoteOver
               : _sequenceMessageKindMessage);
-    final effectiveArrowType = arrowType.isEmpty ? '-->' : arrowType;
+    final effectiveArrowType =
+      (arrowType.isEmpty || !allowSequenceElementTypeChoice)
+      ? '-->'
+      : arrowType;
     final isDashedArrow = effectiveArrowType.startsWith('--');
     final arrowAccent = _mermaidArrowAccentColor(effectiveArrowType);
 
@@ -1469,75 +1476,77 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             style: const TextStyle(color: colorTextSecondary),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Type element sequence',
-            style: TextStyle(color: colorTextSecondary),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment<String>(
-                  value: _sequenceMessageKindMessage,
-                  label: Text('Message'),
-                ),
-                ButtonSegment<String>(
-                  value: _sequenceMessageKindNoteOver,
-                  label: Text('Note over'),
-                ),
-                ButtonSegment<String>(
-                  value: _sequenceMessageKindNoteFlow,
-                  label: Text('flow'),
-                ),
-              ],
-              selected: <String>{sequenceMessageKind},
-              showSelectedIcon: false,
-              style: ButtonStyle(
-                foregroundColor: WidgetStateProperty.all(colorTextPrimary),
-                side: WidgetStateProperty.all(
-                  const BorderSide(color: colorPanelBorder),
-                ),
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return colorBlockBackground;
-                  }
-                  return Colors.transparent;
-                }),
-              ),
-              onSelectionChanged: (selection) {
-                if (selection.isEmpty) {
-                  return;
-                }
-                final value = selection.first;
-
-                if (value == _sequenceMessageKindNoteOver) {
-                  widget.onLinkSequenceArrowTypeChanged?.call(
-                    link,
-                    MermaidSequenceCodec.noteOverType,
-                  );
-                  return;
-                }
-
-                if (value == _sequenceMessageKindNoteFlow) {
-                  widget.onLinkSequenceArrowTypeChanged?.call(
-                    link,
-                    MermaidSequenceCodec.noteFlowType,
-                  );
-                  return;
-                }
-
-                final nextArrowType =
-                    _mermaidArrowTypeOptions.contains(arrowType)
-                    ? arrowType
-                    : '-->';
-                widget.onLinkSequenceArrowTypeChanged?.call(
-                  link,
-                  nextArrowType,
-                );
-              },
+          if (allowSequenceElementTypeChoice) ...[
+            const Text(
+              'Type element sequence',
+              style: TextStyle(color: colorTextSecondary),
             ),
-          ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment<String>(
+                    value: _sequenceMessageKindMessage,
+                    label: Text('Message'),
+                  ),
+                  ButtonSegment<String>(
+                    value: _sequenceMessageKindNoteOver,
+                    label: Text('Note over'),
+                  ),
+                  ButtonSegment<String>(
+                    value: _sequenceMessageKindNoteFlow,
+                    label: Text('flow'),
+                  ),
+                ],
+                selected: <String>{sequenceMessageKind},
+                showSelectedIcon: false,
+                style: ButtonStyle(
+                  foregroundColor: WidgetStateProperty.all(colorTextPrimary),
+                  side: WidgetStateProperty.all(
+                    const BorderSide(color: colorPanelBorder),
+                  ),
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return colorBlockBackground;
+                    }
+                    return Colors.transparent;
+                  }),
+                ),
+                onSelectionChanged: (selection) {
+                  if (selection.isEmpty) {
+                    return;
+                  }
+                  final value = selection.first;
+
+                  if (value == _sequenceMessageKindNoteOver) {
+                    widget.onLinkSequenceArrowTypeChanged?.call(
+                      link,
+                      MermaidSequenceCodec.noteOverType,
+                    );
+                    return;
+                  }
+
+                  if (value == _sequenceMessageKindNoteFlow) {
+                    widget.onLinkSequenceArrowTypeChanged?.call(
+                      link,
+                      MermaidSequenceCodec.noteFlowType,
+                    );
+                    return;
+                  }
+
+                  final nextArrowType =
+                      _mermaidArrowTypeOptions.contains(arrowType)
+                      ? arrowType
+                      : '-->';
+                  widget.onLinkSequenceArrowTypeChanged?.call(
+                    link,
+                    nextArrowType,
+                  );
+                },
+              ),
+            ),
+          ],
           // if (hasSequenceArrowType) ...[
           //   const SizedBox(height: 12),
           //   Container(

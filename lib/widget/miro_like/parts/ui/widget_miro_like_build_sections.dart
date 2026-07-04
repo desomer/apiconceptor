@@ -605,6 +605,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             onConnectorTypeChanged: _handleConnectorTypeChanged,
             onLinkAutoLayoutLockChanged: _handleLinkAutoLayoutLockChanged,
             onLinkSequenceArrowTypeChanged: _handleLinkSequenceArrowTypeChanged,
+            isSequenceDiagramMode: _isSequenceDiagramView,
           ),
         ),
       ],
