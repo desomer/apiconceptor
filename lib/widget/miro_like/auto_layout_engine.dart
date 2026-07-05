@@ -77,7 +77,8 @@ class AutoLayoutEngine {
   static const double ALIGN_TOLERANCE_Y = 80.0; // Threshold for Y-axis grouping
   static const double ALIGN_MAX_MOVE_X = 60.0; // Max movement per node (X)
   static const double ALIGN_MAX_MOVE_Y = 60.0; // Max movement per node (Y)
-  static const double ALIGN_EDGE_GROWTH_PENALTY = 0.15; // Max allowed edge length growth (15%)
+  static const double ALIGN_EDGE_GROWTH_PENALTY =
+      0.15; // Max allowed edge length growth (15%)
 
   static void setDiagnosticsLogsEnabled(bool enabled) {
     enableDiagnosticsLogs = enabled;
@@ -2193,9 +2194,10 @@ class AutoLayoutEngine {
 
       // Group nodes by X proximity
       final xGroups = <int, List<String>>{};
-      final sortedByX = [...nodeOrder]..sort((a, b) {
-        return (positions[a]?.dx ?? 0).compareTo(positions[b]?.dx ?? 0);
-      });
+      final sortedByX = [...nodeOrder]
+        ..sort((a, b) {
+          return (positions[a]?.dx ?? 0).compareTo(positions[b]?.dx ?? 0);
+        });
 
       int currentGroup = 0;
       double? lastX;
@@ -2210,9 +2212,10 @@ class AutoLayoutEngine {
 
       // Group nodes by Y proximity
       final yGroups = <int, List<String>>{};
-      final sortedByY = [...nodeOrder]..sort((a, b) {
-        return (positions[a]?.dy ?? 0).compareTo(positions[b]?.dy ?? 0);
-      });
+      final sortedByY = [...nodeOrder]
+        ..sort((a, b) {
+          return (positions[a]?.dy ?? 0).compareTo(positions[b]?.dy ?? 0);
+        });
 
       currentGroup = 0;
       double? lastY;
@@ -2231,9 +2234,7 @@ class AutoLayoutEngine {
         if (group.length < 2) continue;
 
         final xs = [for (final id in group) positions[id]?.dx ?? 0];
-        final medianX = xs.isEmpty
-            ? 0.0
-            : (xs..sort())[xs.length ~/ 2];
+        final medianX = xs.isEmpty ? 0.0 : (xs..sort())[xs.length ~/ 2];
 
         for (final id in group) {
           final old = positions[id]!;
@@ -2262,17 +2263,15 @@ class AutoLayoutEngine {
             // - Edge crossings unchanged/improved
             // - Edge over node unchanged/improved
             // - Edge length growth < threshold
-            final hardViolationOk = metricsNew.hardViolation <=
-                metricsInit.hardViolation;
-            final crossingOk =
-                metricsNew.crossings <= metricsInit.crossings;
-            final edgeOverNodeOk = metricsNew.edgeOverNodeHits <=
-                metricsInit.edgeOverNodeHits;
+            final hardViolationOk =
+                metricsNew.hardViolation <= metricsInit.hardViolation;
+            final crossingOk = metricsNew.crossings <= metricsInit.crossings;
+            final edgeOverNodeOk =
+                metricsNew.edgeOverNodeHits <= metricsInit.edgeOverNodeHits;
             final edgeLenGrowth =
                 (metricsNew.totalEdgeLength - metricsInit.totalEdgeLength) /
-                    math.max(1.0, metricsInit.totalEdgeLength);
-            final edgeLenOk =
-                edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
+                math.max(1.0, metricsInit.totalEdgeLength);
+            final edgeLenOk = edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
 
             if (hardViolationOk && crossingOk && edgeOverNodeOk && edgeLenOk) {
               alignedX++;
@@ -2289,9 +2288,7 @@ class AutoLayoutEngine {
         if (group.length < 2) continue;
 
         final ys = [for (final id in group) positions[id]?.dy ?? 0];
-        final medianY = ys.isEmpty
-            ? 0.0
-            : (ys..sort())[ys.length ~/ 2];
+        final medianY = ys.isEmpty ? 0.0 : (ys..sort())[ys.length ~/ 2];
 
         for (final id in group) {
           final old = positions[id]!;
@@ -2315,17 +2312,15 @@ class AutoLayoutEngine {
               subgraphTitlePadding: 8.0,
             );
 
-            final hardViolationOk = metricsNew.hardViolation <=
-                metricsInit.hardViolation;
-            final crossingOk =
-                metricsNew.crossings <= metricsInit.crossings;
-            final edgeOverNodeOk = metricsNew.edgeOverNodeHits <=
-                metricsInit.edgeOverNodeHits;
+            final hardViolationOk =
+                metricsNew.hardViolation <= metricsInit.hardViolation;
+            final crossingOk = metricsNew.crossings <= metricsInit.crossings;
+            final edgeOverNodeOk =
+                metricsNew.edgeOverNodeHits <= metricsInit.edgeOverNodeHits;
             final edgeLenGrowth =
                 (metricsNew.totalEdgeLength - metricsInit.totalEdgeLength) /
-                    math.max(1.0, metricsInit.totalEdgeLength);
-            final edgeLenOk =
-                edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
+                math.max(1.0, metricsInit.totalEdgeLength);
+            final edgeLenOk = edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
 
             if (hardViolationOk && crossingOk && edgeOverNodeOk && edgeLenOk) {
               alignedY++;
