@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'package:jsonschema/widget/miro_like/auto_layout_engine.dart';
 
 // Colors (same as in widget_miro_like.dart)
 const Color colorTextPrimary = Color.fromARGB(255, 255, 255, 255);
@@ -152,7 +153,7 @@ class ImportExportManager {
                   child: const Text('Annuler'),
                 ),
                 FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     try {
                       final decoded = jsonDecode(controller.text);
                       if (decoded is! Map<String, dynamic>) {
@@ -164,8 +165,9 @@ class ImportExportManager {
                       importBoard(decoded);
 
                       Navigator.of(context).pop();
+
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Import JSON termine')),
+                        SnackBar(content: Text('Import JSON termine')),
                       );
                     } catch (e) {
                       setLocalState(() {
@@ -229,9 +231,19 @@ class ImportExportManager {
                   child: const Text('Annuler'),
                 ),
                 FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     try {
                       importMermaid(controller.text);
+
+                      // Capture audit trail and copy to clipboard
+                      final trail = AutoLayoutEngine.getAuditTrailSnapshot();
+                      if (trail.isNotEmpty) {
+                        final clipboardContent =
+                            '=== AUDIT TRAIL (Auto-Layout Debug Logs after Import) ===\n${trail.join('\n')}';
+                        await Clipboard.setData(
+                          ClipboardData(text: clipboardContent),
+                        );
+                      }
 
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(

@@ -637,6 +637,35 @@ class AutoLayoutEngine {
       direction: direction,
     );
 
+    // If crossings remain after seed decision, try to eliminate them
+    final postSeedCrossings = _countEdgeCrossings(selected, sizes, allEdges);
+    if (postSeedCrossings > 0) {
+      _forceUncrossByEndpointKick(
+        nodeOrder: nodeOrder,
+        positions: selected,
+        sizeByNode: sizes,
+        allEdges: allEdges,
+        degree: degree,
+        minGap: minGap,
+        maxPasses: 16,
+      );
+      _applyHardConstraints(
+        nodeOrder: nodeOrder,
+        positions: selected,
+        sizeByNode: sizes,
+        allEdges: allEdges,
+        groups: groups,
+        minGap: minGap,
+        minInnerGapSubgraph: minInnerGapSubgraph,
+        minOuterGapSubgraph: minOuterGapSubgraph,
+        subgraphTitleBandHeight: subgraphTitleBandHeight,
+        subgraphTitlePadding: subgraphTitlePadding,
+      );
+      _logAudit(
+        'stage=phase_timing name=post_seed_uncross ms=${runWatch.elapsedMilliseconds}',
+      );
+    }
+
     final finalMetrics = _collectMetrics(
       nodeOrder: nodeOrder,
       positions: selected,
@@ -742,11 +771,11 @@ class AutoLayoutEngine {
 
     var force = false;
     if (profile.name == 'strict-routing') {
-      force = metrics.crossings >= 2;
+      force = metrics.crossings >= 1;
     } else if (profile.name == 'dense') {
-      force = metrics.crossings >= 3;
+      force = metrics.crossings >= 2;
     } else if (profile.name == 'balanced') {
-      force = metrics.crossings >= 4;
+      force = metrics.crossings >= 1;
     }
 
     return _RoutingPolicy(
@@ -947,7 +976,7 @@ class AutoLayoutEngine {
         positions: positions,
         sizeByNode: sizes,
         groups: groups,
-        strength: 0.32,
+        strength: 0.65,
       );
       _packIsolatedSubgraphMembers(
         positions: positions,
@@ -1305,26 +1334,39 @@ class AutoLayoutEngine {
           isolated.add(id);
         }
       }
-      if (isolated.length < 2) {
+      if (isolated.isEmpty) {
         continue;
       }
 
       final active = group.where(positions.containsKey).toList(growable: false);
       final bounds = _subgraphBounds(active, positions, sizeByNode);
-      final cols = math.max(1, math.sqrt(isolated.length).ceil());
-      final step = minGap + 40.0;
-      var idx = 0;
-      for (final id in isolated) {
-        final row = idx ~/ cols;
-        final col = idx % cols;
-        final center = Offset(
-          bounds.center.dx + (col - (cols - 1) / 2) * step,
-          bounds.center.dy +
-              (row - ((isolated.length / cols).ceil() - 1) / 2) * step,
-        );
+      
+      // For single isolated node: place it at centroid
+      if (isolated.length == 1) {
+        final id = isolated.first;
         final size = sizeByNode[id]!;
+        final center = bounds.center;
         positions[id] = center - Offset(size.width / 2, size.height / 2);
-        idx++;
+        _logAudit(
+          'stage=pack_isolated_members isolated_node=$id group_size=${group.length} moved_to_centroid=(${center.dx.toStringAsFixed(0)},${center.dy.toStringAsFixed(0)})',
+        );
+      } else {
+        // For multiple isolated nodes: arrange in grid around centroid
+        final cols = math.max(1, math.sqrt(isolated.length).ceil());
+        final step = minGap + 40.0;
+        var idx = 0;
+        for (final id in isolated) {
+          final row = idx ~/ cols;
+          final col = idx % cols;
+          final center = Offset(
+            bounds.center.dx + (col - (cols - 1) / 2) * step,
+            bounds.center.dy +
+                (row - ((isolated.length / cols).ceil() - 1) / 2) * step,
+          );
+          final size = sizeByNode[id]!;
+          positions[id] = center - Offset(size.width / 2, size.height / 2);
+          idx++;
+        }
       }
     }
   }
@@ -1394,6 +1436,15 @@ class AutoLayoutEngine {
       minOuterGapSubgraph: minOuterGapSubgraph,
       subgraphTitleBandHeight: subgraphTitleBandHeight,
       subgraphTitlePadding: subgraphTitlePadding,
+    );
+
+    // Post-membership clustering pass: gently re-attract isolated nodes to their groups
+    // Lower strength (0.40) avoids over-compression while still preventing displacement
+    _clusterSubgraphs(
+      positions: positions,
+      sizeByNode: sizeByNode,
+      groups: groups,
+      strength: 0.40,
     );
 
     _enforceSubgraphInnerGap(
@@ -1524,12 +1575,25 @@ class AutoLayoutEngine {
       return;
     }
 
+    // Log initial group structure
+    _logAudit(
+      'stage=subgraph_membership_exclusion_start groups_count=${groups.length}',
+    );
+    for (int i = 0; i < groups.length; i++) {
+      _logAudit(
+        'stage=subgraph_group_structure group_idx=$i members=[${groups[i].join(',')}]',
+      );
+    }
+
     final watch = Stopwatch()..start();
     final sets = [for (final g in groups) g.toSet()];
     final hierarchy = _buildGroupHierarchy(sets);
     var movedTotal = 0;
 
-    for (int pass = 0; pass < 24; pass++) {
+    // Reduced from 24 to 4 passes to prevent excessive divergence
+    // Algorithm is called multiple times in pipeline; 8 invocations × 8 passes = excessive displacement
+    // 4 passes reduces cumulative damage while still enforcing basic containment
+    for (int pass = 0; pass < 4; pass++) {
       var movedPass = 0;
       final bounds = <Rect>[
         for (int i = 0; i < groups.length; i++)
@@ -1540,6 +1604,17 @@ class AutoLayoutEngine {
             padding: minGap * 0.75 + subgraphTitlePadding,
           ),
       ];
+
+      // Log group bounds for first pass only
+      if (pass == 0) {
+        for (int i = 0; i < bounds.length; i++) {
+          final b = bounds[i];
+          final members = groups[i].join(',');
+          _logAudit(
+            'stage=subgraph_group_bounds group_idx=$i members=[$members] left:${b.left.toStringAsFixed(0)} right:${b.right.toStringAsFixed(0)} top:${b.top.toStringAsFixed(0)} bottom:${b.bottom.toStringAsFixed(0)} width:${b.width.toStringAsFixed(0)} height:${b.height.toStringAsFixed(0)}',
+          );
+        }
+      }
 
       for (int gi = 0; gi < groups.length; gi++) {
         final members = sets[gi];
@@ -1580,21 +1655,34 @@ class AutoLayoutEngine {
             blocker: r,
             clearance: minOuterGapSubgraph + subgraphTitleBandHeight * 0.2,
           );
-          positions[id] = positions[id]! + push;
+          
+          // Apply damping: reduce push magnitude in later passes to prevent divergence
+          // Early passes get full magnitude, later passes are reduced by up to 50%
+          final dampingFactor = 0.5 + 0.5 * (3 - pass) / 4;
+          final dampedPush = Offset(push.dx * dampingFactor, push.dy * dampingFactor);
+          
+          // Log violations and pushes for debugging
+          if (pass < 3 || movedPass < 5) {
+            _logAudit(
+              'stage=subgraph_membership_violation_detail pass=${pass + 1} nodeId=$id group_idx=$gi nodePos=(${positions[id]!.dx.toStringAsFixed(0)},${positions[id]!.dy.toStringAsFixed(0)}) groupRect=left:${r.left.toStringAsFixed(0)} right:${r.right.toStringAsFixed(0)} top:${r.top.toStringAsFixed(0)} bottom:${r.bottom.toStringAsFixed(0)} push=(${dampedPush.dx.toStringAsFixed(1)},${dampedPush.dy.toStringAsFixed(1)}) damping=${dampingFactor.toStringAsFixed(2)}',
+            );
+          }
+          
+          positions[id] = positions[id]! + dampedPush;
           movedPass++;
         }
       }
 
       movedTotal += movedPass;
       _logAudit(
-        'stage=loop_progress stage=subgraph_membership_exclusion pass=${pass + 1}/24 moved=$movedPass elapsedMs=${watch.elapsedMilliseconds}',
+        'stage=loop_progress stage=subgraph_membership_exclusion pass=${pass + 1}/4 moved=$movedPass elapsedMs=${watch.elapsedMilliseconds}',
       );
       if (_loopBudgetExceeded(
         stage: 'subgraph_membership_exclusion',
         watch: watch,
         budgetMs: 5000,
         pass: pass + 1,
-        maxPasses: 24,
+        maxPasses: 4,
       )) {
         break;
       }
@@ -1615,6 +1703,14 @@ class AutoLayoutEngine {
 
     _logAudit(
       'stage=subgraph_membership_exclusion moves=$movedTotal remaining=$remaining',
+    );
+
+    // Sanity check: clamp extreme positions to prevent divergence
+    _clampExtremePositions(
+      nodeOrder: nodeOrder,
+      positions: positions,
+      sizeByNode: sizeByNode,
+      maxSpreadFactor: 3.0,
     );
   }
 
@@ -1808,6 +1904,61 @@ class AutoLayoutEngine {
       }
     }
     return collisions;
+  }
+
+  static void _clampExtremePositions({
+    required List<String> nodeOrder,
+    required Map<String, Offset> positions,
+    required Map<String, Size> sizeByNode,
+    required double maxSpreadFactor,
+  }) {
+    if (nodeOrder.isEmpty) {
+      return;
+    }
+
+    // Compute current bounds
+    double minX = double.infinity;
+    double maxX = double.negativeInfinity;
+    double minY = double.infinity;
+    double maxY = double.negativeInfinity;
+
+    for (final id in nodeOrder) {
+      final p = positions[id];
+      if (p == null) continue;
+      minX = math.min(minX, p.dx);
+      maxX = math.max(maxX, p.dx);
+      minY = math.min(minY, p.dy);
+      maxY = math.max(maxY, p.dy);
+    }
+
+    if (minX.isInfinite || maxX.isInfinite || minY.isInfinite || maxY.isInfinite) {
+      return;
+    }
+
+    final spreadX = maxX - minX;
+    final spreadY = maxY - minY;
+    final center = Offset((minX + maxX) / 2, (minY + maxY) / 2);
+
+    // If spread exceeds reasonable bounds (3x the initial range), clamp back
+    if (spreadX > 15000 || spreadY > 15000) {
+      final maxAllowedRadius = math.max(spreadX, spreadY) / maxSpreadFactor;
+
+      for (final id in nodeOrder) {
+        final p = positions[id]!;
+        final dx = p.dx - center.dx;
+        final dy = p.dy - center.dy;
+        final dist = math.sqrt(dx * dx + dy * dy);
+
+        if (dist > maxAllowedRadius) {
+          // Pull back proportionally
+          final scale = maxAllowedRadius / dist;
+          positions[id] = center + Offset(dx * scale, dy * scale);
+          _logAudit(
+            'stage=clamp_extreme_positions nodeId=$id oldDist=${dist.toStringAsFixed(0)} newDist=${(dist * scale).toStringAsFixed(0)}',
+          );
+        }
+      }
+    }
   }
 
   static Map<int, int?> _buildGroupHierarchy(List<Set<String>> sets) {
