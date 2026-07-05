@@ -164,7 +164,7 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
           ),
           IconButton(
             icon: const Icon(Icons.bug_report_outlined),
-            tooltip: 'Logger positions (manuel vs auto) et copier JSON',
+            tooltip: 'Logger positions',
             onPressed: _isSequenceDiagramView
                 ? null
                 : _logNodePositionsForAutoLayoutDebug,

@@ -245,7 +245,17 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
         'stage=audit_file_write_failed path=$_auditLogFilePath error=${auditWrite.error}',
       );
     }
-    await Clipboard.setData(ClipboardData(text: pretty));
+
+    // Combine audit logs and snapshot for clipboard
+    final clipboardContent =
+        '''=== AUDIT TRAIL (Auto-Layout Debug Logs) ===
+${trail.join('\n')}
+
+=== SNAPSHOT (JSON) ===
+$pretty
+''';
+
+    await Clipboard.setData(ClipboardData(text: clipboardContent));
 
     if (!mounted) {
       return;
