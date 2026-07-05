@@ -361,12 +361,7 @@ class AutoLayoutEngine {
       subgraphNodeGroups: groups,
       minGap: blockGap,
     );
-    final seedIsPrimarySafe =
-        seedMetrics.hardViolation == 0 &&
-        seedMetrics.crossings <= candidateMetrics.crossings &&
-        seedMetrics.edgeOverNodeHits <= candidateMetrics.edgeOverNodeHits;
-    final seedStabilityGuardEnabled =
-        hasSeeds && (!shouldKeepCandidate || seedIsPrimarySafe);
+    final seedStabilityGuardEnabled = hasSeeds;
     _logAudit(
       'stage=seed_stability_guard enabled=${seedStabilityGuardEnabled ? 'true' : 'false'} baselineCross=${seedStabilityBaselineMetrics.crossings} baselineEdgeOver=${seedStabilityBaselineMetrics.edgeOverNodeHits} baselineHard=${seedStabilityBaselineMetrics.hardViolation}',
     );
@@ -929,6 +924,53 @@ class AutoLayoutEngine {
       for (final id in nodeOrder) {
         selectedPositions[id] = seedStabilityBaseline[id]!;
       }
+
+      // Keep a final alignment pass even after rollback so reorg never ends
+      // on a purely unaligned seed snapshot.
+      if (alignPriority >= 0.0) {
+        _applyAxisAlignment(
+          nodeOrder: nodeOrder,
+          positions: selectedPositions,
+          sizeByNode: sizeByNode,
+          allEdges: allEdges,
+          subgraphNodeGroups: groups,
+          minGap: blockGap,
+          alignmentPriority: alignPriority,
+          seededAlignmentPriority: seededAlignPriority,
+          snapTargetWeight: quality.snapTargetWeight,
+          hasSeeds: hasSeeds,
+        );
+      }
+
+      _clearEdgePathOverBlockOverlaps(
+        nodeOrder: nodeOrder,
+        positions: selectedPositions,
+        sizeByNode: sizeByNode,
+        allEdges: allEdges,
+        minGap: blockGap,
+        direction: direction,
+        seededAlignmentPriority: seededAlignPriority,
+      );
+      _resolveResidualOverlaps(
+        nodeOrder: nodeOrder,
+        positions: selectedPositions,
+        sizeByNode: sizeByNode,
+        minGap: blockGap,
+      );
+      _resolveSubgraphGroupOverlaps(
+        positions: selectedPositions,
+        sizeByNode: sizeByNode,
+        subgraphNodeGroups: groups,
+        subgraphNodeGroupSets: groupSets,
+        minGap: blockGap,
+      );
+      _enforceSubgraphMembershipExclusion(
+        nodeOrder: nodeOrder,
+        positions: selectedPositions,
+        sizeByNode: sizeByNode,
+        subgraphNodeGroups: groups,
+        minGap: blockGap,
+      );
     }
 
     final stableFinalMetrics = rollbackFinalToSeedBaseline
@@ -2537,8 +2579,8 @@ class AutoLayoutEngine {
           final objectiveAccepted = candidate <= baseline + 1e-6;
           final strictEdgeOverAccepted =
               strictMode &&
-              candidateEdgeOver < baselineEdgeOver &&
-              candidate <= baseline * 1.10 + 1200.0;
+              candidateEdgeOver <= baselineEdgeOver &&
+              candidate <= baseline * 1.18 + 4000.0;
 
           if (objectiveAccepted || strictEdgeOverAccepted) {
             movedThisPass++;
