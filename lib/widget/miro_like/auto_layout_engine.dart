@@ -1266,6 +1266,24 @@ class AutoLayoutEngine {
       sizeByNode,
     );
 
+    _compactUnlinkedSubgraphMembers(
+      positions: positions,
+      sizeByNode: sizeByNode,
+      subgraphNodeGroups: subgraphNodeGroups,
+      neighbors: neighbors,
+      laneGap: laneGap * 0.85,
+      layerGap: layerGap,
+      isHorizontal: isHorizontal,
+    );
+    _logSubgraphSurfaces(
+      'after_unlinked_compact_3',
+      direction,
+      nodeOrder,
+      subgraphNodeGroups,
+      positions,
+      sizeByNode,
+    );
+
     _translateToPositiveCanvas(nodeOrder, positions, sizeByNode);
     _logSubgraphSurfaces(
       'after_positive_canvas',
@@ -1560,33 +1578,25 @@ class AutoLayoutEngine {
     required bool isHorizontal,
   }) {
     for (final group in subgraphNodeGroups) {
-      final isolated = <String>[];
-      final anchors = <Offset>[];
+      final movable = <String>[];
       for (final id in group) {
         final p = positions[id];
         final s = sizeByNode[id];
         if (p == null || s == null) {
           continue;
         }
-        final c = _nodeCenter(p, s);
-        if (neighbors[id]?.isEmpty ?? true) {
-          isolated.add(id);
-        } else {
-          anchors.add(c);
-        }
+        movable.add(id);
       }
-      if (isolated.length < 2) {
+      if (movable.length < 2) {
         continue;
       }
 
-      final center = anchors.isEmpty
-          ? _meanOffset([
-              for (final id in isolated)
-                _nodeCenter(positions[id]!, sizeByNode[id]!),
-            ])
-          : _meanOffset(anchors);
+      final forceLinear = movable.length <= 9;
+      final center = _meanOffset([
+        for (final id in movable) _nodeCenter(positions[id]!, sizeByNode[id]!),
+      ]);
 
-      final ordered = [...isolated]
+      final ordered = [...movable]
         ..sort((a, b) {
           final ca = _nodeCenter(positions[a]!, sizeByNode[a]!);
           final cb = _nodeCenter(positions[b]!, sizeByNode[b]!);
@@ -1599,8 +1609,6 @@ class AutoLayoutEngine {
           return a.compareTo(b);
         });
 
-      final cols = math.max(1, math.sqrt(ordered.length).ceil());
-      final rows = (ordered.length / cols).ceil();
       final avgW =
           ordered.fold<double>(0.0, (s, id) => s + sizeByNode[id]!.width) /
           ordered.length;
@@ -1609,14 +1617,24 @@ class AutoLayoutEngine {
           ordered.length;
       final stepX = avgW + laneGap * 0.35;
       final stepY = avgH + layerGap * 0.10;
+      final linearStep = isHorizontal ? stepY : stepX;
+      final startPrimary = isHorizontal
+          ? center.dy - (ordered.length - 1) * linearStep / 2
+          : center.dx - (ordered.length - 1) * linearStep / 2;
+      final cols = forceLinear
+          ? 1
+          : math.max(1, math.sqrt(ordered.length).ceil());
+      final rows = (ordered.length / cols).ceil();
       final startX = center.dx - (cols - 1) * stepX / 2;
       final startY = center.dy - (rows - 1) * stepY / 2;
 
       for (int i = 0; i < ordered.length; i++) {
         final id = ordered[i];
-        final col = i % cols;
-        final row = i ~/ cols;
-        final desired = Offset(startX + col * stepX, startY + row * stepY);
+        final desired = forceLinear
+            ? (isHorizontal
+                  ? Offset(center.dx, startPrimary + i * linearStep)
+                  : Offset(startPrimary + i * linearStep, center.dy))
+            : Offset(startX + (i % cols) * stepX, startY + (i ~/ cols) * stepY);
         final current = _nodeCenter(positions[id]!, sizeByNode[id]!);
         final next = current + (desired - current) * 0.92;
         final size = sizeByNode[id]!;
