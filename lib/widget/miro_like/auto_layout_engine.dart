@@ -104,7 +104,7 @@ class AutoLayoutEngine {
       subgraphNodeGroups: subgraphNodeGroups,
       minGap: minGap,
       direction: 'TD',
-      bezierSamplingStepPx: 12.0,
+      bezierSamplingStepPx: 4.0,
       subgraphTitleBandHeight: 24.0,
       subgraphTitlePadding: 8.0,
     );
@@ -182,7 +182,7 @@ class AutoLayoutEngine {
         sizes.values.fold<double>(0.0, (sum, s) => sum + s.height) /
         math.max(1, sizes.length);
 
-    final spacing = quality.spacingMul.clamp(0.45, 2.2);
+    final spacing = quality.spacingMul.clamp(0.45, 8);
     final minGap =
         ((((avgWidth + avgHeight) * 0.06) + quality.channelPitch * 5.0) *
                 (0.30 + spacing * 0.90))
@@ -2627,13 +2627,7 @@ class AutoLayoutEngine {
   }
 
   static double _bezierSamplingStepForGraph(int nodeCount) {
-    if (nodeCount <= 24) {
-      return 10.0;
-    }
-    if (nodeCount <= 32) {
-      return 16.0;
-    }
-    return 24.0;
+    return 4.0;
   }
 
   static double _totalEdgeLength(

@@ -169,8 +169,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   double zoomLevel = 1.0;
   bool isPanning = false;
   String _mermaidLayoutDirection = 'LR';
-  String _placementQuality = 'Dense';
-  String _blockSpacingMode = 'Dense';
+  String _placementQuality = 'Equilibre';
+  String _blockSpacingMode = 'Normal';
   String _alignmentPriorityMode = 'Fort';
   String _autoLayoutAnchorSideMode = 'Auto';
   double? _snapLeftModel;
@@ -372,12 +372,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   double _blockSpacingMultiplier() {
     switch (_blockSpacingMode) {
       case 'Dense':
-        return 0.30;
+        return 1;
       case 'Plus ecarte':
-        return 1.55;
+        return 8;
       case 'Normal':
       default:
-        return 0.70;
+        return 3;
     }
   }
 
