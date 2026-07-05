@@ -877,6 +877,9 @@ class AutoLayoutEngine {
             seedStabilityBaselineMetrics.edgeOverNodeHits;
     final clearanceImproved =
         finalNearBoundaryContacts < baselineNearBoundaryContacts;
+    final alignmentImprovedVsBaseline =
+      finalMetrics.alignmentScore >
+      seedStabilityBaselineMetrics.alignmentScore + 0.25;
     final objectiveWorsenedVsBaseline =
         finalMetrics.objective > seedStabilityBaselineMetrics.objective + 8.0;
 
@@ -916,9 +919,10 @@ class AutoLayoutEngine {
         seedStabilityGuardEnabled &&
         ((primaryNotImprovedVsBaseline &&
                 !clearanceImproved &&
-                objectiveWorsenedVsBaseline) ||
-            (massiveDrift && scoreExploded) ||
-            driftRollback);
+          objectiveWorsenedVsBaseline &&
+          !alignmentImprovedVsBaseline) ||
+        (massiveDrift && scoreExploded && !alignmentImprovedVsBaseline) ||
+        (driftRollback && !alignmentImprovedVsBaseline && !clearanceImproved));
     if (rollbackFinalToSeedBaseline) {
       for (final id in nodeOrder) {
         selectedPositions[id] = seedStabilityBaseline[id]!;
