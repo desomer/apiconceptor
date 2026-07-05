@@ -645,9 +645,27 @@ class AutoLayoutEngine {
       }
     }
 
-    if (restoredSeedLayout) {
-      _logAudit('stage=seed_preservation skip_post_seed_passes=true');
-    } else {
+    if (restoredSeedLayout && nodeOrder.length >= 10) {
+      _maybeRefineRestoredSeedLayout(
+        nodeOrder: nodeOrder,
+        positions: selected,
+        sizeByNode: sizes,
+        allEdges: allEdges,
+        groups: groups,
+        degree: degree,
+        minGap: minGap,
+        minInnerGapSubgraph: minInnerGapSubgraph,
+        minOuterGapSubgraph: minOuterGapSubgraph,
+        subgraphTitleBandHeight: subgraphTitleBandHeight,
+        subgraphTitlePadding: subgraphTitlePadding,
+        direction: direction,
+      );
+    } else if (restoredSeedLayout) {
+      _logAudit('stage=seed_preservation disabled_for_small_graph=true');
+      restoredSeedLayout = false;
+    }
+
+    if (!restoredSeedLayout) {
       _applyHardConstraints(
         nodeOrder: nodeOrder,
         positions: selected,
@@ -3580,6 +3598,133 @@ class AutoLayoutEngine {
       }
     }
     return score;
+  }
+
+  static void _maybeRefineRestoredSeedLayout({
+    required List<String> nodeOrder,
+    required Map<String, Offset> positions,
+    required Map<String, Size> sizeByNode,
+    required List<(String, String)> allEdges,
+    required List<List<String>> groups,
+    required Map<String, int> degree,
+    required double minGap,
+    required double minInnerGapSubgraph,
+    required double minOuterGapSubgraph,
+    required double subgraphTitleBandHeight,
+    required double subgraphTitlePadding,
+    required String direction,
+  }) {
+    final original = <String, Offset>{
+      for (final id in nodeOrder) id: positions[id]!,
+    };
+    final samplingStepPx = _bezierSamplingStepForGraph(nodeOrder.length);
+    final baseline = _collectMetrics(
+      nodeOrder: nodeOrder,
+      positions: original,
+      sizeByNode: sizeByNode,
+      allEdges: allEdges,
+      subgraphNodeGroups: groups,
+      minGap: minGap,
+      direction: direction,
+      bezierSamplingStepPx: samplingStepPx,
+      subgraphTitleBandHeight: subgraphTitleBandHeight,
+      subgraphTitlePadding: subgraphTitlePadding,
+    );
+
+    final refined = <String, Offset>{
+      for (final entry in original.entries) entry.key: entry.value,
+    };
+
+    _applyHardConstraints(
+      nodeOrder: nodeOrder,
+      positions: refined,
+      sizeByNode: sizeByNode,
+      allEdges: allEdges,
+      groups: groups,
+      minGap: minGap,
+      minInnerGapSubgraph: minInnerGapSubgraph,
+      minOuterGapSubgraph: minOuterGapSubgraph,
+      subgraphTitleBandHeight: subgraphTitleBandHeight,
+      subgraphTitlePadding: subgraphTitlePadding,
+    );
+    _alignFinalPositions(
+      nodeOrder: nodeOrder,
+      positions: refined,
+      sizeByNode: sizeByNode,
+      allEdges: allEdges,
+      minGap: minGap,
+      direction: direction,
+    );
+
+    final refinedCrossings = _countEdgeCrossings(refined, sizeByNode, allEdges);
+    if (refinedCrossings > 0 && baseline.crossings > 0) {
+      _forceUncrossByEndpointKick(
+        nodeOrder: nodeOrder,
+        positions: refined,
+        sizeByNode: sizeByNode,
+        allEdges: allEdges,
+        degree: degree,
+        minGap: minGap,
+        maxPasses: 8,
+      );
+      _applyHardConstraints(
+        nodeOrder: nodeOrder,
+        positions: refined,
+        sizeByNode: sizeByNode,
+        allEdges: allEdges,
+        groups: groups,
+        minGap: minGap,
+        minInnerGapSubgraph: minInnerGapSubgraph,
+        minOuterGapSubgraph: minOuterGapSubgraph,
+        subgraphTitleBandHeight: subgraphTitleBandHeight,
+        subgraphTitlePadding: subgraphTitlePadding,
+      );
+    }
+
+    final refinedMetrics = _collectMetrics(
+      nodeOrder: nodeOrder,
+      positions: refined,
+      sizeByNode: sizeByNode,
+      allEdges: allEdges,
+      subgraphNodeGroups: groups,
+      minGap: minGap,
+      direction: direction,
+      bezierSamplingStepPx: samplingStepPx,
+      subgraphTitleBandHeight: subgraphTitleBandHeight,
+      subgraphTitlePadding: subgraphTitlePadding,
+    );
+    final delta = _summarizePositionDelta(
+      nodeOrder: nodeOrder,
+      before: original,
+      after: refined,
+    );
+
+    final tinyGraph = nodeOrder.length <= 4;
+    final hardImproves = refinedMetrics.hardViolation < baseline.hardViolation;
+    final routingSafe =
+      refinedMetrics.crossings <= baseline.crossings &&
+      refinedMetrics.edgeOverNodeHits <=
+        baseline.edgeOverNodeHits + (hardImproves ? 1 : 0);
+    final driftSafe =
+      delta.avgDistance <= minGap * (tinyGraph ? 3.0 : 2.25) &&
+      delta.maxDistance <= minGap * (tinyGraph ? 6.0 : 4.5);
+    final improves =
+      hardImproves ||
+      (refinedMetrics.hardViolation == baseline.hardViolation &&
+        refinedMetrics.objective < baseline.objective - 1e-6);
+
+    if (routingSafe && driftSafe && improves) {
+      positions
+        ..clear()
+        ..addAll(refined);
+      _logAudit(
+        'stage=seed_preservation refinement=adopted hard=${baseline.hardViolation}->${refinedMetrics.hardViolation} crossings=${baseline.crossings}->${refinedMetrics.crossings} edgeOverNode=${baseline.edgeOverNodeHits}->${refinedMetrics.edgeOverNodeHits} avgDistance=${delta.avgDistance.toStringAsFixed(2)} maxDistance=${delta.maxDistance.toStringAsFixed(2)}',
+      );
+    } else {
+      _logAudit(
+        'stage=seed_preservation refinement=skipped routingSafe=$routingSafe driftSafe=$driftSafe improves=$improves hard=${baseline.hardViolation}->${refinedMetrics.hardViolation} crossings=${baseline.crossings}->${refinedMetrics.crossings} edgeOverNode=${baseline.edgeOverNodeHits}->${refinedMetrics.edgeOverNodeHits} avgDistance=${delta.avgDistance.toStringAsFixed(2)} maxDistance=${delta.maxDistance.toStringAsFixed(2)}',
+      );
+    }
   }
 
   static _PositionDeltaSummary _summarizePositionDelta({
