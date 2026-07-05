@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:ui' show Rect;
+
 import 'models/block_model.dart';
 import 'models/link_model.dart';
 
@@ -48,6 +51,8 @@ class MermaidFlowchartParseResult {
 class MermaidFlowchartCodec {
   const MermaidFlowchartCodec._();
 
+  static const String _fallbackSubgraphPrefix = 'sg_export_';
+
   static const List<String> _supportedFlowchartArrowTypes = [
     '<.->',
     '<-->',
@@ -91,16 +96,74 @@ class MermaidFlowchartCodec {
     }
 
     final buffer = StringBuffer('flowchart $direction\n');
-    for (final block in exportBlocks) {
-      final nodeId = blockIds[block.id];
-      if (nodeId == null) {
-        continue;
+    final exportSubgraphs = _collectExportSubgraphs(
+      blocks: blocks,
+      exportBlockIds: exportBlocks.map((b) => b.id).toSet(),
+    );
+
+    final parentById = _buildSubgraphParentMap(exportSubgraphs);
+    final childrenByParent = _buildSubgraphChildrenMap(
+      exportSubgraphs,
+      parentById,
+    );
+    final ownerByNode = _buildNodeOwnerMap(exportSubgraphs);
+
+    final declaredNodeIds = <String>{};
+
+    void writeNode(String nodeKey, String indent) {
+      final node = exportBlocks.firstWhere((b) => b.id == nodeKey);
+      final nodeId = blockIds[node.id];
+      if (nodeId == null || !declaredNodeIds.add(node.id)) {
+        return;
       }
       final shapeSyntax = _nodeShapeSyntax(
-        shape: block.nodeShape,
-        text: _escapeMermaidText(block.title),
+        shape: node.nodeShape,
+        text: _escapeMermaidText(node.title),
       );
-      buffer.writeln('  $nodeId$shapeSyntax');
+      buffer.writeln('$indent$nodeId$shapeSyntax');
+    }
+
+    void writeSubgraph(String subgraphId, String indent) {
+      final subgraph = exportSubgraphs.firstWhere((g) => g.id == subgraphId);
+      final escapedTitle = _escapeMermaidText(subgraph.title);
+      buffer.writeln('$indent subgraph ${subgraph.id}["$escapedTitle"]');
+
+      final childIds =
+          (childrenByParent[subgraphId] ?? const <String>[]).toList(
+            growable: false,
+          )..sort();
+
+      final directNodes =
+          subgraph.nodeIds
+              .where((id) => ownerByNode[id] == subgraphId)
+              .toList(growable: false)
+            ..sort();
+      for (final nodeId in directNodes) {
+        writeNode(nodeId, '$indent  ');
+      }
+
+      for (final childId in childIds) {
+        writeSubgraph(childId, '$indent  ');
+      }
+
+      buffer.writeln('$indent end');
+    }
+
+    final rootSubgraphs =
+        exportSubgraphs
+            .where((g) => parentById[g.id] == null)
+            .map((g) => g.id)
+            .toList(growable: false)
+          ..sort();
+    for (final rootId in rootSubgraphs) {
+      writeSubgraph(rootId, '  ');
+    }
+
+    for (final block in exportBlocks) {
+      if (ownerByNode.containsKey(block.id)) {
+        continue;
+      }
+      writeNode(block.id, '  ');
     }
 
     for (final link in links) {
@@ -124,6 +187,183 @@ class MermaidFlowchartCodec {
     }
 
     return buffer.toString().trimRight();
+  }
+
+  static List<_ExportSubgraph> _collectExportSubgraphs({
+    required List<Block> blocks,
+    required Set<String> exportBlockIds,
+  }) {
+    final byId = <String, _ExportSubgraph>{};
+
+    for (final zone in blocks.where(
+      (b) => b.isZone && b.zoneType == BlockZoneType.subgraph,
+    )) {
+      final descriptor = _parseZoneSubgraphDescriptor(zone.propertiesJson);
+      if (descriptor != null) {
+        final nodes = descriptor.nodeIds.where(exportBlockIds.contains).toSet();
+        if (nodes.length < 2) {
+          continue;
+        }
+
+        final id = _sanitizeMermaidId(descriptor.id);
+        byId[id] = _ExportSubgraph(
+          id: id,
+          title: descriptor.title,
+          nodeIds: nodes,
+        );
+        continue;
+      }
+
+      final zoneRect = _blockRect(zone);
+      final nodes = blocks
+          .where((b) => !b.isZone && exportBlockIds.contains(b.id))
+          .where((b) => zoneRect.overlaps(_blockRect(b)))
+          .map((b) => b.id)
+          .toSet();
+      if (nodes.length < 2) {
+        continue;
+      }
+
+      final fallbackId = _sanitizeMermaidId(
+        zone.id.isNotEmpty ? zone.id : '$_fallbackSubgraphPrefix${byId.length}',
+      );
+      final uniqueId = byId.containsKey(fallbackId)
+          ? '${fallbackId}_${byId.length}'
+          : fallbackId;
+      byId[uniqueId] = _ExportSubgraph(
+        id: uniqueId,
+        title: zone.title,
+        nodeIds: nodes,
+      );
+    }
+
+    final dedup = <String, _ExportSubgraph>{};
+    for (final g in byId.values) {
+      final key = [...g.nodeIds]..sort();
+      final signature = key.join('|');
+      if (dedup.containsKey(signature)) {
+        continue;
+      }
+      dedup[signature] = g;
+    }
+
+    return dedup.values.toList(growable: false);
+  }
+
+  static Map<String, String?> _buildSubgraphParentMap(
+    List<_ExportSubgraph> groups,
+  ) {
+    final byId = {for (final g in groups) g.id: g};
+    final parent = <String, String?>{for (final g in groups) g.id: null};
+
+    for (final child in groups) {
+      String? chosen;
+      var chosenSize = 1 << 30;
+      for (final candidate in groups) {
+        if (candidate.id == child.id) {
+          continue;
+        }
+        if (!candidate.nodeIds.containsAll(child.nodeIds)) {
+          continue;
+        }
+        if (candidate.nodeIds.length <= child.nodeIds.length) {
+          continue;
+        }
+        if (candidate.nodeIds.length < chosenSize) {
+          chosen = candidate.id;
+          chosenSize = candidate.nodeIds.length;
+        }
+      }
+      parent[child.id] = chosen;
+    }
+
+    // Keep only valid links in-case of malformed inputs.
+    parent.removeWhere(
+      (key, value) => value != null && !byId.containsKey(value),
+    );
+    for (final g in groups) {
+      parent.putIfAbsent(g.id, () => null);
+    }
+    return parent;
+  }
+
+  static Map<String?, List<String>> _buildSubgraphChildrenMap(
+    List<_ExportSubgraph> groups,
+    Map<String, String?> parentById,
+  ) {
+    final children = <String?, List<String>>{};
+    for (final g in groups) {
+      final parent = parentById[g.id];
+      children.putIfAbsent(parent, () => <String>[]).add(g.id);
+    }
+    return children;
+  }
+
+  static Map<String, String> _buildNodeOwnerMap(List<_ExportSubgraph> groups) {
+    final owner = <String, String>{};
+    final ordered = [...groups]
+      ..sort((a, b) => b.nodeIds.length.compareTo(a.nodeIds.length));
+    for (final g in ordered) {
+      for (final id in g.nodeIds) {
+        owner[id] = g.id;
+      }
+    }
+    return owner;
+  }
+
+  static ({String id, String title, Set<String> nodeIds})?
+  _parseZoneSubgraphDescriptor(String? propertiesJson) {
+    final raw = (propertiesJson ?? '').trim();
+    if (raw.isEmpty) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+      final autoSubgraph = decoded['autoSubgraph'];
+      if (autoSubgraph is! Map<String, dynamic>) {
+        return null;
+      }
+      final id = (autoSubgraph['id']?.toString() ?? '').trim();
+      if (id.isEmpty) {
+        return null;
+      }
+      final title = (autoSubgraph['title']?.toString() ?? id).trim();
+      final rawNodeIds = autoSubgraph['nodeIds'];
+      if (rawNodeIds is! List) {
+        return null;
+      }
+      final nodeIds = <String>{};
+      for (final rawNodeId in rawNodeIds) {
+        final nodeId = rawNodeId?.toString().trim() ?? '';
+        if (nodeId.isNotEmpty) {
+          nodeIds.add(nodeId);
+        }
+      }
+      if (nodeIds.length < 2) {
+        return null;
+      }
+      return (id: id, title: title, nodeIds: nodeIds);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Rect _blockRect(Block b) =>
+      Rect.fromLTWH(b.position.dx, b.position.dy, b.size.width, b.size.height);
+
+  static String _sanitizeMermaidId(String raw) {
+    final cleaned = raw
+        .trim()
+        .replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+    if (cleaned.isEmpty) {
+      return '${_fallbackSubgraphPrefix}x';
+    }
+    final startsValid = RegExp(r'^[A-Za-z_]').hasMatch(cleaned);
+    return startsValid ? cleaned : '_$cleaned';
   }
 
   static MermaidFlowchartParseResult parse(
@@ -599,4 +839,16 @@ class MermaidFlowchartCodec {
     }
     return i;
   }
+}
+
+class _ExportSubgraph {
+  final String id;
+  final String title;
+  final Set<String> nodeIds;
+
+  const _ExportSubgraph({
+    required this.id,
+    required this.title,
+    required this.nodeIds,
+  });
 }

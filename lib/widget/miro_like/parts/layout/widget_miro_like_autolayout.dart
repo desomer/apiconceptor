@@ -1,6 +1,266 @@
 part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
+  static const String _auditLogFilePath = r'C:\apiconceptor_elk_audit.log';
+  static const String _auditLogFileName = 'apiconceptor_elk_audit.log';
+
+  Future<({String? path, String? error})> _writeAuditTrailToFile(
+    List<String> trail,
+  ) async {
+    final content = '${trail.join('\n')}\n';
+    final fallbackTempPath =
+        '${Directory.systemTemp.path}${Platform.pathSeparator}$_auditLogFileName';
+    const fallbackPublicPath = r'C:\Users\Public\apiconceptor_elk_audit.log';
+    final candidates = <String>[
+      _auditLogFilePath,
+      fallbackPublicPath,
+      fallbackTempPath,
+    ];
+
+    final errors = <String>[];
+    for (final candidate in candidates) {
+      try {
+        await File(candidate).writeAsString(content, flush: true);
+        if (candidate != _auditLogFilePath) {
+          AutoLayoutEngine.debugLog(
+            'stage=audit_file_fallback_used requested=$_auditLogFilePath actual=$candidate',
+          );
+        }
+        return (path: candidate, error: null);
+      } catch (e) {
+        errors.add('$candidate -> $e');
+      }
+    }
+
+    return (path: null, error: errors.join(' | '));
+  }
+
+  Future<void> _logNodePositionsForAutoLayoutDebug() async {
+    if (_isSequenceDiagramView) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Snapshot de positions disponible en mode Flowchart uniquement.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final layoutBlocks = blocks.where((b) => !b.isZone).toList(growable: false);
+    if (layoutBlocks.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Aucun bloc a logger.')));
+      return;
+    }
+
+    final nodeOrder = layoutBlocks.map((b) => b.id).toList(growable: false);
+    final blockIds = nodeOrder.toSet();
+    final layoutLinks = links
+        .where(
+          (l) =>
+              blockIds.contains(l.fromBlockId) &&
+              blockIds.contains(l.toBlockId),
+        )
+        .toList(growable: false);
+    final edgeData = layoutLinks
+        .map((l) => (fromId: l.fromBlockId, toId: l.toBlockId, label: l.name))
+        .toList(growable: false);
+
+    final effectiveSubgraphGroups = _inferAutoSubgraphNodeGroups(
+      allowedNodeIds: blockIds,
+    );
+    final manualPositions = <String, Offset>{
+      for (final block in layoutBlocks) block.id: block.position,
+    };
+    final sizeByNode = <String, Size>{
+      for (final block in layoutBlocks) block.id: block.size,
+    };
+    final allEdges = [for (final e in edgeData) (e.fromId, e.toId)];
+
+    AutoLayoutEngine.clearAuditTrail();
+    AutoLayoutEngine.debugLog('stage=audit_file_reset path=$_auditLogFilePath');
+
+    final predictedAuto = _computeMermaidAutoLayout(
+      nodeOrder,
+      edgeData,
+      _mermaidLayoutDirection,
+      layoutBlocks,
+      seedPositions: manualPositions,
+      subgraphNodeGroups: effectiveSubgraphGroups,
+    );
+
+    final avgWidth =
+        sizeByNode.values.fold<double>(0.0, (s, z) => s + z.width) /
+        math.max(1, sizeByNode.length);
+    final avgHeight =
+        sizeByNode.values.fold<double>(0.0, (s, z) => s + z.height) /
+        math.max(1, sizeByNode.length);
+    final quality = _placementQualityProfile();
+    final spacing = _blockSpacingMultiplier().clamp(0.45, 2.2);
+    final rawMinGap =
+        (((avgWidth + avgHeight) * 0.06) + quality.channelPitch * 5.0) *
+        (0.30 + spacing * 0.90);
+    final minGap = rawMinGap.clamp(12.0, 220.0);
+    final manualMetrics = AutoLayoutEngine.collectDebugMetrics(
+      nodeOrder: nodeOrder,
+      positions: manualPositions,
+      sizeByNode: sizeByNode,
+      allEdges: allEdges,
+      subgraphNodeGroups: effectiveSubgraphGroups,
+      minGap: minGap,
+    );
+    final autoMetrics = AutoLayoutEngine.collectDebugMetrics(
+      nodeOrder: nodeOrder,
+      positions: predictedAuto,
+      sizeByNode: sizeByNode,
+      allEdges: allEdges,
+      subgraphNodeGroups: effectiveSubgraphGroups,
+      minGap: minGap,
+    );
+
+    final nodeDiffs = <Map<String, Object>>[];
+    var movedNodes = 0;
+    var maxDelta = 0.0;
+    var sumDelta = 0.0;
+    for (final id in nodeOrder) {
+      final before = manualPositions[id];
+      final after = predictedAuto[id];
+      if (before == null || after == null) {
+        continue;
+      }
+      final delta = after - before;
+      final dist = delta.distance;
+      if (dist > 0.01) {
+        movedNodes++;
+      }
+      if (dist > maxDelta) {
+        maxDelta = dist;
+      }
+      sumDelta += dist;
+
+      nodeDiffs.add({
+        'id': id,
+        'before': {
+          'x': double.parse(before.dx.toStringAsFixed(2)),
+          'y': double.parse(before.dy.toStringAsFixed(2)),
+        },
+        'after': {
+          'x': double.parse(after.dx.toStringAsFixed(2)),
+          'y': double.parse(after.dy.toStringAsFixed(2)),
+        },
+        'delta': {
+          'dx': double.parse(delta.dx.toStringAsFixed(2)),
+          'dy': double.parse(delta.dy.toStringAsFixed(2)),
+          'distance': double.parse(dist.toStringAsFixed(2)),
+        },
+      });
+    }
+
+    nodeDiffs.sort((a, b) {
+      final da = (a['delta'] as Map<String, Object>)['distance'] as double;
+      final db = (b['delta'] as Map<String, Object>)['distance'] as double;
+      return db.compareTo(da);
+    });
+
+    final snapshot = <String, Object>{
+      'type': 'manual_layout_snapshot',
+      'timestamp': DateTime.now().toIso8601String(),
+      'direction': _mermaidLayoutDirection,
+      'quality': _placementQuality,
+      'blockSpacingMode': _blockSpacingMode,
+      'alignmentPriorityMode': _alignmentPriorityMode,
+      'autoLayoutAnchorSideMode': _autoLayoutAnchorSideMode,
+      'graph': {
+        'nodes': nodeOrder.length,
+        'links': allEdges.length,
+        'subgraphGroups': effectiveSubgraphGroups.length,
+        'minGap': double.parse(minGap.toStringAsFixed(2)),
+      },
+      'manualMetrics': manualMetrics.toJson(),
+      'predictedAutoMetricsFromManualSeed': autoMetrics.toJson(),
+      'metricDelta': {
+        'crossings': autoMetrics.crossings - manualMetrics.crossings,
+        'edgeOverNodeHits':
+            autoMetrics.edgeOverNodeHits - manualMetrics.edgeOverNodeHits,
+        'nodeOverlapPairs':
+            autoMetrics.nodeOverlapPairs - manualMetrics.nodeOverlapPairs,
+        'subgraphViolations':
+            autoMetrics.subgraphViolations - manualMetrics.subgraphViolations,
+        'totalEdgeLength': double.parse(
+          (autoMetrics.totalEdgeLength - manualMetrics.totalEdgeLength)
+              .toStringAsFixed(2),
+        ),
+        'alignmentScore': double.parse(
+          (autoMetrics.alignmentScore - manualMetrics.alignmentScore)
+              .toStringAsFixed(2),
+        ),
+        'objective': double.parse(
+          (autoMetrics.objective - manualMetrics.objective).toStringAsFixed(2),
+        ),
+      },
+      'positionDeltaSummary': {
+        'movedNodes': movedNodes,
+        'avgDistance': double.parse(
+          (nodeOrder.isEmpty ? 0.0 : (sumDelta / nodeOrder.length))
+              .toStringAsFixed(2),
+        ),
+        'maxDistance': double.parse(maxDelta.toStringAsFixed(2)),
+      },
+      'subgraphNodeGroups': [
+        for (final g in effectiveSubgraphGroups) [...g]..sort(),
+      ],
+      'nodes': [
+        for (final b in layoutBlocks)
+          {
+            'id': b.id,
+            'x': double.parse(b.position.dx.toStringAsFixed(2)),
+            'y': double.parse(b.position.dy.toStringAsFixed(2)),
+            'width': double.parse(b.size.width.toStringAsFixed(2)),
+            'height': double.parse(b.size.height.toStringAsFixed(2)),
+          },
+      ],
+      'nodeDeltasManualVsAuto': nodeDiffs,
+      'links': [
+        for (final l in layoutLinks)
+          {'from': l.fromBlockId, 'to': l.toBlockId, 'name': l.name},
+      ],
+    };
+
+    final pretty = const JsonEncoder.withIndent('  ').convert(snapshot);
+    for (final line in pretty.split('\n')) {
+      AutoLayoutEngine.debugLog('stage=manual_snapshot $line');
+    }
+    final trail = AutoLayoutEngine.getAuditTrailSnapshot();
+    final auditWrite = await _writeAuditTrailToFile(trail);
+    if (auditWrite.path == null) {
+      AutoLayoutEngine.debugLog(
+        'stage=audit_file_write_failed path=$_auditLogFilePath error=${auditWrite.error}',
+      );
+    }
+    await Clipboard.setData(ClipboardData(text: pretty));
+
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          auditWrite.path != null
+              ? 'Snapshot logge, copie et audit ecrit dans ${auditWrite.path}. nodes=${nodeOrder.length} moved=$movedNodes cross=${manualMetrics.crossings}->${autoMetrics.crossings}'
+              : 'Snapshot logge et copie. Echec ecriture audit ($_auditLogFilePath). nodes=${nodeOrder.length} moved=$movedNodes cross=${manualMetrics.crossings}->${autoMetrics.crossings}',
+        ),
+      ),
+    );
+  }
+
   Map<String, Offset> _computeMermaidAutoLayout(
     List<String> nodeOrder,
     List<({String fromId, String toId, String label})> edgeData,
@@ -386,15 +646,75 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
     _pushUndoSnapshot();
     // ignore: invalid_use_of_protected_member
     setState(() {
+      final inferredSubgraphGroups = _inferAutoSubgraphNodeGroups(
+        allowedNodeIds: layoutBlockIds,
+      );
       _runAutoLayoutOnGraph(
         layoutBlocks,
         layoutLinks,
         _mermaidLayoutDirection,
         preserveCurrentPositions: true,
+        subgraphNodeGroups: inferredSubgraphGroups,
       );
       _syncAutoSubgraphZones();
       _markBoardChanged();
     });
+  }
+
+  List<List<String>> _inferAutoSubgraphNodeGroups({
+    Set<String>? allowedNodeIds,
+  }) {
+    final allowed = allowedNodeIds;
+    final nodeBlocks = blocks
+        .where((block) => !block.isZone)
+        .toList(growable: false);
+    final groups = <List<String>>[];
+    final signatures = <String>{};
+
+    for (final zone in blocks.where((block) => block.isZone)) {
+      final descriptor = _autoSubgraphDescriptorFromZone(zone);
+      List<String> cleaned;
+      if (descriptor != null) {
+        cleaned = descriptor.nodeIds
+            .where((id) => allowed == null || allowed.contains(id))
+            .toList(growable: false);
+      } else if (zone.zoneType == BlockZoneType.subgraph) {
+        final zoneRect = Rect.fromLTWH(
+          zone.position.dx,
+          zone.position.dy,
+          zone.size.width,
+          zone.size.height,
+        );
+        cleaned = nodeBlocks
+            .where((node) => allowed == null || allowed.contains(node.id))
+            .where((node) {
+              final nodeRect = Rect.fromLTWH(
+                node.position.dx,
+                node.position.dy,
+                node.size.width,
+                node.size.height,
+              );
+              return zoneRect.overlaps(nodeRect);
+            })
+            .map((node) => node.id)
+            .toList(growable: false);
+      } else {
+        continue;
+      }
+
+      if (cleaned.length < 2) {
+        continue;
+      }
+
+      final signatureParts = [...cleaned]..sort();
+      final signature = signatureParts.join('|');
+      if (!signatures.add(signature)) {
+        continue;
+      }
+      groups.add(cleaned);
+    }
+
+    return groups;
   }
 
   void _reorganizeSequenceLayout() {
@@ -644,7 +964,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
       int tieBreak,
     ) {
       final key =
-          '${blockId}|${side.dx.toStringAsFixed(0)}|${side.dy.toStringAsFixed(0)}';
+          '$blockId|${side.dx.toStringAsFixed(0)}|${side.dy.toStringAsFixed(0)}';
       groups.putIfAbsent(
         key,
         () =>
@@ -811,6 +1131,12 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
     }
 
     final nodeOrder = layoutBlocks.map((b) => b.id).toList();
+    final effectiveSubgraphGroups =
+        subgraphNodeGroups ??
+        _inferAutoSubgraphNodeGroups(allowedNodeIds: layoutBlockIds);
+    AutoLayoutEngine.debugLog(
+      'stage=subgraph_groups_input source=${subgraphNodeGroups == null ? 'inferred' : 'provided'} groups=${effectiveSubgraphGroups.length} nodes=${layoutBlocks.length} links=${layoutLinks.length}',
+    );
     final edgeData = layoutLinks
         .map((l) => (fromId: l.fromBlockId, toId: l.toBlockId, label: l.name))
         .toList();
@@ -822,7 +1148,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
       seedPositions: preserveCurrentPositions
           ? {for (final block in layoutBlocks) block.id: block.position}
           : null,
-      subgraphNodeGroups: subgraphNodeGroups,
+      subgraphNodeGroups: effectiveSubgraphGroups,
     );
 
     for (final block in layoutBlocks) {

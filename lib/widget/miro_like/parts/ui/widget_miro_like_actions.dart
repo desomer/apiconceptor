@@ -100,7 +100,7 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
             tooltip: 'Save',
             onPressed: () {
               // save miro canvas state to local storage or backend
-              print('save flow app ${widget.query}');
+              debugPrint('save flow app ${widget.query}');
 
               var payload = {
                 'company_id': currentCompany.companyId,
@@ -161,6 +161,13 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
                 ? 'Reorganiser en sequence diagram'
                 : 'Reorganiser en flowchart',
             onPressed: _reorganizeCurrentLayout,
+          ),
+          IconButton(
+            icon: const Icon(Icons.bug_report_outlined),
+            tooltip: 'Logger positions (manuel vs auto) et copier JSON',
+            onPressed: _isSequenceDiagramView
+                ? null
+                : _logNodePositionsForAutoLayoutDebug,
           ),
           Spacer(),
           PopupMenuButton<String>(

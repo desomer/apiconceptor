@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/start_core.dart';
@@ -485,7 +486,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           })
           .catchError((error) {
             // Handle error if needed
-            print('Error loading flow app: $error');
+            debugPrint('Error loading flow app: $error');
           });
     }
 
