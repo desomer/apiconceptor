@@ -246,6 +246,7 @@ class AutoLayoutEngine {
 
     var selected = initial;
     var selectedRenderer = renderer;
+    var restoredSeedLayout = false;
 
     final fallbackThreshold = math.max(4.0, 0.08 * allEdges.length);
     final initialCross = _countEdgeCrossings(selected, sizes, allEdges);
@@ -354,6 +355,7 @@ class AutoLayoutEngine {
         positions: selected,
         sizeByNode: sizes,
         allEdges: allEdges,
+        groups: groups,
         degree: degree,
         minGap: minGap,
         direction: direction,
@@ -422,6 +424,7 @@ class AutoLayoutEngine {
         positions: selected,
         sizeByNode: sizes,
         allEdges: allEdges,
+        groups: groups,
         degree: degree,
         minGap: minGap,
         direction: direction,
@@ -524,12 +527,20 @@ class AutoLayoutEngine {
         subgraphTitleBandHeight: subgraphTitleBandHeight,
         subgraphTitlePadding: subgraphTitlePadding,
       );
+      final seedDelta = _summarizePositionDelta(
+        nodeOrder: nodeOrder,
+        before: seedProjected,
+        after: selected,
+      );
 
       _logAudit(
         'stage=seed_compare crossingsSeed=${seedMetrics.crossings} crossingsCandidate=${candidateMetrics.crossings}',
       );
       _logAudit(
         'stage=seed_compare edgeOverNodeSeed=${seedMetrics.edgeOverNodeHits} edgeOverNodeCandidate=${candidateMetrics.edgeOverNodeHits}',
+      );
+      _logAudit(
+        'stage=seed_compare movedNodes=${seedDelta.movedNodes} avgDistance=${seedDelta.avgDistance.toStringAsFixed(2)} maxDistance=${seedDelta.maxDistance.toStringAsFixed(2)}',
       );
 
       // Log candidate (auto-layout) positions and metrics
@@ -571,25 +582,45 @@ class AutoLayoutEngine {
           seedMetrics.crossings >= 3 &&
           candidateMetrics.crossings < seedMetrics.crossings;
 
+        final severeRoutingRegression =
+          candidateMetrics.crossings > seedMetrics.crossings + 1 ||
+          candidateMetrics.edgeOverNodeHits > seedMetrics.edgeOverNodeHits + 2;
+        final excessiveSeedDrift =
+          seedDelta.avgDistance > minGap * 3.0 ||
+          seedDelta.maxDistance > minGap * 10.0;
+        final strongCandidateUpgrade =
+          candidateMetrics.crossings + 2 < seedMetrics.crossings ||
+          candidateMetrics.edgeOverNodeHits + 3 <
+            seedMetrics.edgeOverNodeHits ||
+          candidateMetrics.hardViolation + 6 < seedMetrics.hardViolation;
+
       final keepCandidate =
+          !severeRoutingRegression &&
+          (!excessiveSeedDrift || strongCandidateUpgrade) &&
+          (
           bypassSeedFallback ||
           strictBypass ||
           acceptIfEliminatesEdgeOverNode ||
-          candidateMetrics.hardViolation < seedMetrics.hardViolation ||
+          (candidateMetrics.hardViolation < seedMetrics.hardViolation &&
+            candidateMetrics.crossings <= seedMetrics.crossings + 1 &&
+            candidateMetrics.edgeOverNodeHits <=
+              seedMetrics.edgeOverNodeHits + 1) ||
           (candidateMetrics.hardViolation == seedMetrics.hardViolation &&
-              candidateMetrics.crossings <= seedMetrics.crossings &&
-              candidateMetrics.edgeOverNodeHits <=
-                  seedMetrics.edgeOverNodeHits + 1);
+            candidateMetrics.crossings <= seedMetrics.crossings &&
+            candidateMetrics.edgeOverNodeHits <=
+              seedMetrics.edgeOverNodeHits + 1)
+          );
 
       // Log decision details for small graphs
       if (nodeOrder.length <= 15) {
         _logAudit(
-          'stage=SEED_DECISION_DETAILS bypass=$bypassSeedFallback strictBypass=$strictBypass keepCandidate=$keepCandidate hardCond=${candidateMetrics.hardViolation == seedMetrics.hardViolation} crossingCond=${candidateMetrics.crossings <= seedMetrics.crossings} edgeOverCond=${candidateMetrics.edgeOverNodeHits <= seedMetrics.edgeOverNodeHits + 1}',
+          'stage=SEED_DECISION_DETAILS bypass=$bypassSeedFallback strictBypass=$strictBypass keepCandidate=$keepCandidate severeRoutingRegression=$severeRoutingRegression excessiveSeedDrift=$excessiveSeedDrift strongCandidateUpgrade=$strongCandidateUpgrade hardCond=${candidateMetrics.hardViolation == seedMetrics.hardViolation} crossingCond=${candidateMetrics.crossings <= seedMetrics.crossings} edgeOverCond=${candidateMetrics.edgeOverNodeHits <= seedMetrics.edgeOverNodeHits + 1}',
         );
       }
 
       if (!keepCandidate) {
         selected = seedProjected;
+        restoredSeedLayout = true;
         _logAudit('stage=seed_decision bypass=false reason=restore_seed');
       } else {
         _logAudit(
@@ -614,41 +645,9 @@ class AutoLayoutEngine {
       }
     }
 
-    _applyHardConstraints(
-      nodeOrder: nodeOrder,
-      positions: selected,
-      sizeByNode: sizes,
-      allEdges: allEdges,
-      groups: groups,
-      minGap: minGap,
-      minInnerGapSubgraph: minInnerGapSubgraph,
-      minOuterGapSubgraph: minOuterGapSubgraph,
-      subgraphTitleBandHeight: subgraphTitleBandHeight,
-      subgraphTitlePadding: subgraphTitlePadding,
-    );
-
-    // Apply final alignment to positions (with strict constraints)
-    _alignFinalPositions(
-      nodeOrder: nodeOrder,
-      positions: selected,
-      sizeByNode: sizes,
-      allEdges: allEdges,
-      minGap: minGap,
-      direction: direction,
-    );
-
-    // If crossings remain after seed decision, try to eliminate them
-    final postSeedCrossings = _countEdgeCrossings(selected, sizes, allEdges);
-    if (postSeedCrossings > 0) {
-      _forceUncrossByEndpointKick(
-        nodeOrder: nodeOrder,
-        positions: selected,
-        sizeByNode: sizes,
-        allEdges: allEdges,
-        degree: degree,
-        minGap: minGap,
-        maxPasses: 16,
-      );
+    if (restoredSeedLayout) {
+      _logAudit('stage=seed_preservation skip_post_seed_passes=true');
+    } else {
       _applyHardConstraints(
         nodeOrder: nodeOrder,
         positions: selected,
@@ -661,9 +660,45 @@ class AutoLayoutEngine {
         subgraphTitleBandHeight: subgraphTitleBandHeight,
         subgraphTitlePadding: subgraphTitlePadding,
       );
-      _logAudit(
-        'stage=phase_timing name=post_seed_uncross ms=${runWatch.elapsedMilliseconds}',
+
+      // Apply final alignment to positions (with strict constraints)
+      _alignFinalPositions(
+        nodeOrder: nodeOrder,
+        positions: selected,
+        sizeByNode: sizes,
+        allEdges: allEdges,
+        minGap: minGap,
+        direction: direction,
       );
+
+      // If crossings remain after seed decision, try to eliminate them
+      final postSeedCrossings = _countEdgeCrossings(selected, sizes, allEdges);
+      if (postSeedCrossings > 0) {
+        _forceUncrossByEndpointKick(
+          nodeOrder: nodeOrder,
+          positions: selected,
+          sizeByNode: sizes,
+          allEdges: allEdges,
+          degree: degree,
+          minGap: minGap,
+          maxPasses: 16,
+        );
+        _applyHardConstraints(
+          nodeOrder: nodeOrder,
+          positions: selected,
+          sizeByNode: sizes,
+          allEdges: allEdges,
+          groups: groups,
+          minGap: minGap,
+          minInnerGapSubgraph: minInnerGapSubgraph,
+          minOuterGapSubgraph: minOuterGapSubgraph,
+          subgraphTitleBandHeight: subgraphTitleBandHeight,
+          subgraphTitlePadding: subgraphTitlePadding,
+        );
+        _logAudit(
+          'stage=phase_timing name=post_seed_uncross ms=${runWatch.elapsedMilliseconds}',
+        );
+      }
     }
 
     final finalMetrics = _collectMetrics(
@@ -2067,6 +2102,7 @@ class AutoLayoutEngine {
     required Map<String, Offset> positions,
     required Map<String, Size> sizeByNode,
     required List<(String, String)> allEdges,
+    required List<List<String>> groups,
     required Map<String, int> degree,
     required double minGap,
     required String direction,
@@ -2082,6 +2118,7 @@ class AutoLayoutEngine {
       positions: positions,
       sizeByNode: sizeByNode,
       allEdges: allEdges,
+      subgraphNodeGroups: groups,
       minGap: minGap,
       direction: direction,
     );
@@ -2091,6 +2128,7 @@ class AutoLayoutEngine {
       positions: positions,
       sizeByNode: sizeByNode,
       allEdges: allEdges,
+      subgraphNodeGroups: groups,
       minGap: minGap,
       direction: direction,
     );
@@ -2129,6 +2167,7 @@ class AutoLayoutEngine {
             positions: positions,
             sizeByNode: sizeByNode,
             allEdges: allEdges,
+            subgraphNodeGroups: groups,
             minGap: minGap,
             direction: direction,
           );
@@ -2152,6 +2191,7 @@ class AutoLayoutEngine {
               positions: positions,
               sizeByNode: sizeByNode,
               allEdges: allEdges,
+              subgraphNodeGroups: groups,
               minGap: minGap,
               direction: direction,
             );
@@ -3077,7 +3117,12 @@ class AutoLayoutEngine {
       subgraphTitlePadding: subgraphTitlePadding,
     );
     final hardViolation = nodeOverlapPairs + subgraphViolations;
-    final totalEdgeLength = _totalEdgeLength(positions, sizeByNode, allEdges);
+    final totalEdgeLength = _totalEdgeLength(
+      positions,
+      sizeByNode,
+      allEdges,
+      subgraphNodeGroups: subgraphNodeGroups,
+    );
     final alignmentScore = _alignmentScore(positions);
 
     final objective =
@@ -3388,6 +3433,7 @@ class AutoLayoutEngine {
     required Map<String, Offset> positions,
     required Map<String, Size> sizeByNode,
     required List<(String, String)> allEdges,
+    required List<List<String>> subgraphNodeGroups,
     required double minGap,
     required String direction,
   }) {
@@ -3407,7 +3453,12 @@ class AutoLayoutEngine {
       direction: direction,
       samplingStepPx: _bezierSamplingStepForGraph(nodeOrder.length),
     );
-    final edgeLen = _totalEdgeLength(positions, sizeByNode, allEdges);
+    final edgeLen = _totalEdgeLength(
+      positions,
+      sizeByNode,
+      allEdges,
+      subgraphNodeGroups: subgraphNodeGroups,
+    );
     final obj =
         crossings * 1000000.0 +
         edgeOverNode * 220000.0 +
@@ -3421,6 +3472,7 @@ class AutoLayoutEngine {
     required Map<String, Offset> positions,
     required Map<String, Size> sizeByNode,
     required List<(String, String)> allEdges,
+    required List<List<String>> subgraphNodeGroups,
     required double minGap,
     required String direction,
   }) {
@@ -3440,7 +3492,12 @@ class AutoLayoutEngine {
       direction: direction,
       samplingStepPx: _bezierSamplingStepForGraph(nodeOrder.length),
     );
-    final edgeLen = _totalEdgeLength(positions, sizeByNode, allEdges);
+    final edgeLen = _totalEdgeLength(
+      positions,
+      sizeByNode,
+      allEdges,
+      subgraphNodeGroups: subgraphNodeGroups,
+    );
     final crossCost = crossings * 1000000.0;
     final edgeOverNodeCost = edgeOverNode * 220000.0;
     final overlapCost = overlap * 120000.0;
@@ -3456,15 +3513,53 @@ class AutoLayoutEngine {
   static double _totalEdgeLength(
     Map<String, Offset> positions,
     Map<String, Size> sizeByNode,
-    List<(String, String)> allEdges,
+    List<(String, String)> allEdges, {
+    List<List<String>>? subgraphNodeGroups,
+  }
   ) {
     var total = 0.0;
     for (final e in allEdges) {
       final a = _nodeCenter(positions[e.$1]!, sizeByNode[e.$1]!);
       final b = _nodeCenter(positions[e.$2]!, sizeByNode[e.$2]!);
-      total += (a - b).distance;
+      final weight = _edgeLengthWeight(
+        e.$1,
+        e.$2,
+        subgraphNodeGroups: subgraphNodeGroups,
+      );
+      total += (a - b).distance * weight;
     }
     return total;
+  }
+
+  static double _edgeLengthWeight(
+    String fromId,
+    String toId, {
+    List<List<String>>? subgraphNodeGroups,
+  }) {
+    if (subgraphNodeGroups == null || subgraphNodeGroups.isEmpty) {
+      return 1.0;
+    }
+
+    var smallestSharedGroupSize = 1 << 30;
+    for (final group in subgraphNodeGroups) {
+      if (group.contains(fromId) && group.contains(toId)) {
+        smallestSharedGroupSize = math.min(smallestSharedGroupSize, group.length);
+      }
+    }
+
+    if (smallestSharedGroupSize == 1 << 30) {
+      return 0.18;
+    }
+    if (smallestSharedGroupSize <= 3) {
+      return 1.0;
+    }
+    if (smallestSharedGroupSize <= 4) {
+      return 0.85;
+    }
+    if (smallestSharedGroupSize <= 6) {
+      return 0.65;
+    }
+    return 0.35;
   }
 
   static double _alignmentScore(Map<String, Offset> positions) {
@@ -3485,6 +3580,36 @@ class AutoLayoutEngine {
       }
     }
     return score;
+  }
+
+  static _PositionDeltaSummary _summarizePositionDelta({
+    required List<String> nodeOrder,
+    required Map<String, Offset> before,
+    required Map<String, Offset> after,
+  }) {
+    var movedNodes = 0;
+    var totalDistance = 0.0;
+    var maxDistance = 0.0;
+
+    for (final id in nodeOrder) {
+      final start = before[id];
+      final end = after[id];
+      if (start == null || end == null) {
+        continue;
+      }
+      final distance = (end - start).distance;
+      if (distance > 0.01) {
+        movedNodes++;
+      }
+      totalDistance += distance;
+      maxDistance = math.max(maxDistance, distance);
+    }
+
+    return _PositionDeltaSummary(
+      movedNodes: movedNodes,
+      avgDistance: nodeOrder.isEmpty ? 0.0 : totalDistance / nodeOrder.length,
+      maxDistance: maxDistance,
+    );
   }
 
   static Rect _subgraphBounds(
@@ -3733,5 +3858,17 @@ class _SubgraphGapCounters {
     required this.innerViolations,
     required this.outerViolations,
     required this.nestedViolations,
+  });
+}
+
+class _PositionDeltaSummary {
+  final int movedNodes;
+  final double avgDistance;
+  final double maxDistance;
+
+  const _PositionDeltaSummary({
+    required this.movedNodes,
+    required this.avgDistance,
+    required this.maxDistance,
   });
 }
