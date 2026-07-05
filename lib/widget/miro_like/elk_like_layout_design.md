@@ -71,6 +71,7 @@ Definition de la contrainte de gap :
 - Noeud interne : distance minimale entre le rectangle du noeud et le bord interne du subgraph parent >= minInnerGapSubgraph.
 - Noeud externe : distance minimale entre le rectangle du noeud et le bord externe de tout subgraph non parent >= minOuterGapSubgraph.
 - Subgraphs imbriques : le gap effectif se calcule par niveau, avec accumulation de padding et marges minimales sur chaque ancetre traverse.
+- Les paths de liens etant de type Bezier par defaut, les controles d intersection et de clearance doivent se faire sur la courbe echantillonnee (pas uniquement sur une approximation segmentaire grossiere).
 
 ### 3.4 Alignement et compaction
 
@@ -149,6 +150,8 @@ Règle d arbitrage recommandée :
 
 Routage polyligne orthogonal recommandé.
 
+Note Mermaid Like : le path de lien rendu est Bezier par defaut. Le routage calcule peut rester orthogonal en interne, mais la validation finale des contraintes doit etre realisee sur la geometrie Bezier effectivement affichee.
+
 Étapes :
 
 1. Segment source vers canal de sortie.
@@ -158,6 +161,7 @@ Routage polyligne orthogonal recommandé.
 Règles :
 
 - Interdire intersection segment rectangle de noeud hors endpoints.
+- En mode path Bezier (par defaut), interdire intersection courbe Bezier rectangle de noeud hors endpoints.
 - Pour arêtes longues inter couches, réserver des canaux par bande et trier les arêtes par ordre local pour limiter tresses.
 - Si conflit persiste : déplacer endpoint le moins connecté (uncross forcé) puis rerouter localement.
 - Self loop : router en boucle externe avec rayon minimal et eviter overlap sur le noeud source.
@@ -215,6 +219,8 @@ Paramètres de base :
 - selfLoopMinRadius
 - parallelEdgeSeparation
 - edgeLabelDummyThreshold
+- linkPathModeDefault (bezier)
+- bezierSamplingStepPx
 
 Poids objectifs :
 
@@ -461,3 +467,198 @@ Ajouter ces audits systématiquement :
 - seedLengthMaxFactorWhenBypass = 1.35
 
 Ces seuils sont volontairement orientés qualité visuelle sur petits graphes flowchart, puis peuvent être abaissés pour des contraintes temps strictes.
+
+## 13. Cadre de non regression et observabilite
+
+### 13.1 Contrats d acceptation par phase
+
+Chaque phase doit publier un etat : accepted, accepted_with_tradeoff, rejected.
+
+Regles :
+
+1. rejected immediat si contrainte dure augmente.
+2. accepted uniquement si score lexicographique diminue ou reste strictement equivalent avec meilleure stabilite.
+3. accepted_with_tradeoff autorise seulement si gain crossings est significatif et aucune violation dure.
+4. toute phase rejected declenche rollback local puis continuation pipeline.
+
+### 13.2 Matrice de non regression visuelle
+
+Maintenir un corpus minimal de graphes de reference :
+
+1. sparse 20 noeuds,
+2. dense 40 noeuds,
+3. hubs forts,
+4. subgraphs imbriques,
+5. multi edges + self loops,
+6. graphe avec labels d aretes longues.
+
+Pour chaque cas : conserver snapshot image, metriques et logs de decision.
+
+### 13.3 KPI de suivi continu
+
+KPI recommandes :
+
+1. medianCrossingsFinal,
+2. hardViolationRate,
+3. avgLayoutLatencyMs,
+4. rollbackRateByStage,
+5. rendererFallbackRate.
+
+### 13.4 Rejouabilite deterministe
+
+Ajouter un mode deterministicReplay :
+
+1. seed fixee,
+2. tie break deterministe,
+3. journal des mouvements acceptes/rejetes,
+4. reproduction bit a bit des decisions de layout.
+
+## 14. Contrats d execution et fallback
+
+### 14.1 Budget temps adaptatif
+
+Definir un budget global et des sous budgets :
+
+1. budgetLayoutMainMs,
+2. budgetCrossingRepairMs,
+3. budgetRoutingRepairMs,
+4. budgetFinalAlignmentMs.
+
+Si depassement : degrader graduellement les passes les plus couteuses avant timeout global.
+
+### 14.2 Stabilite inter versions (mental map)
+
+Quand les changements d entree sont faibles, limiter la derive geometrique :
+
+1. maxNodeDriftPerRun,
+2. maxGlobalDriftRatio,
+3. prioriser deplacements locaux avant recalc global.
+
+### 14.3 Politique tie break universelle
+
+En cas d egalite de score local :
+
+1. conserver ordre declaratif,
+2. puis comparer id stable,
+3. puis distance a la seed,
+4. puis ordre index initial.
+
+### 14.4 Garde fous de lisibilite
+
+Contraintes finales minimales :
+
+1. minUsefulSegmentLength,
+2. minEdgeLabelClearance,
+3. minParallelEdgeVisualGap,
+4. maxPolylineBendsPerEdge.
+
+### 14.5 Echelle par taille de graphe
+
+Definir profils automatiques par taille :
+
+1. small : n <= 30,
+2. medium : 31 <= n <= 80,
+3. large : 81 <= n <= 180,
+4. xlargeDense : n > 180 ou density > 2.0.
+
+Chaque profil ajuste budgets, nombre de passes et agressivite des reparations.
+
+### 14.6 Ladder de fallback robuste
+
+Ordre de repli recommande si degradation ou instabilite :
+
+1. desactiver compaction,
+2. reduire passes routing repair,
+3. desactiver force uncross,
+4. rerouter en mode safe orthogonal,
+5. fallback renderer unique,
+6. conserver derniere geometrie valide.
+
+### 14.7 Logs additionnels obligatoires
+
+- stage=budget_guard globalMs=... crossingMs=... routingMs=... alignmentMs=...
+- stage=drift_guard maxNodeDrift=... globalDriftRatio=... accepted=...
+- stage=tiebreak key=... winner=... reason=...
+- stage=fallback_ladder level=... trigger=... keptGeometry=...
+
+## 15. Checklist implementation phase par phase
+
+### 15.1 Phase 0 - Instrumentation minimale
+
+1. Ajouter une structure de metriques runtime centralisee (crossings, overlaps, edge over node, violations subgraph, latence).
+2. Ajouter une structure de logs stage=... pour toutes les phases du pipeline.
+3. Ajouter un mode debug activable pour exporter snapshot metriques + decisions.
+4. Verifier que chaque phase retourne accepted, accepted_with_tradeoff, ou rejected.
+
+Critere Done :
+
+- un run complet produit metriques, statut de phase et logs exploitables.
+
+### 15.2 Phase 1 - Contraintes dures garanties
+
+1. Implementer l enforcement overlap noeud noeud.
+2. Implementer exclusion stricte non membre/subgraph.
+3. Implementer edge over node blocker avec rejet des mouvements invalides.
+4. Implementer gap noeud bord subgraph interne/externe, y compris imbrication.
+5. Ajouter rollback local automatique si une contrainte dure augmente.
+
+Critere Done :
+
+- hardViolationCandidate ne depasse jamais hardViolationSeed en sortie finale.
+
+### 15.3 Phase 2 - Layout principal stabilise
+
+1. Brancher feedback arc set glouton pour bris de cycles.
+2. Ajouter layering longest path + reequilibrage.
+3. Ajouter ordering barycenter + swaps locaux.
+4. Ajouter placement initial + packing composants.
+5. Ajouter compaction prudente des sous graphes sans violer les contraintes dures.
+
+Critere Done :
+
+- layout valide obtenu sans fallback sur corpus small/medium.
+
+### 15.4 Phase 3 - Fidelite Mermaid ciblee
+
+1. Preserver ordre declaratif intra couche avec seuil crossingSwapMinGain.
+2. Ajouter min rank span par edge.
+3. Ajouter bande titre subgraph et controle collisions associe.
+4. Ajouter routing self loop dedie.
+5. Ajouter separation multi edges et dummy labels pour aretes longues.
+
+Critere Done :
+
+- baisse mesurable declarationOrderInversions et parallelEdgeMergeHits sur corpus Mermaid.
+
+### 15.5 Phase 4 - Post optimisation geometrique finale
+
+1. Activer phase finale alignement lignes/colonnes inter subgraph.
+2. Appliquer snaps progressifs avec validation locale.
+3. Re appliquer toutes les contraintes dures apres alignement.
+4. Rejeter toute action qui degrade hard constraints.
+
+Critere Done :
+
+- alignement visible sans hausse des violations dures.
+
+### 15.6 Phase 5 - Performance et budgets
+
+1. Ajouter budget global et sous budgets par phase.
+2. Implementer degradation graduelle des passes couteuses.
+3. Ajouter profils small/medium/large/xlargeDense.
+4. Ajouter ladder de fallback robuste.
+
+Critere Done :
+
+- latence moyenne stable et fallbackRate borne sur corpus large/xlargeDense.
+
+### 15.7 Phase 6 - Non regression et replay
+
+1. Construire corpus visuel de reference (6 cas minimaux).
+2. Ajouter snapshots et comparaison metriques CI.
+3. Ajouter deterministicReplay complet (seed + tie break + journal).
+4. Ajouter seuils de non regression bloquants en CI.
+
+Critere Done :
+
+- meme entree + meme seed => meme geometrie et memes decisions.
