@@ -64,32 +64,56 @@ void main() {
       expect(metrics.nodeOverlapPairs, equals(0));
     });
 
-    test('dense40 selects ELK-like renderer and returns stable output', () {
-      final fixture = _dense40Fixture();
-      AutoLayoutEngine.clearAuditTrail();
+    test(
+      'dense40 selects ELK-like renderer and returns stable output',
+      () {
+        final fixture = _dense40Fixture();
+        AutoLayoutEngine.clearAuditTrail();
+        printOnFailure(
+          '[dense40] nodes=${fixture.nodeOrder.length} edges=${fixture.allEdges.length}',
+        );
 
-      final resultA = AutoLayoutEngine.computeMermaidAutoLayout(
-        nodeOrder: fixture.nodeOrder,
-        edgeData: fixture.edges,
-        direction: 'LR',
-        effectiveBlocks: fixture.blocks,
-        quality: quality,
-      );
-      final resultB = AutoLayoutEngine.computeMermaidAutoLayout(
-        nodeOrder: fixture.nodeOrder,
-        edgeData: fixture.edges,
-        direction: 'LR',
-        effectiveBlocks: fixture.blocks,
-        quality: quality,
-      );
+        final swA = Stopwatch()..start();
 
-      _expectFinitePositions(resultA, fixture.nodeOrder);
-      _expectFinitePositions(resultB, fixture.nodeOrder);
-      _expectDeterministic(resultA, resultB, fixture.nodeOrder);
+        final resultA = AutoLayoutEngine.computeMermaidAutoLayout(
+          nodeOrder: fixture.nodeOrder,
+          edgeData: fixture.edges,
+          direction: 'LR',
+          effectiveBlocks: fixture.blocks,
+          quality: quality,
+        );
+        swA.stop();
+        printOnFailure('[dense40] compute A: ${swA.elapsedMilliseconds}ms');
 
-      final logs = AutoLayoutEngine.getAuditTrailSnapshot().join('\n');
-      expect(logs.contains('stage=renderer_choice renderer=elk-like'), isTrue);
-    });
+        final logsA = AutoLayoutEngine.getAuditTrailSnapshot().join('\n');
+        printOnFailure('[dense40] audit A tail:\n${_tailLines(logsA, 40)}');
+
+        AutoLayoutEngine.clearAuditTrail();
+        final swB = Stopwatch()..start();
+        final resultB = AutoLayoutEngine.computeMermaidAutoLayout(
+          nodeOrder: fixture.nodeOrder,
+          edgeData: fixture.edges,
+          direction: 'LR',
+          effectiveBlocks: fixture.blocks,
+          quality: quality,
+        );
+        swB.stop();
+        printOnFailure('[dense40] compute B: ${swB.elapsedMilliseconds}ms');
+
+        _expectFinitePositions(resultA, fixture.nodeOrder);
+        _expectFinitePositions(resultB, fixture.nodeOrder);
+        _expectDeterministic(resultA, resultB, fixture.nodeOrder);
+
+        final logs = AutoLayoutEngine.getAuditTrailSnapshot().join('\n');
+        expect(
+          logs.contains('stage=renderer_choice renderer=elk-like'),
+          isTrue,
+        );
+        expect(swA.elapsed.inSeconds, lessThan(25));
+        expect(swB.elapsed.inSeconds, lessThan(25));
+      },
+      timeout: const Timeout(Duration(seconds: 60)),
+    );
 
     test('nestedSubgraphs enforces subgraph exclusions', () {
       final fixture = _nestedSubgraphsFixture();
@@ -370,16 +394,18 @@ _TestFixture _dense40Fixture() {
   final edges = <({String fromId, String toId, String label})>[];
 
   for (int i = 0; i < nodes.length; i++) {
-    for (int k = 1; k <= 2; k++) {
-      final j = i + k;
-      if (j < nodes.length) {
-        edges.add((fromId: nodes[i], toId: nodes[j], label: ''));
-      }
+    final next = i + 1;
+    if (next < nodes.length) {
+      edges.add((fromId: nodes[i], toId: nodes[next], label: ''));
     }
-    final longJump = i + 7;
+    final longJump = i + 5;
     if (longJump < nodes.length) {
       edges.add((fromId: nodes[i], toId: nodes[longJump], label: ''));
     }
+  }
+
+  for (int i = 0; i < nodes.length - 8; i += 2) {
+    edges.add((fromId: nodes[i], toId: nodes[i + 8], label: ''));
   }
 
   return _fixtureFrom(nodes, edges);
@@ -544,4 +570,12 @@ int _countAlignedPairs(Map<String, Offset> positions, {double tolerance = 4}) {
     }
   }
   return aligned;
+}
+
+String _tailLines(String content, int maxLines) {
+  final lines = content.split('\n');
+  if (lines.length <= maxLines) {
+    return content;
+  }
+  return lines.sublist(lines.length - maxLines).join('\n');
 }

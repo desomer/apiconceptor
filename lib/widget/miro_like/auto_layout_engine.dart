@@ -104,7 +104,7 @@ class AutoLayoutEngine {
       subgraphNodeGroups: subgraphNodeGroups,
       minGap: minGap,
       direction: 'TD',
-      bezierSamplingStepPx: 10.0,
+      bezierSamplingStepPx: 12.0,
       subgraphTitleBandHeight: 24.0,
       subgraphTitlePadding: 8.0,
     );
@@ -129,6 +129,7 @@ class AutoLayoutEngine {
     Map<String, Offset>? seedPositions,
     List<List<String>>? subgraphNodeGroups,
   }) {
+    final runWatch = Stopwatch()..start();
     if (nodeOrder.isEmpty) {
       return {};
     }
@@ -193,7 +194,7 @@ class AutoLayoutEngine {
     const subgraphTitlePadding = 8.0;
     const edgeMinRankSpanDefault = 1;
     const crossingSwapMinGain = 2;
-    const bezierSamplingStepPx = 10.0;
+    final bezierSamplingStepPx = _bezierSamplingStepForGraph(nodeOrder.length);
 
     final profile = _profileForGraph(
       nodeCount: nodeOrder.length,
@@ -230,6 +231,9 @@ class AutoLayoutEngine {
       crossingSwapMinGain: crossingSwapMinGain,
       seedPositions: seedPositions ?? const <String, Offset>{},
       quality: quality,
+    );
+    _logAudit(
+      'stage=phase_timing name=layered_pipeline ms=${runWatch.elapsedMilliseconds}',
     );
 
     var selected = initial;
@@ -300,6 +304,9 @@ class AutoLayoutEngine {
       subgraphTitleBandHeight: subgraphTitleBandHeight,
       subgraphTitlePadding: subgraphTitlePadding,
     );
+    _logAudit(
+      'stage=phase_timing name=hard_constraints_1 ms=${runWatch.elapsedMilliseconds}',
+    );
 
     final beforeRouting = _collectMetrics(
       nodeOrder: nodeOrder,
@@ -328,6 +335,9 @@ class AutoLayoutEngine {
         minGap: minGap,
         maxPasses: profile.maxPassesCrossing,
       );
+      _logAudit(
+        'stage=phase_timing name=reduce_crossings ms=${runWatch.elapsedMilliseconds}',
+      );
     }
 
     if (routingPolicy.repairRouting) {
@@ -340,6 +350,9 @@ class AutoLayoutEngine {
         minGap: minGap,
         maxPasses: profile.maxPassesRoutingRepair,
       );
+      _logAudit(
+        'stage=phase_timing name=repair_routing ms=${runWatch.elapsedMilliseconds}',
+      );
     }
 
     if (routingPolicy.forceUncross) {
@@ -351,6 +364,9 @@ class AutoLayoutEngine {
         degree: degree,
         minGap: minGap,
         maxPasses: profile.maxPassesForceUncross,
+      );
+      _logAudit(
+        'stage=phase_timing name=force_uncross ms=${runWatch.elapsedMilliseconds}',
       );
     }
 
@@ -371,6 +387,9 @@ class AutoLayoutEngine {
       maxNodeShift: 18.0,
       alignmentPriority: quality.alignmentPriority,
     );
+    _logAudit(
+      'stage=phase_timing name=final_alignment ms=${runWatch.elapsedMilliseconds}',
+    );
 
     _applyHardConstraints(
       nodeOrder: nodeOrder,
@@ -384,6 +403,36 @@ class AutoLayoutEngine {
       subgraphTitleBandHeight: subgraphTitleBandHeight,
       subgraphTitlePadding: subgraphTitlePadding,
     );
+    _logAudit(
+      'stage=phase_timing name=hard_constraints_2 ms=${runWatch.elapsedMilliseconds}',
+    );
+
+    if (routingPolicy.repairRouting && nodeOrder.length <= 24) {
+      _repairRoutingByNodeMoves(
+        nodeOrder: nodeOrder,
+        positions: selected,
+        sizeByNode: sizes,
+        allEdges: allEdges,
+        degree: degree,
+        minGap: minGap,
+        maxPasses: math.max(8, (profile.maxPassesRoutingRepair / 2).ceil()),
+      );
+      _applyHardConstraints(
+        nodeOrder: nodeOrder,
+        positions: selected,
+        sizeByNode: sizes,
+        allEdges: allEdges,
+        groups: groups,
+        minGap: minGap,
+        minInnerGapSubgraph: minInnerGapSubgraph,
+        minOuterGapSubgraph: minOuterGapSubgraph,
+        subgraphTitleBandHeight: subgraphTitleBandHeight,
+        subgraphTitlePadding: subgraphTitlePadding,
+      );
+      _logAudit(
+        'stage=phase_timing name=repair_routing_post_alignment ms=${runWatch.elapsedMilliseconds}',
+      );
+    }
 
     final seed = seedPositions ?? const <String, Offset>{};
     final hasSeed = seed.isNotEmpty;
@@ -485,6 +534,9 @@ class AutoLayoutEngine {
 
     _logAudit(
       'stage=final_metrics crossings=${finalMetrics.crossings} edgeOverNode=${finalMetrics.edgeOverNodeHits} hard=${finalMetrics.hardViolation} objective=${finalMetrics.objective.toStringAsFixed(2)} selfLoops=$selfLoops renderer=$selectedRenderer',
+    );
+    _logAudit(
+      'stage=budget_guard globalMs=${runWatch.elapsedMilliseconds} crossingMs=na routingMs=na alignmentMs=na',
     );
 
     return selected;
@@ -887,9 +939,12 @@ class AutoLayoutEngine {
     Map<String, Set<String>> incoming,
     Map<String, Set<String>> outgoing,
   ) {
+    final watch = Stopwatch()..start();
     final remaining = nodeOrder.toSet();
     final left = <String>[];
     final right = <String>[];
+    final maxIterations = math.max(32, nodeOrder.length * 8);
+    var iterations = 0;
 
     int outLive(String id) =>
         (outgoing[id] ?? const <String>{}).where(remaining.contains).length;
@@ -897,6 +952,22 @@ class AutoLayoutEngine {
         (incoming[id] ?? const <String>{}).where(remaining.contains).length;
 
     while (remaining.isNotEmpty) {
+      iterations++;
+      if (iterations > maxIterations) {
+        _logAudit(
+          'stage=loop_guard stage=feedback_order trigger=max_iterations iterations=$iterations remaining=${remaining.length}',
+        );
+        break;
+      }
+      if (_loopBudgetExceeded(
+        stage: 'feedback_order',
+        watch: watch,
+        budgetMs: 2000,
+        pass: iterations,
+        maxPasses: maxIterations,
+      )) {
+        break;
+      }
       final sinks = remaining.where((id) => outLive(id) == 0).toList()..sort();
       if (sinks.isNotEmpty) {
         for (final id in sinks) {
@@ -975,15 +1046,42 @@ class AutoLayoutEngine {
     required Map<String, Set<String>> neighbors,
     required double gap,
   }) {
+    final watch = Stopwatch()..start();
     final remaining = nodeOrder.toSet();
     final components = <List<String>>[];
+    final maxOuter = math.max(16, nodeOrder.length * 2);
+    var outer = 0;
 
     while (remaining.isNotEmpty) {
+      outer++;
+      if (outer > maxOuter) {
+        _logAudit(
+          'stage=loop_guard stage=pack_components_outer trigger=max_iterations iterations=$outer remaining=${remaining.length}',
+        );
+        break;
+      }
+      if (_loopBudgetExceeded(
+        stage: 'pack_components_outer',
+        watch: watch,
+        budgetMs: 2000,
+        pass: outer,
+        maxPasses: maxOuter,
+      )) {
+        break;
+      }
       final start = remaining.first;
       final stack = <String>[start];
       final comp = <String>[];
       remaining.remove(start);
+      var inner = 0;
       while (stack.isNotEmpty) {
+        inner++;
+        if (inner > math.max(64, nodeOrder.length * 4)) {
+          _logAudit(
+            'stage=loop_guard stage=pack_components_inner trigger=max_iterations iterations=$inner stack=${stack.length}',
+          );
+          break;
+        }
         final cur = stack.removeLast();
         comp.add(cur);
         for (final n in neighbors[cur] ?? const <String>{}) {
@@ -1225,6 +1323,7 @@ class AutoLayoutEngine {
     required Map<String, Size> sizeByNode,
     required double minGap,
   }) {
+    final watch = Stopwatch()..start();
     for (int pass = 0; pass < 16; pass++) {
       var moved = false;
       for (int i = 0; i < nodeOrder.length - 1; i++) {
@@ -1261,6 +1360,18 @@ class AutoLayoutEngine {
           }
         }
       }
+      _logAudit(
+        'stage=loop_progress stage=resolve_overlaps pass=${pass + 1}/16 moved=$moved elapsedMs=${watch.elapsedMilliseconds}',
+      );
+      if (_loopBudgetExceeded(
+        stage: 'resolve_overlaps',
+        watch: watch,
+        budgetMs: 3000,
+        pass: pass + 1,
+        maxPasses: 16,
+      )) {
+        break;
+      }
       if (!moved) {
         break;
       }
@@ -1281,6 +1392,7 @@ class AutoLayoutEngine {
       return;
     }
 
+    final watch = Stopwatch()..start();
     final sets = [for (final g in groups) g.toSet()];
     final hierarchy = _buildGroupHierarchy(sets);
     var movedTotal = 0;
@@ -1342,6 +1454,18 @@ class AutoLayoutEngine {
       }
 
       movedTotal += movedPass;
+      _logAudit(
+        'stage=loop_progress stage=subgraph_membership_exclusion pass=${pass + 1}/24 moved=$movedPass elapsedMs=${watch.elapsedMilliseconds}',
+      );
+      if (_loopBudgetExceeded(
+        stage: 'subgraph_membership_exclusion',
+        watch: watch,
+        budgetMs: 5000,
+        pass: pass + 1,
+        maxPasses: 24,
+      )) {
+        break;
+      }
       if (movedPass == 0) {
         break;
       }
@@ -1598,6 +1722,7 @@ class AutoLayoutEngine {
     required double minGap,
     required int maxPasses,
   }) {
+    final watch = Stopwatch()..start();
     var current = _countEdgeCrossings(positions, sizeByNode, allEdges);
     if (current == 0 || maxPasses <= 0) {
       return;
@@ -1632,6 +1757,18 @@ class AutoLayoutEngine {
           break;
         }
       }
+      _logAudit(
+        'stage=loop_progress stage=edge_crossing_reduce pass=${pass + 1}/$maxPasses improved=$improved crossings=$current elapsedMs=${watch.elapsedMilliseconds}',
+      );
+      if (_loopBudgetExceeded(
+        stage: 'edge_crossing_reduce',
+        watch: watch,
+        budgetMs: 8000,
+        pass: pass + 1,
+        maxPasses: maxPasses,
+      )) {
+        break;
+      }
       if (!improved || current == 0) {
         break;
       }
@@ -1655,6 +1792,7 @@ class AutoLayoutEngine {
       return;
     }
 
+    final watch = Stopwatch()..start();
     var objective = _routingObjective(
       nodeOrder: nodeOrder,
       positions: positions,
@@ -1709,6 +1847,18 @@ class AutoLayoutEngine {
           break;
         }
       }
+      _logAudit(
+        'stage=loop_progress stage=routing_repair pass=${pass + 1}/$maxPasses improved=$improved objective=${objective.toStringAsFixed(1)} elapsedMs=${watch.elapsedMilliseconds}',
+      );
+      if (_loopBudgetExceeded(
+        stage: 'routing_repair',
+        watch: watch,
+        budgetMs: 9000,
+        pass: pass + 1,
+        maxPasses: maxPasses,
+      )) {
+        break;
+      }
       if (!improved) {
         break;
       }
@@ -1732,6 +1882,7 @@ class AutoLayoutEngine {
       return;
     }
 
+    final watch = Stopwatch()..start();
     var currentCross = _countEdgeCrossings(positions, sizeByNode, allEdges);
     if (currentCross == 0) {
       return;
@@ -1772,6 +1923,18 @@ class AutoLayoutEngine {
       positions[bestNode] = positions[bestNode]! + bestDelta;
       currentCross = bestCross;
       accepted++;
+      _logAudit(
+        'stage=loop_progress stage=force_uncross pass=${pass + 1}/$maxPasses crossings=$currentCross elapsedMs=${watch.elapsedMilliseconds}',
+      );
+      if (_loopBudgetExceeded(
+        stage: 'force_uncross',
+        watch: watch,
+        budgetMs: 9000,
+        pass: pass + 1,
+        maxPasses: maxPasses,
+      )) {
+        break;
+      }
       if (currentCross == 0) {
         break;
       }
@@ -1806,15 +1969,38 @@ class AutoLayoutEngine {
       return;
     }
 
+    final watch = Stopwatch()..start();
     var accepted = 0;
     var rejected = 0;
+    final maxPairChecksPerPass = math.max(
+      400,
+      nodeOrder.length * nodeOrder.length,
+    );
+    final maxProposalAttemptsPerPass = math.max(
+      800,
+      nodeOrder.length * nodeOrder.length * 2,
+    );
 
     for (int pass = 0; pass < maxPasses; pass++) {
       var movedPass = false;
+      var pairChecks = 0;
+      var proposalAttempts = 0;
+      var acceptedThisPass = 0;
+      var rejectedThisPass = 0;
+      var guardTriggered = false;
       for (int i = 0; i < nodeOrder.length - 1; i++) {
         final a = nodeOrder[i];
         final pa = positions[a]!;
         for (int j = i + 1; j < nodeOrder.length; j++) {
+          pairChecks++;
+          if (pairChecks > maxPairChecksPerPass) {
+            guardTriggered = true;
+            _logAudit(
+              'stage=loop_guard stage=final_alignment trigger=max_pair_checks pass=${pass + 1}/$maxPasses pairChecks=$pairChecks limit=$maxPairChecksPerPass elapsedMs=${watch.elapsedMilliseconds}',
+            );
+            break;
+          }
+
           final b = nodeOrder[j];
           final pb = positions[b]!;
 
@@ -1825,6 +2011,14 @@ class AutoLayoutEngine {
             final targetY = (pa.dy + pb.dy) / 2;
             final moveA = (targetY - pa.dy).clamp(-maxNodeShift, maxNodeShift);
             final moveB = (targetY - pb.dy).clamp(-maxNodeShift, maxNodeShift);
+            proposalAttempts++;
+            if (proposalAttempts > maxProposalAttemptsPerPass) {
+              guardTriggered = true;
+              _logAudit(
+                'stage=loop_guard stage=final_alignment trigger=max_proposals pass=${pass + 1}/$maxPasses proposals=$proposalAttempts limit=$maxProposalAttemptsPerPass elapsedMs=${watch.elapsedMilliseconds}',
+              );
+              break;
+            }
             if (_tryAlignedMove(
               moves: {
                 a: Offset(pa.dx, pa.dy + moveA),
@@ -1842,9 +2036,11 @@ class AutoLayoutEngine {
               subgraphTitlePadding: subgraphTitlePadding,
             )) {
               accepted++;
+              acceptedThisPass++;
               movedPass = true;
             } else {
               rejected++;
+              rejectedThisPass++;
             }
           }
 
@@ -1852,6 +2048,14 @@ class AutoLayoutEngine {
             final targetX = (pa.dx + pb.dx) / 2;
             final moveA = (targetX - pa.dx).clamp(-maxNodeShift, maxNodeShift);
             final moveB = (targetX - pb.dx).clamp(-maxNodeShift, maxNodeShift);
+            proposalAttempts++;
+            if (proposalAttempts > maxProposalAttemptsPerPass) {
+              guardTriggered = true;
+              _logAudit(
+                'stage=loop_guard stage=final_alignment trigger=max_proposals pass=${pass + 1}/$maxPasses proposals=$proposalAttempts limit=$maxProposalAttemptsPerPass elapsedMs=${watch.elapsedMilliseconds}',
+              );
+              break;
+            }
             if (_tryAlignedMove(
               moves: {
                 a: Offset(pa.dx + moveA, pa.dy),
@@ -1869,12 +2073,37 @@ class AutoLayoutEngine {
               subgraphTitlePadding: subgraphTitlePadding,
             )) {
               accepted++;
+              acceptedThisPass++;
               movedPass = true;
             } else {
               rejected++;
+              rejectedThisPass++;
             }
           }
+
+          if (guardTriggered) {
+            break;
+          }
         }
+        if (guardTriggered) {
+          break;
+        }
+      }
+
+      _logAudit(
+        'stage=loop_progress stage=final_alignment pass=${pass + 1}/$maxPasses moved=$movedPass acceptedPass=$acceptedThisPass rejectedPass=$rejectedThisPass acceptedTotal=$accepted rejectedTotal=$rejected pairs=$pairChecks proposals=$proposalAttempts guard=$guardTriggered elapsedMs=${watch.elapsedMilliseconds}',
+      );
+      if (guardTriggered) {
+        break;
+      }
+      if (_loopBudgetExceeded(
+        stage: 'final_alignment',
+        watch: watch,
+        budgetMs: 8000,
+        pass: pass + 1,
+        maxPasses: maxPasses,
+      )) {
+        break;
       }
 
       if (!movedPass) {
@@ -1923,6 +2152,7 @@ class AutoLayoutEngine {
     required double subgraphTitleBandHeight,
     required double subgraphTitlePadding,
   }) {
+    final bezierSamplingStepPx = _bezierSamplingStepForGraph(nodeOrder.length);
     final before = _collectMetrics(
       nodeOrder: nodeOrder,
       positions: positions,
@@ -1931,7 +2161,7 @@ class AutoLayoutEngine {
       subgraphNodeGroups: groups,
       minGap: minGap,
       direction: 'TD',
-      bezierSamplingStepPx: 10.0,
+      bezierSamplingStepPx: bezierSamplingStepPx,
       subgraphTitleBandHeight: subgraphTitleBandHeight,
       subgraphTitlePadding: subgraphTitlePadding,
     );
@@ -1950,7 +2180,7 @@ class AutoLayoutEngine {
       subgraphNodeGroups: groups,
       minGap: minGap,
       direction: 'TD',
-      bezierSamplingStepPx: 10.0,
+      bezierSamplingStepPx: bezierSamplingStepPx,
       subgraphTitleBandHeight: subgraphTitleBandHeight,
       subgraphTitlePadding: subgraphTitlePadding,
     );
@@ -2008,6 +2238,7 @@ class AutoLayoutEngine {
     required double subgraphTitleBandHeight,
     required double subgraphTitlePadding,
   }) {
+    final watch = Stopwatch()..start();
     final crossings = _countEdgeCrossings(positions, sizeByNode, allEdges);
     final edgeOverNodeHits = _countEdgeOverNodeBezierHits(
       nodeOrder: nodeOrder,
@@ -2044,6 +2275,12 @@ class AutoLayoutEngine {
         subgraphViolations * 180000.0 +
         totalEdgeLength * 0.04 -
         alignmentScore * 2.0;
+
+    if (watch.elapsedMilliseconds > 250) {
+      _logAudit(
+        'stage=metrics_profile elapsedMs=${watch.elapsedMilliseconds} nodes=${nodeOrder.length} edges=${allEdges.length} crossings=$crossings edgeOverNode=$edgeOverNodeHits',
+      );
+    }
 
     return _LayoutMetrics(
       crossings: crossings,
@@ -2092,6 +2329,7 @@ class AutoLayoutEngine {
     required String direction,
     required double samplingStepPx,
   }) {
+    final watch = Stopwatch()..start();
     final flowHorizontal = direction == 'LR' || direction == 'RL';
     final rectByNode = <String, Rect>{
       for (final id in nodeOrder)
@@ -2104,7 +2342,19 @@ class AutoLayoutEngine {
     };
 
     var hits = 0;
+    var segmentsChecked = 0;
+    var edgeIndex = 0;
+    final smallGraph = nodeOrder.length <= 24;
+    final maxSegmentsCheckedTotal = smallGraph
+        ? math.max(120000, allEdges.length * math.max(1, nodeOrder.length) * 48)
+        : math.max(12000, allEdges.length * math.max(1, nodeOrder.length) * 6);
+    final maxSegmentsCheckedPerEdge = smallGraph
+        ? math.max(4000, math.max(1, nodeOrder.length) * 64)
+        : math.max(300, math.max(1, nodeOrder.length) * 8);
+    final maxSegmentsCheckedPerNode = smallGraph ? 96 : 20;
+    var abortedByGuard = false;
     for (final e in allEdges) {
+      edgeIndex++;
       final a = e.$1;
       final b = e.$2;
       final p0 = _nodeCenter(positions[a]!, sizeByNode[a]!);
@@ -2121,22 +2371,96 @@ class AutoLayoutEngine {
         stepPx: samplingStepPx,
       );
 
+      final quickEdgeBounds = Rect.fromLTRB(
+        math.min(p0.dx, p3.dx),
+        math.min(p0.dy, p3.dy),
+        math.max(p0.dx, p3.dx),
+        math.max(p0.dy, p3.dy),
+      ).inflate(minGap * 1.2 + 12.0);
+
+      var edgeSegmentsChecked = 0;
+      var edgeGuardTriggered = false;
       for (final id in nodeOrder) {
         if (id == a || id == b) {
           continue;
         }
         final rect = rectByNode[id]!.inflate(minGap * 0.30);
+        if (!smallGraph && !rect.overlaps(quickEdgeBounds)) {
+          continue;
+        }
         var intersects = false;
-        for (final s in segments) {
+        var nodeSegmentsChecked = 0;
+        final segStride = smallGraph
+            ? 1
+            : math.max(1, (segments.length / 20).ceil());
+        for (int si = 0; si < segments.length; si += segStride) {
+          final s = segments[si];
+          segmentsChecked++;
+          edgeSegmentsChecked++;
+          nodeSegmentsChecked++;
+
+          if (segmentsChecked > maxSegmentsCheckedTotal) {
+            _logAudit(
+              'stage=loop_guard stage=edge_over_node_bezier trigger=max_segments_total edgeIndex=$edgeIndex/${allEdges.length} segmentsChecked=$segmentsChecked limit=$maxSegmentsCheckedTotal hits=$hits elapsedMs=${watch.elapsedMilliseconds}',
+            );
+            abortedByGuard = true;
+            break;
+          }
+          if (edgeSegmentsChecked > maxSegmentsCheckedPerEdge) {
+            _logAudit(
+              'stage=loop_guard stage=edge_over_node_bezier trigger=max_segments_per_edge edgeIndex=$edgeIndex/${allEdges.length} edgeSegmentsChecked=$edgeSegmentsChecked limit=$maxSegmentsCheckedPerEdge node=$id hits=$hits elapsedMs=${watch.elapsedMilliseconds}',
+            );
+            edgeGuardTriggered = true;
+            break;
+          }
+          if (nodeSegmentsChecked > maxSegmentsCheckedPerNode) {
+            _logAudit(
+              'stage=loop_guard stage=edge_over_node_bezier trigger=max_segments_per_node edgeIndex=$edgeIndex/${allEdges.length} node=$id nodeSegmentsChecked=$nodeSegmentsChecked limit=$maxSegmentsCheckedPerNode elapsedMs=${watch.elapsedMilliseconds}',
+            );
+            break;
+          }
+
           if (_segmentIntersectsRect(s.$1, s.$2, rect)) {
             intersects = true;
             break;
           }
         }
+        if (abortedByGuard || edgeGuardTriggered) {
+          break;
+        }
         if (intersects) {
           hits++;
         }
       }
+
+      if (abortedByGuard) {
+        break;
+      }
+
+      if (watch.elapsedMilliseconds > 1500 && edgeIndex % 8 == 0) {
+        _logAudit(
+          'stage=loop_progress stage=edge_over_node_bezier edgeIndex=$edgeIndex/${allEdges.length} segmentsChecked=$segmentsChecked hits=$hits elapsedMs=${watch.elapsedMilliseconds}',
+        );
+      }
+
+      if (_loopBudgetExceeded(
+        stage: 'edge_over_node_bezier',
+        watch: watch,
+        budgetMs: 6000,
+        pass: edgeIndex,
+        maxPasses: allEdges.length,
+      )) {
+        _logAudit(
+          'stage=loop_guard stage=edge_over_node_bezier trigger=budget_partial_return edgeIndex=$edgeIndex/${allEdges.length} segmentsChecked=$segmentsChecked hits=$hits',
+        );
+        break;
+      }
+    }
+
+    if (watch.elapsedMilliseconds > 1200 || abortedByGuard) {
+      _logAudit(
+        'stage=edge_over_node_profile edges=${allEdges.length} segmentsChecked=$segmentsChecked hits=$hits abortedByGuard=${abortedByGuard ? 'true' : 'false'} elapsedMs=${watch.elapsedMilliseconds}',
+      );
     }
 
     return hits;
@@ -2293,13 +2617,23 @@ class AutoLayoutEngine {
       allEdges: allEdges,
       minGap: minGap,
       direction: 'TD',
-      samplingStepPx: 10,
+      samplingStepPx: _bezierSamplingStepForGraph(nodeOrder.length),
     );
     final edgeLen = _totalEdgeLength(positions, sizeByNode, allEdges);
     return crossings * 1000000.0 +
         edgeOverNode * 220000.0 +
         overlap * 120000.0 +
         edgeLen * 0.04;
+  }
+
+  static double _bezierSamplingStepForGraph(int nodeCount) {
+    if (nodeCount <= 24) {
+      return 10.0;
+    }
+    if (nodeCount <= 32) {
+      return 16.0;
+    }
+    return 24.0;
   }
 
   static double _totalEdgeLength(
@@ -2518,6 +2852,22 @@ class AutoLayoutEngine {
       _auditTrail.removeRange(0, _auditTrail.length - _maxAuditTrailLines);
     }
     debugPrint(line);
+  }
+
+  static bool _loopBudgetExceeded({
+    required String stage,
+    required Stopwatch watch,
+    required int budgetMs,
+    required int pass,
+    required int maxPasses,
+  }) {
+    if (watch.elapsedMilliseconds <= budgetMs) {
+      return false;
+    }
+    _logAudit(
+      'stage=budget_guard stageName=$stage elapsedMs=${watch.elapsedMilliseconds} budgetMs=$budgetMs pass=$pass maxPasses=$maxPasses action=break',
+    );
+    return true;
   }
 }
 
