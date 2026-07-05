@@ -221,6 +221,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
         for (final b in layoutBlocks)
           {
             'id': b.id,
+            'title': b.title,
             'x': double.parse(b.position.dx.toStringAsFixed(2)),
             'y': double.parse(b.position.dy.toStringAsFixed(2)),
             'width': double.parse(b.size.width.toStringAsFixed(2)),

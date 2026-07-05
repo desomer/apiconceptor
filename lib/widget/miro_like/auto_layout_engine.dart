@@ -78,7 +78,7 @@ class AutoLayoutEngine {
   static const double ALIGN_MAX_MOVE_X = 60.0; // Max movement per node (X)
   static const double ALIGN_MAX_MOVE_Y = 60.0; // Max movement per node (Y)
   static const double ALIGN_EDGE_GROWTH_PENALTY =
-      0.15; // Max allowed edge length growth (15%)
+      1.0; // Max allowed edge length growth (100%)
 
   static void setDiagnosticsLogsEnabled(bool enabled) {
     enableDiagnosticsLogs = enabled;
@@ -391,9 +391,9 @@ class AutoLayoutEngine {
       subgraphTitleBandHeight: subgraphTitleBandHeight,
       subgraphTitlePadding: subgraphTitlePadding,
       maxPasses: profile.maxPassesFinalAlignment,
-      snapToleranceX: 6.0,
-      snapToleranceY: 6.0,
-      maxNodeShift: 18.0,
+      snapToleranceX: ALIGN_TOLERANCE_X,
+      snapToleranceY: ALIGN_TOLERANCE_Y,
+      maxNodeShift: ALIGN_MAX_MOVE_X,
       alignmentPriority: quality.alignmentPriority,
     );
     _logAudit(
@@ -625,6 +625,16 @@ class AutoLayoutEngine {
       minOuterGapSubgraph: minOuterGapSubgraph,
       subgraphTitleBandHeight: subgraphTitleBandHeight,
       subgraphTitlePadding: subgraphTitlePadding,
+    );
+
+    // Apply final alignment to positions (with strict constraints)
+    _alignFinalPositions(
+      nodeOrder: nodeOrder,
+      positions: selected,
+      sizeByNode: sizes,
+      allEdges: allEdges,
+      minGap: minGap,
+      direction: direction,
     );
 
     final finalMetrics = _collectMetrics(
@@ -2176,18 +2186,20 @@ class AutoLayoutEngine {
 
     // Initial metrics before alignment
     final samplingStepPx = _bezierSamplingStepForGraph(nodeOrder.length);
-    final metricsInit = _collectMetrics(
+    var currentMetrics = _collectMetrics(
       nodeOrder: nodeOrder,
       positions: positions,
       sizeByNode: sizeByNode,
       allEdges: allEdges,
       subgraphNodeGroups: const [],
       minGap: minGap,
-      direction: direction,
+      direction: "",  //direction,
       bezierSamplingStepPx: samplingStepPx,
       subgraphTitleBandHeight: 24.0,
       subgraphTitlePadding: 8.0,
     );
+    // Protect against re-introducing edgeOverNode
+    final initialEdgeOverNode = currentMetrics.edgeOverNodeHits;
 
     for (int pass = 0; pass < maxPasses; pass++) {
       var improved = false;
@@ -2259,21 +2271,25 @@ class AutoLayoutEngine {
             );
 
             // Accept only if:
+            // - No re-introduction of edgeOverNode (STRICT!)
             // - Hard violations unchanged/improved
             // - Edge crossings unchanged/improved
-            // - Edge over node unchanged/improved
             // - Edge length growth < threshold
+            final noNewEdgeOverNode =
+                !(initialEdgeOverNode == 0 && metricsNew.edgeOverNodeHits > 0);
             final hardViolationOk =
-                metricsNew.hardViolation <= metricsInit.hardViolation;
-            final crossingOk = metricsNew.crossings <= metricsInit.crossings;
-            final edgeOverNodeOk =
-                metricsNew.edgeOverNodeHits <= metricsInit.edgeOverNodeHits;
+                metricsNew.hardViolation <= currentMetrics.hardViolation;
+            final crossingOk = metricsNew.crossings <= currentMetrics.crossings;
             final edgeLenGrowth =
-                (metricsNew.totalEdgeLength - metricsInit.totalEdgeLength) /
-                math.max(1.0, metricsInit.totalEdgeLength);
+                (metricsNew.totalEdgeLength - currentMetrics.totalEdgeLength) /
+                math.max(1.0, currentMetrics.totalEdgeLength);
             final edgeLenOk = edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
 
-            if (hardViolationOk && crossingOk && edgeOverNodeOk && edgeLenOk) {
+            if (noNewEdgeOverNode &&
+                hardViolationOk &&
+                crossingOk &&
+                edgeLenOk) {
+              currentMetrics = metricsNew;
               alignedX++;
               improved = true;
             } else {
@@ -2313,16 +2329,20 @@ class AutoLayoutEngine {
             );
 
             final hardViolationOk =
-                metricsNew.hardViolation <= metricsInit.hardViolation;
-            final crossingOk = metricsNew.crossings <= metricsInit.crossings;
-            final edgeOverNodeOk =
-                metricsNew.edgeOverNodeHits <= metricsInit.edgeOverNodeHits;
+                metricsNew.hardViolation <= currentMetrics.hardViolation;
+            final crossingOk = metricsNew.crossings <= currentMetrics.crossings;
+            final noNewEdgeOverNode =
+                !(initialEdgeOverNode == 0 && metricsNew.edgeOverNodeHits > 0);
             final edgeLenGrowth =
-                (metricsNew.totalEdgeLength - metricsInit.totalEdgeLength) /
-                math.max(1.0, metricsInit.totalEdgeLength);
+                (metricsNew.totalEdgeLength - currentMetrics.totalEdgeLength) /
+                math.max(1.0, currentMetrics.totalEdgeLength);
             final edgeLenOk = edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
 
-            if (hardViolationOk && crossingOk && edgeOverNodeOk && edgeLenOk) {
+            if (noNewEdgeOverNode &&
+                hardViolationOk &&
+                crossingOk &&
+                edgeLenOk) {
+              currentMetrics = metricsNew;
               alignedY++;
               improved = true;
             } else {
@@ -2348,7 +2368,165 @@ class AutoLayoutEngine {
     }
 
     _logAudit(
-      'stage=align_nodes_on_axes alignedX=$alignedX alignedY=$alignedY elapsedMs=${watch.elapsedMilliseconds}',
+      'stage=align_nodes_on_axes alignedX=$alignedX alignedY=$alignedY initialEdgeOverNode=$initialEdgeOverNode finalEdgeOverNode=${currentMetrics.edgeOverNodeHits} elapsedMs=${watch.elapsedMilliseconds}',
+    );
+  }
+
+  /// Apply strict final alignment to positions (after seed decision).
+  /// Pair-wise iterative spatial alignment: for each pair of nodes that are
+  /// visually close on an axis, snap them to the same coordinate (min = left/top edge).
+  /// Strict validation ensures no metric degrades.
+  static void _alignFinalPositions({
+    required List<String> nodeOrder,
+    required Map<String, Offset> positions,
+    required Map<String, Size> sizeByNode,
+    required List<(String, String)> allEdges,
+    required double minGap,
+    required String direction,
+  }) {
+    if (nodeOrder.length < 2) return;
+
+    final watch = Stopwatch()..start();
+    var alignedX = 0;
+    var alignedY = 0;
+
+    final samplingStepPx = _bezierSamplingStepForGraph(nodeOrder.length);
+    var baselineMetrics = _collectMetrics(
+      nodeOrder: nodeOrder,
+      positions: positions,
+      sizeByNode: sizeByNode,
+      allEdges: allEdges,
+      subgraphNodeGroups: const [],
+      minGap: minGap,
+      direction: direction,
+      bezierSamplingStepPx: samplingStepPx,
+      subgraphTitleBandHeight: 24.0,
+      subgraphTitlePadding: 8.0,
+    );
+
+    _logAudit(
+      'stage=align_final_positions_start baseline: crossings=${baselineMetrics.crossings} eON=${baselineMetrics.edgeOverNodeHits} hard=${baselineMetrics.hardViolation} obj=${baselineMetrics.objective.toStringAsFixed(2)}',
+    );
+
+    // Iterative pair-wise alignment: repeat until no more improvement
+    for (int pass = 0; pass < 10; pass++) {
+      var improved = false;
+
+      for (int i = 0; i < nodeOrder.length - 1; i++) {
+        final idA = nodeOrder[i];
+        for (int j = i + 1; j < nodeOrder.length; j++) {
+          final idB = nodeOrder[j];
+
+          final posA = positions[idA]!;
+          final posB = positions[idB]!;
+
+          final dx = (posA.dx - posB.dx).abs();
+          final dy = (posA.dy - posB.dy).abs();
+
+          // Try X alignment (left-edge snap to leftmost)
+          if (dx > 0.1 && dx <= ALIGN_TOLERANCE_X) {
+            final targetX = math.min(posA.dx, posB.dx);
+            // Move the one that is NOT at targetX
+            final idToMove = posA.dx < posB.dx ? idB : idA;
+            final old = positions[idToMove]!;
+            final delta = targetX - old.dx;
+
+            if (delta.abs() <= ALIGN_MAX_MOVE_X) {
+              positions[idToMove] = Offset(targetX, old.dy);
+
+              final metricsNew = _collectMetrics(
+                nodeOrder: nodeOrder,
+                positions: positions,
+                sizeByNode: sizeByNode,
+                allEdges: allEdges,
+                subgraphNodeGroups: const [],
+                minGap: minGap,
+                direction: direction,
+                bezierSamplingStepPx: samplingStepPx,
+                subgraphTitleBandHeight: 24.0,
+                subgraphTitlePadding: 8.0,
+              );
+
+              final edgeLenGrowth = (metricsNew.totalEdgeLength - baselineMetrics.totalEdgeLength) /
+                  math.max(1.0, baselineMetrics.totalEdgeLength);
+              final ok = metricsNew.crossings <= baselineMetrics.crossings &&
+                  metricsNew.edgeOverNodeHits <= baselineMetrics.edgeOverNodeHits &&
+                  metricsNew.hardViolation <= baselineMetrics.hardViolation &&
+                  edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
+
+              _logAudit(
+                'stage=align_final_positions X pass=${pass+1} move=$idToMove dx=${delta.toStringAsFixed(1)} => ${ok ? "ACCEPT" : "REJECT"} hard=${metricsNew.hardViolation} eON=${metricsNew.edgeOverNodeHits} edgeLenGrowth=${(edgeLenGrowth * 100).toStringAsFixed(1)}%',
+              );
+
+              if (ok) {
+                baselineMetrics = metricsNew;
+                alignedX++;
+                improved = true;
+              } else {
+                positions[idToMove] = old;
+              }
+            }
+          }
+
+          // Try Y alignment (top-edge snap to topmost)
+          if (dy > 0.1 && dy <= ALIGN_TOLERANCE_Y) {
+            final targetY = math.min(posA.dy, posB.dy);
+            final idToMove = posA.dy < posB.dy ? idB : idA;
+            final old = positions[idToMove]!;
+            final delta = targetY - old.dy;
+
+            if (delta.abs() <= ALIGN_MAX_MOVE_Y) {
+              positions[idToMove] = Offset(old.dx, targetY);
+
+              final metricsNew = _collectMetrics(
+                nodeOrder: nodeOrder,
+                positions: positions,
+                sizeByNode: sizeByNode,
+                allEdges: allEdges,
+                subgraphNodeGroups: const [],
+                minGap: minGap,
+                direction: direction,
+                bezierSamplingStepPx: samplingStepPx,
+                subgraphTitleBandHeight: 24.0,
+                subgraphTitlePadding: 8.0,
+              );
+
+              final edgeLenGrowthY = (metricsNew.totalEdgeLength - baselineMetrics.totalEdgeLength) /
+                  math.max(1.0, baselineMetrics.totalEdgeLength);
+              final ok = metricsNew.crossings <= baselineMetrics.crossings &&
+                  metricsNew.edgeOverNodeHits <= baselineMetrics.edgeOverNodeHits &&
+                  metricsNew.hardViolation <= baselineMetrics.hardViolation &&
+                  edgeLenGrowthY <= ALIGN_EDGE_GROWTH_PENALTY;
+
+              _logAudit(
+                'stage=align_final_positions Y pass=${pass+1} move=$idToMove dy=${delta.toStringAsFixed(1)} => ${ok ? "ACCEPT" : "REJECT"} hard=${metricsNew.hardViolation} eON=${metricsNew.edgeOverNodeHits} edgeLenGrowth=${(edgeLenGrowthY * 100).toStringAsFixed(1)}%',
+              );
+
+              if (ok) {
+                baselineMetrics = metricsNew;
+                alignedY++;
+                improved = true;
+              } else {
+                positions[idToMove] = old;
+              }
+            }
+          }
+        }
+      }
+
+      if (!improved) break;
+
+      if (_loopBudgetExceeded(
+        stage: 'align_final_positions',
+        watch: watch,
+        budgetMs: 3000,
+        pass: pass + 1,
+        maxPasses: 10,
+      )) break;
+    }
+
+    _logAudit(
+      'stage=align_final_positions_end alignedX=$alignedX alignedY=$alignedY elapsedMs=${watch.elapsedMilliseconds}',
     );
   }
 
@@ -2491,7 +2669,7 @@ class AutoLayoutEngine {
           final dy = pb.dy - pa.dy;
 
           if (dy.abs() <= snapToleranceY) {
-            final targetY = (pa.dy + pb.dy) / 2;
+            final targetY = math.min(pa.dy, pb.dy);
             final moveA = (targetY - pa.dy).clamp(-maxNodeShift, maxNodeShift);
             final moveB = (targetY - pb.dy).clamp(-maxNodeShift, maxNodeShift);
             proposalAttempts++;
@@ -2528,7 +2706,7 @@ class AutoLayoutEngine {
           }
 
           if (dx.abs() <= snapToleranceX) {
-            final targetX = (pa.dx + pb.dx) / 2;
+            final targetX = math.min(pa.dx, pb.dx);
             final moveA = (targetX - pa.dx).clamp(-maxNodeShift, maxNodeShift);
             final moveB = (targetX - pb.dx).clamp(-maxNodeShift, maxNodeShift);
             proposalAttempts++;
@@ -2693,7 +2871,7 @@ class AutoLayoutEngine {
     final keepsHard =
         after.nodeOverlapPairs <= before.nodeOverlapPairs &&
         after.subgraphViolations <= before.subgraphViolations &&
-        after.edgeOverNodeHits <= before.edgeOverNodeHits + 1 &&
+        after.edgeOverNodeHits <= before.edgeOverNodeHits &&
         gapAfter.innerViolations <= gapBefore.innerViolations &&
         gapAfter.outerViolations <= gapBefore.outerViolations;
 
