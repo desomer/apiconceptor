@@ -148,6 +148,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
           ..._buildAnchorHandles(),
         if (!_isSequenceDiagramView) ..._buildInflectionHandles(),
         ..._buildLinkLabelHandles(),
+        ..._buildLinkWebLinkBadges(),
       ],
       onCanvasPrimaryDragStart: (details) {
         setState(() {
@@ -608,6 +609,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             onDeleteLink: _deleteLink,
             onConnectorTypeChanged: _handleConnectorTypeChanged,
             onLinkAutoLayoutLockChanged: _handleLinkAutoLayoutLockChanged,
+            onLinkWebLinksJsonChanged: _handleLinkWebLinksJsonChanged,
             onLinkSequenceArrowTypeChanged: _handleLinkSequenceArrowTypeChanged,
             isSequenceDiagramMode: _isSequenceDiagramView,
           ),

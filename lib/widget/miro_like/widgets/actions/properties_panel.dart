@@ -3,7 +3,9 @@ import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/miro_like/mermaid_sequence_codec.dart';
+import 'package:jsonschema/widget/miro_like/models/link_manager.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
+import 'package:jsonschema/widget/miro_like/widgets/link_manager.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'dart:convert';
 import '../../models/block_model.dart';
@@ -59,6 +61,7 @@ class PropertiesPanel extends StatefulWidget {
   final Function(BlockLink)? onDeleteLink;
   final Function(BlockLink, ConnectorType)? onConnectorTypeChanged;
   final Function(BlockLink, bool)? onLinkAutoLayoutLockChanged;
+  final Function(BlockLink, String)? onLinkWebLinksJsonChanged;
   final Function(BlockLink, String?)? onLinkSequenceArrowTypeChanged;
   final bool isSequenceDiagramMode;
 
@@ -102,6 +105,7 @@ class PropertiesPanel extends StatefulWidget {
     this.onDeleteLink,
     this.onConnectorTypeChanged,
     this.onLinkAutoLayoutLockChanged,
+    this.onLinkWebLinksJsonChanged,
     this.onLinkSequenceArrowTypeChanged,
     this.isSequenceDiagramMode = false,
   });
@@ -415,6 +419,32 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
 
     final fallback = (block.iconBase64 ?? '').trim();
     return fallback.isEmpty ? null : fallback;
+  }
+
+  List<WebLink> _webLinksFromLink(BlockLink link) {
+    final raw = (link.webLinksJson ?? '').trim();
+    if (raw.isEmpty) {
+      return const <WebLink>[];
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const <WebLink>[];
+      }
+      return decoded
+          .map(WebLink.fromJson)
+          .whereType<WebLink>()
+          .toList(growable: false);
+    } catch (_) {
+      return const <WebLink>[];
+    }
+  }
+
+  String _webLinksToJson(List<WebLink> links) {
+    return jsonEncode(
+      links.map((link) => link.toJson()).toList(growable: false),
+    );
   }
 
   @override
@@ -889,13 +919,13 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
               onPressed: () async {
-                await onTapProposal();
+                await onTapProposalApp();
 
                 // _blockTitleController.text = value;
                 // widget.onBlockTitleChanged?.call(block.id, value);
               },
               icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
-              label: const Text('proposal'),
+              label: const Text('proposal app'),
             ),
           ),
           if (widget.currentSubgraphTitle != null) ...[
@@ -1173,7 +1203,63 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     );
   }
 
-  Future<List<ProposalInfo>> searchProposal(String query) async {
+  Future<List<ProposalInfo>> searchProposalApp(String query) async {
+    List? resultsbdd = await bddStorage.supabase.rpc(
+      'search_apm',
+      params: {
+        'q': query,
+        'lang': 'english',
+        'company_id': currentCompany.companyId,
+      },
+    );
+
+    List<ProposalInfo> existingProposals = [];
+    if (resultsbdd != null) {
+      for (var element in resultsbdd) {
+        Map<String, dynamic> hasProp = {...element['prop'] ?? {}};
+
+        // String attrId = element['attr_id'];
+        // String schemaId = element['schema_id'];
+        String namespace = element['namespace'];
+        // String companyId = element['company_id'];
+
+        // var listModel = await bddStorage.supabase
+        //     .from('attributs')
+        //     .select('*')
+        //     .eq('schema_id', schemaId)
+        //     .eq('category', 'apm')
+        //     .eq('attr_id', attrId)
+        //     .eq('namespace', namespace)
+        //     .eq('company_id', companyId);
+
+        // if (listModel.isEmpty) continue;
+        //get Namespace name
+        var aDomain =
+            currentCompany.listDomain
+                ?.getNodeByMasterIdPath(namespace)
+                ?.info
+                .name ??
+            '';
+        var modelName = element['path'].split('>').last ?? 'unknown';
+        var path = element['path'].replaceAll('>', '.');
+        if (path.startsWith('root.')) {
+          path = path.substring(5);
+        }
+
+        var proposalInfo = ProposalInfo(
+          name: path.split('.').last,
+          path: path,
+          properties: hasProp,
+          model: modelName,
+          domain: aDomain,
+        );
+        existingProposals.add(proposalInfo);
+      }
+    }
+    return existingProposals;
+  }
+
+  Future<List<ProposalInfo>> searchProposalLink(String query) async {
     List? resultsbdd = await bddStorage.supabase.rpc(
       'search_apm',
       params: {
@@ -1231,7 +1317,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
 
   BuildContext? loadingContext;
 
-  Future<Null> onTapProposal() async {
+  Future<Null> onTapProposalApp() async {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -1256,7 +1342,101 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     String query = widget.selectedBlock?.title ?? '';
 
     //pop le dialog de loading
-    List<ProposalInfo> result = await searchProposal(query);
+    List<ProposalInfo> result = await searchProposalApp(query);
+
+    // ignore: use_build_context_synchronously
+    Navigator.of(loadingContext!).pop();
+    if (!context.mounted) return;
+
+    var scoreTxt = '';
+
+    showDialog<void>(
+      // ignore: use_build_context_synchronously
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Search results for "$query"'),
+          content: SizedBox(
+            width: 500,
+            child: result.isEmpty
+                ? Text('No result found for "$query"')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: result.length,
+                    itemBuilder: (context, index) {
+                      final r = result[index];
+                      return AnimatedTooltip(
+                        content: Column(
+                          //children: getTooltipFromProposal(r.item),
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.blueGrey.withAlpha(130),
+                            ),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              dense: true,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              onTap: () {
+                                applyProposal(widget.selectedBlock!, r);
+                                Navigator.of(dialogContext).pop();
+                              },
+                              //leading: getColorIndicatorFromScore(r.score),
+                              title: Text(
+                                '${index + 1}.) ${r.name} from ${r.domain}.${r.model} ',
+                              ),
+                              subtitle: Text('${r.path}  score: $scoreTxt'),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<Null> onTapProposalLink() async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        loadingContext = dialogContext;
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(width: 14),
+                const Text('Recherche en cours...'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    String query = widget.selectedLink?.name ?? '';
+
+    //pop le dialog de loading
+    List<ProposalInfo> result = await searchProposalApp(query);
 
     // ignore: use_build_context_synchronously
     Navigator.of(loadingContext!).pop();
@@ -1389,12 +1569,12 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
               onPressed: () {
-                const value = 'proposal';
-                _blockTitleController.text = value;
-                widget.onBlockTitleChanged?.call(block.id, value);
+                // const value = 'proposal';
+                // _blockTitleController.text = value;
+                // widget.onBlockTitleChanged?.call(block.id, value);
               },
               icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
-              label: const Text('proposal'),
+              label: const Text('proposal ?'),
             ),
           ),
           const SizedBox(height: 12),
@@ -1789,6 +1969,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         : defaultArrowType;
     final isDashedArrow = _isDashedArrowType(effectiveArrowType);
     final arrowAccent = _mermaidArrowAccentColor(effectiveArrowType);
+    final webLinks = _webLinksFromLink(link);
 
     return _buildPanelContainer(
       child: Column(
@@ -2043,14 +2224,25 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: () {
-                const value = 'proposal';
-                _linkNameController.text = value;
-                widget.onLinkNameChanged?.call(link, value);
+              onPressed: () async {
+                await onTapProposalLink();
+                // const value = 'proposal';
+                // _linkNameController.text = value;
+                // widget.onLinkNameChanged?.call(link, value);
               },
               icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
-              label: const Text('proposal'),
+              label: const Text('proposal link'),
             ),
+          ),
+          const SizedBox(height: 12),
+          WebLinkManager(
+            links: webLinks,
+            onLinksChanged: (links) {
+              widget.onLinkWebLinksJsonChanged?.call(
+                link,
+                _webLinksToJson(links),
+              );
+            },
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String?>(

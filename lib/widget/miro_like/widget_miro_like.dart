@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
@@ -15,6 +16,7 @@ import 'models/link_model.dart';
 import 'models/block_model.dart';
 import 'auto_layout_engine.dart';
 import 'widgets/actions/import_export_manager.dart';
+import 'widgets/link_manager.dart';
 import 'mermaid_flowchart_codec.dart';
 import 'mermaid_sequence_codec.dart';
 import 'widgets/anchor_handle_widget.dart';

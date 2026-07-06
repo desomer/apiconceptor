@@ -83,6 +83,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
           ? null
           : _offsetToJson(link.targetAnchorUnit!),
       'autoLayoutLock': link.autoLayoutLock,
+      'webLinksJson': link.webLinksJson,
       'sourceAnchorOrderKey': link.sourceAnchorOrderKey,
       'targetAnchorOrderKey': link.targetAnchorOrderKey,
     };
@@ -259,6 +260,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
               ? null
               : _offsetFromJson(item['targetAnchorUnit']),
           autoLayoutLock: item['autoLayoutLock'] == true,
+          webLinksJson: item['webLinksJson']?.toString(),
         ),
       );
       final sourceOrderKey = item['sourceAnchorOrderKey'];

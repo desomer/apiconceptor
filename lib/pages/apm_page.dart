@@ -16,6 +16,7 @@ class ApmPage extends GenericPageStateless {
       onInitController: (TabController tab) {},
       listTab: [
         Tab(text: 'Applications'),
+        Tab(text: 'Infrastructures'),
         Tab(text: 'Technologies'),
       ],
       listTabCont: [
@@ -26,6 +27,10 @@ class ApmPage extends GenericPageStateless {
             currentCompany.currentAPM = await loadApm('all', true);
             return currentCompany.currentAPM!;
           },
+        ),
+        Container(
+          padding: const EdgeInsets.all(20),
+          child: const Text('Infrastructures', style: TextStyle(fontSize: 20)),
         ),
         PanAPMTechnologie(
           getSchemaFct: () async {

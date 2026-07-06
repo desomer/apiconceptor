@@ -32,6 +32,28 @@ class WidgetAppSheet extends StatelessWidget with PropertyEditorMixin {
       ), // Ex: Nom
 
       AttributeEditorAsync(
+        name: 'technologies.language',
+        type: 'string',
+      ), // Ex: Java 17
+      AttributeEditorAsync(
+        name: 'technologies.framework',
+        type: 'string',
+      ), // Ex: Spring Boot 3
+      AttributeEditorAsync(
+        name: 'technologies.database',
+        type: 'string',
+      ), // Ex: PostgreSQL 14
+      AttributeEditorAsync(
+        name: 'technologies.infrastructure',
+        type: 'string',
+      ), // Ex: Kubernetes | VM | On-prem | Cloud
+      AttributeEditorAsync(
+        name: 'technologies.environments',
+        type: 'string',
+      ), // Ex: Dev | QA | Prod
+
+
+      AttributeEditorAsync(
         name: 'role_and_function.description',
         type: 'string',
       ), // Ex: Description courte de l'application
@@ -118,27 +140,6 @@ class WidgetAppSheet extends StatelessWidget with PropertyEditorMixin {
         name: 'architecture_and_dependencies.critical_flows',
         type: 'string',
       ), // Ex: Sync client | Export comptable
-
-      AttributeEditorAsync(
-        name: 'technologies.language',
-        type: 'string',
-      ), // Ex: Java 17
-      AttributeEditorAsync(
-        name: 'technologies.framework',
-        type: 'string',
-      ), // Ex: Spring Boot 3
-      AttributeEditorAsync(
-        name: 'technologies.database',
-        type: 'string',
-      ), // Ex: PostgreSQL 14
-      AttributeEditorAsync(
-        name: 'technologies.infrastructure',
-        type: 'string',
-      ), // Ex: Kubernetes | VM | On-prem | Cloud
-      AttributeEditorAsync(
-        name: 'technologies.environments',
-        type: 'string',
-      ), // Ex: Dev | QA | Prod
 
       AttributeEditorAsync(
         name: 'costs.licenses',

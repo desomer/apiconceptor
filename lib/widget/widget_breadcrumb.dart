@@ -1,5 +1,6 @@
 import 'package:assorted_layout_widgets/assorted_layout_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/model_design/design_model_page.dart';
@@ -52,11 +53,11 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
     List<Widget> widgets = [];
     int index = 0;
     for (BreadNode route in currentPathOnStack) {
-      Widget? child;
+      Widget? nestedWidget;
 
       if (route.type == BreadNodeType.domain) {
         GlobalKey keyDomain = GlobalKey(debugLabel: 'keyDomain');
-        child = InkWell(
+        nestedWidget = InkWell(
           onTap: () {
             dialogBuilderBelow(
               context,
@@ -106,19 +107,30 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
         );
       }
 
+      var enable =
+          route.type == BreadNodeType.domain ||
+          (route.path != null || route.onTap != null);
+
       Widget btn = _BreadButton(
         route.type,
         //key: route.key,
         currentPathOnStack[index].settings.name ?? '',
         index == 0,
-        route.type == BreadNodeType.domain ||
-            (route.path != null || route.onTap != null),
-        child: child,
+        enable,
+        child: nestedWidget,
       );
 
       if (route.onTap != null || route.path != null) {
         btn = InkWell(
           onTap: () {
+            if (route.type == BreadNodeType.link) {
+              Clipboard.setData(ClipboardData(text: route.path!));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Link copied to clipboard')),
+              );
+              return;
+            }
+
             if (route.onTap != null) {
               route.onTap!();
             }
@@ -143,7 +155,7 @@ class _BreadCrumbNavigatorState extends State<BreadCrumbNavigator>
   }
 }
 
-enum BreadNodeType { widget, domain }
+enum BreadNodeType { widget, domain, link }
 
 class BreadNode extends Route {
   BreadNode({
@@ -183,15 +195,25 @@ class _BreadButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var color = type == BreadNodeType.domain
+        ? Colors.blue
+        : enable
+        ? Colors.blue.withAlpha(50)
+        : Theme.of(context).highlightColor;
+
+    if (type == BreadNodeType.link) {
+      color = Colors.blue.withAlpha(50);
+      return Padding(
+        padding: EdgeInsets.fromLTRB(20, 0, 0, 0),
+        child: Icon(Icons.link, color: Colors.grey),
+      );
+    }
+
     return ClipPath(
       clipper: TriangleClipper(!isFirstButton),
       child: Container(
         key: key,
-        color: type == BreadNodeType.domain
-            ? Colors.blue
-            : enable
-            ? Colors.blue.withAlpha(50)
-            : Theme.of(context).highlightColor,
+        color: color,
         child: Padding(
           padding: EdgeInsetsDirectional.only(
             start: isFirstButton ? 8 : 30,

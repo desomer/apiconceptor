@@ -452,6 +452,15 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     });
   }
 
+  void _handleLinkWebLinksJsonChanged(BlockLink link, String value) {
+    _pushUndoSnapshot();
+    setState(() {
+      final trimmed = value.trim();
+      link.webLinksJson = trimmed.isEmpty ? null : trimmed;
+      _markBoardChanged();
+    });
+  }
+
   void _handleLinkSequenceArrowTypeChanged(BlockLink link, String? value) {
     _pushUndoSnapshot();
     setState(() {

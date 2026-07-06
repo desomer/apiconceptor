@@ -190,6 +190,12 @@ class DesignModelDetailPage extends GenericPageStateless {
           settings: RouteSettings(name: version),
           type: BreadNodeType.widget,
         ),
+        BreadNode(
+          settings: RouteSettings(name: 'link'),
+          type: BreadNodeType.link,
+          path:
+              '${Pages.modelDetail.urlpath}?id=$query&ns=${currentCompany.currentNameSpace}',
+        ),
       ]
       ..actions = getDefaultActionModel(
         keyPage.currentContext ?? context,

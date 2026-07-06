@@ -1,6 +1,90 @@
 part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
+  List<WebLink> _webLinksForLink(BlockLink link) {
+    final raw = (link.webLinksJson ?? '').trim();
+    if (raw.isEmpty) {
+      return const <WebLink>[];
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const <WebLink>[];
+      }
+      return decoded
+          .map(WebLink.fromJson)
+          .whereType<WebLink>()
+          .toList(growable: false);
+    } catch (_) {
+      return const <WebLink>[];
+    }
+  }
+
+  Future<void> _openWebLinkEntry(WebLink link) async {
+    final uri = Uri.tryParse(link.url.trim());
+    if (uri == null) {
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.platformDefault);
+  }
+
+  Future<void> _openWebLinksForLink(BlockLink link) async {
+    final webLinks = _webLinksForLink(link);
+    if (webLinks.isEmpty) {
+      return;
+    }
+
+    if (webLinks.length == 1) {
+      await _openWebLinkEntry(webLinks.first);
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colorPropertiesPanelBg,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                title: Text(
+                  'Choisir un lien',
+                  style: TextStyle(color: colorTextPrimary),
+                ),
+              ),
+              for (final entry in webLinks)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: entry.type.color,
+                    foregroundColor: Colors.white,
+                    child: Text(entry.type.label[0]),
+                  ),
+                  title: Text(
+                    entry.name,
+                    style: const TextStyle(color: colorTextPrimary),
+                  ),
+                  subtitle: Text(
+                    entry.url,
+                    style: const TextStyle(color: colorTextSecondary),
+                  ),
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await _openWebLinkEntry(entry);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   (double, Offset)? _closestDistanceAndPointOnPath(
     Path path,
     Offset tapCanvas,
@@ -289,6 +373,102 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
               _markBoardChanged();
             });
           },
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  List<Widget> _buildLinkWebLinkBadges() {
+    final widgets = <Widget>[];
+    final textScale = zoomLevel;
+
+    for (final link in links) {
+      final webLinks = _webLinksForLink(link);
+      if (webLinks.isEmpty || link.name.trim().isEmpty) {
+        continue;
+      }
+
+      final labelCenter = _linkLabelReferenceCanvas(link);
+      if (labelCenter == null) {
+        continue;
+      }
+
+      final iconExtraWidth = link.labelIconKey == null ? 0.0 : 20.0 * textScale;
+      final labelWidth = math.max(
+        90.0 * textScale,
+        link.name.length * 8.0 * textScale + 28.0 * textScale + iconExtraWidth,
+      );
+      final labelHeight = 32.0 * textScale;
+      final badgeSize = (24.0 * textScale).clamp(0.0, 26.0);
+      final left = labelCenter.dx + labelWidth / 2 - badgeSize * 0.35;
+      final top = labelCenter.dy - labelHeight / 2 - badgeSize * 0.15;
+
+      widgets.add(
+        Positioned(
+          left: left,
+          top: top,
+          width: badgeSize,
+          height: badgeSize,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(badgeSize / 2),
+              onTap: () async {
+                await _openWebLinksForLink(link);
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                  shape: BoxShape.circle,
+                  // border: Border.all(
+                  //   color: const Color(0xFF64C8FF).withValues(alpha: 0.95),
+                  // ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color.fromARGB(90, 0, 0, 0),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.link,
+                      size: badgeSize * 0.52,
+                      color: Colors.white,
+                    ),
+                    if (webLinks.length > 1)
+                      Positioned(
+                        right: 1,
+                        bottom: 1,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 2,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF64C8FF),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${webLinks.length}',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: badgeSize * 0.28,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       );
     }

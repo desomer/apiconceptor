@@ -70,6 +70,7 @@ class BlockLink {
   bool autoLayoutLock = false;
   double? sourceAnchorOrderKey;
   double? targetAnchorOrderKey;
+  String? webLinksJson;
 
   BlockLink({
     required this.fromBlockId,
@@ -89,6 +90,7 @@ class BlockLink {
     this.sourceAnchorUnit,
     this.targetAnchorUnit,
     this.autoLayoutLock = false,
+    this.webLinksJson,
   }) : sequenceBeforeLines = sequenceBeforeLines ?? [],
        sequenceAfterLines = sequenceAfterLines ?? [],
        inflectionPoints = inflectionPoints ?? [];
