@@ -416,7 +416,7 @@ class MermaidFlowchartCodec {
     }
 
     for (final rawLine in lines) {
-      final line = rawLine.trim();
+      final line = _stripInlineClassTokens(rawLine.trim());
       if (line.isEmpty || line.startsWith('%%')) {
         continue;
       }
@@ -565,6 +565,21 @@ class MermaidFlowchartCodec {
         .replaceAll('\r', '\n')
         .replaceAll(r'\n', '\n')
         .replaceAll('/n', '\n');
+  }
+
+  static String _stripInlineClassTokens(String line) {
+    if (line.isEmpty || !line.contains(':::')) {
+      return line;
+    }
+
+    // Mermaid inline class syntax can appear on node refs and edge endpoints:
+    //   A[Node]:::cls --> B:::other
+    // Remove only the :::class segments so the structural parser still matches.
+    final stripped = line.replaceAll(
+      RegExp(r':::[A-Za-z_][A-Za-z0-9_-]*(?:,[A-Za-z_][A-Za-z0-9_-]*)*'),
+      '',
+    );
+    return stripped.trim();
   }
 
   static String _escapeMermaidText(String text) {

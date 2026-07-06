@@ -74,10 +74,10 @@ class AutoLayoutEngine {
   static const int _maxAuditTrailLines = 120000;
 
   // Alignment tolerance constants (in pixels)
-  static const double ALIGN_TOLERANCE_X = 80.0; // Threshold for X-axis grouping
-  static const double ALIGN_TOLERANCE_Y = 80.0; // Threshold for Y-axis grouping
-  static const double ALIGN_MAX_MOVE_X = 60.0; // Max movement per node (X)
-  static const double ALIGN_MAX_MOVE_Y = 60.0; // Max movement per node (Y)
+  static const double ALIGN_TOLERANCE_X = 1000.0; // Threshold for X-axis grouping
+  static const double ALIGN_TOLERANCE_Y = 1000.0; // Threshold for Y-axis grouping
+  static const double ALIGN_MAX_MOVE_X = 1000.0; // Max movement per node (X)
+  static const double ALIGN_MAX_MOVE_Y = 1000.0; // Max movement per node (Y)
   static const double ALIGN_EDGE_GROWTH_PENALTY =
       1.0; // Max allowed edge length growth (100%)
 
@@ -3170,7 +3170,7 @@ class AutoLayoutEngine {
     if (_auditTrail.length > _maxAuditTrailLines) {
       _auditTrail.removeRange(0, _auditTrail.length - _maxAuditTrailLines);
     }
-    debugPrint(line);
+    //debugPrint(line);
   }
 
   static bool _loopBudgetExceeded({
