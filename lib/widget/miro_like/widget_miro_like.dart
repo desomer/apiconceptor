@@ -8,6 +8,7 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/miro_like/layers/miro_canvas_painter.dart';
 import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart';
 import 'package:jsonschema/widget/miro_like/widgets/actions/properties_panel.dart';
+import 'package:jsonschema/widget/widget_comment.dart';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'models/link_manager.dart';
