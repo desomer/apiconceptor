@@ -893,11 +893,11 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            'ID: ${block.id}',
-            style: const TextStyle(color: colorTextSecondary),
-          ),
-          const SizedBox(height: 12),
+          // Text(
+          //   'ID: ${block.id}',
+          //   style: const TextStyle(color: colorTextSecondary),
+          // ),
+          // const SizedBox(height: 12),
           TextFormField(
             key: ValueKey('block-title-${block.id}'),
             controller: _blockTitleController,
@@ -1984,15 +1984,15 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            'Source: ${link.fromBlockId}',
-            style: const TextStyle(color: colorTextSecondary),
-          ),
-          Text(
-            'Cible: ${link.toBlockId}',
-            style: const TextStyle(color: colorTextSecondary),
-          ),
-          const SizedBox(height: 12),
+          // Text(
+          //   'Source: ${link.fromBlockId}',
+          //   style: const TextStyle(color: colorTextSecondary),
+          // ),
+          // Text(
+          //   'Cible: ${link.toBlockId}',
+          //   style: const TextStyle(color: colorTextSecondary),
+          // ),
+          // const SizedBox(height: 12),
           if (allowSequenceElementTypeChoice) ...[
             const Text(
               'Type element sequence',

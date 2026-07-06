@@ -21,22 +21,9 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
     }
   }
 
-  Future<void> _openWebLinkEntry(WebLink link) async {
-    final uri = Uri.tryParse(link.url.trim());
-    if (uri == null) {
-      return;
-    }
-    await launchUrl(uri, mode: LaunchMode.platformDefault);
-  }
-
   Future<void> _openWebLinksForLink(BlockLink link) async {
     final webLinks = _webLinksForLink(link);
     if (webLinks.isEmpty) {
-      return;
-    }
-
-    if (webLinks.length == 1) {
-      await _openWebLinkEntry(webLinks.first);
       return;
     }
 
@@ -44,44 +31,12 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
       return;
     }
 
-    await showModalBottomSheet<void>(
-      context: context,
+    await openWebLinks(
+      context,
+      webLinks,
       backgroundColor: colorPropertiesPanelBg,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const ListTile(
-                title: Text(
-                  'Choisir un lien',
-                  style: TextStyle(color: colorTextPrimary),
-                ),
-              ),
-              for (final entry in webLinks)
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: entry.type.color,
-                    foregroundColor: Colors.white,
-                    child: Text(entry.type.label[0]),
-                  ),
-                  title: Text(
-                    entry.name,
-                    style: const TextStyle(color: colorTextPrimary),
-                  ),
-                  subtitle: Text(
-                    entry.url,
-                    style: const TextStyle(color: colorTextSecondary),
-                  ),
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await _openWebLinkEntry(entry);
-                  },
-                ),
-            ],
-          ),
-        );
-      },
+      titleColor: colorTextPrimary,
+      subtitleColor: colorTextSecondary,
     );
   }
 

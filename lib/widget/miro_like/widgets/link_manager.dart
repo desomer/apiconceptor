@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/pages/router_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Represents a web link with type and metadata
@@ -55,6 +56,75 @@ enum LinkType {
   final Color color;
 
   const LinkType(this.label, this.color);
+}
+
+Future<void> openWebLink(WebLink link, BuildContext context) async {
+
+  if (link.url.trim().startsWith(Pages.modelDetail.urlpath)) {
+    RouteManager.goto(link.url, context);
+    return;
+  }
+
+
+  final uri = Uri.tryParse(link.url.trim());
+  if (uri == null) {
+    return;
+  }
+  await launchUrl(uri, mode: LaunchMode.platformDefault);
+}
+
+Future<void> openWebLinks(
+  BuildContext context,
+  List<WebLink> links, {
+  Color? backgroundColor,
+  Color titleColor = Colors.white,
+  Color subtitleColor = const Color.fromARGB(179, 255, 255, 255),
+}) async {
+  if (links.isEmpty) {
+    return;
+  }
+
+  if (links.length == 1) {
+    await openWebLink(links.first, context);
+    return;
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: backgroundColor,
+    builder: (sheetContext) {
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(
+                'Choisir un lien',
+                style: TextStyle(color: titleColor),
+              ),
+            ),
+            for (final entry in links)
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: entry.type.color,
+                  foregroundColor: Colors.white,
+                  child: Text(entry.type.label[0]),
+                ),
+                title: Text(entry.name, style: TextStyle(color: titleColor)),
+                subtitle: Text(
+                  entry.url,
+                  style: TextStyle(color: subtitleColor),
+                ),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await openWebLink(entry, context);
+                },
+              ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 /// Widget to manage a list of typed web links displayed as wrap tags
@@ -136,14 +206,6 @@ class _WebLinkManagerState extends State<WebLinkManager> {
     );
   }
 
-  Future<void> _openLink(WebLink link) async {
-    final uri = Uri.tryParse(link.url.trim());
-    if (uri == null) {
-      return;
-    }
-    await launchUrl(uri, mode: LaunchMode.platformDefault);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -157,7 +219,7 @@ class _WebLinkManagerState extends State<WebLinkManager> {
               (link) => _LinkTag(
                 link: link,
                 onTap: () => _editLink(link),
-                onDoubleTap: () => _openLink(link),
+                onDoubleTap: () => openWebLink(link, context),
                 onRemove: () => _removeLink(link),
               ),
             ),

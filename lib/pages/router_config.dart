@@ -315,9 +315,14 @@ class RouteManager {
       if (!location.contains('?id=')) {
         location = '$location?id=${currentCompany.currentModel?.id ?? ''}';
       }
-    } else if (location.startsWith("${Pages.api.urlpath}/")) {
+    } 
+    else if (location.startsWith("${Pages.api.urlpath}/")) {
       if (!location.contains('?id=')) {
-        location = '$location?id=${currentCompany.currentModel?.id ?? ''}';
+        //location = '$location?id=${currentCompany.currentModel?.id ?? ''}';
+      }
+    } else if (location.startsWith("${Pages.asyncApi.urlpath}/")) {
+      if (!location.contains('?id=')) {
+        //location = '$location?id=${currentCompany.currentModel?.id ?? ''}';
       }
     }
 
@@ -326,6 +331,8 @@ class RouteManager {
     if (location.startsWith(Pages.models.urlpath)) {
       location = '$location${sep}ns=${currentCompany.currentNameSpace}';
     } else if (location.startsWith(Pages.api.urlpath)) {
+      location = '$location${sep}ns=${currentCompany.currentNameSpace}';
+    }else if (location.startsWith(Pages.asyncApi.urlpath)) {
       location = '$location${sep}ns=${currentCompany.currentNameSpace}';
     }
     return location;

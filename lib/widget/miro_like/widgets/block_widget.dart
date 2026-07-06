@@ -208,7 +208,7 @@ class BlockWidget extends StatelessWidget {
         ? colorBlockBorderSelected
         : colorBlockBorder;
     final iconBytes = _iconBytes();
-    final iconSize = (42.0 * textScale).clamp(30.0, 92.0);
+    final iconSize = 42.0 * textScale;
     final infoIconSize = (15.0 * textScale).clamp(1.0, 22.0);
 
     return SizedBox(
