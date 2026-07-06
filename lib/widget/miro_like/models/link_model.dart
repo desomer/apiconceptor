@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 /// Enum for connector types
 enum ConnectorType { bezier, orthogonal }
@@ -49,6 +50,9 @@ const Map<String, String> kLinkColorLabelMap = {
 
 /// Represents a link between two blocks
 class BlockLink {
+  static final Uuid _uuid = Uuid();
+
+  final String id;
   String fromBlockId;
   String toBlockId;
   String name;
@@ -73,6 +77,7 @@ class BlockLink {
   String? webLinksJson;
 
   BlockLink({
+    String? id,
     required this.fromBlockId,
     required this.toBlockId,
     this.name = '',
@@ -91,7 +96,8 @@ class BlockLink {
     this.targetAnchorUnit,
     this.autoLayoutLock = false,
     this.webLinksJson,
-  }) : sequenceBeforeLines = sequenceBeforeLines ?? [],
+  }) : id = id ?? _uuid.v4(),
+       sequenceBeforeLines = sequenceBeforeLines ?? [],
        sequenceAfterLines = sequenceAfterLines ?? [],
        inflectionPoints = inflectionPoints ?? [];
 }

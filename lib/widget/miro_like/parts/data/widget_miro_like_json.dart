@@ -62,6 +62,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
 
   Map<String, dynamic> _linkToJson(BlockLink link) {
     return {
+      'id': link.id,
       'fromBlockId': link.fromBlockId,
       'toBlockId': link.toBlockId,
       'name': link.name,
@@ -231,6 +232,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
 
       parsed.add(
         BlockLink(
+          id: item['id']?.toString(),
           fromBlockId: fromId,
           toBlockId: toId,
           name: item['name']?.toString() ?? '',

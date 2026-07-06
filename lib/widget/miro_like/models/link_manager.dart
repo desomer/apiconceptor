@@ -101,6 +101,7 @@ class LinkManager {
   /// Serialize a link to JSON
   Map<String, dynamic> linkToJson(BlockLink link) {
     return {
+      'id': link.id,
       'from': link.fromBlockId,
       'to': link.toBlockId,
       'name': link.name,
@@ -167,6 +168,7 @@ class LinkManager {
 
       parsed.add(
         BlockLink(
+          id: item['id']?.toString(),
           fromBlockId: from,
           toBlockId: to,
           name: item['name']?.toString() ?? '',

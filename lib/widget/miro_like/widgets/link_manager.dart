@@ -61,6 +61,8 @@ enum LinkType {
 Future<void> openWebLink(WebLink link, BuildContext context) async {
 
   if (link.url.trim().startsWith(Pages.modelDetail.urlpath)) {
+    await prepareDeepLinking(Uri.parse(link.url));
+    // ignore: use_build_context_synchronously
     RouteManager.goto(link.url, context);
     return;
   }

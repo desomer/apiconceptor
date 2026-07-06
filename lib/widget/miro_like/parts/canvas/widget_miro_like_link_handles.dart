@@ -228,35 +228,28 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
   }
 
   String _linkCommentContextId(BlockLink link) {
-    return jsonEncode([
-      link.fromBlockId,
-      link.toBlockId,
-      link.name.trim(),
-      link.labelIconKey ?? '',
-      link.connectorType.name,
-      link.sequenceArrowType ?? '',
-    ]);
+    return 'apm/link/${link.id}';
   }
 
   Widget _buildLinkCommentBadge({
     required double size,
     required bool selected,
   }) {
-    final iconSize = (size * 0.62).clamp(8.0, 16.0);
-    final bgColor = selected
-        ? colorLinkSelected.withValues(alpha: 0.2)
-        : const Color(0xFF0F172A).withValues(alpha: 0.88);
-    final borderColor = selected ? colorLinkSelected : Colors.white24;
+    final iconSize = (size * 0.62).clamp(1.0, 20.0);
+    // final bgColor = selected
+    //     ? colorLinkSelected.withValues(alpha: 0.2)
+    //     : const Color(0xFF0F172A).withValues(alpha: 0.88);
+    // final borderColor = selected ? colorLinkSelected : Colors.white24;
 
     return Center(
-      child: Container(
+      child: SizedBox(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(size / 2),
-          border: Border.all(color: borderColor, width: 1),
-        ),
+        // decoration: BoxDecoration(
+        //   color: bgColor,
+        //   borderRadius: BorderRadius.circular(size / 2),
+        //   border: Border.all(color: borderColor, width: 1),
+        // ),
         child: Icon(
           selected ? Icons.comment : Icons.add_comment_outlined,
           size: iconSize,
@@ -334,17 +327,14 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
 
       final iconExtraWidth = link.labelIconKey == null ? 0.0 : 20.0 * textScale;
       final width = math.max(
-        90.0 * textScale,
-        link.name.length * 8.0 * textScale + 28.0 * textScale + iconExtraWidth,
+        30.0 * textScale,
+        link.name.length * 6.0 * textScale + 28.0 * textScale + iconExtraWidth,
       );
       final height = 32.0 * textScale;
-      final badgeSize = (18.0 * textScale).clamp(14.0, 24.0);
-      final badgeLeft = labelCenter.dx + (width / 2) - (badgeSize * 0.55);
-      final badgeTop = labelCenter.dy - (height / 2) - (badgeSize * 0.55);
 
       widgets.add(
         LinkLabelHandleWidget(
-          left: labelCenter.dx - width / 2,
+          left: labelCenter.dx - width/2,
           top: labelCenter.dy - height / 2,
           width: width,
           height: height,
@@ -373,6 +363,10 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
         ),
       );
 
+      final badgeSize = (24.0 * textScale).clamp(0.0, 24.0);
+      final badgeLeft = labelCenter.dx + (width / 2) - (badgeSize * 0.6);
+      final badgeTop = labelCenter.dy + (badgeSize * 0.1);
+      /*+ (height / 2)*/ //+ (badgeSize * 0.15);
       widgets.add(
         Positioned(
           left: badgeLeft,
@@ -411,13 +405,13 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
 
       final iconExtraWidth = link.labelIconKey == null ? 0.0 : 20.0 * textScale;
       final labelWidth = math.max(
-        90.0 * textScale,
-        link.name.length * 8.0 * textScale + 28.0 * textScale + iconExtraWidth,
+        30.0 * textScale,
+        link.name.length * 6.0 * textScale + 28.0 * textScale + iconExtraWidth,
       );
       final labelHeight = 32.0 * textScale;
       final badgeSize = (24.0 * textScale).clamp(0.0, 26.0);
-      final left = labelCenter.dx + labelWidth / 2 - badgeSize * 0.35;
-      final top = labelCenter.dy - labelHeight / 2 - badgeSize * 0.15;
+      final left = labelCenter.dx + labelWidth / 2 - badgeSize * 0.6;
+      final top = labelCenter.dy - labelHeight / 2 - badgeSize * 0.1;
 
       widgets.add(
         Positioned(
