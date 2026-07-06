@@ -1341,7 +1341,7 @@ class AutoLayoutEngine {
 
       final active = group.where(positions.containsKey).toList(growable: false);
       final bounds = _subgraphBounds(active, positions, sizeByNode);
-      
+
       // For single isolated node: place it at centroid
       if (isolated.length == 1) {
         final id = isolated.first;
@@ -1656,19 +1656,22 @@ class AutoLayoutEngine {
             blocker: r,
             clearance: minOuterGapSubgraph + subgraphTitleBandHeight * 0.2,
           );
-          
+
           // Apply damping: reduce push magnitude in later passes to prevent divergence
           // Early passes get full magnitude, later passes are reduced by up to 50%
           final dampingFactor = 0.5 + 0.5 * (3 - pass) / 4;
-          final dampedPush = Offset(push.dx * dampingFactor, push.dy * dampingFactor);
-          
+          final dampedPush = Offset(
+            push.dx * dampingFactor,
+            push.dy * dampingFactor,
+          );
+
           // Log violations and pushes for debugging
           if (pass < 3 || movedPass < 5) {
             _logAudit(
               'stage=subgraph_membership_violation_detail pass=${pass + 1} nodeId=$id group_idx=$gi nodePos=(${positions[id]!.dx.toStringAsFixed(0)},${positions[id]!.dy.toStringAsFixed(0)}) groupRect=left:${r.left.toStringAsFixed(0)} right:${r.right.toStringAsFixed(0)} top:${r.top.toStringAsFixed(0)} bottom:${r.bottom.toStringAsFixed(0)} push=(${dampedPush.dx.toStringAsFixed(1)},${dampedPush.dy.toStringAsFixed(1)}) damping=${dampingFactor.toStringAsFixed(2)}',
             );
           }
-          
+
           positions[id] = positions[id]! + dampedPush;
           movedPass++;
         }
@@ -1932,7 +1935,10 @@ class AutoLayoutEngine {
       maxY = math.max(maxY, p.dy);
     }
 
-    if (minX.isInfinite || maxX.isInfinite || minY.isInfinite || maxY.isInfinite) {
+    if (minX.isInfinite ||
+        maxX.isInfinite ||
+        minY.isInfinite ||
+        maxY.isInfinite) {
       return;
     }
 
@@ -2324,7 +2330,7 @@ class AutoLayoutEngine {
       allEdges: allEdges,
       subgraphNodeGroups: const [],
       minGap: minGap,
-      direction: "",  //direction,
+      direction: "", //direction,
       bezierSamplingStepPx: samplingStepPx,
       subgraphTitleBandHeight: 24.0,
       subgraphTitlePadding: 8.0,
@@ -2578,15 +2584,19 @@ class AutoLayoutEngine {
                 subgraphTitlePadding: 8.0,
               );
 
-              final edgeLenGrowth = (metricsNew.totalEdgeLength - baselineMetrics.totalEdgeLength) /
+              final edgeLenGrowth =
+                  (metricsNew.totalEdgeLength -
+                      baselineMetrics.totalEdgeLength) /
                   math.max(1.0, baselineMetrics.totalEdgeLength);
-              final ok = metricsNew.crossings <= baselineMetrics.crossings &&
-                  metricsNew.edgeOverNodeHits <= baselineMetrics.edgeOverNodeHits &&
+              final ok =
+                  metricsNew.crossings <= baselineMetrics.crossings &&
+                  metricsNew.edgeOverNodeHits <=
+                      baselineMetrics.edgeOverNodeHits &&
                   metricsNew.hardViolation <= baselineMetrics.hardViolation &&
                   edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
 
               _logAudit(
-                'stage=align_final_positions X pass=${pass+1} move=$idToMove dx=${delta.toStringAsFixed(1)} => ${ok ? "ACCEPT" : "REJECT"} hard=${metricsNew.hardViolation} eON=${metricsNew.edgeOverNodeHits} edgeLenGrowth=${(edgeLenGrowth * 100).toStringAsFixed(1)}%',
+                'stage=align_final_positions X pass=${pass + 1} move=$idToMove dx=${delta.toStringAsFixed(1)} => ${ok ? "ACCEPT" : "REJECT"} hard=${metricsNew.hardViolation} eON=${metricsNew.edgeOverNodeHits} edgeLenGrowth=${(edgeLenGrowth * 100).toStringAsFixed(1)}%',
               );
 
               if (ok) {
@@ -2622,15 +2632,19 @@ class AutoLayoutEngine {
                 subgraphTitlePadding: 8.0,
               );
 
-              final edgeLenGrowthY = (metricsNew.totalEdgeLength - baselineMetrics.totalEdgeLength) /
+              final edgeLenGrowthY =
+                  (metricsNew.totalEdgeLength -
+                      baselineMetrics.totalEdgeLength) /
                   math.max(1.0, baselineMetrics.totalEdgeLength);
-              final ok = metricsNew.crossings <= baselineMetrics.crossings &&
-                  metricsNew.edgeOverNodeHits <= baselineMetrics.edgeOverNodeHits &&
+              final ok =
+                  metricsNew.crossings <= baselineMetrics.crossings &&
+                  metricsNew.edgeOverNodeHits <=
+                      baselineMetrics.edgeOverNodeHits &&
                   metricsNew.hardViolation <= baselineMetrics.hardViolation &&
                   edgeLenGrowthY <= ALIGN_EDGE_GROWTH_PENALTY;
 
               _logAudit(
-                'stage=align_final_positions Y pass=${pass+1} move=$idToMove dy=${delta.toStringAsFixed(1)} => ${ok ? "ACCEPT" : "REJECT"} hard=${metricsNew.hardViolation} eON=${metricsNew.edgeOverNodeHits} edgeLenGrowth=${(edgeLenGrowthY * 100).toStringAsFixed(1)}%',
+                'stage=align_final_positions Y pass=${pass + 1} move=$idToMove dy=${delta.toStringAsFixed(1)} => ${ok ? "ACCEPT" : "REJECT"} hard=${metricsNew.hardViolation} eON=${metricsNew.edgeOverNodeHits} edgeLenGrowth=${(edgeLenGrowthY * 100).toStringAsFixed(1)}%',
               );
 
               if (ok) {
@@ -2653,7 +2667,8 @@ class AutoLayoutEngine {
         budgetMs: 3000,
         pass: pass + 1,
         maxPasses: 10,
-      )) break;
+      ))
+        break;
     }
 
     _logAudit(
