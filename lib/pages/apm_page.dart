@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jsonschema/feature/apm/pan_apm_application.dart';
+import 'package:jsonschema/feature/apm/pan_apm_technologie.dart';
 
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -13,13 +14,24 @@ class ApmPage extends GenericPageStateless {
   Widget build(BuildContext context) {
     return WidgetTab(
       onInitController: (TabController tab) {},
-      listTab: [Tab(text: 'Applications')],
+      listTab: [
+        Tab(text: 'Applications'),
+        Tab(text: 'Technologies'),
+      ],
       listTabCont: [
         PanAPMApplication(
           getSchemaFct: () async {
             // currentCompany.glossaryManager.dico.clear();
             // currentCompany.listGlossary = await loadGlossary('glossary', 'Glossary');
             currentCompany.currentAPM = await loadApm('all', true);
+            return currentCompany.currentAPM!;
+          },
+        ),
+        PanAPMTechnologie(
+          getSchemaFct: () async {
+            // currentCompany.glossaryManager.dico.clear();
+            // currentCompany.listGlossary = await loadGlossary('glossary', 'Glossary');
+            currentCompany.currentAPM = await loadApmTechnologie('all', true);
             return currentCompany.currentAPM!;
           },
         ),

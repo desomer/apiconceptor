@@ -74,10 +74,12 @@ class AutoLayoutEngine {
   static const int _maxAuditTrailLines = 120000;
 
   // Alignment tolerance constants (in pixels)
-  static const double ALIGN_TOLERANCE_X = 1000.0; // Threshold for X-axis grouping
-  static const double ALIGN_TOLERANCE_Y = 1000.0; // Threshold for Y-axis grouping
-  static const double ALIGN_MAX_MOVE_X = 1000.0; // Max movement per node (X)
-  static const double ALIGN_MAX_MOVE_Y = 1000.0; // Max movement per node (Y)
+  static const double ALIGN_TOLERANCE_X =
+      100.0; // Threshold for X-axis grouping
+  static const double ALIGN_TOLERANCE_Y =
+      100.0; // Threshold for Y-axis grouping
+  static const double ALIGN_MAX_MOVE_X = 100.0; // Max movement per node (X)
+  static const double ALIGN_MAX_MOVE_Y = 100.0; // Max movement per node (Y)
   static const double ALIGN_EDGE_GROWTH_PENALTY =
       1.0; // Max allowed edge length growth (100%)
 
@@ -204,6 +206,57 @@ class AutoLayoutEngine {
     const edgeMinRankSpanDefault = 1;
     const crossingSwapMinGain = 2;
     final bezierSamplingStepPx = _bezierSamplingStepForGraph(nodeOrder.length);
+    final seed = seedPositions ?? const <String, Offset>{};
+    final hasSeed = seed.isNotEmpty;
+
+    // Seed mode: only improve axis alignment and skip all other layout stages.
+    if (hasSeed) {
+      _logAudit('stage=run_mode mode=seed_alignment_only seed=true');
+      _logAudit('stage=seed_alignment algorithm=_alignFinalPositions');
+
+      final seeded = <String, Offset>{};
+      for (int i = 0; i < nodeOrder.length; i++) {
+        final id = nodeOrder[i];
+        final fallback = Offset(
+          180 + (i % 6) * (avgWidth + minGap),
+          140 + (i ~/ 6) * (avgHeight + minGap),
+        );
+        seeded[id] = seed[id] ?? fallback;
+      }
+
+      _logAudit(
+        'stage=seed_mode activation=alignment_only n=${nodeOrder.length} m=${allEdges.length}',
+      );
+
+      _alignFinalPositions(
+        nodeOrder: nodeOrder,
+        positions: seeded,
+        sizeByNode: sizes,
+        allEdges: allEdges,
+        minGap: minGap,
+        direction: direction,
+      );
+
+      final seedOnlyMetrics = _collectMetrics(
+        nodeOrder: nodeOrder,
+        positions: seeded,
+        sizeByNode: sizes,
+        allEdges: allEdges,
+        subgraphNodeGroups: groups,
+        minGap: minGap,
+        direction: direction,
+        bezierSamplingStepPx: bezierSamplingStepPx,
+        subgraphTitleBandHeight: subgraphTitleBandHeight,
+        subgraphTitlePadding: subgraphTitlePadding,
+      );
+      _logAudit(
+        'stage=seed_mode_result crossings=${seedOnlyMetrics.crossings} edgeOverNode=${seedOnlyMetrics.edgeOverNodeHits} hard=${seedOnlyMetrics.hardViolation} objective=${seedOnlyMetrics.objective.toStringAsFixed(2)} ms=${runWatch.elapsedMilliseconds}',
+      );
+
+      return seeded;
+    }
+
+    _logAudit('stage=run_mode mode=full_pipeline seed=false');
 
     final profile = _profileForGraph(
       nodeCount: nodeOrder.length,
@@ -472,145 +525,6 @@ class AutoLayoutEngine {
         );
         _logAudit(
           'stage=phase_timing name=align_nodes_on_axes ms=${runWatch.elapsedMilliseconds}',
-        );
-      }
-    }
-
-    final seed = seedPositions ?? const <String, Offset>{};
-    final hasSeed = seed.isNotEmpty;
-    if (hasSeed) {
-      final seedProjected = <String, Offset>{
-        for (final id in nodeOrder) id: seed[id] ?? selected[id]!,
-      };
-
-      // Log seed state BEFORE comparison
-      if (nodeOrder.length <= 15) {
-        final seedPosList = <String>[];
-        for (final id in nodeOrder) {
-          final pos = seedProjected[id];
-          if (pos != null) {
-            seedPosList.add(
-              '$id(${pos.dx.toStringAsFixed(0)},${pos.dy.toStringAsFixed(0)})',
-            );
-          }
-        }
-        _logAudit('stage=SEED_INPUT_POSITIONS ${seedPosList.join(" ")}');
-      }
-
-      final seedMetrics = _collectMetrics(
-        nodeOrder: nodeOrder,
-        positions: seedProjected,
-        sizeByNode: sizes,
-        allEdges: allEdges,
-        subgraphNodeGroups: groups,
-        minGap: minGap,
-        direction: direction,
-        bezierSamplingStepPx: bezierSamplingStepPx,
-        subgraphTitleBandHeight: subgraphTitleBandHeight,
-        subgraphTitlePadding: subgraphTitlePadding,
-      );
-      _logAudit(
-        'stage=SEED_METRICS_BEFORE_LAYOUT crossings=${seedMetrics.crossings} edgeOverNode=${seedMetrics.edgeOverNodeHits} overlap=${seedMetrics.nodeOverlapPairs} hard=${seedMetrics.hardViolation}',
-      );
-
-      final candidateMetrics = _collectMetrics(
-        nodeOrder: nodeOrder,
-        positions: selected,
-        sizeByNode: sizes,
-        allEdges: allEdges,
-        subgraphNodeGroups: groups,
-        minGap: minGap,
-        direction: direction,
-        bezierSamplingStepPx: bezierSamplingStepPx,
-        subgraphTitleBandHeight: subgraphTitleBandHeight,
-        subgraphTitlePadding: subgraphTitlePadding,
-      );
-
-      _logAudit(
-        'stage=seed_compare crossingsSeed=${seedMetrics.crossings} crossingsCandidate=${candidateMetrics.crossings}',
-      );
-      _logAudit(
-        'stage=seed_compare edgeOverNodeSeed=${seedMetrics.edgeOverNodeHits} edgeOverNodeCandidate=${candidateMetrics.edgeOverNodeHits}',
-      );
-
-      // Log candidate (auto-layout) positions and metrics
-      if (nodeOrder.length <= 15) {
-        final candPosList = <String>[];
-        for (final id in nodeOrder) {
-          final pos = selected[id];
-          if (pos != null) {
-            candPosList.add(
-              '$id(${pos.dx.toStringAsFixed(0)},${pos.dy.toStringAsFixed(0)})',
-            );
-          }
-        }
-        _logAudit(
-          'stage=AUTO_LAYOUT_RESULT_POSITIONS ${candPosList.join(" ")}',
-        );
-      }
-      _logAudit(
-        'stage=AUTO_LAYOUT_RESULT_METRICS crossings=${candidateMetrics.crossings} edgeOverNode=${candidateMetrics.edgeOverNodeHits} overlap=${candidateMetrics.nodeOverlapPairs} hard=${candidateMetrics.hardViolation}',
-      );
-
-      final bypassSeedFallback =
-          candidateMetrics.hardViolation <= seedMetrics.hardViolation &&
-          candidateMetrics.crossings <= seedMetrics.crossings - 1 &&
-          candidateMetrics.edgeOverNodeHits <=
-              seedMetrics.edgeOverNodeHits + 1 &&
-          candidateMetrics.totalEdgeLength <=
-              seedMetrics.totalEdgeLength * 1.35;
-
-      // Special case: accept candidate if it eliminates edgeOverNode, even with more hard violations
-      final acceptIfEliminatesEdgeOverNode =
-          seedMetrics.edgeOverNodeHits > 0 &&
-          candidateMetrics.edgeOverNodeHits == 0 &&
-          candidateMetrics.hardViolation <= seedMetrics.hardViolation + 4;
-
-      final strictRoutingMode = profile.name == 'strict-routing';
-      final strictBypass =
-          strictRoutingMode &&
-          seedMetrics.crossings >= 3 &&
-          candidateMetrics.crossings < seedMetrics.crossings;
-
-      final keepCandidate =
-          bypassSeedFallback ||
-          strictBypass ||
-          acceptIfEliminatesEdgeOverNode ||
-          candidateMetrics.hardViolation < seedMetrics.hardViolation ||
-          (candidateMetrics.hardViolation == seedMetrics.hardViolation &&
-              candidateMetrics.crossings <= seedMetrics.crossings &&
-              candidateMetrics.edgeOverNodeHits <=
-                  seedMetrics.edgeOverNodeHits + 1);
-
-      // Log decision details for small graphs
-      if (nodeOrder.length <= 15) {
-        _logAudit(
-          'stage=SEED_DECISION_DETAILS bypass=$bypassSeedFallback strictBypass=$strictBypass keepCandidate=$keepCandidate hardCond=${candidateMetrics.hardViolation == seedMetrics.hardViolation} crossingCond=${candidateMetrics.crossings <= seedMetrics.crossings} edgeOverCond=${candidateMetrics.edgeOverNodeHits <= seedMetrics.edgeOverNodeHits + 1}',
-        );
-      }
-
-      if (!keepCandidate) {
-        selected = seedProjected;
-        _logAudit('stage=seed_decision bypass=false reason=restore_seed');
-      } else {
-        _logAudit(
-          'stage=seed_decision bypass=${(bypassSeedFallback || strictBypass) ? 'true' : 'false'} reason=keep_layout',
-        );
-      }
-
-      // Log final choice positions
-      if (nodeOrder.length <= 15) {
-        final finalPosList = <String>[];
-        for (final id in nodeOrder) {
-          final pos = selected[id];
-          if (pos != null) {
-            finalPosList.add(
-              '$id(${pos.dx.toStringAsFixed(0)},${pos.dy.toStringAsFixed(0)})',
-            );
-          }
-        }
-        _logAudit(
-          'stage=SEED_FINAL_CHOICE_POSITIONS ${finalPosList.join(" ")}',
         );
       }
     }
@@ -2527,6 +2441,14 @@ class AutoLayoutEngine {
     var alignedX = 0;
     var alignedY = 0;
 
+    // Seed alignment must not preserve initial overlaps.
+    _resolveResidualOverlaps(
+      nodeOrder: nodeOrder,
+      positions: positions,
+      sizeByNode: sizeByNode,
+      minGap: minGap,
+    );
+
     final samplingStepPx = _bezierSamplingStepForGraph(nodeOrder.length);
     var baselineMetrics = _collectMetrics(
       nodeOrder: nodeOrder,
@@ -2593,6 +2515,7 @@ class AutoLayoutEngine {
                   metricsNew.edgeOverNodeHits <=
                       baselineMetrics.edgeOverNodeHits &&
                   metricsNew.hardViolation <= baselineMetrics.hardViolation &&
+                  metricsNew.nodeOverlapPairs == 0 &&
                   edgeLenGrowth <= ALIGN_EDGE_GROWTH_PENALTY;
 
               _logAudit(
@@ -2641,6 +2564,7 @@ class AutoLayoutEngine {
                   metricsNew.edgeOverNodeHits <=
                       baselineMetrics.edgeOverNodeHits &&
                   metricsNew.hardViolation <= baselineMetrics.hardViolation &&
+                  metricsNew.nodeOverlapPairs == 0 &&
                   edgeLenGrowthY <= ALIGN_EDGE_GROWTH_PENALTY;
 
               _logAudit(
@@ -2667,8 +2591,9 @@ class AutoLayoutEngine {
         budgetMs: 3000,
         pass: pass + 1,
         maxPasses: 10,
-      ))
+      )) {
         break;
+      }
     }
 
     _logAudit(

@@ -539,6 +539,13 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
   }
 
   Widget _buildSidePanel() {
+    final selectedNormalBlock = selectedBlock != null && selectedBlock!.isZone
+        ? null
+        : selectedBlock;
+    final currentSubgraphTitle = selectedNormalBlock == null
+        ? null
+        : _currentAutoSubgraphTitleForSelectedBlock();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.max,
@@ -577,6 +584,15 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             onBlockTagsChanged: _handleBlockTagsChanged,
             onBlockIconBase64Changed: _handleBlockIconBase64Changed,
             onBlockPropertiesJsonChanged: _handleBlockPropertiesJsonChanged,
+            canToggleCurrentSubgraphMembership:
+                selectedNormalBlock != null &&
+                _canToggleSelectedBlockCurrentAutoSubgraphMembership(),
+            selectedBlockInCurrentSubgraph:
+                selectedNormalBlock != null &&
+                _selectedBlockIsInCurrentAutoSubgraph(),
+            currentSubgraphTitle: currentSubgraphTitle,
+            onToggleCurrentSubgraphMembership:
+                _toggleSelectedBlockCurrentAutoSubgraphMembership,
             onZoneBringToFront: _handleZoneBringToFront,
             onZoneSendToBack: _handleZoneSendToBack,
             onZoneTransparencyChanged: _handleZoneTransparencyChanged,

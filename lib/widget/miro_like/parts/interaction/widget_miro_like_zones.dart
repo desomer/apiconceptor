@@ -179,6 +179,127 @@ extension _MiroLikeWidgetStateZoneMethods on _MiroLikeWidgetState {
     });
   }
 
+  ({Block zone, String title, Set<String> nodeIds})?
+  _mostNestedAutoSubgraphAtBlockPosition(Block block) {
+    if (block.isZone) {
+      return null;
+    }
+
+    final blockCenter = Offset(
+      block.position.dx + block.size.width / 2,
+      block.position.dy + block.size.height / 2,
+    );
+    final candidates =
+        <({Block zone, String title, Set<String> nodeIds, double area})>[];
+
+    for (final zone in blocks.where(
+      (b) => b.isZone && b.zoneType == BlockZoneType.subgraph,
+    )) {
+      final descriptor = _autoSubgraphDescriptorFromZone(zone);
+      if (descriptor == null) {
+        continue;
+      }
+
+      final zoneRect = Rect.fromLTWH(
+        zone.position.dx,
+        zone.position.dy,
+        zone.size.width,
+        zone.size.height,
+      );
+      if (!zoneRect.contains(blockCenter)) {
+        continue;
+      }
+
+      candidates.add((
+        zone: zone,
+        title: descriptor.title,
+        nodeIds: descriptor.nodeIds,
+        area: zoneRect.width * zoneRect.height,
+      ));
+    }
+
+    if (candidates.isEmpty) {
+      return null;
+    }
+
+    candidates.sort((a, b) {
+      final byDepth = a.nodeIds.length.compareTo(b.nodeIds.length);
+      if (byDepth != 0) {
+        return byDepth;
+      }
+      return a.area.compareTo(b.area);
+    });
+
+    final best = candidates.first;
+    return (zone: best.zone, title: best.title, nodeIds: best.nodeIds);
+  }
+
+  String? _currentAutoSubgraphTitleForSelectedBlock() {
+    final block = selectedBlock;
+    if (block == null || block.isZone) {
+      return null;
+    }
+    return _mostNestedAutoSubgraphAtBlockPosition(block)?.title;
+  }
+
+  bool _selectedBlockIsInCurrentAutoSubgraph() {
+    final block = selectedBlock;
+    if (block == null || block.isZone) {
+      return false;
+    }
+    final hovered = _mostNestedAutoSubgraphAtBlockPosition(block);
+    if (hovered == null) {
+      return false;
+    }
+    return hovered.nodeIds.contains(block.id);
+  }
+
+  bool _canToggleSelectedBlockCurrentAutoSubgraphMembership() {
+    final block = selectedBlock;
+    if (block == null || block.isZone) {
+      return false;
+    }
+    return _mostNestedAutoSubgraphAtBlockPosition(block) != null;
+  }
+
+  void _toggleSelectedBlockCurrentAutoSubgraphMembership() {
+    final block = selectedBlock;
+    if (block == null || block.isZone) {
+      return;
+    }
+
+    final hovered = _mostNestedAutoSubgraphAtBlockPosition(block);
+    if (hovered == null) {
+      return;
+    }
+
+    final updatedNodeIds = <String>{...hovered.nodeIds};
+    final wasInside = updatedNodeIds.contains(block.id);
+    if (wasInside) {
+      updatedNodeIds.remove(block.id);
+    } else {
+      updatedNodeIds.add(block.id);
+    }
+
+    _pushUndoSnapshot();
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      if (updatedNodeIds.length >= 2) {
+        _setAutoSubgraphDescriptor(
+          zone: hovered.zone,
+          id: hovered.zone.id.replaceFirst('subgraph_zone_', ''),
+          title: hovered.title,
+          nodeIds: updatedNodeIds,
+        );
+      } else {
+        blocks.removeWhere((b) => identical(b, hovered.zone));
+      }
+
+      _syncAutoSubgraphZones();
+      _markBoardChanged();
+    });
+  }
+
   void _syncAutoSubgraphZones() {
     final nodesById = <String, Block>{
       for (final block in blocks)

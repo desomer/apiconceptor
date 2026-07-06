@@ -7,6 +7,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/api/pan_api_editor.dart';
 import 'package:jsonschema/feature/api/pan_api_env.dart';
 import 'package:jsonschema/feature/apm/pan_apm_application.dart';
+import 'package:jsonschema/feature/apm/pan_apm_technologie.dart';
 import 'package:jsonschema/feature/apm/pan_application_flow.dart';
 import 'package:jsonschema/feature/async_api/pan_async_selector.dart';
 import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
@@ -307,7 +308,6 @@ Future<ModelSchema> loadApps(String idDomain, bool cache) async {
   return schema;
 }
 
-
 Future<ModelSchema> loadAsync(String idDomain, bool cache) async {
   var schema = ModelSchema(
     category: Category.asyncApi,
@@ -331,7 +331,6 @@ Future<ModelSchema> loadAsync(String idDomain, bool cache) async {
   schema.isReadOnlyModel = isDomainAllowed(idDomain) == false;
   return schema;
 }
-
 
 Future<ModelSchema> loadVarEnv(
   String idDomain,
@@ -362,7 +361,7 @@ Future<ModelSchema> loadVarEnv(
 Future<ModelSchema> loadAppFlow(String idDomain, bool cache) async {
   var schema = ModelSchema(
     category: Category.appflow,
-    headerName: "Application Flow",
+    headerName: "Application Flows",
     id: 'appflow/$idDomain',
     infoManager: InfoManagerAppFlow(),
     refDomain: null,
@@ -386,9 +385,9 @@ Future<ModelSchema> loadAppFlow(String idDomain, bool cache) async {
 Future<ModelSchema> loadApm(String idDomain, bool cache) async {
   var schema = ModelSchema(
     category: Category.apm,
-    headerName: "Application",  
+    headerName: "Applications",
     id: 'apm/$idDomain',
-    infoManager: InfoManagerApm(),
+    infoManager: InfoManagerApmAppli(),
     refDomain: null,
   );
   schema.namespace = idDomain;
@@ -407,6 +406,29 @@ Future<ModelSchema> loadApm(String idDomain, bool cache) async {
   return schema;
 }
 
+Future<ModelSchema> loadApmTechnologie(String idDomain, bool cache) async {
+  var schema = ModelSchema(
+    category: Category.apm,
+    headerName: "Technologies",
+    id: 'apm/tech/$idDomain',
+    infoManager: InfoManagerApmTechno(),
+    refDomain: null,
+  );
+  schema.namespace = idDomain;
+
+  if (withBdd) {
+    try {
+      await schema.loadYamlAndProperties(cache: cache, withProperties: true);
+    } on Exception catch (e) {
+      print("$e");
+      startError.add("$e");
+    }
+  }
+  schema.namespace = idDomain;
+  // currentCompany.listAsync = schema;
+  //schema.isReadOnlyModel = isDomainAllowed(idDomain) == false;
+  return schema;
+}
 
 Future<ModelSchema> loadSchema(
   TypeMD type,
@@ -461,7 +483,7 @@ const constNameAllof = '\$allof';
 const constNameOneof = '\$oneof';
 const constInherit = '\$inherit';
 const constRefOn = '\$\$__ref__';
-const constType = '\$\$__type__';   // noeud de type simple avec type dans info
+const constType = '\$\$__type__'; // noeud de type simple avec type dans info
 
 final CompanyModelSchema currentCompany = CompanyModelSchema();
 

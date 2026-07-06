@@ -100,7 +100,7 @@ class PanAPMApplication extends PanYamlTree {
                   category: Category.apm,
                   headerName: '',
                   id: '',
-                  infoManager: InfoManagerApm(),
+                  infoManager: InfoManagerApmAppli(),
                   refDomain: null,
                 );
                 tempModel.autoSaveProperties = false;
@@ -185,8 +185,8 @@ class PanAPMApplication extends PanYamlTree {
   }
 }
 
-class InfoManagerApm extends InfoManager with WidgetHelper {
-  InfoManagerApm();
+class InfoManagerApmAppli extends InfoManager with WidgetHelper {
+  InfoManagerApmAppli();
 
   @override
   Function? getValidateKey() {

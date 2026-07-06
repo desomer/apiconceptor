@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/apm/widget_app_sheet.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_model.dart';
-import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -10,11 +11,16 @@ import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 
-List<String> autorizedType = ['context', 'container', 'composant', 'sequence'];
+List<String> autorizedType = [
+  'framework',
+  'infrastructure',
+  'integration',
+  'security',
+];
 
 // ignore: must_be_immutable
-class PanApplicationFlow extends PanYamlTree {
-  PanApplicationFlow({super.key, required super.getSchemaFct});
+class PanAPMTechnologie extends PanYamlTree {
+  PanAPMTechnologie({super.key, required super.getSchemaFct});
 
   // @override
   // void onInitSchema(BuildContext context) {
@@ -45,6 +51,11 @@ class PanApplicationFlow extends PanYamlTree {
   }
 
   @override
+  Widget? overrideGetWidgetPropForTooltip(String key, value) {
+    return null;
+  }
+
+  @override
   void addRowWidget(
     TreeNodeData<NodeAttribut> node,
     ModelSchema schema,
@@ -68,16 +79,88 @@ class PanApplicationFlow extends PanYamlTree {
         acces: ModelAccessorAttr(node: attr, schema: schema, propName: 'title'),
       ),
     );
-    if (autorizedType.contains(attr.info.type.toLowerCase())) {
+    if (attr.info.type != 'root' && attr.info.type != 'category') {
       row.add(
         TextButton(
           onPressed: () {
-            RouteManager.goto(
-              Pages.appFlowEditor.id(attr.info.getMasterID()),
-              context,
+            // dialog to show technologie profile WidgetAppSheet
+            showDialog<void>(
+              context: context,
+              barrierDismissible: true, // user must tap button!
+              builder: (BuildContext dialogContext) {
+                Size size = MediaQuery.of(dialogContext).size;
+                double width = (size.width * 0.9).clamp(0.0, 600.0).toDouble();
+                double height = size.height * 0.8;
+
+                ModelSchema tempModel = ModelSchema(
+                  category: Category.apm,
+                  headerName: '',
+                  id: '',
+                  infoManager: InfoManagerApmTechno(),
+                  refDomain: null,
+                );
+                tempModel.autoSaveProperties = false;
+
+                var mapEntryEmpty = const MapEntry('', null);
+                tempModel.selectedAttr = NodeAttribut(
+                  yamlNode: mapEntryEmpty,
+                  info: AttributInfo()
+                    ..properties = {...attr.info.properties ?? {}},
+                  parent: null,
+                );
+
+                return AlertDialog(
+                  content: SizedBox(
+                    width: width,
+                    height: height,
+                    child: SingleChildScrollView(
+                      child: WidgetAppSheet(model: tempModel),
+                    ),
+                  ),
+                  actions: [
+                    TextButton.icon(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Close'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () {
+                        tempModel.selectedAttr?.info.properties?.forEach((
+                          key,
+                          value,
+                        ) {
+                          var accessor = ModelAccessorAttr(
+                            node: attr,
+                            schema: currentCompany.currentAPM,
+                            propName: key,
+                          );
+                          accessor.set(value);
+                        });
+                        // retire the model to avoid saving changes on close
+                        attr.info.properties?.forEach((key, value) {
+                          if (!['title', constMasterID].contains(key) &&
+                              tempModel.selectedAttr?.info.properties?[key] ==
+                                  null) {
+                            var accessor = ModelAccessorAttr(
+                              node: attr,
+                              schema: currentCompany.currentAPM,
+                              propName: key,
+                            );
+                            accessor.remove();
+                          }
+                        });
+
+                        Navigator.of(dialogContext).pop();
+                      },
+                      icon: const Icon(Icons.save),
+                      label: const Text('Save'),
+                    ),
+                  ],
+                );
+              },
             );
           },
-          child: const Text('Edit'),
+          child: const Text('Technologie Profile'),
         ),
       );
     }
@@ -98,8 +181,8 @@ class PanApplicationFlow extends PanYamlTree {
   }
 }
 
-class InfoManagerAppFlow extends InfoManager with WidgetHelper {
-  InfoManagerAppFlow();
+class InfoManagerApmTechno extends InfoManager with WidgetHelper {
+  InfoManagerApmTechno();
 
   @override
   Function? getValidateKey() {
@@ -142,14 +225,8 @@ class InfoManagerAppFlow extends InfoManager with WidgetHelper {
       icon = const Icon(Icons.business);
     } else if (isCategory) {
       icon = const Icon(Icons.folder);
-    } else if (node.data.info.type.toLowerCase() == 'context') {
-      icon = const Icon(Icons.supervised_user_circle_outlined);
-    }else if (node.data.info.type.toLowerCase() == 'container') {
-      icon = const Icon(Icons.apps);
-    }else if (node.data.info.type.toLowerCase() == 'composant') {
-      icon = const Icon(Icons.extension);
-    }else if (node.data.info.type.toLowerCase() == 'sequence') {
-      icon = const Icon(Icons.timeline);
+    } else {
+      icon = const Icon(Icons.label_outline);
     }
 
     var attr = node.data;

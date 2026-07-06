@@ -40,6 +40,10 @@ class PropertiesPanel extends StatefulWidget {
   final Function(Block, List<String>)? onBlockTagsChanged;
   final Function(Block, String)? onBlockIconBase64Changed;
   final Function(Block, String)? onBlockPropertiesJsonChanged;
+  final bool canToggleCurrentSubgraphMembership;
+  final bool selectedBlockInCurrentSubgraph;
+  final String? currentSubgraphTitle;
+  final VoidCallback? onToggleCurrentSubgraphMembership;
   final Function(Block)? onZoneBringToFront;
   final Function(Block)? onZoneSendToBack;
   final Function(Block, bool)? onZoneTransparencyChanged;
@@ -79,6 +83,10 @@ class PropertiesPanel extends StatefulWidget {
     this.onBlockTagsChanged,
     this.onBlockIconBase64Changed,
     this.onBlockPropertiesJsonChanged,
+    this.canToggleCurrentSubgraphMembership = false,
+    this.selectedBlockInCurrentSubgraph = false,
+    this.currentSubgraphTitle,
+    this.onToggleCurrentSubgraphMembership,
     this.onZoneBringToFront,
     this.onZoneSendToBack,
     this.onZoneTransparencyChanged,
@@ -890,6 +898,32 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               label: const Text('proposal'),
             ),
           ),
+          if (widget.currentSubgraphTitle != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: widget.canToggleCurrentSubgraphMembership
+                    ? widget.onToggleCurrentSubgraphMembership
+                    : null,
+                icon: Icon(
+                  widget.selectedBlockInCurrentSubgraph
+                      ? Icons.exit_to_app
+                      : Icons.login,
+                ),
+                label: Text(
+                  widget.selectedBlockInCurrentSubgraph
+                      ? 'Sortir du subgraph courant'
+                      : 'Entrer dans le subgraph courant',
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Cible: ${widget.currentSubgraphTitle}',
+              style: const TextStyle(color: colorTextSecondary, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 12),
           DropdownButtonFormField<String?>(
             initialValue: block.colorKey,
