@@ -227,6 +227,45 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
     return widgets;
   }
 
+  String _linkCommentContextId(BlockLink link) {
+    return jsonEncode([
+      link.fromBlockId,
+      link.toBlockId,
+      link.name.trim(),
+      link.labelIconKey ?? '',
+      link.connectorType.name,
+      link.sequenceArrowType ?? '',
+    ]);
+  }
+
+  Widget _buildLinkCommentBadge({
+    required double size,
+    required bool selected,
+  }) {
+    final iconSize = (size * 0.62).clamp(8.0, 16.0);
+    final bgColor = selected
+        ? colorLinkSelected.withValues(alpha: 0.2)
+        : const Color(0xFF0F172A).withValues(alpha: 0.88);
+    final borderColor = selected ? colorLinkSelected : Colors.white24;
+
+    return Center(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(size / 2),
+          border: Border.all(color: borderColor, width: 1),
+        ),
+        child: Icon(
+          selected ? Icons.comment : Icons.add_comment_outlined,
+          size: iconSize,
+          color: selected ? colorLinkSelected : Colors.white70,
+        ),
+      ),
+    );
+  }
+
   Offset? _linkLabelReferenceCanvas(BlockLink link) {
     final linkData = _resolveLinkAnchorsAndRects(link);
     if (linkData == null) return null;
@@ -299,6 +338,9 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
         link.name.length * 8.0 * textScale + 28.0 * textScale + iconExtraWidth,
       );
       final height = 32.0 * textScale;
+      final badgeSize = (18.0 * textScale).clamp(14.0, 24.0);
+      final badgeLeft = labelCenter.dx + (width / 2) - (badgeSize * 0.55);
+      final badgeTop = labelCenter.dy - (height / 2) - (badgeSize * 0.55);
 
       widgets.add(
         LinkLabelHandleWidget(
@@ -328,6 +370,23 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
               _markBoardChanged();
             });
           },
+        ),
+      );
+
+      widgets.add(
+        Positioned(
+          left: badgeLeft,
+          top: badgeTop,
+          width: badgeSize,
+          height: badgeSize,
+          child: ThreadCommentCell(
+            contextId: _linkCommentContextId(link),
+            childOver: _buildLinkCommentBadge(size: badgeSize, selected: false),
+            childIfComment: _buildLinkCommentBadge(
+              size: badgeSize,
+              selected: true,
+            ),
+          ),
         ),
       );
     }
