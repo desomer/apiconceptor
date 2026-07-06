@@ -362,6 +362,7 @@ class MiroLinkLayerPainter {
 
     final label = link.name.trim().isEmpty ? 'note' : link.name.trim();
     final iconData = kLinkLabelIconMap[link.labelIconKey];
+    final tagGrid = buildLinkTagGridLayout(link, zoomLevel);
     final iconSpacing = iconData == null
         ? 0.0
         : (6.0 * zoomLevel).clamp(3.0, 16.0);
@@ -392,6 +393,8 @@ class MiroLinkLayerPainter {
       12.0,
       bodyLength -
           (16.0 * zoomLevel) -
+          (tagGrid?.width ?? 0.0) -
+          (tagGrid == null ? 0.0 : (6.0 * zoomLevel).clamp(3.0, 14.0)) -
           (iconPainter?.width ?? 0.0) -
           iconSpacing,
     );
@@ -418,13 +421,37 @@ class MiroLinkLayerPainter {
     );
 
     final contentWidth =
-        (iconPainter?.width ?? 0.0) + iconSpacing + textPainter.width;
+        (tagGrid?.width ?? 0.0) +
+        (tagGrid == null ? 0.0 : (6.0 * zoomLevel).clamp(3.0, 14.0)) +
+        (iconPainter?.width ?? 0.0) +
+        iconSpacing +
+        textPainter.width;
+    final contentHeight = math.max(
+      math.max(textPainter.height, iconPainter?.height ?? 0.0),
+      tagGrid?.height ?? 0.0,
+    );
     var contentLeft = textCenter.dx - (contentWidth / 2);
+
+    if (tagGrid != null) {
+      final tagTop =
+          textCenter.dy -
+          (contentHeight / 2) +
+          ((contentHeight - tagGrid.height) / 2);
+      paintLinkTagGrid(
+        canvas,
+        tagGrid,
+        Offset(contentLeft, tagTop),
+        isSelected: isSelected,
+      );
+      contentLeft += tagGrid.width + (6.0 * zoomLevel).clamp(3.0, 14.0);
+    }
 
     if (iconPainter != null) {
       final iconOffset = Offset(
         contentLeft,
-        textCenter.dy - (iconPainter.height / 2),
+        textCenter.dy -
+            (contentHeight / 2) +
+            ((contentHeight - iconPainter.height) / 2),
       );
       iconPainter.paint(canvas, iconOffset);
       contentLeft += iconPainter.width + iconSpacing;
@@ -473,6 +500,7 @@ class MiroLinkLayerPainter {
 
     final label = link.name.trim().isEmpty ? 'note' : link.name.trim();
     final iconData = kLinkLabelIconMap[link.labelIconKey];
+    final tagGrid = buildLinkTagGridLayout(link, zoomLevel);
     final iconSpacing = iconData == null
         ? 0.0
         : (6.0 * zoomLevel).clamp(3.0, 16.0);
@@ -524,19 +552,46 @@ class MiroLinkLayerPainter {
             12.0,
             width -
                 (16.0 * zoomLevel) -
+                (tagGrid?.width ?? 0.0) -
+                (tagGrid == null ? 0.0 : (6.0 * zoomLevel).clamp(3.0, 14.0)) -
                 (iconPainter?.width ?? 0.0) -
                 iconSpacing,
           ),
         );
 
     final contentWidth =
-        (iconPainter?.width ?? 0.0) + iconSpacing + textPainter.width;
+        (tagGrid?.width ?? 0.0) +
+        (tagGrid == null ? 0.0 : (6.0 * zoomLevel).clamp(3.0, 14.0)) +
+        (iconPainter?.width ?? 0.0) +
+        iconSpacing +
+        textPainter.width;
+    final contentHeight = math.max(
+      math.max(textPainter.height, iconPainter?.height ?? 0.0),
+      tagGrid?.height ?? 0.0,
+    );
     var contentLeft = rect.center.dx - (contentWidth / 2);
+
+    if (tagGrid != null) {
+      paintLinkTagGrid(
+        canvas,
+        tagGrid,
+        Offset(
+          contentLeft,
+          rect.center.dy -
+              (contentHeight / 2) +
+              ((contentHeight - tagGrid.height) / 2),
+        ),
+        isSelected: isSelected,
+      );
+      contentLeft += tagGrid.width + (6.0 * zoomLevel).clamp(3.0, 14.0);
+    }
 
     if (iconPainter != null) {
       final iconOffset = Offset(
         contentLeft,
-        rect.center.dy - (iconPainter.height / 2),
+        rect.center.dy -
+            (contentHeight / 2) +
+            ((contentHeight - iconPainter.height) / 2),
       );
       iconPainter.paint(canvas, iconOffset);
       contentLeft += iconPainter.width + iconSpacing;

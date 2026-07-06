@@ -393,6 +393,18 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     });
   }
 
+  void _handleLinkTagsChanged(BlockLink link, List<String> tagColorKeys) {
+    _pushUndoSnapshot();
+    setState(() {
+      link.tagColorKeys
+        ..clear()
+        ..addAll(
+          tagColorKeys.where((key) => kBlockTagColorMap.containsKey(key)),
+        );
+      _markBoardChanged();
+    });
+  }
+
   void _handleLinkParticleDensityChanged(BlockLink link, double value) {
     _pushUndoSnapshotForGranularEdit(
       'link-density:${link.fromBlockId}->${link.toBlockId}',

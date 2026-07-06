@@ -71,6 +71,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
       'sequenceAfterLines': link.sequenceAfterLines,
       'colorKey': link.colorKey,
       'labelIconKey': link.labelIconKey,
+      'tagColorKeys': link.tagColorKeys,
       'particleDensity': link.particleDensity,
       'particleSpeed': link.particleSpeed,
       'labelPosition': link.labelPosition,
@@ -230,6 +231,17 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
         }
       }
 
+      final parsedTagColorKeys = <String>[];
+      final rawTagColorKeys = item['tagColorKeys'];
+      if (rawTagColorKeys is List) {
+        for (final key in rawTagColorKeys) {
+          final keyString = key?.toString() ?? '';
+          if (kBlockTagColorMap.containsKey(keyString)) {
+            parsedTagColorKeys.add(keyString);
+          }
+        }
+      }
+
       parsed.add(
         BlockLink(
           id: item['id']?.toString(),
@@ -241,6 +253,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
           sequenceAfterLines: sequenceAfterLines,
           colorKey: item['colorKey']?.toString(),
           labelIconKey: item['labelIconKey']?.toString(),
+          tagColorKeys: parsedTagColorKeys,
           particleDensity: item['particleDensity'] is num
               ? (item['particleDensity'] as num).toDouble().clamp(0.2, 3.0)
               : 1.0,

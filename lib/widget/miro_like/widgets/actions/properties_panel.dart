@@ -53,6 +53,7 @@ class PropertiesPanel extends StatefulWidget {
   final Function(BlockLink, String)? onLinkNameChanged;
   final Function(BlockLink, String?)? onLinkColorChanged;
   final Function(BlockLink, String?)? onLinkLabelIconChanged;
+  final Function(BlockLink, List<String>)? onLinkTagsChanged;
   final Function(BlockLink, double)? onLinkParticleDensityChanged;
   final Function(BlockLink, double)? onLinkParticleSpeedChanged;
   final Function(BlockLink, double)? onLinkLabelPositionChanged;
@@ -97,6 +98,7 @@ class PropertiesPanel extends StatefulWidget {
     this.onLinkNameChanged,
     this.onLinkColorChanged,
     this.onLinkLabelIconChanged,
+    this.onLinkTagsChanged,
     this.onLinkParticleDensityChanged,
     this.onLinkParticleSpeedChanged,
     this.onLinkLabelPositionChanged,
@@ -2334,6 +2336,80 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             onChanged: (value) {
               widget.onLinkLabelIconChanged?.call(link, value);
             },
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Tags colorés',
+            style: TextStyle(
+              color: colorTextPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: kBlockTagColorMap.entries.map((entry) {
+              final key = entry.key;
+              final color = entry.value;
+              final label = kBlockTagColorLabelMap[key] ?? key;
+              final isSelected = link.tagColorKeys.contains(key);
+
+              return InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () {
+                  final updated = List<String>.from(link.tagColorKeys);
+                  if (isSelected) {
+                    updated.remove(key);
+                  } else {
+                    updated.add(key);
+                  }
+                  widget.onLinkTagsChanged?.call(link, updated);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? color.withValues(alpha: 0.28)
+                        : colorBlockBackground,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isSelected ? color : colorPanelBorder,
+                      width: isSelected ? 1.4 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(1.5),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: colorTextPrimary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tags sélectionnés: ${link.tagColorKeys.length}',
+            style: const TextStyle(color: colorTextSecondary),
           ),
           const SizedBox(height: 12),
           Text(

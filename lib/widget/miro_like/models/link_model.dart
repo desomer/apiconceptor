@@ -61,6 +61,7 @@ class BlockLink {
   List<String> sequenceAfterLines;
   String? colorKey;
   String? labelIconKey;
+  List<String> tagColorKeys;
   double particleDensity;
   double particleSpeed;
   double labelPosition;
@@ -86,6 +87,7 @@ class BlockLink {
     List<String>? sequenceAfterLines,
     this.colorKey,
     this.labelIconKey,
+    List<String>? tagColorKeys,
     this.particleDensity = 1.0,
     this.particleSpeed = 1.0,
     this.labelPosition = 0.75,
@@ -99,5 +101,6 @@ class BlockLink {
   }) : id = id ?? _uuid.v4(),
        sequenceBeforeLines = sequenceBeforeLines ?? [],
        sequenceAfterLines = sequenceAfterLines ?? [],
+       tagColorKeys = List<String>.from(tagColorKeys ?? const <String>[]),
        inflectionPoints = inflectionPoints ?? [];
 }

@@ -334,7 +334,7 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
 
       widgets.add(
         LinkLabelHandleWidget(
-          left: labelCenter.dx - width/2,
+          left: labelCenter.dx - width / 2,
           top: labelCenter.dy - height / 2,
           width: width,
           height: height,
@@ -375,7 +375,9 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
           height: badgeSize,
           child: ThreadCommentCell(
             contextId: _linkCommentContextId(link),
-            childOver: _buildLinkCommentBadge(size: badgeSize, selected: false),
+            childOver: selectedLink == link
+                ? _buildLinkCommentBadge(size: badgeSize, selected: false)
+                : SizedBox.shrink(),
             childIfComment: _buildLinkCommentBadge(
               size: badgeSize,
               selected: true,

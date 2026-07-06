@@ -2,25 +2,76 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart'
     show buildConnectorPath;
+import 'package:jsonschema/widget/miro_like/models/block_model.dart';
 import 'package:jsonschema/widget/miro_like/models/link_model.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 
+class LinkTagGridLayout {
+  final List<String> tagColorKeys;
+  final double squareSize;
+  final double gap;
+  final int columns;
+  final int rows;
+  final double width;
+  final double height;
+
+  const LinkTagGridLayout({
+    required this.tagColorKeys,
+    required this.squareSize,
+    required this.gap,
+    required this.columns,
+    required this.rows,
+    required this.width,
+    required this.height,
+  });
+}
+
+LinkTagGridLayout? buildLinkTagGridLayout(BlockLink link, double textScale) {
+  final validTagKeys = link.tagColorKeys
+      .where((key) => kBlockTagColorMap.containsKey(key))
+      .toList(growable: false);
+  if (validTagKeys.isEmpty) {
+    return null;
+  }
+
+  final squareSize = (8.0 * textScale).clamp(4.0, 16.0);
+  final gap = (2.0 * textScale).clamp(1.0, 6.0);
+  final columns = math.min(3, validTagKeys.length);
+  final rows = (validTagKeys.length / 3).ceil();
+  final width = (columns * squareSize) + ((columns - 1) * gap);
+  final height = (rows * squareSize) + ((rows - 1) * gap);
+
+  return LinkTagGridLayout(
+    tagColorKeys: validTagKeys,
+    squareSize: squareSize,
+    gap: gap,
+    columns: columns,
+    rows: rows,
+    width: width,
+    height: height,
+  );
+}
+
 class LinkLabelLayout {
   final bool isSelected;
+  final LinkTagGridLayout? tagGrid;
   final TextPainter textPainter;
   final TextPainter? iconPainter;
   final EdgeInsets padding;
   final double iconSpacing;
+  final double tagSpacing;
   final double contentHeight;
   final Offset preferredCenter;
   Rect rect;
 
   LinkLabelLayout({
     required this.isSelected,
+    required this.tagGrid,
     required this.textPainter,
     required this.iconPainter,
     required this.padding,
     required this.iconSpacing,
+    required this.tagSpacing,
     required this.contentHeight,
     required this.preferredCenter,
     required this.rect,
@@ -76,6 +127,7 @@ LinkLabelLayout? buildLinkLabelLayout({
       (normal * (18.0 * zoomLevel)) +
       (link.labelOffset * zoomLevel);
   final textScale = zoomLevel;
+  final tagGrid = buildLinkTagGridLayout(link, textScale);
 
   final iconData = kLinkLabelIconMap[link.labelIconKey];
   final textPainter = TextPainter(
@@ -116,22 +168,29 @@ LinkLabelLayout? buildLinkLabelLayout({
     horizontal: (8.0 * textScale).clamp(4.0, 20.0),
     vertical: (4.0 * textScale).clamp(2.0, 12.0),
   );
+  final tagSpacing = tagGrid == null ? 0.0 : (6.0 * textScale).clamp(3.0, 14.0);
   final iconSpacing = iconPainter == null
       ? 0.0
       : (6.0 * textScale).clamp(3.0, 16.0);
   final contentWidth =
-      (iconPainter?.width ?? 0.0) + iconSpacing + textPainter.width;
+      (tagGrid?.width ?? 0.0) +
+      tagSpacing +
+      (iconPainter?.width ?? 0.0) +
+      iconSpacing +
+      textPainter.width;
   final contentHeight = math.max(
-    textPainter.height,
-    iconPainter?.height ?? 0.0,
+    math.max(textPainter.height, iconPainter?.height ?? 0.0),
+    tagGrid?.height ?? 0.0,
   );
 
   return LinkLabelLayout(
     isSelected: isSelected,
+    tagGrid: tagGrid,
     textPainter: textPainter,
     iconPainter: iconPainter,
     padding: padding,
     iconSpacing: iconSpacing,
+    tagSpacing: tagSpacing,
     contentHeight: contentHeight,
     preferredCenter: labelCenter,
     rect: Rect.fromCenter(
@@ -221,6 +280,18 @@ void paintLinkLabelLayout(
 
   var paintX = rect.left + layout.padding.left;
   final contentTop = rect.top + layout.padding.top;
+  if (layout.tagGrid != null) {
+    paintLinkTagGrid(
+      canvas,
+      layout.tagGrid!,
+      Offset(
+        paintX,
+        contentTop + (layout.contentHeight - layout.tagGrid!.height) / 2,
+      ),
+      isSelected: layout.isSelected,
+    );
+    paintX += layout.tagGrid!.width + layout.tagSpacing;
+  }
   if (layout.iconPainter != null) {
     layout.iconPainter!.paint(
       canvas,
@@ -239,6 +310,39 @@ void paintLinkLabelLayout(
       contentTop + (layout.contentHeight - layout.textPainter.height) / 2,
     ),
   );
+}
+
+void paintLinkTagGrid(
+  Canvas canvas,
+  LinkTagGridLayout grid,
+  Offset origin, {
+  required bool isSelected,
+}) {
+  final borderColor = isSelected
+      ? colorLinkSelected.withValues(alpha: 0.9)
+      : Colors.white.withValues(alpha: 0.75);
+
+  for (var index = 0; index < grid.tagColorKeys.length; index++) {
+    final row = index ~/ 3;
+    final column = index % 3;
+    final key = grid.tagColorKeys[index];
+    final color = kBlockTagColorMap[key] ?? Colors.white;
+    final left = origin.dx + column * (grid.squareSize + grid.gap);
+    final top = origin.dy + row * (grid.squareSize + grid.gap);
+    final rect = Rect.fromLTWH(left, top, grid.squareSize, grid.squareSize);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(grid.squareSize * 0.2)),
+      Paint()..color = color,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(grid.squareSize * 0.2)),
+      Paint()
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8,
+    );
+  }
 }
 
 Rect _clampRectAroundPreferred(

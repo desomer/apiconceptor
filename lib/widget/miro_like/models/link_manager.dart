@@ -107,6 +107,7 @@ class LinkManager {
       'name': link.name,
       'colorKey': link.colorKey,
       'labelIconKey': link.labelIconKey,
+      'tagColorKeys': link.tagColorKeys,
       'particleDensity': link.particleDensity,
       'particleSpeed': link.particleSpeed,
       'labelPosition': link.labelPosition,
@@ -166,6 +167,17 @@ class LinkManager {
         }
       }
 
+      final tagColorKeys = <String>[];
+      final rawTagColorKeys = item['tagColorKeys'];
+      if (rawTagColorKeys is List) {
+        for (final key in rawTagColorKeys) {
+          final keyString = key?.toString() ?? '';
+          if (kBlockTagColorMap.containsKey(keyString)) {
+            tagColorKeys.add(keyString);
+          }
+        }
+      }
+
       parsed.add(
         BlockLink(
           id: item['id']?.toString(),
@@ -174,6 +186,7 @@ class LinkManager {
           name: item['name']?.toString() ?? '',
           colorKey: item['colorKey']?.toString(),
           labelIconKey: item['labelIconKey']?.toString(),
+          tagColorKeys: tagColorKeys,
           particleDensity: (item['particleDensity'] is num)
               ? (item['particleDensity'] as num).toDouble().clamp(0.2, 3.0)
               : 1.0,

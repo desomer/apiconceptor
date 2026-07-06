@@ -601,6 +601,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             onLinkNameChanged: _handleLinkNameChanged,
             onLinkColorChanged: _handleLinkColorChanged,
             onLinkLabelIconChanged: _handleLinkLabelIconChanged,
+            onLinkTagsChanged: _handleLinkTagsChanged,
             onLinkParticleDensityChanged: _handleLinkParticleDensityChanged,
             onLinkParticleSpeedChanged: _handleLinkParticleSpeedChanged,
             onLinkLabelPositionChanged: _handleLinkLabelPositionChanged,
