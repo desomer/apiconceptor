@@ -22,6 +22,54 @@ extension _MiroLikeWidgetStateCanvasCoreMethods on _MiroLikeWidgetState {
     );
   }
 
+  Future<void> _exportGraphAsPng() async {
+    final renderObject = _canvasKey.currentContext?.findRenderObject();
+    final boundary = renderObject is RenderRepaintBoundary
+        ? renderObject
+        : null;
+    if (boundary == null) {
+      return;
+    }
+
+    if (boundary.debugNeedsPaint) {
+      await Future<void>.delayed(Duration.zero);
+      if (boundary.debugNeedsPaint) {
+        return;
+      }
+    }
+
+    print('Exporting graph as PNG...');
+
+    final image = await boundary.toImage(
+      // ignore: use_build_context_synchronously
+      pixelRatio: math.max(MediaQuery.of(context).devicePixelRatio, 3.0),
+    );
+    print('Graph exported as PNG: ${image.width}x${image.height} pixels');
+
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) {
+      return;
+    }
+    print('Graph PNG byte data size: ${byteData.lengthInBytes} bytes');
+    final bytes = byteData.buffer.asUint8List();
+    final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final fileName = 'graph_$stamp.png';
+    print('Exporting graph PNG to file: $fileName');
+    final filePath = await exportPng(bytes, fileName: fileName);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          filePath == null ? 'PNG exporte' : 'PNG exporte: $filePath',
+        ),
+      ),
+    );
+  }
+
   void _resetBlockDragSnap() {
     _snapLeftModel = null;
     _snapTopModel = null;

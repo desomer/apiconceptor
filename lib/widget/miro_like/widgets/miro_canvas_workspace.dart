@@ -75,7 +75,6 @@ class MiroCanvasWorkspace extends StatelessWidget {
     ];
 
     return MouseRegion(
-      key: canvasKey,
       cursor: SystemMouseCursors.grab,
       onHover: onHover,
       child: Listener(
@@ -93,89 +92,94 @@ class MiroCanvasWorkspace extends StatelessWidget {
         onPointerUp: (event) {
           onCanvasSecondaryDragEnd(event);
         },
-        child: CustomPaint(
-          foregroundPainter: foregroundPainter,
-          child: Container(
-            color: canvasBackgroundColor,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onPanStart: onCanvasPrimaryDragStart,
-                    onPanUpdate: onCanvasPrimaryDragUpdate,
-                    onPanEnd: onCanvasPrimaryDragEnd,
-                    onTapDown: onCanvasTapDown,
-                    onSecondaryTapDown: onCanvasSecondaryTapDown,
+        child: RepaintBoundary(
+          key: canvasKey,
+          child: CustomPaint(
+            foregroundPainter: foregroundPainter,
+            child: Container(
+              color: canvasBackgroundColor,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onPanStart: onCanvasPrimaryDragStart,
+                      onPanUpdate: onCanvasPrimaryDragUpdate,
+                      onPanEnd: onCanvasPrimaryDragEnd,
+                      onTapDown: onCanvasTapDown,
+                      onSecondaryTapDown: onCanvasSecondaryTapDown,
+                    ),
                   ),
-                ),
-                ...paintOrderedBlocks.map((block) {
-                  if (block.isZone) {
+                  ...paintOrderedBlocks.map((block) {
+                    if (block.isZone) {
+                      return Positioned(
+                        left: block.position.dx * zoomLevel + canvasOffset.dx,
+                        top: block.position.dy * zoomLevel + canvasOffset.dy,
+                        width: block.size.width * zoomLevel,
+                        height: block.size.height * zoomLevel,
+                        child: IgnorePointer(
+                          ignoring: true,
+                          child: BlockWidget(
+                            block: block,
+                            isSelected:
+                                selectedBlock == block ||
+                                selectedBlockIds.contains(block.id),
+                            zoomLevel: zoomLevel,
+                            onInfoTap: null,
+                          ),
+                        ),
+                      );
+                    }
+
                     return Positioned(
                       left: block.position.dx * zoomLevel + canvasOffset.dx,
                       top: block.position.dy * zoomLevel + canvasOffset.dy,
                       width: block.size.width * zoomLevel,
                       height: block.size.height * zoomLevel,
-                      child: IgnorePointer(
-                        ignoring: true,
-                        child: BlockWidget(
-                          block: block,
-                          isSelected:
-                              selectedBlock == block ||
-                              selectedBlockIds.contains(block.id),
-                          zoomLevel: zoomLevel,
-                          onInfoTap: null,
+                      child: Listener(
+                        behavior: HitTestBehavior.opaque,
+                        onPointerDown: (event) {
+                          if (isSecondaryButtonPressed(event.buttons)) {
+                            onStartLinkingForBlock(block);
+                            onUpdateLinkPreviewFromGlobal(event.position);
+                          }
+                        },
+                        onPointerMove: (event) {
+                          if (!isSecondaryButtonPressed(event.buttons)) {
+                            return;
+                          }
+                          if (linkSourceBlock != null) {
+                            onUpdateLinkPreviewFromGlobal(event.position);
+                          }
+                        },
+                        onPointerUp: (event) {
+                          if (linkSourceBlock != null) {
+                            onFinishLinkingAtGlobal(event.position);
+                          }
+                        },
+                        child: GestureDetector(
+                          onPanDown: (details) =>
+                              onBlockPanDown(block, details),
+                          onPanUpdate: (details) =>
+                              onBlockPanUpdate(block, details),
+                          onPanEnd: (_) => onBlockPanEnd(block),
+                          onTapDown: (details) =>
+                              onBlockTapDown(block, details),
+                          child: BlockWidget(
+                            block: block,
+                            isSelected:
+                                selectedBlock == block ||
+                                selectedBlockIds.contains(block.id),
+                            zoomLevel: zoomLevel,
+                            onInfoTap: () => onBlockInfoTap(block),
+                          ),
                         ),
                       ),
                     );
-                  }
-
-                  return Positioned(
-                    left: block.position.dx * zoomLevel + canvasOffset.dx,
-                    top: block.position.dy * zoomLevel + canvasOffset.dy,
-                    width: block.size.width * zoomLevel,
-                    height: block.size.height * zoomLevel,
-                    child: Listener(
-                      behavior: HitTestBehavior.opaque,
-                      onPointerDown: (event) {
-                        if (isSecondaryButtonPressed(event.buttons)) {
-                          onStartLinkingForBlock(block);
-                          onUpdateLinkPreviewFromGlobal(event.position);
-                        }
-                      },
-                      onPointerMove: (event) {
-                        if (!isSecondaryButtonPressed(event.buttons)) {
-                          return;
-                        }
-                        if (linkSourceBlock != null) {
-                          onUpdateLinkPreviewFromGlobal(event.position);
-                        }
-                      },
-                      onPointerUp: (event) {
-                        if (linkSourceBlock != null) {
-                          onFinishLinkingAtGlobal(event.position);
-                        }
-                      },
-                      child: GestureDetector(
-                        onPanDown: (details) => onBlockPanDown(block, details),
-                        onPanUpdate: (details) =>
-                            onBlockPanUpdate(block, details),
-                        onPanEnd: (_) => onBlockPanEnd(block),
-                        onTapDown: (details) => onBlockTapDown(block, details),
-                        child: BlockWidget(
-                          block: block,
-                          isSelected:
-                              selectedBlock == block ||
-                              selectedBlockIds.contains(block.id),
-                          zoomLevel: zoomLevel,
-                          onInfoTap: () => onBlockInfoTap(block),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                ...overlayWidgets,
-              ],
+                  }),
+                  ...overlayWidgets,
+                ],
+              ),
             ),
           ),
         ),

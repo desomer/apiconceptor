@@ -1,36 +1,36 @@
 part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
-  static const String _auditLogFilePath = r'C:\apiconceptor_elk_audit.log';
-  static const String _auditLogFileName = 'apiconceptor_elk_audit.log';
+  // static const String _auditLogFilePath = r'C:\apiconceptor_elk_audit.log';
+  // static const String _auditLogFileName = 'apiconceptor_elk_audit.log';
 
   Future<({String? path, String? error})> _writeAuditTrailToFile(
     List<String> trail,
   ) async {
-    final content = '${trail.join('\n')}\n';
-    final fallbackTempPath =
-        '${Directory.systemTemp.path}${Platform.pathSeparator}$_auditLogFileName';
-    const fallbackPublicPath = r'C:\Users\Public\apiconceptor_elk_audit.log';
-    final candidates = <String>[
-      _auditLogFilePath,
-      fallbackPublicPath,
-      fallbackTempPath,
-    ];
+    // final content = '${trail.join('\n')}\n';
+    // // final fallbackTempPath =
+    // //     '${Directory.systemTemp.path}${Platform.pathSeparator}$_auditLogFileName';
+    // // const fallbackPublicPath = r'C:\Users\Public\apiconceptor_elk_audit.log';
+    // final candidates = <String>[
+    //  //_auditLogFilePath,
+    //   // fallbackPublicPath,
+    //   // fallbackTempPath,
+    // ];
 
     final errors = <String>[];
-    for (final candidate in candidates) {
-      try {
-        await File(candidate).writeAsString(content, flush: true);
-        if (candidate != _auditLogFilePath) {
-          AutoLayoutEngine.debugLog(
-            'stage=audit_file_fallback_used requested=$_auditLogFilePath actual=$candidate',
-          );
-        }
-        return (path: candidate, error: null);
-      } catch (e) {
-        errors.add('$candidate -> $e');
-      }
-    }
+    // for (final candidate in candidates) {
+    //   try {
+    //   //  await File(candidate).writeAsString(content, flush: true);
+    //     //if (candidate != _auditLogFilePath) {
+    //       AutoLayoutEngine.debugLog(
+    //         'stage=audit_file_fallback_used requested=$_auditLogFilePath actual=$candidate',
+    //       );
+    //     }
+    //     return (path: candidate, error: null);
+    //   } catch (e) {
+    //     errors.add('$candidate -> $e');
+    //   }
+    // }
 
     return (path: null, error: errors.join(' | '));
   }
@@ -86,7 +86,7 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
     final allEdges = [for (final e in edgeData) (e.fromId, e.toId)];
 
     AutoLayoutEngine.clearAuditTrail();
-    AutoLayoutEngine.debugLog('stage=audit_file_reset path=$_auditLogFilePath');
+    //AutoLayoutEngine.debugLog('stage=audit_file_reset path=$_auditLogFilePath');
 
     final predictedAuto = _computeMermaidAutoLayout(
       nodeOrder,
@@ -240,12 +240,12 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
       AutoLayoutEngine.debugLog('stage=manual_snapshot $line');
     }
     final trail = AutoLayoutEngine.getAuditTrailSnapshot();
-    final auditWrite = await _writeAuditTrailToFile(trail);
-    if (auditWrite.path == null) {
-      AutoLayoutEngine.debugLog(
-        'stage=audit_file_write_failed path=$_auditLogFilePath error=${auditWrite.error}',
-      );
-    }
+    // final auditWrite = await _writeAuditTrailToFile(trail);
+    // if (auditWrite.path == null) {
+    //   AutoLayoutEngine.debugLog(
+    //     'stage=audit_file_write_failed path=$_auditLogFilePath error=${auditWrite.error}',
+    //   );
+    // }
 
     // Combine audit logs and snapshot for clipboard
     final clipboardContent =
@@ -264,9 +264,7 @@ $pretty
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          auditWrite.path != null
-              ? 'Snapshot logge, copie et audit ecrit dans ${auditWrite.path}. nodes=${nodeOrder.length} moved=$movedNodes cross=${manualMetrics.crossings}->${autoMetrics.crossings}'
-              : 'Snapshot logge et copie. Echec ecriture audit ($_auditLogFilePath). nodes=${nodeOrder.length} moved=$movedNodes cross=${manualMetrics.crossings}->${autoMetrics.crossings}',
+          'Snapshot logge et copie. nodes=${nodeOrder.length} moved=$movedNodes cross=${manualMetrics.crossings}->${autoMetrics.crossings}',
         ),
       ),
     );

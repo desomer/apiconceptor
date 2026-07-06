@@ -306,9 +306,24 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
     if (tangent == null) return null;
 
     final normal = Offset(-math.sin(tangent.angle), math.cos(tangent.angle));
-    return tangent.position +
+    final baseCenter =
+        tangent.position +
         (normal * (18.0 * zoomLevel)) +
         (link.labelOffset * zoomLevel);
+    final tagCount = link.tagColorKeys
+        .where((key) => kBlockTagColorMap.containsKey(key))
+        .length;
+    if (tagCount == 0) {
+      return baseCenter;
+    }
+
+    final textScale = zoomLevel;
+    final squareSize = (8.0 * textScale).clamp(4.0, 16.0);
+    final gap = (2.0 * textScale).clamp(1.0, 6.0);
+    final columns = math.min(3, tagCount);
+    final tagWidth = (columns * squareSize) + ((columns - 1) * gap);
+    final tagSpacing = (6.0 * textScale).clamp(3.0, 14.0);
+    return baseCenter + Offset(-((tagWidth + tagSpacing) * 0.5), 0);
   }
 
   List<Widget> _buildLinkLabelHandles() {
@@ -326,11 +341,37 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
       }
 
       final iconExtraWidth = link.labelIconKey == null ? 0.0 : 20.0 * textScale;
+      final validTagCount = link.tagColorKeys
+          .where((key) => kBlockTagColorMap.containsKey(key))
+          .length;
+      final tagWidth = validTagCount == 0
+          ? 0.0
+          : (() {
+              final squareSize = (8.0 * textScale).clamp(4.0, 16.0);
+              final gap = (2.0 * textScale).clamp(1.0, 6.0);
+              final columns = math.min(3, validTagCount);
+              return (columns * squareSize) + ((columns - 1) * gap);
+            })();
+      final tagSpacing = validTagCount == 0
+          ? 0.0
+          : (6.0 * textScale).clamp(3.0, 14.0);
+
       final width = math.max(
         30.0 * textScale,
-        link.name.length * 6.0 * textScale + 28.0 * textScale + iconExtraWidth,
+        link.name.length * 6.0 * textScale +
+            28.0 * textScale +
+            iconExtraWidth +
+            tagWidth +
+            tagSpacing,
       );
       final height = 32.0 * textScale;
+
+      final widthLabel = math.max(
+        30.0 * textScale,
+        link.name.length * 6.0 * textScale + 28.0 * textScale + iconExtraWidth,
+        // + tagWidth +
+        // tagSpacing,
+      );
 
       widgets.add(
         LinkLabelHandleWidget(
@@ -364,7 +405,8 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
       );
 
       final badgeSize = (24.0 * textScale).clamp(0.0, 24.0);
-      final badgeLeft = labelCenter.dx + (width / 2) - (badgeSize * 0.6);
+      final badgeLeft =
+          labelCenter.dx + (widthLabel / 2) + tagWidth - (badgeSize * 0.6);
       final badgeTop = labelCenter.dy + (badgeSize * 0.1);
       /*+ (height / 2)*/ //+ (badgeSize * 0.15);
       widgets.add(
@@ -405,6 +447,18 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
         continue;
       }
 
+      final validTagCount = link.tagColorKeys
+          .where((key) => kBlockTagColorMap.containsKey(key))
+          .length;
+      final tagWidth = validTagCount == 0
+          ? 0.0
+          : (() {
+              final squareSize = (8.0 * textScale).clamp(4.0, 16.0);
+              final gap = (2.0 * textScale).clamp(1.0, 6.0);
+              final columns = math.min(3, validTagCount);
+              return (columns * squareSize) + ((columns - 1) * gap);
+            })();
+
       final iconExtraWidth = link.labelIconKey == null ? 0.0 : 20.0 * textScale;
       final labelWidth = math.max(
         30.0 * textScale,
@@ -412,7 +466,7 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
       );
       final labelHeight = 32.0 * textScale;
       final badgeSize = (24.0 * textScale).clamp(0.0, 26.0);
-      final left = labelCenter.dx + labelWidth / 2 - badgeSize * 0.6;
+      final left = labelCenter.dx + labelWidth / 2 + tagWidth - (badgeSize * 0.6);
       final top = labelCenter.dy - labelHeight / 2 - badgeSize * 0.1;
 
       widgets.add(

@@ -137,6 +137,11 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
             onPressed: () => importExportManager.showExportDialog(),
           ),
           IconButton(
+            icon: const Icon(Icons.image_outlined),
+            tooltip: 'Export PNG',
+            onPressed: _exportGraphAsPng,
+          ),
+          IconButton(
             icon: const Icon(Icons.file_download_outlined),
             tooltip: 'Import JSON',
             onPressed: () => importExportManager.showImportDialog(),

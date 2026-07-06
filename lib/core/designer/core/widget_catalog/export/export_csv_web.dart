@@ -14,10 +14,9 @@ Future<String?> exportCsv(
   final blob = web.Blob([bytes].toJS, web.BlobPropertyBag(type: "text/csv"));
 
   final url = web.URL.createObjectURL(blob);
-  final anchor =
-      web.HTMLAnchorElement()
-        ..href = url
-        ..download = fileName;
+  final anchor = web.HTMLAnchorElement()
+    ..href = url
+    ..download = fileName;
 
   anchor.click();
   web.URL.revokeObjectURL(url);
@@ -35,10 +34,29 @@ Future<String?> exportFile(
   final blob = web.Blob([bytes].toJS, web.BlobPropertyBag(type: "text/html"));
 
   final url = web.URL.createObjectURL(blob);
-  final anchor =
-      web.HTMLAnchorElement()
-        ..href = url
-        ..download = fileName;
+  final anchor = web.HTMLAnchorElement()
+    ..href = url
+    ..download = fileName;
+
+  anchor.click();
+  web.URL.revokeObjectURL(url);
+
+  return null; // pas de chemin sur Web/WASM
+}
+
+Future<String?> exportPng(
+  Uint8List bytes, {
+  String fileName = "result.png",
+}) async {
+  final blob = web.Blob(
+    [bytes.toJS].toJS,
+    web.BlobPropertyBag(type: "image/png"),
+  );
+
+  final url = web.URL.createObjectURL(blob);
+  final anchor = web.HTMLAnchorElement()
+    ..href = url
+    ..download = fileName;
 
   anchor.click();
   web.URL.revokeObjectURL(url);

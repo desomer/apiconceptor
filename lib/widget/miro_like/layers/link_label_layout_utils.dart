@@ -172,6 +172,9 @@ LinkLabelLayout? buildLinkLabelLayout({
   final iconSpacing = iconPainter == null
       ? 0.0
       : (6.0 * textScale).clamp(3.0, 16.0);
+  final labelShiftX = tagGrid == null
+      ? 0.0
+      : -((tagGrid.width + tagSpacing) * 0.5);
   final contentWidth =
       (tagGrid?.width ?? 0.0) +
       tagSpacing +
@@ -192,9 +195,9 @@ LinkLabelLayout? buildLinkLabelLayout({
     iconSpacing: iconSpacing,
     tagSpacing: tagSpacing,
     contentHeight: contentHeight,
-    preferredCenter: labelCenter,
+    preferredCenter: labelCenter + Offset(labelShiftX, 0),
     rect: Rect.fromCenter(
-      center: labelCenter,
+      center: labelCenter + Offset(labelShiftX, 0),
       width: contentWidth + padding.horizontal,
       height: contentHeight + padding.vertical,
     ),

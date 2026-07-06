@@ -569,7 +569,10 @@ class MiroLinkLayerPainter {
       math.max(textPainter.height, iconPainter?.height ?? 0.0),
       tagGrid?.height ?? 0.0,
     );
-    var contentLeft = rect.center.dx - (contentWidth / 2);
+    final labelShiftX = tagGrid == null
+        ? 0.0
+        : -((tagGrid.width + (6.0 * zoomLevel).clamp(3.0, 14.0)) * 0.5);
+    var contentLeft = rect.center.dx - (contentWidth / 2) + labelShiftX;
 
     if (tagGrid != null) {
       paintLinkTagGrid(
