@@ -33,6 +33,16 @@ Future<String?> exportPng(
   return file.path;
 }
 
+Future<String?> exportSvg(
+  String svgContent, {
+  String fileName = "result.svg",
+}) async {
+  final dir = await getDownloadsDirectory();
+  final file = File("${dir!.path}/$fileName");
+  await file.writeAsString(svgContent);
+  return file.path;
+}
+
 Future<void> openHtmlInChrome(String? path, String spec) async {
   await Process.start('cmd', [
     '/c',

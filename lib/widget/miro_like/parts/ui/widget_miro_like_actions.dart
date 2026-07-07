@@ -139,7 +139,15 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
           IconButton(
             icon: const Icon(Icons.image_outlined),
             tooltip: 'Export PNG',
-            onPressed: _exportGraphAsPng,
+            onPressed: () async {
+              print('A Exporting graph as PNG...');
+              await _exportGraphAsPng();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.draw_outlined),
+            tooltip: 'Export SVG',
+            onPressed: _exportGraphAsSvg,
           ),
           IconButton(
             icon: const Icon(Icons.file_download_outlined),

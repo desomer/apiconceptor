@@ -23,7 +23,9 @@ extension _MiroLikeWidgetStateCanvasCoreMethods on _MiroLikeWidgetState {
   }
 
   Future<void> _exportGraphAsPng() async {
+    print('Start Exporting graph as PNG...');
     final renderObject = _canvasKey.currentContext?.findRenderObject();
+    print('2 Start Exporting graph as PNG...');
     final boundary = renderObject is RenderRepaintBoundary
         ? renderObject
         : null;
@@ -31,12 +33,12 @@ extension _MiroLikeWidgetStateCanvasCoreMethods on _MiroLikeWidgetState {
       return;
     }
 
-    if (boundary.debugNeedsPaint) {
-      await Future<void>.delayed(Duration.zero);
-      if (boundary.debugNeedsPaint) {
-        return;
-      }
-    }
+    // if (boundary.debugNeedsPaint) {
+    //   await Future<void>.delayed(Duration.zero);
+    //   if (boundary.debugNeedsPaint) {
+    //     return;
+    //   }
+    // }
 
     print('Exporting graph as PNG...');
 
@@ -65,6 +67,25 @@ extension _MiroLikeWidgetStateCanvasCoreMethods on _MiroLikeWidgetState {
       SnackBar(
         content: Text(
           filePath == null ? 'PNG exporte' : 'PNG exporte: $filePath',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportGraphAsSvg() async {
+    final svg = MiroLikeSvgExportEngine.generate(blocks: blocks, links: links);
+    final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final fileName = 'graph_$stamp.svg';
+    final filePath = await exportSvg(svg, fileName: fileName);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          filePath == null ? 'SVG exporte' : 'SVG exporte: $filePath',
         ),
       ),
     );
@@ -263,7 +284,7 @@ class _AlignmentSnapGuidesPainter extends CustomPainter {
     final guidePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.4
-      ..color = colorLinkSelected.withValues(alpha: 0.92);
+      ..color = colorLinkSelected.withValues(alpha: 0.50);
     final glowPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4.0

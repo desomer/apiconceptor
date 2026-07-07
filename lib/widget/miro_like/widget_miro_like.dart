@@ -19,6 +19,7 @@ import 'models/block_model.dart';
 import 'auto_layout_engine.dart';
 import 'widgets/actions/import_export_manager.dart';
 import 'widgets/link_manager.dart';
+import 'graph_svg_export_engine.dart';
 import 'mermaid_flowchart_codec.dart';
 import 'mermaid_sequence_codec.dart';
 import 'widgets/anchor_handle_widget.dart';

@@ -64,6 +64,27 @@ Future<String?> exportPng(
   return null; // pas de chemin sur Web/WASM
 }
 
+Future<String?> exportSvg(
+  String svgContent, {
+  String fileName = "result.svg",
+}) async {
+  final bytes = utf8.encode(svgContent).toJS;
+  final blob = web.Blob(
+    [bytes].toJS,
+    web.BlobPropertyBag(type: "image/svg+xml"),
+  );
+
+  final url = web.URL.createObjectURL(blob);
+  final anchor = web.HTMLAnchorElement()
+    ..href = url
+    ..download = fileName;
+
+  anchor.click();
+  web.URL.revokeObjectURL(url);
+
+  return null; // pas de chemin sur Web/WASM
+}
+
 Future<void> openHtmlInChrome(String? path, String spec) async {
   var encode = utf8.encode(spec);
 
