@@ -210,6 +210,21 @@ class MiroLikeSvgExportEngine {
         svg.writeln(
           '<polygon points="${p.map((e) => '${_f(e.dx)},${_f(e.dy)}').join(' ')}" fill="$fill" fill-opacity="${_f(fillOpacity)}" stroke="$stroke" stroke-width="1.2"/>',
         );
+      case BlockNodeShape.person:
+        final cx = x + w / 2;
+        final headR = math.min(w, h) * 0.17;
+        final headCy = y + h * 0.25;
+        final bodyX = x + w * 0.12;
+        final bodyY = y + h * 0.50;
+        final bodyW = w * 0.76;
+        final bodyH = h * 0.50;
+        final rx = math.min(bodyW * 0.32, bodyH * 0.46);
+        svg.writeln(
+          '<circle cx="${_f(cx)}" cy="${_f(headCy)}" r="${_f(headR)}" fill="$fill" fill-opacity="${_f(fillOpacity)}" stroke="$stroke" stroke-width="1.2"/>',
+        );
+        svg.writeln(
+          '<rect x="${_f(bodyX)}" y="${_f(bodyY)}" width="${_f(bodyW)}" height="${_f(bodyH)}" rx="${_f(rx)}" ry="${_f(rx)}" fill="$fill" fill-opacity="${_f(fillOpacity)}" stroke="$stroke" stroke-width="1.2"/>',
+        );
       default:
         final rx =
             (block.nodeShape == BlockNodeShape.roundedRectangle ||

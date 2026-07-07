@@ -83,7 +83,7 @@ extension _MiroLikeWidgetStateAnchorMethods on _MiroLikeWidgetState {
 
     void markDirtySide(String blockId, Offset side) {
       dirtyAnchorSideKeys.add(
-        '${blockId}|${side.dx.toStringAsFixed(0)}|${side.dy.toStringAsFixed(0)}',
+        '$blockId|${side.dx.toStringAsFixed(0)}|${side.dy.toStringAsFixed(0)}',
       );
     }
 

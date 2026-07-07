@@ -352,6 +352,8 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
         return BlockNodeShape.trapezoid;
       case 'trapezoidInverted':
         return BlockNodeShape.trapezoidInverted;
+      case 'person':
+        return BlockNodeShape.person;
       case 'rectangle':
       default:
         return BlockNodeShape.rectangle;

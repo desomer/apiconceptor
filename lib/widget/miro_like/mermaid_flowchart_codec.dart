@@ -634,6 +634,8 @@ class MermaidFlowchartCodec {
         return '[/"$text"\\]';
       case BlockNodeShape.trapezoidInverted:
         return '[\\"$text"/]';
+      case BlockNodeShape.person:
+        return '(["$text"])';
     }
   }
 

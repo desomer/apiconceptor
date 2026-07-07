@@ -138,6 +138,8 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
     }
 
     // le popscope pour gérer le retour arrière sur le BackButton
+    var navigationItem = getNavigationItem(navigationInfo, location, context);
+
     return
     // PopScope(
     //   // canPop: false,
@@ -186,6 +188,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
             backgroundColor: Color.fromARGB(255, 5, 1, 0),
             appBar: AppBar(
               toolbarHeight: 40,
+
               // bottom: PreferredSize(
               //   preferredSize: const Size.fromHeight(1.0),
               //   child: Container(
@@ -193,7 +196,6 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
               //     height: 1.0, // Épaisseur de la bordure
               //   ),
               // ),
-
               title: Row(
                 children: [
                   UniversalBackButton(),
@@ -219,11 +221,8 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
               },
               child: Row(
                 children: [
-                  SizedBox(
-                    width: 100,
-                    child: getNavigationItem(navigationInfo, location, context),
-                  ),
-                  const VerticalDivider(thickness: 1, width: 1),
+                  if (navigationItem != null) SizedBox(width: 100, child: navigationItem),
+                  if (navigationItem != null) const VerticalDivider(thickness: 1, width: 1),
                   Expanded(
                     child: widget.navChild,
                     //  IndexedStack(index: 0, children: pages),
@@ -366,7 +365,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
   //   );
   // }
 
-  Widget getNavigationItem(
+  Widget? getNavigationItem(
     NavigationInfo navigationInfo,
     String location,
     BuildContext context,
@@ -397,7 +396,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
     }).toList();
 
     if (contextMenu.isEmpty) {
-      return SizedBox.shrink();
+      return null;
     }
 
     return NavigationRail(

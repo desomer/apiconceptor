@@ -132,11 +132,6 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
           ),
           Spacer(),
           IconButton(
-            icon: const Icon(Icons.file_upload_outlined),
-            tooltip: 'Export JSON',
-            onPressed: () => importExportManager.showExportDialog(),
-          ),
-          IconButton(
             icon: const Icon(Icons.image_outlined),
             tooltip: 'Export PNG',
             onPressed: () async {
@@ -150,14 +145,19 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
             onPressed: _exportGraphAsSvg,
           ),
           IconButton(
-            icon: const Icon(Icons.file_download_outlined),
-            tooltip: 'Import JSON',
-            onPressed: () => importExportManager.showImportDialog(),
-          ),
-          IconButton(
             icon: const Icon(Icons.account_tree_outlined),
             tooltip: 'Export Mermaid',
             onPressed: () => importExportManager.showExportMermaidDialog(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_upload_outlined),
+            tooltip: 'Export JSON',
+            onPressed: () => importExportManager.showExportDialog(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Import JSON',
+            onPressed: () => importExportManager.showImportDialog(),
           ),
           IconButton(
             icon: const Icon(Icons.schema_outlined),

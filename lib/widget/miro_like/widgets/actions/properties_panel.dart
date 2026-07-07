@@ -3,7 +3,6 @@ import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/miro_like/mermaid_sequence_codec.dart';
-import 'package:jsonschema/widget/miro_like/models/link_manager.dart';
 import 'package:jsonschema/widget/miro_like/widget_miro_like.dart';
 import 'package:jsonschema/widget/miro_like/widgets/link_manager.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
@@ -849,6 +848,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
       BlockNodeShape.parallelogramInverted,
       BlockNodeShape.trapezoid,
       BlockNodeShape.trapezoidInverted,
+      BlockNodeShape.person,
     ];
 
     String nodeShapeLabel(BlockNodeShape shape) {
@@ -879,6 +879,8 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           return 'Trapeze';
         case BlockNodeShape.trapezoidInverted:
           return 'Trapeze inverse';
+        case BlockNodeShape.person:
+          return 'Personne';
       }
     }
 
@@ -916,7 +918,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               widget.onBlockTitleChanged?.call(block.id, value);
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
@@ -929,6 +931,34 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
               label: const Text('proposal app'),
             ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<BlockNodeShape>(
+            initialValue: block.nodeShape,
+            dropdownColor: colorBlockBackground,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Forme du noeud',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            items: nodeShapes
+                .map(
+                  (shape) => DropdownMenuItem<BlockNodeShape>(
+                    value: shape,
+                    child: Text(nodeShapeLabel(shape)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              widget.onBlockNodeShapeChanged?.call(block, value);
+            },
           ),
           if (widget.currentSubgraphTitle != null) ...[
             const SizedBox(height: 8),
@@ -1003,34 +1033,6 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ],
             onChanged: (value) {
               widget.onBlockColorChanged?.call(block, value);
-            },
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<BlockNodeShape>(
-            initialValue: block.nodeShape,
-            dropdownColor: colorBlockBackground,
-            style: const TextStyle(color: colorTextPrimary),
-            decoration: InputDecoration(
-              labelText: 'Forme du noeud',
-              labelStyle: const TextStyle(color: colorTextSecondary),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: colorPanelBorder),
-              ),
-              isDense: true,
-            ),
-            items: nodeShapes
-                .map(
-                  (shape) => DropdownMenuItem<BlockNodeShape>(
-                    value: shape,
-                    child: Text(nodeShapeLabel(shape)),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: (value) {
-              if (value == null) {
-                return;
-              }
-              widget.onBlockNodeShapeChanged?.call(block, value);
             },
           ),
           const SizedBox(height: 12),
@@ -1120,67 +1122,86 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             },
           ),
           const SizedBox(height: 8),
-          TextFormField(
-            controller: _blockJsonController,
-            minLines: 4,
-            maxLines: 10,
-            style: const TextStyle(color: colorTextPrimary),
-            decoration: InputDecoration(
-              labelText: 'JSON propriétés bloc',
-              alignLabelWithHint: true,
-              hintText:
-                  '{"title":"Service API","colorKey":"blue","tagColorKeys":["green"],"size":{"width":240,"height":180}}',
-              hintStyle: const TextStyle(color: colorTextSecondary),
-              labelStyle: const TextStyle(color: colorTextSecondary),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: colorPanelBorder),
-              ),
-            ),
-            onChanged: (_) {
-              if (_blockJsonError != null) {
-                setState(() {
-                  _blockJsonError = null;
-                });
-              }
-            },
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 2,
-            children: const [
-              Text(
-                'Clés supportées: title, colorKey, tagColorKeys, iconBase64, size',
-                style: TextStyle(color: colorTextSecondary, fontSize: 12),
-              ),
-            ],
-          ),
-          if (_blockJsonError != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              _blockJsonError!,
-              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _populateJsonFromBlock(block),
-                  icon: const Icon(Icons.file_download_outlined),
-                  label: const Text('Depuis bloc'),
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              collapsedIconColor: colorTextSecondary,
+              iconColor: colorTextPrimary,
+              title: const Text(
+                'JSON propriétés bloc',
+                style: TextStyle(
+                  color: colorTextPrimary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _applyBlockPropertiesJson(block),
-                  icon: const Icon(Icons.data_object),
-                  label: const Text('Appliquer JSON'),
+              children: [
+                TextFormField(
+                  controller: _blockJsonController,
+                  minLines: 4,
+                  maxLines: 10,
+                  style: const TextStyle(color: colorTextPrimary),
+                  decoration: InputDecoration(
+                    alignLabelWithHint: true,
+                    hintText:
+                        '{"title":"Service API","colorKey":"blue","tagColorKeys":["green"],"size":{"width":240,"height":180}}',
+                    hintStyle: const TextStyle(color: colorTextSecondary),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: colorPanelBorder),
+                    ),
+                  ),
+                  onChanged: (_) {
+                    if (_blockJsonError != null) {
+                      setState(() {
+                        _blockJsonError = null;
+                      });
+                    }
+                  },
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 2,
+                  children: const [
+                    Text(
+                      'Clés supportées: title, colorKey, tagColorKeys, iconBase64, size',
+                      style: TextStyle(color: colorTextSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+                if (_blockJsonError != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _blockJsonError!,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _populateJsonFromBlock(block),
+                        icon: const Icon(Icons.file_download_outlined),
+                        label: const Text('Depuis bloc'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _applyBlockPropertiesJson(block),
+                        icon: const Icon(Icons.data_object),
+                        label: const Text('Appliquer JSON'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -1986,6 +2007,22 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ),
           const SizedBox(height: 12),
+          TextFormField(
+            key: ValueKey('link-name-${link.fromBlockId}-${link.toBlockId}'),
+            controller: _linkNameController,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              labelText: 'Nom du lien',
+              labelStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+              isDense: true,
+            ),
+            onChanged: (value) {
+              widget.onLinkNameChanged?.call(link, value);
+            },
+          ),
           // Text(
           //   'Source: ${link.fromBlockId}',
           //   style: const TextStyle(color: colorTextSecondary),
@@ -1994,7 +2031,22 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           //   'Cible: ${link.toBlockId}',
           //   style: const TextStyle(color: colorTextSecondary),
           // ),
-          // const SizedBox(height: 12),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await onTapProposalLink();
+                // const value = 'proposal';
+                // _linkNameController.text = value;
+                // widget.onLinkNameChanged?.call(link, value);
+              },
+              icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
+              label: const Text('proposal link'),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           if (allowSequenceElementTypeChoice) ...[
             const Text(
               'Type element sequence',
@@ -2066,59 +2118,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
               ),
             ),
           ],
-          // if (hasSequenceArrowType) ...[
-          //   const SizedBox(height: 12),
-          //   Container(
-          //     width: double.infinity,
-          //     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          //     decoration: BoxDecoration(
-          //       color: arrowAccent.withValues(alpha: 0.12),
-          //       borderRadius: BorderRadius.circular(10),
-          //       border: Border.all(color: arrowAccent.withValues(alpha: 0.55)),
-          //     ),
-          //     child: Row(
-          //       crossAxisAlignment: CrossAxisAlignment.start,
-          //       children: [
-          //         Icon(
-          //           _mermaidArrowIcon(arrowType),
-          //           size: 16,
-          //           color: arrowAccent,
-          //         ),
-          //         const SizedBox(width: 8),
-          //         Expanded(
-          //           child: Column(
-          //             crossAxisAlignment: CrossAxisAlignment.start,
-          //             children: [
-          //               Text(
-          //                 'Type Mermaid: $arrowType',
-          //                 style: const TextStyle(
-          //                   color: colorTextPrimary,
-          //                   fontWeight: FontWeight.w600,
-          //                 ),
-          //               ),
-          //               const SizedBox(height: 2),
-          //               Text(
-          //                 _describeMermaidArrowType(arrowType),
-          //                 style: const TextStyle(
-          //                   color: colorTextSecondary,
-          //                   fontSize: 12,
-          //                 ),
-          //               ),
-          //               if (isDashedArrow)
-          //                 const Text(
-          //                   'Style de trait: pointille',
-          //                   style: TextStyle(
-          //                     color: colorTextSecondary,
-          //                     fontSize: 12,
-          //                   ),
-          //                 ),
-          //             ],
-          //           ),
-          //         ),
-          //       ],
-          //     ),
-          //   ),
-          // ],
+
           if (!isNoteLike) ...[
             const SizedBox(height: 12),
             Row(
@@ -2132,14 +2132,15 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                         : defaultArrowType,
                     dropdownColor: colorBlockBackground,
                     iconEnabledColor: arrowAccent,
-                    style: const TextStyle(
+                    style: TextStyle(
+                      color: colorTextPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
                     decoration: InputDecoration(
                       labelText: allowSequenceElementTypeChoice
                           ? 'Type message'
-                          : 'Type flux (flowchart)',
+                          : 'Type flux',
                       labelStyle: TextStyle(color: arrowAccent),
                       enabledBorder: OutlineInputBorder(
                         borderSide: BorderSide(
@@ -2153,13 +2154,13 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                         borderSide: BorderSide(color: arrowAccent),
                       ),
                       isDense: true,
-                      helperText: allowSequenceElementTypeChoice
-                          ? (isDashedArrow ? 'Dashed flow style' : null)
-                          : 'Codification Mermaid flow',
-                      helperStyle: const TextStyle(
-                        fontSize: 12,
-                        color: colorTextSecondary,
-                      ),
+                      // helperText: allowSequenceElementTypeChoice
+                      //     ? (isDashedArrow ? 'Dashed flow style' : null)
+                      //     : 'Codification Mermaid flow',
+                      // helperStyle: const TextStyle(
+                      //   fontSize: 12,
+                      //   color: colorTextSecondary,
+                      // ),
                     ),
                     items: selectableArrowTypes
                         .map(
@@ -2206,37 +2207,48 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ],
           const SizedBox(height: 12),
-          TextFormField(
-            key: ValueKey('link-name-${link.fromBlockId}-${link.toBlockId}'),
-            controller: _linkNameController,
+          DropdownButtonFormField<String?>(
+            initialValue: link.labelIconKey,
+            dropdownColor: colorBlockBackground,
             style: const TextStyle(color: colorTextPrimary),
             decoration: InputDecoration(
-              labelText: 'Nom du lien',
+              labelText: 'Icon technologie',
               labelStyle: const TextStyle(color: colorTextSecondary),
               border: OutlineInputBorder(
                 borderSide: BorderSide(color: colorPanelBorder),
               ),
               isDense: true,
             ),
+            items: [
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text(
+                  'Aucune',
+                  style: TextStyle(color: colorTextPrimary),
+                ),
+              ),
+              ...kLinkLabelIconMap.entries.map((entry) {
+                final label = kLinkLabelIconLabelMap[entry.key] ?? entry.key;
+                return DropdownMenuItem<String?>(
+                  value: entry.key,
+                  child: Row(
+                    children: [
+                      Icon(entry.value, size: 16, color: colorTextPrimary),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: const TextStyle(color: colorTextPrimary),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
             onChanged: (value) {
-              widget.onLinkNameChanged?.call(link, value);
+              widget.onLinkLabelIconChanged?.call(link, value);
             },
           ),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                await onTapProposalLink();
-                // const value = 'proposal';
-                // _linkNameController.text = value;
-                // widget.onLinkNameChanged?.call(link, value);
-              },
-              icon: const Icon(Icons.tips_and_updates_outlined, size: 16),
-              label: const Text('proposal link'),
-            ),
-          ),
-          const SizedBox(height: 12),
           WebLinkManager(
             links: webLinks,
             onLinksChanged: (links) {
@@ -2293,48 +2305,6 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ],
             onChanged: (value) {
               widget.onLinkColorChanged?.call(link, value);
-            },
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String?>(
-            initialValue: link.labelIconKey,
-            dropdownColor: colorBlockBackground,
-            style: const TextStyle(color: colorTextPrimary),
-            decoration: InputDecoration(
-              labelText: 'Icone du label',
-              labelStyle: const TextStyle(color: colorTextSecondary),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: colorPanelBorder),
-              ),
-              isDense: true,
-            ),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text(
-                  'Aucune',
-                  style: TextStyle(color: colorTextPrimary),
-                ),
-              ),
-              ...kLinkLabelIconMap.entries.map((entry) {
-                final label = kLinkLabelIconLabelMap[entry.key] ?? entry.key;
-                return DropdownMenuItem<String?>(
-                  value: entry.key,
-                  child: Row(
-                    children: [
-                      Icon(entry.value, size: 16, color: colorTextPrimary),
-                      const SizedBox(width: 8),
-                      Text(
-                        label,
-                        style: const TextStyle(color: colorTextPrimary),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-            onChanged: (value) {
-              widget.onLinkLabelIconChanged?.call(link, value);
             },
           ),
           const SizedBox(height: 12),

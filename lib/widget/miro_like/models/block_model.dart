@@ -61,6 +61,7 @@ enum BlockNodeShape {
   parallelogramInverted,
   trapezoid,
   trapezoidInverted,
+  person,
 }
 
 class Block {

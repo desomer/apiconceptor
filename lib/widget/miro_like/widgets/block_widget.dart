@@ -210,6 +210,9 @@ class BlockWidget extends StatelessWidget {
     final iconBytes = _iconBytes();
     final iconSize = 42.0 * textScale;
     final infoIconSize = (15.0 * textScale).clamp(1.0, 22.0);
+    final titleTopInset = block.nodeShape == BlockNodeShape.person
+        ? (14.0 * textScale).clamp(5.0, 26.0)
+        : 0.0;
 
     return SizedBox(
       width: block.size.width,
@@ -252,6 +255,7 @@ class BlockWidget extends StatelessWidget {
                         padding: EdgeInsets.only(
                           left: 10,
                           right: block.tagColorKeys.isEmpty ? 10 : 30,
+                          top: titleTopInset,
                         ),
                         child: Text(
                           block.title,
@@ -844,6 +848,36 @@ Path _buildNodeShapePath(
         ..lineTo(rect.right - bottomInset, rect.bottom)
         ..lineTo(rect.left + bottomInset, rect.bottom)
         ..close();
+      break;
+    case BlockNodeShape.person:
+      final headRadius = _clampSafe(
+        math.min(width, height) * 0.17,
+        10.0,
+        math.min(width, height) * 0.25,
+      );
+      final headCenter = Offset(
+        rect.center.dx,
+        rect.top + headRadius + height * 0.08,
+      );
+      final bodyTop = headCenter.dy + headRadius + height * 0.07;
+      final bodyRect = Rect.fromLTWH(
+        rect.left + width * 0.12,
+        bodyTop,
+        width * 0.76,
+        math.max(6.0, rect.bottom - bodyTop),
+      );
+      final shoulderRadius = Radius.circular(math.max(8.0, width * 0.25));
+      path
+        ..addOval(Rect.fromCircle(center: headCenter, radius: headRadius))
+        ..addRRect(
+          RRect.fromRectAndCorners(
+            bodyRect,
+            topLeft: shoulderRadius,
+            topRight: shoulderRadius,
+            bottomLeft: Radius.circular(math.max(6.0, width * 0.12)),
+            bottomRight: Radius.circular(math.max(6.0, width * 0.12)),
+          ),
+        );
       break;
   }
 
