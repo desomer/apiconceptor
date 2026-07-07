@@ -86,6 +86,14 @@ const Color colorTextPrimary = Colors.white;
 const Color colorTextSecondary = Color.fromARGB(179, 255, 255, 255);
 const Color colorTextError = Colors.red;
 
+double miroCanvasPrimaryLabelSize(double scale) {
+  return 14.0 * scale;
+}
+
+double miroCanvasSecondaryLabelSize(double scale) {
+  return 12.0 * scale;
+}
+
 // Shadow and Effects
 const Color colorShadow1 = Color.fromARGB(77, 0, 0, 0);
 const Color colorShadow2 = Color.fromARGB(64, 0, 0, 0);
@@ -194,6 +202,8 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Offset? _lastSecondaryTapCanvasPosition;
   String? _draggedZoneId;
   bool _isSequenceDiagramView = false;
+  bool _isSidePanelHovered = false;
+  bool _isSidePanelPinned = false;
   bool _hasUnsavedChanges = false;
   String? _sequenceLinkTargetHoverBlockId;
   double? _sequenceCreationStartCanvasY;
@@ -212,6 +222,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   void _markBoardChanged() {
     _hasUnsavedChanges = true;
+  }
+
+  void _toggleSidePanelPin() {
+    setState(() {
+      _isSidePanelPinned = !_isSidePanelPinned;
+    });
   }
 
   void _markBoardSaved() {

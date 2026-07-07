@@ -12,6 +12,16 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
     return [
       Row(
         children: [
+          IconButton(
+            icon: Icon(
+              _isSidePanelPinned ? Icons.push_pin : Icons.push_pin_outlined,
+              color: _isSidePanelPinned ? Colors.amber : null,
+            ),
+            tooltip: _isSidePanelPinned
+                ? 'Désépingler le panneau'
+                : 'Épingler le panneau',
+            onPressed: _toggleSidePanelPin,
+          ),
           Expanded(
             child: SegmentedButton<_DiagramLayoutMode>(
               segments: const [

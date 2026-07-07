@@ -403,7 +403,7 @@ class MiroLinkLayerPainter {
         text: label,
         style: TextStyle(
           color: Colors.white,
-          fontSize: (12.0 * zoomLevel).clamp(9.0, 24.0),
+          fontSize: miroCanvasSecondaryLabelSize(zoomLevel).clamp(9.0, 24.0),
           fontWeight: FontWeight.w700,
           shadows: const [
             Shadow(color: Colors.black54, blurRadius: 3, offset: Offset(0, 1)),
@@ -533,7 +533,9 @@ class MiroLinkLayerPainter {
             text: label,
             style: TextStyle(
               color: Colors.white,
-              fontSize: (12.0 * zoomLevel).clamp(9.0, 24.0),
+              fontSize: miroCanvasSecondaryLabelSize(
+                zoomLevel,
+              ).clamp(9.0, 24.0),
               fontWeight: FontWeight.w700,
               shadows: const [
                 Shadow(

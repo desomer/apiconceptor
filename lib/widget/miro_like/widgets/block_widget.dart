@@ -133,7 +133,7 @@ class BlockWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textScale = zoomLevel;
-    final normalTitleFontSize = 14.0 * textScale;
+    final normalTitleFontSize = miroCanvasPrimaryLabelSize(textScale);
     if (block.isZone) {
       final zoneBaseColor =
           kBlockColorMap[block.colorKey] ?? colorBlockBackground;
@@ -153,7 +153,7 @@ class BlockWidget extends StatelessWidget {
       final radius = BorderRadius.circular(14);
       final labelPadX = 10.0 * textScale;
       final labelPadTop = 8.0 * textScale;
-      final labelFontSize = 13.0 * textScale;
+      final labelFontSize = miroCanvasPrimaryLabelSize(textScale);
       final borderWidth = isSelected ? 2.0 : 1.2;
 
       return Container(

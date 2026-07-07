@@ -543,16 +543,30 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
     final selectedNormalBlock = selectedBlock != null && selectedBlock!.isZone
         ? null
         : selectedBlock;
+
     final currentSubgraphTitle = selectedNormalBlock == null
         ? null
         : _currentAutoSubgraphTitleForSelectedBlock();
 
-    return Column(
+    const expandedWidth = 320.0;
+    const collapsedWidth = 28.0;
+
+    final hasSelection =
+        selectedBlock != null ||
+        selectedLink != null ||
+        _selectedSequenceGroup != null ||
+        _selectedBlockIds.isNotEmpty ||
+        _selectedSequenceLinks.isNotEmpty;
+    final isPanelExpanded =
+        _isSidePanelPinned || _isSidePanelHovered || hasSelection;
+
+    final panelContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.max,
       children: [
-        SizedBox(
-          width: 320,
+        Container(
+          color: Colors.black,
+          width: expandedWidth,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: getAction(),
@@ -616,6 +630,46 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
           ),
         ),
       ],
+    );
+
+    return MouseRegion(
+      onEnter: (_) {
+        if (_isSidePanelHovered) {
+          return;
+        }
+        setState(() {
+          _isSidePanelHovered = true;
+        });
+      },
+      onExit: (_) {
+        if (!_isSidePanelHovered) {
+          return;
+        }
+        setState(() {
+          _isSidePanelHovered = false;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        width: isPanelExpanded ? expandedWidth : collapsedWidth,
+        clipBehavior: Clip.hardEdge,
+        decoration: const BoxDecoration(
+          border: Border(left: BorderSide(color: colorPanelBorder)),
+        ),
+        child: isPanelExpanded
+            ? panelContent
+            : Container(
+                color: colorPropertiesPanelBg,
+                alignment: Alignment.topCenter,
+                padding: const EdgeInsets.only(top: 12),
+                child: Icon(
+                  Icons.chevron_left,
+                  size: 18,
+                  color: colorTextSecondary.withValues(alpha: 0.9),
+                ),
+              ),
+      ),
     );
   }
 }

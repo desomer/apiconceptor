@@ -590,7 +590,10 @@ extension _MiroLikeWidgetStateSequenceMethods on _MiroLikeWidgetState {
     final textPainter = TextPainter(
       text: TextSpan(
         text: label,
-        style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          fontSize: miroCanvasSecondaryLabelSize(1.0),
+          fontWeight: FontWeight.w600,
+        ),
       ),
       textDirection: TextDirection.ltr,
       maxLines: 1,

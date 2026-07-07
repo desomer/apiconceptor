@@ -135,7 +135,7 @@ LinkLabelLayout? buildLinkLabelLayout({
       text: label,
       style: TextStyle(
         color: isSelected ? colorLinkSelected : Colors.white,
-        fontSize: (12.0 * textScale).clamp(1.0, 36.0),
+        fontSize: miroCanvasPrimaryLabelSize(textScale).clamp(1.0, 36.0),
         fontWeight: FontWeight.w600,
         shadows: const [
           Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
