@@ -92,22 +92,6 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     });
   }
 
-  void _deleteBlock(Block block) {
-    _pushUndoSnapshot();
-    setState(() {
-      blocks.remove(block);
-      links.removeWhere(
-        (link) => link.fromBlockId == block.id || link.toBlockId == block.id,
-      );
-      _syncAutoSubgraphZones();
-      selectedBlock = null;
-      if (selectedLink != null && !links.contains(selectedLink)) {
-        selectedLink = null;
-      }
-      _markBoardChanged();
-    });
-  }
-
   void _deleteLink(BlockLink link) {
     _pushUndoSnapshot();
     setState(() {
@@ -123,7 +107,33 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     });
   }
 
+  void _deleteSelectedBlocks(Set<String> selectedIds) {
+    if (selectedIds.isEmpty) {
+      return;
+    }
+
+    _pushUndoSnapshot();
+    setState(() {
+      blocks.removeWhere((block) => selectedIds.contains(block.id));
+      links.removeWhere(
+        (link) =>
+            selectedIds.contains(link.fromBlockId) ||
+            selectedIds.contains(link.toBlockId),
+      );
+      selectedBlock = null;
+      _selectedBlockIds.clear();
+      if (selectedLink != null && !links.contains(selectedLink)) {
+        selectedLink = null;
+      }
+      _selectedSequenceLinks.removeWhere((link) => !links.contains(link));
+      _selectedSequenceGroup = null;
+      _syncAutoSubgraphZones();
+      _markBoardChanged();
+    });
+  }
+
   void _deleteCurrentSelection() {
+    final selectedBlockIds = _effectiveSelectedBlockIds();
     if (_selectedSequenceGroup != null) {
       _deleteSequenceGroup(_selectedSequenceGroup!);
       return;
@@ -136,8 +146,8 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
       _deleteLink(selectedLink!);
       return;
     }
-    if (selectedBlock != null) {
-      _deleteBlock(selectedBlock!);
+    if (selectedBlockIds.isNotEmpty) {
+      _deleteSelectedBlocks(selectedBlockIds);
     }
   }
 

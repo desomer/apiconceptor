@@ -22,6 +22,7 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
   }
 
   List<Widget> getAction() {
+    final canCopySelection = _effectiveSelectedBlockIds().isNotEmpty;
     final canDeleteCurrentSelection =
         selectedBlock != null ||
         selectedLink != null ||
@@ -92,15 +93,28 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
             tooltip: 'Redo (Ctrl+Y)',
             onPressed: _redoStack.isEmpty ? null : _redo,
           ),
+          // IconButton(
+          //   icon: const Icon(Icons.add),
+          //   onPressed: () => _addBlock(Offset(200, 200)),
+          //   tooltip: 'Ajouter un bloc',
+          // ),
+          // IconButton(
+          //   icon: const Icon(Icons.crop_square),
+          //   onPressed: () => _addFrameBlock(Offset(140, 140)),
+          //   tooltip: 'Ajouter une frame',
+          // ),
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _addBlock(Offset(200, 200)),
-            tooltip: 'Ajouter un bloc',
+            icon: Icon(
+              Icons.copy_all_outlined,
+              color: canCopySelection ? null : Colors.white38,
+            ),
+            onPressed: canCopySelection ? _copySelectedBlocksToClipboard : null,
+            tooltip: 'Copier la selection en JSON',
           ),
           IconButton(
-            icon: const Icon(Icons.crop_square),
-            onPressed: () => _addFrameBlock(Offset(140, 140)),
-            tooltip: 'Ajouter une frame',
+            icon: const Icon(Icons.content_paste_outlined),
+            onPressed: _pasteSelectionFromClipboard,
+            tooltip: 'Coller la selection au curseur',
           ),
           IconButton(
             icon: Icon(
@@ -169,7 +183,7 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
               var rz = await _resizeToSquarePng(
                 bytes,
                 (boundary.size.width * 0.2).toInt(),
-                (boundary.size.height * 0.2).toInt()
+                (boundary.size.height * 0.2).toInt(),
               );
               final base64Value = base64Encode(rz);
               print('base64Value length: ${base64Value.length}');

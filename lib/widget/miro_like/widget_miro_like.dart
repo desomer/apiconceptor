@@ -147,6 +147,14 @@ class _DeleteSelectionIntent extends Intent {
   const _DeleteSelectionIntent();
 }
 
+class _CopySelectionIntent extends Intent {
+  const _CopySelectionIntent();
+}
+
+class _PasteSelectionIntent extends Intent {
+  const _PasteSelectionIntent();
+}
+
 class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
   static const List<String> _mermaidDirections = ['LR', 'TB', 'RL', 'BT'];
@@ -755,6 +763,17 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         .toList(growable: false);
   }
 
+  Set<String> _effectiveSelectedBlockIds() {
+    if (_selectedBlockIds.isNotEmpty) {
+      return Set<String>.from(_selectedBlockIds);
+    }
+    final block = selectedBlock;
+    if (block != null) {
+      return <String>{block.id};
+    }
+    return const <String>{};
+  }
+
   Block? _findBlockNearModelPosition(Offset modelPosition) {
     final modelTolerance = 10.0 / zoomLevel;
     for (final block in blocks.reversed) {
@@ -779,6 +798,14 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _UndoIntent(),
         SingleActivator(LogicalKeyboardKey.keyY, control: true): _RedoIntent(),
         SingleActivator(LogicalKeyboardKey.keyY, meta: true): _RedoIntent(),
+        SingleActivator(LogicalKeyboardKey.keyC, control: true):
+            _CopySelectionIntent(),
+        SingleActivator(LogicalKeyboardKey.keyC, meta: true):
+            _CopySelectionIntent(),
+        SingleActivator(LogicalKeyboardKey.keyV, control: true):
+            _PasteSelectionIntent(),
+        SingleActivator(LogicalKeyboardKey.keyV, meta: true):
+            _PasteSelectionIntent(),
         SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true):
             _RedoIntent(),
         SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
@@ -803,6 +830,24 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 return null;
               }
               _redo();
+              return null;
+            },
+          ),
+          _CopySelectionIntent: CallbackAction<_CopySelectionIntent>(
+            onInvoke: (_) {
+              if (_isTextEditingFocused()) {
+                return null;
+              }
+              _copySelectedBlocksToClipboard();
+              return null;
+            },
+          ),
+          _PasteSelectionIntent: CallbackAction<_PasteSelectionIntent>(
+            onInvoke: (_) {
+              if (_isTextEditingFocused()) {
+                return null;
+              }
+              _pasteSelectionFromClipboard();
               return null;
             },
           ),
