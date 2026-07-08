@@ -155,6 +155,11 @@ class BlockWidget extends StatelessWidget {
       final labelPadTop = 8.0 * textScale;
       final labelFontSize = miroCanvasPrimaryLabelSize(textScale);
       final borderWidth = isSelected ? 2.0 : 1.2;
+      final zoneShadow = BoxShadow(
+        color: Colors.black.withValues(alpha: 0.18),
+        blurRadius: 8,
+        offset: const Offset(0, 3),
+      );
 
       return Container(
         width: block.size.width,
@@ -162,13 +167,7 @@ class BlockWidget extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: radius,
           color: zoneFill,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          boxShadow: block.zoneTransparent ? const [] : [zoneShadow],
         ),
         child: CustomPaint(
           painter: _ZoneBorderPainter(

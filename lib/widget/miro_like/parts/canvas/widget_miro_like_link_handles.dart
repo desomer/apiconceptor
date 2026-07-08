@@ -513,9 +513,10 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
         ),
       );
 
+
       final badgeSize = (24.0 * textScale).clamp(0.0, 24.0);
       final badgeLeft =
-          labelCenter.dx + (widthLabel / 2) + tagWidth - (badgeSize * 0.6);
+          labelCenter.dx + (widthLabel / 2) + tagWidth + (10* textScale) - (badgeSize * 0.6);
       final badgeTop = labelCenter.dy + (badgeSize * 0.1);
       /*+ (height / 2)*/ //+ (badgeSize * 0.15);
       widgets.add(
@@ -576,7 +577,7 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
       final labelHeight = 32.0 * textScale;
       final badgeSize = (24.0 * textScale).clamp(0.0, 26.0);
       final left =
-          labelCenter.dx + labelWidth / 2 + tagWidth - (badgeSize * 0.6);
+          labelCenter.dx + labelWidth / 2 + tagWidth + (10* textScale) - (badgeSize * 0.6);
       final top = labelCenter.dy - labelHeight / 2 - badgeSize * 0.1;
 
       widgets.add(

@@ -5,6 +5,7 @@ import 'block_widget.dart';
 
 class MiroCanvasWorkspace extends StatelessWidget {
   final GlobalKey canvasKey;
+  final MouseCursor canvasCursor;
   final Color canvasBackgroundColor;
   final List<Block> blocks;
   final Offset canvasOffset;
@@ -37,6 +38,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
   const MiroCanvasWorkspace({
     super.key,
     required this.canvasKey,
+    required this.canvasCursor,
     required this.canvasBackgroundColor,
     required this.blocks,
     required this.canvasOffset,
@@ -75,7 +77,7 @@ class MiroCanvasWorkspace extends StatelessWidget {
     ];
 
     return MouseRegion(
-      cursor: SystemMouseCursors.grab,
+      cursor: canvasCursor,
       onHover: onHover,
       child: Listener(
         onPointerSignal: onPointerSignal,
@@ -136,42 +138,49 @@ class MiroCanvasWorkspace extends StatelessWidget {
                       top: block.position.dy * zoomLevel + canvasOffset.dy,
                       width: block.size.width * zoomLevel,
                       height: block.size.height * zoomLevel,
-                      child: Listener(
-                        behavior: HitTestBehavior.opaque,
-                        onPointerDown: (event) {
-                          if (isSecondaryButtonPressed(event.buttons)) {
-                            onStartLinkingForBlock(block);
-                            onUpdateLinkPreviewFromGlobal(event.position);
-                          }
-                        },
-                        onPointerMove: (event) {
-                          if (!isSecondaryButtonPressed(event.buttons)) {
-                            return;
-                          }
-                          if (linkSourceBlock != null) {
-                            onUpdateLinkPreviewFromGlobal(event.position);
-                          }
-                        },
-                        onPointerUp: (event) {
-                          if (linkSourceBlock != null) {
-                            onFinishLinkingAtGlobal(event.position);
-                          }
-                        },
-                        child: GestureDetector(
-                          onPanDown: (details) =>
-                              onBlockPanDown(block, details),
-                          onPanUpdate: (details) =>
-                              onBlockPanUpdate(block, details),
-                          onPanEnd: (_) => onBlockPanEnd(block),
-                          onTapDown: (details) =>
-                              onBlockTapDown(block, details),
-                          child: BlockWidget(
-                            block: block,
-                            isSelected:
-                                selectedBlock == block ||
-                                selectedBlockIds.contains(block.id),
-                            zoomLevel: zoomLevel,
-                            onInfoTap: () => onBlockInfoTap(block),
+                      child: MouseRegion(
+                        cursor:
+                            selectedBlock == block ||
+                                selectedBlockIds.contains(block.id)
+                            ? SystemMouseCursors.move
+                            : SystemMouseCursors.click,
+                        child: Listener(
+                          behavior: HitTestBehavior.opaque,
+                          onPointerDown: (event) {
+                            if (isSecondaryButtonPressed(event.buttons)) {
+                              onStartLinkingForBlock(block);
+                              onUpdateLinkPreviewFromGlobal(event.position);
+                            }
+                          },
+                          onPointerMove: (event) {
+                            if (!isSecondaryButtonPressed(event.buttons)) {
+                              return;
+                            }
+                            if (linkSourceBlock != null) {
+                              onUpdateLinkPreviewFromGlobal(event.position);
+                            }
+                          },
+                          onPointerUp: (event) {
+                            if (linkSourceBlock != null) {
+                              onFinishLinkingAtGlobal(event.position);
+                            }
+                          },
+                          child: GestureDetector(
+                            onPanDown: (details) =>
+                                onBlockPanDown(block, details),
+                            onPanUpdate: (details) =>
+                                onBlockPanUpdate(block, details),
+                            onPanEnd: (_) => onBlockPanEnd(block),
+                            onTapDown: (details) =>
+                                onBlockTapDown(block, details),
+                            child: BlockWidget(
+                              block: block,
+                              isSelected:
+                                  selectedBlock == block ||
+                                  selectedBlockIds.contains(block.id),
+                              zoomLevel: zoomLevel,
+                              onInfoTap: () => onBlockInfoTap(block),
+                            ),
                           ),
                         ),
                       ),

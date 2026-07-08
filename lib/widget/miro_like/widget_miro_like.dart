@@ -88,11 +88,11 @@ const Color colorTextSecondary = Color.fromARGB(179, 255, 255, 255);
 const Color colorTextError = Colors.red;
 
 double miroCanvasPrimaryLabelSize(double scale) {
-  return 14.0 * scale;
+  return 16.0 * scale;
 }
 
 double miroCanvasSecondaryLabelSize(double scale) {
-  return 12.0 * scale;
+  return 14.0 * scale;
 }
 
 // Shadow and Effects
@@ -222,6 +222,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   static const int _historyLimit = 30;
 
   static const Duration _granularUndoWindow = Duration(milliseconds: 900);
+  final FocusNode _canvasShortcutsFocusNode = FocusNode(
+    debugLabel: 'miro-canvas-shortcuts',
+  );
   final List<String> _undoStack = <String>[];
   final List<String> _redoStack = <String>[];
   String? _savedBoardSnapshot;
@@ -494,10 +497,17 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     )..repeat();
     _initializeSampleBlocks();
     _markBoardSaved();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _requestCanvasKeyboardFocus();
+    });
   }
 
   @override
   void dispose() {
+    _canvasShortcutsFocusNode.dispose();
     _flowController.dispose();
     super.dispose();
   }
@@ -708,7 +718,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   bool _isCtrlPressed() {
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
     return keys.contains(LogicalKeyboardKey.controlLeft) ||
-        keys.contains(LogicalKeyboardKey.controlRight);
+        keys.contains(LogicalKeyboardKey.controlRight) ||
+        keys.contains(LogicalKeyboardKey.metaLeft) ||
+        keys.contains(LogicalKeyboardKey.metaRight);
+  }
+
+  void _requestCanvasKeyboardFocus() {
+    if (_canvasShortcutsFocusNode.canRequestFocus &&
+        !_canvasShortcutsFocusNode.hasFocus) {
+      _canvasShortcutsFocusNode.requestFocus();
+    }
   }
 
   String _generateMermaid() {
@@ -757,10 +776,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.keyZ, control: true): _UndoIntent(),
+        SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _UndoIntent(),
         SingleActivator(LogicalKeyboardKey.keyY, control: true): _RedoIntent(),
+        SingleActivator(LogicalKeyboardKey.keyY, meta: true): _RedoIntent(),
         SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true):
             _RedoIntent(),
+        SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
+            _RedoIntent(),
         SingleActivator(LogicalKeyboardKey.delete): _DeleteSelectionIntent(),
+        SingleActivator(LogicalKeyboardKey.backspace): _DeleteSelectionIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -793,6 +817,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
           ),
         },
         child: Focus(
+          focusNode: _canvasShortcutsFocusNode,
           autofocus: true,
           child: Row(
             children: [

@@ -59,14 +59,12 @@ enum LinkType {
 }
 
 Future<void> openWebLink(WebLink link, BuildContext context) async {
-
   if (link.url.trim().startsWith(Pages.modelDetail.urlpath)) {
     await prepareDeepLinking(Uri.parse(link.url));
     // ignore: use_build_context_synchronously
     RouteManager.goto(link.url, context);
     return;
   }
-
 
   final uri = Uri.tryParse(link.url.trim());
   if (uri == null) {
@@ -99,28 +97,34 @@ Future<void> openWebLinks(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              title: Text(
-                'Choisir un lien',
-                style: TextStyle(color: titleColor),
+            Material(
+              color: Colors.transparent,
+              child: ListTile(
+                title: Text(
+                  'Choisir un lien',
+                  style: TextStyle(color: titleColor),
+                ),
               ),
             ),
             for (final entry in links)
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: entry.type.color,
-                  foregroundColor: Colors.white,
-                  child: Text(entry.type.label[0]),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: entry.type.color,
+                    foregroundColor: Colors.white,
+                    child: Text(entry.type.label[0]),
+                  ),
+                  title: Text(entry.name, style: TextStyle(color: titleColor)),
+                  subtitle: Text(
+                    entry.url,
+                    style: TextStyle(color: subtitleColor),
+                  ),
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await openWebLink(entry, context);
+                  },
                 ),
-                title: Text(entry.name, style: TextStyle(color: titleColor)),
-                subtitle: Text(
-                  entry.url,
-                  style: TextStyle(color: subtitleColor),
-                ),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  await openWebLink(entry, context);
-                },
               ),
           ],
         ),

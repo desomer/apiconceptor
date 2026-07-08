@@ -9,6 +9,12 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
 
     return MiroCanvasWorkspace(
       canvasKey: _canvasKey,
+      canvasCursor:
+          !_isSequenceDiagramView &&
+              currentMousePosition != null &&
+              _findLinkAtCanvasPosition(currentMousePosition!) != null
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       canvasBackgroundColor: colorCanvasBackground,
       blocks: blocks,
       canvasOffset: canvasOffset,
@@ -258,6 +264,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         ..._buildLinkWebLinkBadges(),
       ],
       onCanvasPrimaryDragStart: (details) {
+        _requestCanvasKeyboardFocus();
         setState(() {
           if (linkSourceBlock != null) {
             return;
@@ -328,6 +335,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         }
       },
       onCanvasSecondaryDragStart: (event) {
+        _requestCanvasKeyboardFocus();
         setState(() {
           final canvasPosition = _toCanvasLocal(event.position);
           if (_startSequenceLinkingFromCanvas(canvasPosition)) {
@@ -423,6 +431,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         });
       },
       onCanvasTapDown: (details) {
+        _requestCanvasKeyboardFocus();
         setState(() {
           if (_consumeNextCanvasTap) {
             final now = DateTime.now();
@@ -448,6 +457,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         });
       },
       onCanvasSecondaryTapDown: (details) {
+        _requestCanvasKeyboardFocus();
         final canvasPosition = _toCanvasLocal(details.globalPosition);
         final modelPosition = _toModelPosition(details.globalPosition);
 

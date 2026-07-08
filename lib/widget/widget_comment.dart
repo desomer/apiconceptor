@@ -94,14 +94,12 @@ class Comment {
     text: json['text'] as String,
     date: DateTime.parse(json['date'] as String),
     color: (json['color'] as String?) ?? 'none',
-    reactions:
-        (json['reactions'] as List? ?? [])
-            .map((r) => Reaction.fromJson(r as Map<String, dynamic>))
-            .toList(),
-    replies:
-        (json['replies'] as List? ?? [])
-            .map((r) => Comment.fromJson(r as Map<String, dynamic>))
-            .toList(),
+    reactions: (json['reactions'] as List? ?? [])
+        .map((r) => Reaction.fromJson(r as Map<String, dynamic>))
+        .toList(),
+    replies: (json['replies'] as List? ?? [])
+        .map((r) => Comment.fromJson(r as Map<String, dynamic>))
+        .toList(),
   );
 }
 
@@ -140,26 +138,29 @@ class _ThreadCommentCellState extends State<ThreadCommentCell> {
   void _openPopup() {
     showDialog(
       context: context,
-      builder:
-          (_) => CommentThreadPopup(
-            comments: comments,
-            contextId: widget.contextId,
-            onUpdate: (updated) => setState(() => comments = updated),
-          ),
+      builder: (_) => CommentThreadPopup(
+        comments: comments,
+        contextId: widget.contextId,
+        onUpdate: (updated) => setState(() => comments = updated),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final lastCommentColorName =
-        comments.isNotEmpty ? comments.last.color : 'none';
+    final lastCommentColorName = comments.isNotEmpty
+        ? comments.last.color
+        : 'none';
     final hasLastCommentColor = lastCommentColorName != 'none';
     final lastCommentColor = commentColorFromName(lastCommentColorName);
 
     return GestureDetector(
       onTap: _openPopup,
       child: Container(
-        color: hasLastCommentColor ? lastCommentColor : Colors.transparent,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          color: hasLastCommentColor ? lastCommentColor : Colors.transparent,
+        ),
         child: Stack(
           children: [
             if (comments.isEmpty) widget.childOver,
@@ -274,23 +275,22 @@ class _CommentThreadPopupState extends State<CommentThreadPopup> {
     final shouldClose =
         await showDialog<bool>(
           context: context,
-          builder:
-              (_) => AlertDialog(
-                title: const Text("Discard draft?"),
-                content: const Text(
-                  "You have a draft comment or selected color. Close anyway?",
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text("Cancel"),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text("Close"),
-                  ),
-                ],
+          builder: (_) => AlertDialog(
+            title: const Text("Discard draft?"),
+            content: const Text(
+              "You have a draft comment or selected color. Close anyway?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("Cancel"),
               ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text("Close"),
+              ),
+            ],
+          ),
         ) ??
         false;
 
@@ -310,25 +310,24 @@ class _CommentThreadPopupState extends State<CommentThreadPopup> {
           children: [
             Expanded(
               child: ListView(
-                children:
-                    widget.comments.map((c) {
-                      return CommentThreadItem(
-                        comment: c,
-                        onUpdate: (updated) {
-                          setState(() {
-                            final index = widget.comments.indexWhere(
-                              (x) => x.id == updated.id,
-                            );
-                            widget.comments[index] = updated;
-                          });
-                          widget.onUpdate(widget.comments);
-                          if (widget.contextId.isNotEmpty) {
-                            bddStorage.saveComment(widget.contextId, updated);
-                          }
-                        },
-                        onDelete: () => _deleteComment(c.id),
-                      );
-                    }).toList(),
+                children: widget.comments.map((c) {
+                  return CommentThreadItem(
+                    comment: c,
+                    onUpdate: (updated) {
+                      setState(() {
+                        final index = widget.comments.indexWhere(
+                          (x) => x.id == updated.id,
+                        );
+                        widget.comments[index] = updated;
+                      });
+                      widget.onUpdate(widget.comments);
+                      if (widget.contextId.isNotEmpty) {
+                        bddStorage.saveComment(widget.contextId, updated);
+                      }
+                    },
+                    onDelete: () => _deleteComment(c.id),
+                  );
+                }).toList(),
               ),
             ),
             TextField(
@@ -341,23 +340,21 @@ class _CommentThreadPopupState extends State<CommentThreadPopup> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children:
-                  commentColorNames.map((name) {
-                    final color = commentColorFromName(name);
-                    return ChoiceChip(
-                      label: Text(name == 'none' ? 'no color' : name),
-                      selected: newCommentColor == name,
-                      selectedColor:
-                          name == 'none'
-                              ? Colors.grey.shade700
-                              : color.withValues(alpha: 0.35),
-                      onSelected: (_) {
-                        setState(() {
-                          newCommentColor = name;
-                        });
-                      },
-                    );
-                  }).toList(),
+              children: commentColorNames.map((name) {
+                final color = commentColorFromName(name);
+                return ChoiceChip(
+                  label: Text(name == 'none' ? 'no color' : name),
+                  selected: newCommentColor == name,
+                  selectedColor: name == 'none'
+                      ? Colors.grey.shade700
+                      : color.withValues(alpha: 0.35),
+                  onSelected: (_) {
+                    setState(() {
+                      newCommentColor = name;
+                    });
+                  },
+                );
+              }).toList(),
             ),
             const SizedBox(height: 10),
           ],
@@ -480,8 +477,9 @@ class _CommentThreadItemState extends State<CommentThreadItem> {
   }
 
   void _deleteReply(String replyId) {
-    final updatedReplies =
-        widget.comment.replies.where((r) => r.id != replyId).toList();
+    final updatedReplies = widget.comment.replies
+        .where((r) => r.id != replyId)
+        .toList();
     widget.onUpdate(widget.comment.copyWith(replies: updatedReplies));
   }
 
@@ -492,8 +490,9 @@ class _CommentThreadItemState extends State<CommentThreadItem> {
     final c = widget.comment;
     final hasColor = c.color != 'none';
     final commentColor = commentColorFromName(c.color);
-    final commentBackground =
-        hasColor ? commentColor.withValues(alpha: 0.12) : Colors.transparent;
+    final commentBackground = hasColor
+        ? commentColor.withValues(alpha: 0.12)
+        : Colors.transparent;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -502,8 +501,9 @@ class _CommentThreadItemState extends State<CommentThreadItem> {
         color: commentBackground,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color:
-              hasColor ? commentColor.withValues(alpha: 0.7) : Colors.grey.shade700,
+          color: hasColor
+              ? commentColor.withValues(alpha: 0.7)
+              : Colors.grey.shade700,
         ),
       ),
       child: Column(
@@ -556,44 +556,40 @@ class _CommentThreadItemState extends State<CommentThreadItem> {
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
-            children:
-                commentColorNames.map((name) {
-                  final color = commentColorFromName(name);
-                  return ChoiceChip(
-                    label: Text(name == 'none' ? 'no color' : name),
-                    selected: c.color == name,
-                    selectedColor:
-                        name == 'none'
-                            ? Colors.grey.shade700
-                            : color.withValues(alpha: 0.35),
-                    onSelected: (_) => _updateCommentColor(name),
-                  );
-                }).toList(),
+            children: commentColorNames.map((name) {
+              final color = commentColorFromName(name);
+              return ChoiceChip(
+                label: Text(name == 'none' ? 'no color' : name),
+                selected: c.color == name,
+                selectedColor: name == 'none'
+                    ? Colors.grey.shade700
+                    : color.withValues(alpha: 0.35),
+                onSelected: (_) => _updateCommentColor(name),
+              );
+            }).toList(),
           ),
 
           // Réactions
           Row(
-            children:
-                c.reactions.map((r) {
-                  return GestureDetector(
-                    onTap: () => _toggleReaction(r),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 6, top: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            r.reactedByMe
-                                ? Colors.blue.shade400
-                                : Colors.grey.shade700,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text("${r.emoji} ${r.count}"),
-                    ),
-                  );
-                }).toList(),
+            children: c.reactions.map((r) {
+              return GestureDetector(
+                onTap: () => _toggleReaction(r),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 6, top: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: r.reactedByMe
+                        ? Colors.blue.shade400
+                        : Colors.grey.shade700,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text("${r.emoji} ${r.count}"),
+                ),
+              );
+            }).toList(),
           ),
 
           // Réponses
@@ -601,22 +597,18 @@ class _CommentThreadItemState extends State<CommentThreadItem> {
             Padding(
               padding: const EdgeInsets.only(left: 20, top: 10),
               child: Column(
-                children:
-                    c.replies.map((reply) {
-                      return CommentThreadItem(
-                        comment: reply,
-                        onUpdate: (updatedReply) {
-                          final updatedReplies =
-                              c.replies.map((r) {
-                                return r.id == updatedReply.id
-                                    ? updatedReply
-                                    : r;
-                              }).toList();
-                          widget.onUpdate(c.copyWith(replies: updatedReplies));
-                        },
-                        onDelete: () => _deleteReply(reply.id),
-                      );
-                    }).toList(),
+                children: c.replies.map((reply) {
+                  return CommentThreadItem(
+                    comment: reply,
+                    onUpdate: (updatedReply) {
+                      final updatedReplies = c.replies.map((r) {
+                        return r.id == updatedReply.id ? updatedReply : r;
+                      }).toList();
+                      widget.onUpdate(c.copyWith(replies: updatedReplies));
+                    },
+                    onDelete: () => _deleteReply(reply.id),
+                  );
+                }).toList(),
               ),
             ),
 

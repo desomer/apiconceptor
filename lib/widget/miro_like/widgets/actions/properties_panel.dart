@@ -933,33 +933,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<BlockNodeShape>(
-            initialValue: block.nodeShape,
-            dropdownColor: colorBlockBackground,
-            style: const TextStyle(color: colorTextPrimary),
-            decoration: InputDecoration(
-              labelText: 'Forme du noeud',
-              labelStyle: const TextStyle(color: colorTextSecondary),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: colorPanelBorder),
-              ),
-              isDense: true,
-            ),
-            items: nodeShapes
-                .map(
-                  (shape) => DropdownMenuItem<BlockNodeShape>(
-                    value: shape,
-                    child: Text(nodeShapeLabel(shape)),
-                  ),
-                )
-                .toList(growable: false),
-            onChanged: (value) {
-              if (value == null) {
-                return;
-              }
-              widget.onBlockNodeShapeChanged?.call(block, value);
-            },
-          ),
+          getFormeWidget(block, nodeShapes, nodeShapeLabel),
           if (widget.currentSubgraphTitle != null) ...[
             const SizedBox(height: 8),
             SizedBox(
@@ -987,54 +961,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ],
           const SizedBox(height: 12),
-          DropdownButtonFormField<String?>(
-            initialValue: block.colorKey,
-            dropdownColor: colorBlockBackground,
-            style: const TextStyle(color: colorTextPrimary),
-            decoration: InputDecoration(
-              labelText: 'Couleur du bloc',
-              labelStyle: const TextStyle(color: colorTextSecondary),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: colorPanelBorder),
-              ),
-              isDense: true,
-            ),
-            items: [
-              const DropdownMenuItem<String?>(
-                value: null,
-                child: Text(
-                  'Par défaut',
-                  style: TextStyle(color: colorTextPrimary),
-                ),
-              ),
-              ...kBlockColorMap.entries.map((entry) {
-                final label = kBlockColorLabelMap[entry.key] ?? entry.key;
-                return DropdownMenuItem<String?>(
-                  value: entry.key,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          color: entry.value,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        label,
-                        style: const TextStyle(color: colorTextPrimary),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-            onChanged: (value) {
-              widget.onBlockColorChanged?.call(block, value);
-            },
-          ),
+          getColorWidget(block),
           const SizedBox(height: 12),
           const Text(
             'Tags colorés',
@@ -1044,66 +971,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             ),
           ),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: kBlockTagColorMap.entries.map((entry) {
-              final key = entry.key;
-              final color = entry.value;
-              final label = kBlockTagColorLabelMap[key] ?? key;
-              final isSelected = block.tagColorKeys.contains(key);
-
-              return InkWell(
-                borderRadius: BorderRadius.circular(8),
-                onTap: () {
-                  final updated = List<String>.from(block.tagColorKeys);
-                  if (isSelected) {
-                    updated.remove(key);
-                  } else {
-                    updated.add(key);
-                  }
-                  widget.onBlockTagsChanged?.call(block, updated);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? color.withValues(alpha: 0.28)
-                        : colorBlockBackground,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isSelected ? color : colorPanelBorder,
-                      width: isSelected ? 1.4 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(1.5),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          color: colorTextPrimary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
+          getTagColored(block),
           const SizedBox(height: 8),
           Text(
             'Tags sélectionnés: ${block.tagColorKeys.length}',
@@ -1122,104 +990,245 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
             },
           ),
           const SizedBox(height: 8),
-          Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: EdgeInsets.zero,
-              collapsedIconColor: colorTextSecondary,
-              iconColor: colorTextPrimary,
-              title: const Text(
-                'JSON propriétés bloc',
-                style: TextStyle(
-                  color: colorTextPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+          getJsonProp(block),
+          // Theme(
+          //   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          //   child: getJsonProp(block),
+          // ),
+          // const SizedBox(height: 12),
+          // Text(
+          //   'Position X: ${block.position.dx.toStringAsFixed(1)}',
+          //   style: const TextStyle(color: colorTextSecondary),
+          // ),
+          // Text(
+          //   'Position Y: ${block.position.dy.toStringAsFixed(1)}',
+          //   style: const TextStyle(color: colorTextSecondary),
+          // ),
+          // const SizedBox(height: 8),
+          // Text(
+          //   'Largeur: ${block.size.width.toStringAsFixed(1)}',
+          //   style: const TextStyle(color: colorTextSecondary),
+          // ),
+          // Text(
+          //   'Hauteur: ${block.size.height.toStringAsFixed(1)}',
+          //   style: const TextStyle(color: colorTextSecondary),
+          // ),
+        ],
+      ),
+    );
+  }
+
+  DropdownButtonFormField<BlockNodeShape> getFormeWidget(
+    Block block,
+    List<BlockNodeShape> nodeShapes,
+    String Function(BlockNodeShape shape) nodeShapeLabel,
+  ) {
+    return DropdownButtonFormField<BlockNodeShape>(
+      initialValue: block.nodeShape,
+      dropdownColor: colorBlockBackground,
+      style: const TextStyle(color: colorTextPrimary),
+      decoration: InputDecoration(
+        labelText: 'Forme',
+        labelStyle: const TextStyle(color: colorTextSecondary),
+        border: OutlineInputBorder(
+          borderSide: BorderSide(color: colorPanelBorder),
+        ),
+        isDense: true,
+      ),
+      items: nodeShapes
+          .map(
+            (shape) => DropdownMenuItem<BlockNodeShape>(
+              value: shape,
+              child: Text(nodeShapeLabel(shape)),
+            ),
+          )
+          .toList(growable: false),
+      onChanged: (value) {
+        if (value == null) {
+          return;
+        }
+        widget.onBlockNodeShapeChanged?.call(block, value);
+      },
+    );
+  }
+
+  DropdownButtonFormField<String?> getColorWidget(Block block) {
+    return DropdownButtonFormField<String?>(
+      initialValue: block.colorKey,
+      dropdownColor: colorBlockBackground,
+      style: const TextStyle(color: colorTextPrimary),
+      decoration: InputDecoration(
+        labelText: 'Couleur du bloc',
+        labelStyle: const TextStyle(color: colorTextSecondary),
+        border: OutlineInputBorder(
+          borderSide: BorderSide(color: colorPanelBorder),
+        ),
+        isDense: true,
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Par défaut', style: TextStyle(color: colorTextPrimary)),
+        ),
+        ...kBlockColorMap.entries.map((entry) {
+          final label = kBlockColorLabelMap[entry.key] ?? entry.key;
+          return DropdownMenuItem<String?>(
+            value: entry.key,
+            child: Row(
               children: [
-                TextFormField(
-                  controller: _blockJsonController,
-                  minLines: 4,
-                  maxLines: 10,
-                  style: const TextStyle(color: colorTextPrimary),
-                  decoration: InputDecoration(
-                    alignLabelWithHint: true,
-                    hintText:
-                        '{"title":"Service API","colorKey":"blue","tagColorKeys":["green"],"size":{"width":240,"height":180}}',
-                    hintStyle: const TextStyle(color: colorTextSecondary),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(color: colorPanelBorder),
-                    ),
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: entry.value,
+                    shape: BoxShape.circle,
                   ),
-                  onChanged: (_) {
-                    if (_blockJsonError != null) {
-                      setState(() {
-                        _blockJsonError = null;
-                      });
-                    }
-                  },
                 ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 2,
-                  children: const [
-                    Text(
-                      'Clés supportées: title, colorKey, tagColorKeys, iconBase64, size',
-                      style: TextStyle(color: colorTextSecondary, fontSize: 12),
-                    ),
-                  ],
-                ),
-                if (_blockJsonError != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    _blockJsonError!,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
-                      fontSize: 12,
-                    ),
+                const SizedBox(width: 8),
+                Text(label, style: const TextStyle(color: colorTextPrimary)),
+              ],
+            ),
+          );
+        }),
+      ],
+      onChanged: (value) {
+        widget.onBlockColorChanged?.call(block, value);
+      },
+    );
+  }
+
+  Wrap getTagColored(Block block) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: kBlockTagColorMap.entries.map((entry) {
+        final key = entry.key;
+        final color = entry.value;
+        final label = kBlockTagColorLabelMap[key] ?? key;
+        final isSelected = block.tagColorKeys.contains(key);
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            final updated = List<String>.from(block.tagColorKeys);
+            if (isSelected) {
+              updated.remove(key);
+            } else {
+              updated.add(key);
+            }
+            widget.onBlockTagsChanged?.call(block, updated);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? color.withValues(alpha: 0.28)
+                  : colorBlockBackground,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected ? color : colorPanelBorder,
+                width: isSelected ? 1.4 : 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(1.5),
                   ),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => _populateJsonFromBlock(block),
-                        icon: const Icon(Icons.file_download_outlined),
-                        label: const Text('Depuis bloc'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => _applyBlockPropertiesJson(block),
-                        icon: const Icon(Icons.data_object),
-                        label: const Text('Appliquer JSON'),
-                      ),
-                    ),
-                  ],
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(color: colorTextPrimary, fontSize: 12),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Position X: ${block.position.dx.toStringAsFixed(1)}',
-            style: const TextStyle(color: colorTextSecondary),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget getJsonProp(Block block) {
+    return Material(
+      color: Colors.transparent,
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        collapsedIconColor: colorTextSecondary,
+        iconColor: colorTextPrimary,
+        title: const Text(
+          'JSON propriétés bloc',
+          style: TextStyle(
+            color: colorTextPrimary,
+            fontWeight: FontWeight.w600,
           ),
-          Text(
-            'Position Y: ${block.position.dy.toStringAsFixed(1)}',
-            style: const TextStyle(color: colorTextSecondary),
+        ),
+        children: [
+          TextFormField(
+            controller: _blockJsonController,
+            minLines: 4,
+            maxLines: 10,
+            style: const TextStyle(color: colorTextPrimary),
+            decoration: InputDecoration(
+              alignLabelWithHint: true,
+              hintText:
+                  '{"title":"Service API","colorKey":"blue","tagColorKeys":["green"],"size":{"width":240,"height":180}}',
+              hintStyle: const TextStyle(color: colorTextSecondary),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorPanelBorder),
+              ),
+            ),
+            onChanged: (_) {
+              if (_blockJsonError != null) {
+                setState(() {
+                  _blockJsonError = null;
+                });
+              }
+            },
           ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 2,
+            children: const [
+              Text(
+                'Clés supportées: title, colorKey, tagColorKeys, iconBase64, size',
+                style: TextStyle(color: colorTextSecondary, fontSize: 12),
+              ),
+            ],
+          ),
+          if (_blockJsonError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _blockJsonError!,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 8),
-          Text(
-            'Largeur: ${block.size.width.toStringAsFixed(1)}',
-            style: const TextStyle(color: colorTextSecondary),
-          ),
-          Text(
-            'Hauteur: ${block.size.height.toStringAsFixed(1)}',
-            style: const TextStyle(color: colorTextSecondary),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _populateJsonFromBlock(block),
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('Depuis bloc'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _applyBlockPropertiesJson(block),
+                  icon: const Icon(Icons.data_object),
+                  label: const Text('Appliquer JSON'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1392,21 +1401,19 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                         content: Column(
                           //children: getTooltipFromProposal(r.item),
                         ),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.blueGrey.withAlpha(130),
-                            ),
-                          ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
                           child: Material(
                             color: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: Colors.blueGrey.withAlpha(130),
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
                             child: ListTile(
                               dense: true,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
                               onTap: () {
                                 applyProposal(widget.selectedBlock!, r);
                                 Navigator.of(dialogContext).pop();
@@ -1486,21 +1493,19 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
                         content: Column(
                           //children: getTooltipFromProposal(r.item),
                         ),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.blueGrey.withAlpha(130),
-                            ),
-                          ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
                           child: Material(
                             color: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: Colors.blueGrey.withAlpha(130),
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
                             child: ListTile(
                               dense: true,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
                               onTap: () {
                                 applyProposal(widget.selectedBlock!, r);
                                 Navigator.of(dialogContext).pop();
@@ -1990,7 +1995,7 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
         selectableArrowTypes.contains(arrowType) && arrowType.isNotEmpty
         ? arrowType
         : defaultArrowType;
-    final isDashedArrow = _isDashedArrowType(effectiveArrowType);
+    //final isDashedArrow = _isDashedArrowType(effectiveArrowType);
     final arrowAccent = _mermaidArrowAccentColor(effectiveArrowType);
     final webLinks = _webLinksFromLink(link);
 

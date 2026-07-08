@@ -260,14 +260,15 @@ mixin PanModelEditorHelper implements WidgetHelper {
                 ThreadCommentCell(
                   contextId:
                       '${attr.info.getMasterID()}@${schema.id}', // unique par attribut
-                  childIfComment: const Icon(
-                    Icons.comment,
-                    color: Colors.white,
+                  childIfComment: const Center(
+                    child: Icon(Icons.comment, color: Colors.white),
                   ),
                   childOver: isHovered
-                      ? const Icon(
-                          Icons.add_comment_outlined,
-                          color: Colors.grey,
+                      ? const Center(
+                          child: Icon(
+                            Icons.add_comment_outlined,
+                            color: Colors.grey,
+                          ),
                         )
                       : const SizedBox.shrink(),
                 ),
