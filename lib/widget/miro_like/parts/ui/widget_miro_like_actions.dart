@@ -21,6 +21,72 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
     return byteData.buffer.asUint8List();
   }
 
+  Future<void> _saveBoard({bool force = false}) async {
+    if (widget.query == null) {
+      return;
+    }
+    if (!force && !_hasUnsavedChanges) {
+      return;
+    }
+
+    debugPrint('save flow app ${widget.query}');
+
+    final payload = {
+      'company_id': currentCompany.companyId,
+      'namespace': currentCompany.currentFlow!.namespace,
+      'category': 'appflow',
+      'schema_id': '${currentCompany.currentFlow!.id}/data',
+      'version': '1',
+      'attr_id': widget.query!,
+      'path': '-',
+      'prop': _boardToJson(),
+      'state': 'R',
+      'update_at': DateTime.now().toIso8601String(),
+    };
+
+    final renderObject = _canvasKey.currentContext?.findRenderObject();
+    final boundary = renderObject is RenderRepaintBoundary
+        ? renderObject
+        : null;
+    if (boundary != null) {
+      final image = await boundary.toImage(pixelRatio: 0.5);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData != null) {
+        final bytes = byteData.buffer.asUint8List();
+        final resized = await _resizeToSquarePng(
+          bytes,
+          (boundary.size.width * 0.2).toInt(),
+          (boundary.size.height * 0.2).toInt(),
+        );
+        final base64Value = base64Encode(resized);
+
+        final accessor = ModelAccessorAttr(
+          node: currentCompany.currentFlow!.selectedAttr!,
+          schema: currentCompany.currentFlow!,
+          propName: '#preview',
+        );
+        accessor.set(base64Value);
+      }
+    }
+
+    final save = SaveEvent(
+      model: currentCompany.currentFlow!,
+      version: null,
+      idIdempotence: widget.query!,
+      table: 'attributs',
+      data: payload,
+    );
+
+    bddStorage.storeManager.add(save);
+    if (!mounted) {
+      return;
+    }
+    // ignore: invalid_use_of_protected_member
+    setState(() {
+      _markBoardSaved();
+    });
+  }
+
   List<Widget> getAction() {
     final canCopySelection = _effectiveSelectedBlockIds().isNotEmpty;
     final canDeleteCurrentSelection =
@@ -144,71 +210,7 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
               color: _hasUnsavedChanges ? Colors.blue : null,
             ),
             tooltip: 'Save',
-            onPressed: () async {
-              // save miro canvas state to local storage or backend
-              debugPrint('save flow app ${widget.query}');
-
-              var payload = {
-                'company_id': currentCompany.companyId,
-                'namespace': currentCompany.currentFlow!.namespace,
-                'category': 'appflow',
-                'schema_id': '${currentCompany.currentFlow!.id}/data',
-                'version': '1',
-                'attr_id': widget.query!,
-                'path': '-',
-                'prop': _boardToJson(),
-                'state': 'R',
-                'update_at': DateTime.now().toIso8601String(),
-              };
-
-              final renderObject = _canvasKey.currentContext
-                  ?.findRenderObject();
-              final boundary = renderObject is RenderRepaintBoundary
-                  ? renderObject
-                  : null;
-              if (boundary == null) {
-                return;
-              }
-
-              final image = await boundary.toImage(pixelRatio: 0.5);
-
-              final byteData = await image.toByteData(
-                format: ui.ImageByteFormat.png,
-              );
-              if (byteData == null) {
-                return;
-              }
-              final bytes = byteData.buffer.asUint8List();
-
-              var rz = await _resizeToSquarePng(
-                bytes,
-                (boundary.size.width * 0.2).toInt(),
-                (boundary.size.height * 0.2).toInt(),
-              );
-              final base64Value = base64Encode(rz);
-              print('base64Value length: ${base64Value.length}');
-
-              var accessor = ModelAccessorAttr(
-                node: currentCompany.currentFlow!.selectedAttr!,
-                schema: currentCompany.currentFlow!,
-                propName: '#preview',
-              );
-              accessor.set(base64Value);
-
-              var save = SaveEvent(
-                model: currentCompany.currentFlow!,
-                version: null,
-                idIdempotence: widget.query!,
-                table: 'attributs',
-                data: payload,
-              );
-
-              bddStorage.storeManager.add(save);
-              // ignore: invalid_use_of_protected_member
-              setState(() {
-                _markBoardSaved();
-              });
-            },
+            onPressed: () async => _saveBoard(force: true),
           ),
           Spacer(),
           IconButton(

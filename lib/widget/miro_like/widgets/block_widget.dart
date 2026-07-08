@@ -175,8 +175,8 @@ class BlockWidget extends StatelessWidget {
           child: Stack(
             children: [
               Positioned(
-                top: 3* textScale,
-                right: 3* textScale,
+                top: 2 * textScale,
+                right: 2 * textScale,
                 child: CustomPaint(
                   size: Size(34 * textScale, 34 * textScale),
                   painter: _StickyFoldPainter(

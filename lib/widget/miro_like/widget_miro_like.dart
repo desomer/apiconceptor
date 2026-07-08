@@ -878,11 +878,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
       ),
     );
 
-    return Row(
-      children: [
-        Expanded(child: canvasWorkspace),
-        _buildSidePanel(),
-      ],
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        _saveBoard(force: false);
+      },
+      child: Row(
+        children: [
+          Expanded(child: canvasWorkspace),
+          _buildSidePanel(),
+        ],
+      ),
     );
   }
 }
