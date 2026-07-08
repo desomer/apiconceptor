@@ -1,6 +1,111 @@
 part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
+  static const double _anchorReassignDragThresholdCanvas = 42.0;
+
+  double _outsideDistanceToRect(Offset point, Rect rect) {
+    final dx = point.dx < rect.left
+        ? rect.left - point.dx
+        : (point.dx > rect.right ? point.dx - rect.right : 0.0);
+    final dy = point.dy < rect.top
+        ? rect.top - point.dy
+        : (point.dy > rect.bottom ? point.dy - rect.bottom : 0.0);
+    return math.sqrt((dx * dx) + (dy * dy));
+  }
+
+  bool _tryReassignLinkEndpointFromDrag({
+    required BlockLink link,
+    required bool isSource,
+    required Offset canvasPosition,
+    required Offset globalPosition,
+  }) {
+    final currentEndpointId = isSource ? link.fromBlockId : link.toBlockId;
+    final oppositeEndpointId = isSource ? link.toBlockId : link.fromBlockId;
+    final previousMovedSide = isSource
+        ? (link.sourceAnchorUnit == null
+              ? null
+              : _anchorSideUnit(link.sourceAnchorUnit!))
+        : (link.targetAnchorUnit == null
+              ? null
+              : _anchorSideUnit(link.targetAnchorUnit!));
+    final oppositeSide = isSource
+        ? (link.targetAnchorUnit == null
+              ? null
+              : _anchorSideUnit(link.targetAnchorUnit!))
+        : (link.sourceAnchorUnit == null
+              ? null
+              : _anchorSideUnit(link.sourceAnchorUnit!));
+
+    final currentBlock = blocks
+        .where((block) => block.id == currentEndpointId)
+        .firstOrNull;
+    if (currentBlock == null) {
+      return false;
+    }
+
+    final currentRect = _blockRectCanvas(currentBlock);
+    final outsideDistance = _outsideDistanceToRect(canvasPosition, currentRect);
+    if (outsideDistance < _anchorReassignDragThresholdCanvas) {
+      return false;
+    }
+
+    final modelPosition = _toModelPosition(globalPosition);
+    final hitBlock = _findTopBlockAtModelPosition(modelPosition);
+    if (hitBlock == null || hitBlock.isZone) {
+      return false;
+    }
+
+    if (hitBlock.id == currentEndpointId || hitBlock.id == oppositeEndpointId) {
+      return false;
+    }
+
+    final oppositeBlock = blocks
+        .where((block) => block.id == oppositeEndpointId)
+        .firstOrNull;
+    if (oppositeBlock == null) {
+      return false;
+    }
+
+    Offset? newMovedSide;
+
+    if (isSource) {
+      link.fromBlockId = hitBlock.id;
+      link.sourceAnchorUnit = _calculateOptimalAnchorUnit(
+        _blockRectCanvas(hitBlock),
+        _blockRectCanvas(oppositeBlock),
+      );
+      link.sourceAnchorOrderKey = null;
+      newMovedSide = link.sourceAnchorUnit == null
+          ? null
+          : _anchorSideUnit(link.sourceAnchorUnit!);
+    } else {
+      link.toBlockId = hitBlock.id;
+      link.targetAnchorUnit = _calculateOptimalAnchorUnit(
+        _blockRectCanvas(hitBlock),
+        _blockRectCanvas(oppositeBlock),
+      );
+      link.targetAnchorOrderKey = null;
+      newMovedSide = link.targetAnchorUnit == null
+          ? null
+          : _anchorSideUnit(link.targetAnchorUnit!);
+    }
+
+    if (previousMovedSide != null) {
+      _recomputeAnchorOrderKeysForBlockSide(currentBlock, previousMovedSide);
+    }
+    if (newMovedSide != null) {
+      _recomputeAnchorOrderKeysForBlockSide(hitBlock, newMovedSide);
+    }
+    if (oppositeSide != null) {
+      _recomputeAnchorOrderKeysForBlockSide(oppositeBlock, oppositeSide);
+    }
+
+    _ensureBlockHasSpaceForAnchors(currentBlock);
+    _ensureBlockHasSpaceForAnchors(hitBlock);
+    _ensureBlockHasSpaceForAnchors(oppositeBlock);
+    return true;
+  }
+
   List<WebLink> _webLinksForLink(BlockLink link) {
     final raw = (link.webLinksJson ?? '').trim();
     if (raw.isEmpty) {
@@ -228,11 +333,15 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
   }
 
   String _linkCommentContextId(BlockLink link) {
-    return 'apm/link/${link.id}';
+    return 'apm/link/${widget.query}/${link.id}';
+  }
+
+  String _blockCommentContextId(Block block) {
+    return 'apm/block/${widget.query}/${block.id}';
   }
 
   Widget _buildLinkCommentBadge({
-    required double size,
+    required double size, 
     required bool selected,
   }) {
     final iconSize = (size * 0.62).clamp(1.0, 20.0);
@@ -466,7 +575,8 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
       );
       final labelHeight = 32.0 * textScale;
       final badgeSize = (24.0 * textScale).clamp(0.0, 26.0);
-      final left = labelCenter.dx + labelWidth / 2 + tagWidth - (badgeSize * 0.6);
+      final left =
+          labelCenter.dx + labelWidth / 2 + tagWidth - (badgeSize * 0.6);
       final top = labelCenter.dy - labelHeight / 2 - badgeSize * 0.1;
 
       widgets.add(
@@ -540,6 +650,47 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
     return widgets;
   }
 
+  List<Widget> _buildSelectedBlockCommentBadges() {
+    final widgets = <Widget>[];
+    final textScale = zoomLevel;
+    final badgeSize = (24.0 * textScale).clamp(16.0, 28.0);
+
+    final selectedIds = <String>{..._selectedBlockIds};
+    if (selectedBlock != null) {
+      selectedIds.add(selectedBlock!.id);
+    }
+
+    for (final blockId in selectedIds) {
+      final block = blocks.where((b) => b.id == blockId).firstOrNull;
+      if (block == null || block.isZone) {
+        continue;
+      }
+
+      final rect = _blockRectCanvas(block);
+      final left = rect.right - (badgeSize * 0.45);
+      final top = rect.top - (badgeSize * 0.35);
+
+      widgets.add(
+        Positioned(
+          left: left,
+          top: top,
+          width: badgeSize,
+          height: badgeSize,
+          child: ThreadCommentCell(
+            contextId: _blockCommentContextId(block),
+            childOver: _buildLinkCommentBadge(size: badgeSize, selected: false),
+            childIfComment: _buildLinkCommentBadge(
+              size: badgeSize,
+              selected: true,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
   List<Widget> _buildAnchorHandles() {
     final widgets = <Widget>[];
 
@@ -588,6 +739,8 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
           },
           onPanStart: (_) {
             _pushUndoSnapshot();
+            _detachPreviewLinkId = null;
+            _detachPreviewCanvasPosition = null;
           },
           onPanUpdate: (details) {
             // ignore: invalid_use_of_protected_member
@@ -597,6 +750,8 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
               final canvasPosition = _toCanvasLocal(details.globalPosition);
 
               if (_isSequenceDiagramView) {
+                _detachPreviewLinkId = null;
+                _detachPreviewCanvasPosition = null;
                 final laneYCanvas = math.max(
                   fromRect.bottom + (8.0 * zoomLevel),
                   canvasPosition.dy,
@@ -607,12 +762,51 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
                 return;
               }
 
+              final reassigned = _tryReassignLinkEndpointFromDrag(
+                link: link,
+                isSource: true,
+                canvasPosition: canvasPosition,
+                globalPosition: details.globalPosition,
+              );
+              if (reassigned) {
+                _detachPreviewLinkId = null;
+                _detachPreviewCanvasPosition = null;
+                _markBoardChanged();
+                return;
+              }
+
+              final sourceBlock = blocks
+                  .where((b) => b.id == link.fromBlockId)
+                  .firstOrNull;
+              if (sourceBlock == null) {
+                _detachPreviewLinkId = null;
+                _detachPreviewCanvasPosition = null;
+                return;
+              }
+              final activeSourceRect = _blockRectCanvas(sourceBlock);
+              final sourceOutsideDistance = _outsideDistanceToRect(
+                canvasPosition,
+                activeSourceRect,
+              );
+              _detachPreviewLinkId =
+                  sourceOutsideDistance >= _anchorReassignDragThresholdCanvas
+                  ? link.id
+                  : null;
+              _detachPreviewIsSource = true;
+              _detachPreviewCanvasPosition =
+                  sourceOutsideDistance >= _anchorReassignDragThresholdCanvas
+                  ? canvasPosition
+                  : null;
+              if (sourceOutsideDistance >= _anchorReassignDragThresholdCanvas) {
+                return;
+              }
+
               final snappedSide = _anchorSideUnit(
-                _anchorUnitFromCanvasPoint(fromRect, canvasPosition),
+                _anchorUnitFromCanvasPoint(activeSourceRect, canvasPosition),
               );
               link.sourceAnchorUnit = snappedSide;
               final rawKey = _anchorOrderKeyFromCanvasPoint(
-                fromRect,
+                activeSourceRect,
                 snappedSide,
                 canvasPosition,
               );
@@ -627,6 +821,13 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
                 _ensureBlockHasSpaceForAnchors(blocks[fromIndex]);
               }
               _markBoardChanged();
+            });
+          },
+          onPanEnd: (_) {
+            // ignore: invalid_use_of_protected_member
+            setState(() {
+              _detachPreviewLinkId = null;
+              _detachPreviewCanvasPosition = null;
             });
           },
         ),
@@ -660,6 +861,8 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
           },
           onPanStart: (_) {
             _pushUndoSnapshot();
+            _detachPreviewLinkId = null;
+            _detachPreviewCanvasPosition = null;
           },
           onPanUpdate: (details) {
             // ignore: invalid_use_of_protected_member
@@ -669,6 +872,8 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
               final canvasPosition = _toCanvasLocal(details.globalPosition);
 
               if (_isSequenceDiagramView) {
+                _detachPreviewLinkId = null;
+                _detachPreviewCanvasPosition = null;
                 final laneYCanvas = math.max(
                   toRect.bottom + (8.0 * zoomLevel),
                   canvasPosition.dy,
@@ -679,12 +884,51 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
                 return;
               }
 
+              final reassigned = _tryReassignLinkEndpointFromDrag(
+                link: link,
+                isSource: false,
+                canvasPosition: canvasPosition,
+                globalPosition: details.globalPosition,
+              );
+              if (reassigned) {
+                _detachPreviewLinkId = null;
+                _detachPreviewCanvasPosition = null;
+                _markBoardChanged();
+                return;
+              }
+
+              final targetBlock = blocks
+                  .where((b) => b.id == link.toBlockId)
+                  .firstOrNull;
+              if (targetBlock == null) {
+                _detachPreviewLinkId = null;
+                _detachPreviewCanvasPosition = null;
+                return;
+              }
+              final activeTargetRect = _blockRectCanvas(targetBlock);
+              final targetOutsideDistance = _outsideDistanceToRect(
+                canvasPosition,
+                activeTargetRect,
+              );
+              _detachPreviewLinkId =
+                  targetOutsideDistance >= _anchorReassignDragThresholdCanvas
+                  ? link.id
+                  : null;
+              _detachPreviewIsSource = false;
+              _detachPreviewCanvasPosition =
+                  targetOutsideDistance >= _anchorReassignDragThresholdCanvas
+                  ? canvasPosition
+                  : null;
+              if (targetOutsideDistance >= _anchorReassignDragThresholdCanvas) {
+                return;
+              }
+
               final snappedSide = _anchorSideUnit(
-                _anchorUnitFromCanvasPoint(toRect, canvasPosition),
+                _anchorUnitFromCanvasPoint(activeTargetRect, canvasPosition),
               );
               link.targetAnchorUnit = snappedSide;
               final rawKey = _anchorOrderKeyFromCanvasPoint(
-                toRect,
+                activeTargetRect,
                 snappedSide,
                 canvasPosition,
               );
@@ -697,6 +941,13 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
                 _ensureBlockHasSpaceForAnchors(blocks[toIndex]);
               }
               _markBoardChanged();
+            });
+          },
+          onPanEnd: (_) {
+            // ignore: invalid_use_of_protected_member
+            setState(() {
+              _detachPreviewLinkId = null;
+              _detachPreviewCanvasPosition = null;
             });
           },
         ),

@@ -22,6 +22,9 @@ class MiroLinkLayerPainter {
   final Block? linkSourceBlock;
   final List<Offset> pendingInflectionPoints;
   final bool showSequenceParticipantLifelines;
+  final String? detachPreviewLinkId;
+  final Offset? detachPreviewCanvasPosition;
+  final bool detachPreviewIsSource;
 
   const MiroLinkLayerPainter({
     required this.blocks,
@@ -34,6 +37,9 @@ class MiroLinkLayerPainter {
     required this.linkSourceBlock,
     required this.pendingInflectionPoints,
     required this.showSequenceParticipantLifelines,
+    this.detachPreviewLinkId,
+    this.detachPreviewCanvasPosition,
+    this.detachPreviewIsSource = false,
   });
 
   void paint(Canvas canvas, Size size) {
@@ -97,7 +103,7 @@ class MiroLinkLayerPainter {
                 canvasOffset.dy
           : null;
 
-      final fromEdge = showSequenceParticipantLifelines
+      var fromEdge = showSequenceParticipantLifelines
           ? Offset(
               fromRect.center.dx,
               math.max(
@@ -125,7 +131,7 @@ class MiroLinkLayerPainter {
             )
           : pointOnRectBorderTowards(fromRect, fromReference);
 
-      final toEdge = showSequenceParticipantLifelines
+      var toEdge = showSequenceParticipantLifelines
           ? Offset(
               toRect.center.dx,
               math.max(
@@ -152,6 +158,15 @@ class MiroLinkLayerPainter {
               ),
             )
           : pointOnRectBorderTowards(toRect, toReference);
+
+      if (detachPreviewLinkId == link.id &&
+          detachPreviewCanvasPosition != null) {
+        if (detachPreviewIsSource) {
+          fromEdge = detachPreviewCanvasPosition!;
+        } else {
+          toEdge = detachPreviewCanvasPosition!;
+        }
+      }
 
       final startTangent = outwardTangentForLinkEndpoint(
         link: link,
@@ -193,7 +208,9 @@ class MiroLinkLayerPainter {
           (arrowType.endsWith('x') || arrowType.endsWith('X'));
       final isOpenType = isTypedArrow && !isFlowMode && arrowType.endsWith(')');
 
-      final resolvedColor = selectedLink == link
+      final resolvedColor = detachPreviewLinkId == link.id
+          ? colorLinkCreation
+          : selectedLink == link
           ? colorLinkSelected
           : isDestroyType
           ? const Color(0xFFE57373)

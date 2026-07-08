@@ -1,6 +1,26 @@
 part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
+  Future<Uint8List> _resizeToSquarePng(
+    Uint8List bytes,
+    int sizeW,
+    int sizeH,
+  ) async {
+    final codec = await ui.instantiateImageCodec(
+      bytes,
+      targetWidth: sizeW,
+      targetHeight: sizeH,
+    );
+    final frame = await codec.getNextFrame();
+    final byteData = await frame.image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
+    if (byteData == null) {
+      throw Exception('Unable to encode resized image.');
+    }
+    return byteData.buffer.asUint8List();
+  }
+
   List<Widget> getAction() {
     final canDeleteCurrentSelection =
         selectedBlock != null ||
@@ -15,7 +35,9 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
           IconButton(
             icon: Icon(
               _isSidePanelPinned ? Icons.push_pin : Icons.push_pin_outlined,
-              color: _isSidePanelPinned ? Colors.amber : null,
+              color: _isSidePanelPinned
+                  ? const Color.fromARGB(170, 33, 149, 243)
+                  : null,
             ),
             tooltip: _isSidePanelPinned
                 ? 'Désépingler le panneau'
@@ -108,7 +130,7 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
               color: _hasUnsavedChanges ? Colors.blue : null,
             ),
             tooltip: 'Save',
-            onPressed: () {
+            onPressed: () async {
               // save miro canvas state to local storage or backend
               debugPrint('save flow app ${widget.query}');
 
@@ -124,6 +146,40 @@ extension _MiroLikeWidgetStateActionsMethods on _MiroLikeWidgetState {
                 'state': 'R',
                 'update_at': DateTime.now().toIso8601String(),
               };
+
+              final renderObject = _canvasKey.currentContext
+                  ?.findRenderObject();
+              final boundary = renderObject is RenderRepaintBoundary
+                  ? renderObject
+                  : null;
+              if (boundary == null) {
+                return;
+              }
+
+              final image = await boundary.toImage(pixelRatio: 0.5);
+
+              final byteData = await image.toByteData(
+                format: ui.ImageByteFormat.png,
+              );
+              if (byteData == null) {
+                return;
+              }
+              final bytes = byteData.buffer.asUint8List();
+
+              var rz = await _resizeToSquarePng(
+                bytes,
+                (boundary.size.width * 0.2).toInt(),
+                (boundary.size.height * 0.2).toInt()
+              );
+              final base64Value = base64Encode(rz);
+              print('base64Value length: ${base64Value.length}');
+
+              var accessor = ModelAccessorAttr(
+                node: currentCompany.currentFlow!.selectedAttr!,
+                schema: currentCompany.currentFlow!,
+                propName: '#preview',
+              );
+              accessor.set(base64Value);
 
               var save = SaveEvent(
                 model: currentCompany.currentFlow!,

@@ -23,9 +23,7 @@ extension _MiroLikeWidgetStateCanvasCoreMethods on _MiroLikeWidgetState {
   }
 
   Future<void> _exportGraphAsPng() async {
-    print('Start Exporting graph as PNG...');
     final renderObject = _canvasKey.currentContext?.findRenderObject();
-    print('2 Start Exporting graph as PNG...');
     final boundary = renderObject is RenderRepaintBoundary
         ? renderObject
         : null;
@@ -33,30 +31,18 @@ extension _MiroLikeWidgetStateCanvasCoreMethods on _MiroLikeWidgetState {
       return;
     }
 
-    // if (boundary.debugNeedsPaint) {
-    //   await Future<void>.delayed(Duration.zero);
-    //   if (boundary.debugNeedsPaint) {
-    //     return;
-    //   }
-    // }
-
-    print('Exporting graph as PNG...');
-
     final image = await boundary.toImage(
       // ignore: use_build_context_synchronously
       pixelRatio: math.max(MediaQuery.of(context).devicePixelRatio, 3.0),
     );
-    print('Graph exported as PNG: ${image.width}x${image.height} pixels');
 
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     if (byteData == null) {
       return;
     }
-    print('Graph PNG byte data size: ${byteData.lengthInBytes} bytes');
     final bytes = byteData.buffer.asUint8List();
     final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     final fileName = 'graph_$stamp.png';
-    print('Exporting graph PNG to file: $fileName');
     final filePath = await exportPng(bytes, fileName: fileName);
 
     if (!mounted) {

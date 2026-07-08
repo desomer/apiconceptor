@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_model.dart';
@@ -52,6 +54,12 @@ class PanApplicationFlow extends PanYamlTree {
     BuildContext context,
   ) {
     var attr = node.data;
+    void openEditor() {
+      RouteManager.goto(
+        Pages.appFlowEditor.id(attr.info.getMasterID()),
+        context,
+      );
+    }
 
     if (attr.info.type == 'root') {
       row.add(Container(height: rowHeight));
@@ -69,18 +77,44 @@ class PanApplicationFlow extends PanYamlTree {
       ),
     );
     if (autorizedType.contains(attr.info.type.toLowerCase())) {
-      row.add(
-        TextButton(
-          onPressed: () {
-            RouteManager.goto(
-              Pages.appFlowEditor.id(attr.info.getMasterID()),
-              context,
-            );
-          },
-          child: const Text('Edit'),
-        ),
-      );
+      row.add(TextButton(onPressed: openEditor, child: const Text('Edit')));
     }
+    final previewBase64 = attr.info.properties?["#preview"];
+    if (previewBase64 != null) {
+      try {
+        final previewBytes = base64Decode(previewBase64);
+        row.add(
+          Tooltip(
+            padding: const EdgeInsets.all(4),
+            waitDuration: const Duration(milliseconds: 250),
+            preferBelow: false,
+            richMessage: WidgetSpan(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(previewBytes, fit: BoxFit.contain),
+              ),
+            ),
+            child: GestureDetector(
+              onTap: openEditor,
+              child: const Padding(
+                padding: EdgeInsets.fromLTRB(0, 0, 0, 5),
+                child: Icon(Icons.image_outlined, size: 18),
+              ),
+            ),
+          ),
+        );
+      } catch (_) {
+        // Ignore malformed preview payloads.
+      }
+    }
+  }
+
+  @override
+  Widget getToolTip({
+    required List<Widget> toolContent,
+    required Widget child,
+  }) {
+    return child;
   }
 
   @override
@@ -144,11 +178,11 @@ class InfoManagerAppFlow extends InfoManager with WidgetHelper {
       icon = const Icon(Icons.folder);
     } else if (node.data.info.type.toLowerCase() == 'context') {
       icon = const Icon(Icons.supervised_user_circle_outlined);
-    }else if (node.data.info.type.toLowerCase() == 'container') {
+    } else if (node.data.info.type.toLowerCase() == 'container') {
       icon = const Icon(Icons.apps);
-    }else if (node.data.info.type.toLowerCase() == 'composant') {
+    } else if (node.data.info.type.toLowerCase() == 'composant') {
       icon = const Icon(Icons.extension);
-    }else if (node.data.info.type.toLowerCase() == 'sequence') {
+    } else if (node.data.info.type.toLowerCase() == 'sequence') {
       icon = const Icon(Icons.timeline);
     }
 

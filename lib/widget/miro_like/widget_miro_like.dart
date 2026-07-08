@@ -7,6 +7,7 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/bdd/data_event.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/export/export_csv.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/miro_like/layers/miro_canvas_painter.dart';
 import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart';
 import 'package:jsonschema/widget/miro_like/widgets/actions/properties_panel.dart';
@@ -142,6 +143,10 @@ class _RedoIntent extends Intent {
   const _RedoIntent();
 }
 
+class _DeleteSelectionIntent extends Intent {
+  const _DeleteSelectionIntent();
+}
+
 class _MiroLikeWidgetState extends State<MiroLikeWidget>
     with SingleTickerProviderStateMixin {
   static const List<String> _mermaidDirections = ['LR', 'TB', 'RL', 'BT'];
@@ -204,6 +209,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   bool _isSequenceDiagramView = false;
   bool _isSidePanelHovered = false;
   bool _isSidePanelPinned = false;
+  String? _detachPreviewLinkId;
+  Offset? _detachPreviewCanvasPosition;
+  bool _detachPreviewIsSource = false;
   bool _hasUnsavedChanges = false;
   String? _sequenceLinkTargetHoverBlockId;
   double? _sequenceCreationStartCanvasY;
@@ -752,6 +760,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         SingleActivator(LogicalKeyboardKey.keyY, control: true): _RedoIntent(),
         SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true):
             _RedoIntent(),
+        SingleActivator(LogicalKeyboardKey.delete): _DeleteSelectionIntent(),
       },
       child: Actions(
         actions: <Type, Action<Intent>>{
@@ -770,6 +779,15 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
                 return null;
               }
               _redo();
+              return null;
+            },
+          ),
+          _DeleteSelectionIntent: CallbackAction<_DeleteSelectionIntent>(
+            onInvoke: (_) {
+              if (_isTextEditingFocused()) {
+                return null;
+              }
+              _deleteCurrentSelection();
               return null;
             },
           ),

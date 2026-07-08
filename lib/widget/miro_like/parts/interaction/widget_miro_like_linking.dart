@@ -220,6 +220,20 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
           autoLayoutLock: false,
         ),
       );
+      if (!isSequenceMode) {
+        final created = links.last;
+        created.sourceAnchorOrderKey = 0.0;
+        created.targetAnchorOrderKey = 0.0;
+
+        if (created.sourceAnchorUnit != null) {
+          final sourceSide = _anchorSideUnit(created.sourceAnchorUnit!);
+          _recomputeAnchorOrderKeysForBlockSide(sourceBlock, sourceSide);
+        }
+        if (created.targetAnchorUnit != null) {
+          final targetSide = _anchorSideUnit(created.targetAnchorUnit!);
+          _recomputeAnchorOrderKeysForBlockSide(targetBlock, targetSide);
+        }
+      }
       if (isSequenceMode && laneYModel != null) {
         _setSequenceLinkLaneY(links.last, laneYModel);
         _insertSequenceMessageAtReference(

@@ -4,6 +4,9 @@ part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
   Widget _buildCanvasWorkspace() {
+    final canCreateSubgraphFromSelection =
+        !_isSequenceDiagramView && _selectedBlockIds.length > 1;
+
     return MiroCanvasWorkspace(
       canvasKey: _canvasKey,
       canvasBackgroundColor: colorCanvasBackground,
@@ -28,8 +31,111 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         linkSourceBlock: linkSourceBlock,
         flowAnimation: _flowController,
         pendingInflectionPoints: pendingInflectionPoints,
+        detachPreviewLinkId: _detachPreviewLinkId,
+        detachPreviewCanvasPosition: _detachPreviewCanvasPosition,
+        detachPreviewIsSource: _detachPreviewIsSource,
       ),
       overlayWidgets: [
+        Positioned(
+          left: 12,
+          top: 12,
+          child: Material(
+            color: Colors.transparent,
+            child: Row(
+              children: [
+                IconButton.filled(
+                  tooltip: 'paramètres',
+                  style: IconButton.styleFrom(
+                    backgroundColor: colorLinkCreation.withValues(alpha: 0.92),
+                    foregroundColor: Colors.white,
+
+                    padding: EdgeInsets.all(0),
+                    minimumSize: Size(32, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: null,
+                  icon: const Icon(Icons.settings),
+                ),
+
+                PopupMenuButton<String>(
+                  tooltip: 'Add (double-clic right pour ajouter)',
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'block':
+                        _addBlock(const Offset(56, 56));
+                        break;
+                      case 'frame':
+                        _addFrameBlock(const Offset(56, 56));
+                        break;
+                      case 'subgraph':
+                        if (canCreateSubgraphFromSelection) {
+                          _createSubgraphFromSelection('');
+                        }
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem<String>(
+                      value: 'block',
+                      child: ListTile(
+                        leading: Icon(Icons.add_box_outlined),
+                        title: Text('Bloc'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'frame',
+                      child: ListTile(
+                        leading: Icon(Icons.crop_square),
+                        title: Text('Frame'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'subgraph',
+                      enabled: canCreateSubgraphFromSelection,
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.account_tree_outlined,
+                          color: canCreateSubgraphFromSelection
+                              ? null
+                              : Colors.white38,
+                        ),
+                        title: Text(
+                          'Subgraph',
+                          style: TextStyle(
+                            color: canCreateSubgraphFromSelection
+                                ? null
+                                : Colors.white38,
+                          ),
+                        ),
+                        subtitle: canCreateSubgraphFromSelection
+                            ? null
+                            : const Text('Sélectionnez plusieurs blocs'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                  child: IconButton.filled(
+                    tooltip: 'Ajouter',
+                    style: IconButton.styleFrom(
+                      backgroundColor: colorLinkCreation.withValues(
+                        alpha: 0.92,
+                      ),
+                      foregroundColor: Colors.white,
+
+                      padding: EdgeInsets.all(0),
+                      minimumSize: Size(32, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: null,
+                    icon: const Icon(Icons.add),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         ..._buildSelectionOverlay(),
         ..._buildAlignmentSnapGuides(),
         ..._buildZoneResizeHandles(),
@@ -147,6 +253,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         else
           ..._buildAnchorHandles(),
         if (!_isSequenceDiagramView) ..._buildInflectionHandles(),
+        ..._buildSelectedBlockCommentBadges(),
         ..._buildLinkLabelHandles(),
         ..._buildLinkWebLinkBadges(),
       ],

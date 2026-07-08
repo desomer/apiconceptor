@@ -18,6 +18,9 @@ class MiroCanvasPainter extends CustomPainter {
   final List<Offset> pendingInflectionPoints;
   final bool showSequenceParticipantLifelines;
   final String? highlightedSequenceParticipantId;
+  final String? detachPreviewLinkId;
+  final Offset? detachPreviewCanvasPosition;
+  final bool detachPreviewIsSource;
 
   MiroCanvasPainter({
     required this.blocks,
@@ -33,6 +36,9 @@ class MiroCanvasPainter extends CustomPainter {
     this.pendingInflectionPoints = const [],
     this.showSequenceParticipantLifelines = false,
     this.highlightedSequenceParticipantId,
+    this.detachPreviewLinkId,
+    this.detachPreviewCanvasPosition,
+    this.detachPreviewIsSource = false,
   }) : super(repaint: flowAnimation);
 
   @override
@@ -56,6 +62,9 @@ class MiroCanvasPainter extends CustomPainter {
       linkSourceBlock: linkSourceBlock,
       pendingInflectionPoints: pendingInflectionPoints,
       showSequenceParticipantLifelines: showSequenceParticipantLifelines,
+      detachPreviewLinkId: detachPreviewLinkId,
+      detachPreviewCanvasPosition: detachPreviewCanvasPosition,
+      detachPreviewIsSource: detachPreviewIsSource,
     ).paint(canvas, size);
   }
 
