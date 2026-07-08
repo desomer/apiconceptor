@@ -1560,6 +1560,8 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
           return 'Cadre';
         case BlockZoneType.subgraph:
           return 'Subgraph';
+        case BlockZoneType.sticky:
+          return 'Post-it';
       }
     }
 

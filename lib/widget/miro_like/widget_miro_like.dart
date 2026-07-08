@@ -116,8 +116,8 @@ const double _minBlockWidth = 200.0;
 const double _minBlockHeight = 150.0;
 const double _alignmentSnapCaptureDistance = 10.0;
 const double _alignmentSnapReleaseDistance = 24.0;
-const double _minZoneWidth = 180.0;
-const double _minZoneHeight = 120.0;
+const double _minZoneWidth = 100.0;
+const double _minZoneHeight = 80.0;
 const double _zoneHandleSize = 14.0;
 
 const double _sequenceParticipantGap = 280.0;
@@ -289,7 +289,11 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   bool _isTextEditingFocused() {
     final focusedContext = FocusManager.instance.primaryFocus?.context;
-    return focusedContext?.widget is EditableText;
+    if (focusedContext == null) {
+      return false;
+    }
+    return focusedContext.widget is EditableText ||
+        focusedContext.findAncestorWidgetOfExactType<EditableText>() != null;
   }
 
   void _updateUnsavedStateFromSnapshot() {
@@ -377,7 +381,12 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   }
 
   Block? _findTopBlockAtModelPosition(Offset modelPosition) {
-    for (final block in blocks.reversed) {
+    final orderedBlocks = <Block>[
+      ...blocks.reversed.where((b) => b.isStickyNote),
+      ...blocks.reversed.where((b) => !b.isZone),
+      ...blocks.reversed.where((b) => b.isZone && !b.isStickyNote),
+    ];
+    for (final block in orderedBlocks) {
       final blockRect = Rect.fromLTWH(
         block.position.dx,
         block.position.dy,
@@ -792,7 +801,7 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
+    final canvasWorkspace = Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.keyZ, control: true): _UndoIntent(),
         SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _UndoIntent(),
@@ -864,14 +873,16 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
         child: Focus(
           focusNode: _canvasShortcutsFocusNode,
           autofocus: true,
-          child: Row(
-            children: [
-              Expanded(child: _buildCanvasWorkspace()),
-              _buildSidePanel(),
-            ],
-          ),
+          child: _buildCanvasWorkspace(),
         ),
       ),
+    );
+
+    return Row(
+      children: [
+        Expanded(child: canvasWorkspace),
+        _buildSidePanel(),
+      ],
     );
   }
 }

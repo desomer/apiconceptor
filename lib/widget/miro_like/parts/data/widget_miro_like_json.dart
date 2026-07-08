@@ -21,24 +21,29 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
     return {'width': size.width, 'height': size.height};
   }
 
-  Size _sizeFromJson(dynamic value, {Size fallback = const Size(150, 100)}) {
+  Size _sizeFromJson(
+    dynamic value, {
+    Size fallback = const Size(150, 100),
+    double minWidth = _minBlockWidth,
+    double minHeight = _minBlockHeight,
+  }) {
     if (value is! Map) {
       return Size(
-        math.max(fallback.width, _minBlockWidth),
-        math.max(fallback.height, _minBlockHeight),
+        math.max(fallback.width, minWidth),
+        math.max(fallback.height, minHeight),
       );
     }
     final width = value['width'];
     final height = value['height'];
     if (width is num && height is num) {
       return Size(
-        math.max(width.toDouble(), _minBlockWidth),
-        math.max(height.toDouble(), _minBlockHeight),
+        math.max(width.toDouble(), minWidth),
+        math.max(height.toDouble(), minHeight),
       );
     }
     return Size(
-      math.max(fallback.width, _minBlockWidth),
-      math.max(fallback.height, _minBlockHeight),
+      math.max(fallback.width, minWidth),
+      math.max(fallback.height, minHeight),
     );
   }
 
@@ -432,34 +437,41 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
         }
       }
 
+      final parsedKind =
+          item['kind']?.toString() == BlockKind.zone.name ||
+              item['isZone'] == true
+          ? BlockKind.zone
+          : BlockKind.normal;
+      final parsedZoneType = _zoneTypeFromJsonName(
+        item['zoneType']?.toString(),
+        propertiesJson: item['propertiesJson']?.toString(),
+        kind: parsedKind,
+      );
+
       parsed.add(
         Block(
           id: id,
           title: title,
-          kind:
-              item['kind']?.toString() == BlockKind.zone.name ||
-                  item['isZone'] == true
-              ? BlockKind.zone
-              : BlockKind.normal,
+          kind: parsedKind,
           colorKey: item['colorKey']?.toString(),
           tagColorKeys: parsedTagColorKeys,
           iconBase64: item['iconBase64']?.toString(),
           propertiesJson: item['propertiesJson']?.toString(),
           position: _offsetFromJson(item['position']),
-          size: _sizeFromJson(item['size']),
+          size: _sizeFromJson(
+            item['size'],
+            minWidth: parsedKind == BlockKind.zone
+                ? _minZoneWidth
+                : _minBlockWidth,
+            minHeight: parsedKind == BlockKind.zone
+                ? _minZoneHeight
+                : _minBlockHeight,
+          ),
           zoneTransparent: item['zoneTransparent'] == true,
           zoneBorderStyle: _zoneBorderStyleFromJsonName(
             item['zoneBorderStyle']?.toString(),
           ),
-          zoneType: _zoneTypeFromJsonName(
-            item['zoneType']?.toString(),
-            propertiesJson: item['propertiesJson']?.toString(),
-            kind:
-                item['kind']?.toString() == BlockKind.zone.name ||
-                    item['isZone'] == true
-                ? BlockKind.zone
-                : BlockKind.normal,
-          ),
+          zoneType: parsedZoneType,
           nodeShape: _blockNodeShapeFromJsonName(item['nodeShape']?.toString()),
         ),
       );
@@ -600,6 +612,9 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
     required String? propertiesJson,
     required BlockKind kind,
   }) {
+    if (raw == BlockZoneType.sticky.name) {
+      return BlockZoneType.sticky;
+    }
     if (raw == BlockZoneType.subgraph.name) {
       return BlockZoneType.subgraph;
     }

@@ -5,6 +5,7 @@ const Map<String, Color> kBlockColorMap = {
   'blue': Color(0xFF1E3A8A),
   'teal': Color(0xFF0F766E),
   'green': Color(0xFF166534),
+  'yellow': Color(0xFFEAB308),
   'amber': Color(0xFF92400E),
   'rose': Color(0xFF9F1239),
 };
@@ -14,6 +15,7 @@ const Map<String, String> kBlockColorLabelMap = {
   'blue': 'Blue',
   'teal': 'Teal',
   'green': 'Green',
+  'yellow': 'Yellow',
   'amber': 'Amber',
   'rose': 'Rose',
 };
@@ -43,7 +45,7 @@ const Map<String, String> kBlockTagColorLabelMap = {
 /// Represents a block in the Miro-like diagram
 enum BlockKind { normal, zone }
 
-enum BlockZoneType { frame, subgraph }
+enum BlockZoneType { frame, subgraph, sticky }
 
 enum ZoneBorderStyle { plain, dashed1_2, dashed2_2, dashed2_1 }
 
@@ -96,4 +98,6 @@ class Block {
   }) : tagColorKeys = List<String>.from(tagColorKeys ?? const <String>[]);
 
   bool get isZone => kind == BlockKind.zone;
+
+  bool get isStickyNote => isZone && zoneType == BlockZoneType.sticky;
 }

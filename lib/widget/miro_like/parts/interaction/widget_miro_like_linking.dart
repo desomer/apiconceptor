@@ -278,6 +278,10 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
           value: 'add_frame',
           child: Text('Ajouter une frame'),
         ),
+        PopupMenuItem<String>(
+          value: 'add_sticky',
+          child: Text('Ajouter un post-it'),
+        ),
       ],
     );
 
@@ -291,6 +295,10 @@ extension _MiroLikeWidgetStateLinkingMethods on _MiroLikeWidgetState {
     }
     if (selected == 'add_frame') {
       _addFrameBlock(globalPosition);
+      return;
+    }
+    if (selected == 'add_sticky') {
+      _addStickyNoteBlock(globalPosition);
     }
   }
 }

@@ -233,64 +233,22 @@ extension _MiroLikeWidgetStateCanvasSelectionMethods on _MiroLikeWidgetState {
       }
     }
 
-    for (final block in blocks.reversed) {
-      if (block.isZone) {
-        continue;
-      }
-      final blockRect = Rect.fromLTWH(
-        block.position.dx,
-        block.position.dy,
-        block.size.width,
-        block.size.height,
-      );
-      if (blockRect.contains(modelPosition)) {
-        if (_isCtrlPressed()) {
-          if (_selectedBlockIds.contains(block.id)) {
-            _selectedBlockIds.remove(block.id);
-          } else {
-            _selectedBlockIds.add(block.id);
-          }
-          selectedBlock = _selectedBlockIds.length == 1
-              ? blocks.firstWhere((b) => b.id == _selectedBlockIds.first)
-              : null;
-        } else {
-          selectedBlock = block;
-          _selectedBlockIds
-            ..clear()
-            ..add(block.id);
-        }
-        selectedLink = null;
-        _selectedSequenceLinks.clear();
-        _selectedSequenceGroup = null;
-        return;
-      }
-    }
-
-    for (final zone in blocks.reversed.where((b) => b.isZone)) {
-      final zoneRect = Rect.fromLTWH(
-        zone.position.dx,
-        zone.position.dy,
-        zone.size.width,
-        zone.size.height,
-      );
-      if (!zoneRect.contains(modelPosition)) {
-        continue;
-      }
-
+    final hitBlock = _findTopBlockAtModelPosition(modelPosition);
+    if (hitBlock != null) {
       if (_isCtrlPressed()) {
-        if (_selectedBlockIds.contains(zone.id)) {
-          _selectedBlockIds.remove(zone.id);
+        if (_selectedBlockIds.contains(hitBlock.id)) {
+          _selectedBlockIds.remove(hitBlock.id);
         } else {
-          _selectedBlockIds.add(zone.id);
+          _selectedBlockIds.add(hitBlock.id);
         }
         selectedBlock = _selectedBlockIds.length == 1
             ? blocks.firstWhere((b) => b.id == _selectedBlockIds.first)
             : null;
       } else {
-        selectedBlock = zone;
+        selectedBlock = hitBlock;
         _selectedBlockIds
           ..clear()
-          ..add(zone.id);
+          ..add(hitBlock.id);
       }
       selectedLink = null;
       _selectedSequenceLinks.clear();

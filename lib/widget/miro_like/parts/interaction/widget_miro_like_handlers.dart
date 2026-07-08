@@ -92,6 +92,27 @@ extension _MiroLikeWidgetStateHandlersMethods on _MiroLikeWidgetState {
     });
   }
 
+  void _addStickyNoteBlock(Offset position) {
+    _pushUndoSnapshot();
+    setState(() {
+      final stickyCount = blocks
+          .where((b) => b.isZone && b.zoneType == BlockZoneType.sticky)
+          .length;
+      blocks.add(
+        Block(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          title: 'Post-it ${stickyCount + 1}',
+          kind: BlockKind.zone,
+          zoneType: BlockZoneType.sticky,
+          colorKey: 'yellow',
+          position: (position - canvasOffset) / zoomLevel,
+          size: const Size(240, 200),
+        ),
+      );
+      _markBoardChanged();
+    });
+  }
+
   void _deleteLink(BlockLink link) {
     _pushUndoSnapshot();
     setState(() {

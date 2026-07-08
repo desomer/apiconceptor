@@ -72,8 +72,9 @@ class MiroCanvasWorkspace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final paintOrderedBlocks = <Block>[
-      ...blocks.where((b) => b.isZone),
+      ...blocks.where((b) => b.isZone && !b.isStickyNote),
       ...blocks.where((b) => !b.isZone),
+      ...blocks.where((b) => b.isStickyNote),
     ];
 
     return MouseRegion(

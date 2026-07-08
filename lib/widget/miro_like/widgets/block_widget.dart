@@ -135,6 +135,83 @@ class BlockWidget extends StatelessWidget {
     final textScale = zoomLevel;
     final normalTitleFontSize = miroCanvasPrimaryLabelSize(textScale);
     if (block.isZone) {
+      if (block.zoneType == BlockZoneType.sticky) {
+        final stickyBaseColor =
+            kBlockColorMap[block.colorKey] ?? const Color(0xFFEAB308);
+        final stickyFill = isSelected
+            ? Color.alphaBlend(
+                colorBlockBackgroundSelected.withValues(alpha: 0.20),
+                stickyBaseColor.withValues(alpha: 0.95),
+              )
+            : stickyBaseColor.withValues(alpha: 0.96);
+        final stickyBorder = isSelected
+            ? colorBlockBorderSelected.withValues(alpha: 0.95)
+            : _shiftLightness(stickyBaseColor, -0.10).withValues(alpha: 0.80);
+        final stickyTextColor = Colors.brown.shade900.withValues(alpha: 0.92);
+        final foldColor = Color.alphaBlend(
+          Colors.white.withValues(alpha: 0.35),
+          stickyBaseColor.withValues(alpha: 0.90),
+        );
+        final radius = BorderRadius.circular(10);
+
+        return Container(
+          width: block.size.width,
+          height: block.size.height,
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            color: stickyFill,
+            border: Border.all(
+              color: stickyBorder,
+              width: isSelected ? 2 : 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.20),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 3* textScale,
+                right: 3* textScale,
+                child: CustomPaint(
+                  size: Size(34 * textScale, 34 * textScale),
+                  painter: _StickyFoldPainter(
+                    color: foldColor,
+                    borderColor: stickyBorder,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  14 * textScale,
+                  14 * textScale,
+                  20 * textScale,
+                  14 * textScale,
+                ),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(
+                    block.title,
+                    maxLines: 6,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: miroCanvasPrimaryLabelSize(textScale),
+                      fontWeight: FontWeight.w700,
+                      color: stickyTextColor,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
       final zoneBaseColor =
           kBlockColorMap[block.colorKey] ?? colorBlockBackground;
       final zoneBorderBase = _shiftLightness(zoneBaseColor, 0.20);
@@ -327,6 +404,36 @@ class BlockWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _StickyFoldPainter extends CustomPainter {
+  final Color color;
+  final Color borderColor;
+
+  const _StickyFoldPainter({required this.color, required this.borderColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..close();
+
+    canvas.drawPath(path, Paint()..color = color);
+    canvas.drawLine(
+      Offset(0, 0),
+      Offset(size.width, size.height),
+      Paint()
+        ..color = borderColor.withValues(alpha: 0.65)
+        ..strokeWidth = 1.1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _StickyFoldPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.borderColor != borderColor;
   }
 }
 

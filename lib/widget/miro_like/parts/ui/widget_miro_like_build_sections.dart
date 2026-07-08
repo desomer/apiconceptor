@@ -73,6 +73,9 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
                       case 'frame':
                         _addFrameBlock(const Offset(56, 56));
                         break;
+                      case 'sticky':
+                        _addStickyNoteBlock(const Offset(56, 56));
+                        break;
                       case 'subgraph':
                         if (canCreateSubgraphFromSelection) {
                           _createSubgraphFromSelection('');
@@ -94,6 +97,14 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
                       child: ListTile(
                         leading: Icon(Icons.crop_square),
                         title: Text('Frame'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'sticky',
+                      child: ListTile(
+                        leading: Icon(Icons.sticky_note_2_outlined),
+                        title: Text('Post-it'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -369,7 +380,8 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
               ..clear()
               ..add(hitBlock.id);
             selectedLink = null;
-            if (hitBlock.zoneType == BlockZoneType.frame) {
+            if (hitBlock.zoneType == BlockZoneType.frame ||
+                hitBlock.zoneType == BlockZoneType.sticky) {
               _pushUndoSnapshot();
               _draggedZoneId = hitBlock.id;
               isPanning = false;
@@ -534,6 +546,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
       onUpdateLinkPreviewFromGlobal: _updateLinkPreviewFromGlobal,
       onFinishLinkingAtGlobal: _finishLinkingAtGlobal,
       onBlockPanDown: (block, details) {
+        _requestCanvasKeyboardFocus();
         setState(() {
           _pushUndoSnapshot();
           if (!_isCtrlPressed()) {
@@ -616,6 +629,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         _resetBlockDragSnap();
       },
       onBlockTapDown: (block, details) {
+        _requestCanvasKeyboardFocus();
         setState(() {
           _consumeNextCanvasTap = true;
           _consumeNextCanvasTapGlobalPosition = details.globalPosition;
