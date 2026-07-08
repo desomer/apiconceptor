@@ -253,7 +253,7 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
         else
           ..._buildAnchorHandles(),
         if (!_isSequenceDiagramView) ..._buildInflectionHandles(),
-        ..._buildSelectedBlockCommentBadges(),
+        ..._buildBlockCommentBadges(),
         ..._buildLinkLabelHandles(),
         ..._buildLinkWebLinkBadges(),
       ],

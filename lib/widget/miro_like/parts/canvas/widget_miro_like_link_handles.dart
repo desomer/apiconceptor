@@ -341,7 +341,7 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
   }
 
   Widget _buildLinkCommentBadge({
-    required double size, 
+    required double size,
     required bool selected,
   }) {
     final iconSize = (size * 0.62).clamp(1.0, 20.0);
@@ -360,9 +360,9 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
         //   border: Border.all(color: borderColor, width: 1),
         // ),
         child: Icon(
-          selected ? Icons.comment : Icons.add_comment_outlined,
+          Icons.add_comment_outlined,
           size: iconSize,
-          color: selected ? colorLinkSelected : Colors.white70,
+          color: Colors.white70,
         ),
       ),
     );
@@ -650,21 +650,18 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
     return widgets;
   }
 
-  List<Widget> _buildSelectedBlockCommentBadges() {
+  List<Widget> _buildBlockCommentBadges() {
     final widgets = <Widget>[];
     final textScale = zoomLevel;
     final badgeSize = (24.0 * textScale).clamp(16.0, 28.0);
 
-    final selectedIds = <String>{..._selectedBlockIds};
-    if (selectedBlock != null) {
-      selectedIds.add(selectedBlock!.id);
-    }
-
-    for (final blockId in selectedIds) {
-      final block = blocks.where((b) => b.id == blockId).firstOrNull;
-      if (block == null || block.isZone) {
+    for (final block in blocks) {
+      if (block.isZone) {
         continue;
       }
+
+      final isSelected =
+          _selectedBlockIds.contains(block.id) || selectedBlock?.id == block.id;
 
       final rect = _blockRectCanvas(block);
       final left = rect.right - (badgeSize * 0.45);
@@ -678,7 +675,9 @@ extension _MiroLikeWidgetStateLinkHandleMethods on _MiroLikeWidgetState {
           height: badgeSize,
           child: ThreadCommentCell(
             contextId: _blockCommentContextId(block),
-            childOver: _buildLinkCommentBadge(size: badgeSize, selected: false),
+            childOver: isSelected
+                ? _buildLinkCommentBadge(size: badgeSize, selected: isSelected)
+                : SizedBox.shrink(),
             childIfComment: _buildLinkCommentBadge(
               size: badgeSize,
               selected: true,
