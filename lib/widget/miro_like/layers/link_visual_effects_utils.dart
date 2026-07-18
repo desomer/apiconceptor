@@ -20,10 +20,30 @@ void paintLinkConnectorVisuals({
   required Offset arrowTip,
   BlockLink? link,
   bool dashed = false,
+  bool renderStatic = true,
+  bool animateParticles = true,
+  bool renderParticles = true,
+  double? particlePhaseSeconds,
+  int maxParticleCountPerPath = 48,
   bool useFlowArrowCodification = false,
 }) {
-  _drawNeonTube(canvas, path, color, strokeWidth, dashed: dashed);
-  _drawFlowParticles(canvas, path, color, link: link);
+  if (renderStatic) {
+    _drawNeonTube(canvas, path, color, strokeWidth, dashed: dashed);
+  }
+  if (renderParticles && animateParticles) {
+    _drawFlowParticles(
+      canvas,
+      path,
+      color,
+      link: link,
+      phaseSeconds: particlePhaseSeconds,
+      maxParticleCountPerPath: maxParticleCountPerPath,
+    );
+  }
+
+  if (!renderStatic) {
+    return;
+  }
 
   final endAngle = _pathEndAngle(path);
   if (endAngle != null) {
@@ -335,6 +355,8 @@ void _drawFlowParticles(
   Path path,
   Color color, {
   BlockLink? link,
+  double? phaseSeconds,
+  int maxParticleCountPerPath = 48,
 }) {
   final metrics = path.computeMetrics();
   final iterator = metrics.iterator;
@@ -347,7 +369,8 @@ void _drawFlowParticles(
   final spacing = (34.0 / density).clamp(12.0, 90.0);
   final speedPx = 170.0 * speed;
   final elapsedSeconds =
-      DateTime.now().microsecondsSinceEpoch / Duration.microsecondsPerSecond;
+      phaseSeconds ??
+      (DateTime.now().microsecondsSinceEpoch / Duration.microsecondsPerSecond);
   final travel = elapsedSeconds * speedPx;
 
   do {
@@ -357,7 +380,10 @@ void _drawFlowParticles(
       continue;
     }
 
-    final particleCount = math.max(1, (length / spacing).floor());
+    final particleCount = math.max(
+      1,
+      math.min(maxParticleCountPerPath, (length / spacing).floor()),
+    );
     final effectiveSpacing = length / particleCount;
     final phase = travel % effectiveSpacing;
     for (int i = 0; i < particleCount; i++) {
@@ -370,19 +396,12 @@ void _drawFlowParticles(
       final progress = offsetOnPath / length;
       final radius = 2.0 + (0.25 * progress);
 
-      final neonColor = color.withValues(alpha: 0.15);
+      final neonColor = color.withValues(alpha: 0.18);
       canvas.drawCircle(
         tangent.position,
-        radius * 1.8,
+        radius * 1.5,
         Paint()
           ..color = neonColor
-          ..style = PaintingStyle.fill,
-      );
-      canvas.drawCircle(
-        tangent.position,
-        radius * 1.3,
-        Paint()
-          ..color = neonColor.withValues(alpha: 0.25)
           ..style = PaintingStyle.fill,
       );
       canvas.drawCircle(

@@ -200,11 +200,6 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
                 children: [
                   UniversalBackButton(),
                   IconButton(
-                    // padding: EdgeInsets.zero,
-                    // constraints: const BoxConstraints(
-                    //   minWidth: 24,
-                    //   minHeight: 24,
-                    // ),
                     onPressed: () {
                       Pages.home.goto(context);
                     },
@@ -327,7 +322,7 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
                 ),
                 Spacer(),
                 Text(
-                  'API Architec by Desomer G. V1.0.6.2',
+                  'API Architec by Desomer G. V1.0.6.3',
                   style: TextStyle(fontSize: 12),
                 ),
                 SizedBox(width: 20),

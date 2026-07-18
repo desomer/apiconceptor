@@ -479,6 +479,11 @@ const constTypeAnyof = '\$\$__anyof__';
 const constTypeOneof = '\$\$__oneof__';
 const constTypeOf = '\$\$__of__';
 
+// utiliser dans le getExtendedNode  => ne doit pas etre dans properties
+const cstExample = "#examples";
+const cstDoc = "#doc";
+
+
 const constNameAllof = '\$allof';
 const constNameOneof = '\$oneof';
 const constInherit = '\$inherit';

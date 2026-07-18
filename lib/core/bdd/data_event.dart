@@ -21,6 +21,7 @@ class SaveEvent {
   String table;
   String idIdempotence;
   dynamic data;
+  int sortIdx = 0;
 }
 
 Future<Map<String, dynamic>> computeSendYamlChangeEvent(

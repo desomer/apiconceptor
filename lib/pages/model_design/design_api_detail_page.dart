@@ -34,6 +34,12 @@ List<BreadNode> getLeftNavApi(String query) {
       type: BreadNodeType.widget,
       path: Pages.apiScrum.id(query),
     ),
+    BreadNode(
+      icon: const Icon(Icons.smart_toy),
+      settings: const RouteSettings(name: 'Prompt AI'),
+      type: BreadNodeType.widget,
+      path: Pages.apiPromptAI.id(query),
+    ),
   ];
 }
 

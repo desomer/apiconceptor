@@ -235,11 +235,13 @@ class DataAcces {
         .eq('company_id', currentCompany.companyId)
         .eq('state', 'D')
         .eq('schema_id', id)
+        .eq('category', model.category.name)
         .eq('namespace', model.namespace ?? currentCompany.currentNameSpace)
         .order('update_at', ascending: false);
     var ret2 = await queryattr;
+
     if (ret2.isNotEmpty) {
-      model.modelProperties = {};
+      model.modelPropertiesByPath = {};
       for (var element in ret2) {
         AttributInfo info = AttributInfo();
         info.masterID = element['attr_id'];
@@ -251,8 +253,9 @@ class DataAcces {
         info.timeLastUpdate = DateTime.tryParse(element['update_at'] ?? '');
         model.mapInfoByTreePath[info.masterID!] = info;
         var path = 'root>$pathYaml>${info.masterID}';
-        model.modelProperties[path] = info.properties;
-        model.modelProperties[path]['_\$\$version'] = element['version'] ?? '1';
+        model.modelPropertiesByPath[path] = info.properties;
+        model.modelPropertiesByPath[path]['_\$\$version'] =
+            element['version'] ?? '1';
         model.mapInfoByJsonPath[path] = info;
       }
       return model.mapInfoByTreePath;
@@ -293,11 +296,13 @@ class DataAcces {
           .eq('version', version?.version ?? '1')
           .eq('company_id', currentCompany.companyId)
           .eq('namespace', model.namespace ?? currentCompany.currentNameSpace)
-          .eq('schema_id', id.substring(5))
+          .eq('schema_id', id.substring('json/'.length))
+          .eq('category', model.category.name)
           .eq('state', 'R');
+
       var ret2 = await queryattr;
       if (ret2.isNotEmpty) {
-        model.modelProperties = {};
+        model.modelPropertiesByPath = {};
         for (var element in ret2) {
           AttributInfo info = AttributInfo();
           info.masterID = element['attr_id'];
@@ -305,18 +310,14 @@ class DataAcces {
           info.properties = element['prop'];
           info.action = element['state'];
           if (info.masterID?.startsWith('#') ?? false) {
-            model.modelPropExtended[info.masterID!] = NodeAttribut(
-              parent: null,
-              yamlNode: MapEntry('extended', 'extended'),
-              info: info,
-            );
+            model.modelPropExtended[info.masterID!] = model.createExtend(info);
           } else {
-            model.modelProperties[info.path] = info.properties;
+            model.modelPropertiesByPath[info.path] = info.properties;
             model.mapInfoByJsonPath[info.path] = info;
           }
         }
         return {
-          'prop': model.modelProperties,
+          'prop': model.modelPropertiesByPath,
           'extended': model.modelPropExtended,
         };
       }
@@ -433,7 +434,7 @@ class DataAcces {
       info.path = element['path'];
       info.properties = element['prop'];
       info.action = element['state'];
-      model.modelProperties[info.path] = info.properties;
+      model.modelPropertiesByPath[info.path] = info.properties;
       model.mapInfoByJsonPath[info.path] = info;
       info.cacheRowWidget = null;
       info.numUpdateForKey++;
@@ -499,13 +500,39 @@ class DataAcces {
             data: payload,
           );
 
+          storeManager.add(save);
+
+          // supprime le use> si il existe plus
+          var payloadUse = {
+            'company_id': currentCompany.companyId,
+            'namespace': model.namespace ?? currentCompany.currentNameSpace,
+            'category': model.category.name,
+            'schema_id': "use>${model.id}",
+            'version': model.getVersionId(),
+            'attr_id': attr.masterID,
+            'path': attr.path,
+            'prop': attr.properties,
+            'type': attr.type,
+            'state': attr.action ?? 'D',
+            'update_at': DateTime.now().toIso8601String(),
+          };
+
+          save = SaveEvent(
+            model: model,
+            version: model.currentVersion,
+            idIdempotence: 'use>${model.id};${attr.masterID};D',
+            table: 'attributs',
+            data: payloadUse,
+          );
+          storeManager.add(save);
+
+          // event
           _sendMessage({
             'typeEvent': 'PROP',
+            'company_id': currentCompany.companyId,
             'id': '${model.namespace}/${model.id}',
             'payload': payload,
           });
-
-          storeManager.add(save);
         }
       }
     }
@@ -530,10 +557,18 @@ class DataAcces {
       if (attr.masterID != null && !attr.isInitByRef && attr.action != 'R') {
         attr.action = 'R';
         nbUpdate++;
+        String prefix = '';
+        if (attr.singleSaveKey != null) {
+          prefix = '${attr.singleSaveKey}>';
+          print(
+            'save cat=$prefix${model.category.name} ${attr.masterID} ${attr.path}',
+          );
+        }
+
         var payload = {
           'company_id': currentCompany.companyId,
           'namespace': model.namespace ?? currentCompany.currentNameSpace,
-          'category': model.category.name,
+          'category': '$prefix${model.category.name}',
           'schema_id': model.id,
           'version': model.getVersionId(),
           'attr_id': attr.masterID,
@@ -546,7 +581,7 @@ class DataAcces {
         var save = SaveEvent(
           model: model,
           version: model.currentVersion,
-          idIdempotence: '${model.id};${attr.masterID}',
+          idIdempotence: '$prefix${model.id};${attr.masterID};R',
           table: 'attributs',
           data: payload,
         );
@@ -588,8 +623,12 @@ class DataAcces {
   void doStore() {
     var store = {...storeManager.toStore};
     storeManager.toStore.clear();
+
     print('doStore ${store.length}');
-    for (var element in store.entries) {
+    List storeList = store.entries.toList()
+      ..sort((a, b) => a.value.sortIdx.compareTo(b.value.sortIdx));
+
+    for (var element in storeList) {
       _setSupabase(element.value);
     }
   }
@@ -598,7 +637,11 @@ class DataAcces {
     var store = {...storeManager.toStore};
     storeManager.toStore.clear();
     print('doStore ${store.length}');
-    for (var element in store.entries) {
+
+    List storeList = store.entries.toList()
+      ..sort((a, b) => a.value.sortIdx.compareTo(b.value.sortIdx));
+
+    for (var element in storeList) {
       await _setSupabase(element.value);
     }
   }
@@ -1229,8 +1272,9 @@ class StoreManager {
   Map<String, SaveEvent> toStore = {};
   void add(SaveEvent event) {
     toStore[event.idIdempotence] = event;
+    event.sortIdx = toStore.length;
     debouncer.run(() {
-      bddStorage.doStore();
+      bddStorage.doStoreSync();
     });
   }
 }

@@ -523,6 +523,7 @@ class ModelAccessorAttr extends ValueAccessor {
   void set(dynamic value, {bool force = false, bool withHistory = true}) {
     var aNode = getNode();
     var path = '${aNode.info.path}.prop.$propName';
+
     if (aNode.info.properties?[propName] == value && !force) return;
 
     var propChangeValue = aNode.info.properties?[propName];
@@ -535,6 +536,7 @@ class ModelAccessorAttr extends ValueAccessor {
     if (schema?.autoSaveProperties ?? true) {
       schema?.saveProperties();
     }
+
     aNode.repaint();
   }
 

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/widget/miro_like/layers/connector_path_utils.dart'
     show unitOrFallback;
@@ -25,6 +26,12 @@ class MiroLinkLayerPainter {
   final String? detachPreviewLinkId;
   final Offset? detachPreviewCanvasPosition;
   final bool detachPreviewIsSource;
+  final ParticleAnimationMode particleAnimationMode;
+  final String? hoveredBlockId;
+  final String? hoveredLinkId;
+  final bool renderStatic;
+  final bool renderParticles;
+  final double? animationPhaseSeconds;
 
   const MiroLinkLayerPainter({
     required this.blocks,
@@ -40,9 +47,28 @@ class MiroLinkLayerPainter {
     this.detachPreviewLinkId,
     this.detachPreviewCanvasPosition,
     this.detachPreviewIsSource = false,
+    this.particleAnimationMode = ParticleAnimationMode.always,
+    this.hoveredBlockId,
+    this.hoveredLinkId,
+    this.renderStatic = true,
+    this.renderParticles = true,
+    this.animationPhaseSeconds,
   });
 
+  static final LinkedHashMap<String, _ConnectorGeometry> _geometryCache =
+      LinkedHashMap<String, _ConnectorGeometry>();
+  static const int _maxGeometryCacheEntries = 3000;
+
   void paint(Canvas canvas, Size size) {
+    if (!renderStatic && !renderParticles) {
+      return;
+    }
+
+    final blockById = <String, Block>{
+      for (final block in blocks) block.id: block,
+    };
+    final viewport = Offset.zero & size;
+    final cullViewport = viewport.inflate(160.0);
     final linkPaint = Paint()
       ..color = colorLinkDefault
       ..strokeWidth = _linkStrokeWidth()
@@ -63,19 +89,19 @@ class MiroLinkLayerPainter {
         >[];
 
     for (final link in links) {
-      final fromIndex = blocks.indexWhere((b) => b.id == link.fromBlockId);
-      final toIndex = blocks.indexWhere((b) => b.id == link.toBlockId);
-      if (fromIndex == -1 || toIndex == -1) {
+      final fromBlock = blockById[link.fromBlockId];
+      final toBlock = blockById[link.toBlockId];
+      if (fromBlock == null || toBlock == null) {
         continue;
       }
 
       final fromRect = blockRectCanvas(
-        blocks[fromIndex],
+        fromBlock,
         zoomLevel: zoomLevel,
         canvasOffset: canvasOffset,
       );
       final toRect = blockRectCanvas(
-        blocks[toIndex],
+        toBlock,
         zoomLevel: zoomLevel,
         canvasOffset: canvasOffset,
       );
@@ -221,7 +247,23 @@ class MiroLinkLayerPainter {
       final isNoteOver = MermaidSequenceCodec.isNoteOverType(arrowType);
       final isNoteFlow = MermaidSequenceCodec.isNoteFlowType(arrowType);
 
+      var roughLinkBounds = Rect.fromPoints(fromEdge, toEdge);
+      for (final via in viaCanvas) {
+        roughLinkBounds = roughLinkBounds.expandToInclude(
+          Rect.fromCircle(center: via, radius: 1),
+        );
+      }
+      final allowOffscreen =
+          detachPreviewLinkId == link.id || selectedLink == link;
+      if (!allowOffscreen &&
+          !cullViewport.overlaps(roughLinkBounds.inflate(48.0))) {
+        continue;
+      }
+
       if (isNoteFlow) {
+        if (!renderStatic) {
+          continue;
+        }
         _paintDirectionalNoteArrow(
           canvas: canvas,
           link: link,
@@ -237,6 +279,9 @@ class MiroLinkLayerPainter {
       }
 
       if (isNoteOver) {
+        if (!renderStatic) {
+          continue;
+        }
         _paintNoteOverRect(
           canvas: canvas,
           link: link,
@@ -248,58 +293,79 @@ class MiroLinkLayerPainter {
         continue;
       }
 
-      paintLinkConnector(
-        canvas: canvas,
-        from: fromEdge,
-        to: toEdge,
+      final geometry = _resolveConnectorGeometry(
+        link: link,
+        fromEdge: fromEdge,
+        toEdge: toEdge,
         connectorType: link.connectorType,
+        viaCanvas: viaCanvas,
+        startTangent: startTangent,
+        endTangent: endTangent,
+      );
+
+      if (!allowOffscreen &&
+          !cullViewport.overlaps(geometry.bounds.inflate(24.0))) {
+        continue;
+      }
+
+      paintLinkConnectorFromPath(
+        canvas: canvas,
+        path: geometry.path,
+        arrowTip: toEdge,
         color: resolvedColor,
         strokeWidth: isStrongFlowType
             ? linkPaint.strokeWidth * 4
             : (isThickType ? linkPaint.strokeWidth * 3 : linkPaint.strokeWidth),
         zoomLevel: zoomLevel,
         link: link,
-        viaPoints: viaCanvas,
-        startTangent: startTangent,
-        endTangent: endTangent,
         dashed: isDashedType,
+        renderStatic: renderStatic,
+        animateParticles: _shouldAnimateParticlesForLink(link),
+        renderParticles: renderParticles,
+        particlePhaseSeconds: animationPhaseSeconds,
+        maxParticleCountPerPath: 40,
         useFlowArrowCodification: isFlowMode,
       );
 
-      labelEntries.add((
-        link: link,
-        fromEdge: fromEdge,
-        toEdge: toEdge,
-        viaCanvas: viaCanvas,
-        startTangent: startTangent,
-        endTangent: endTangent,
-        isSelected: selectedLink == link,
-      ));
-    }
-
-    final labelLayouts = <LinkLabelLayout>[];
-    for (final entry in labelEntries) {
-      final layout = buildLinkLabelLayout(
-        link: entry.link,
-        from: entry.fromEdge,
-        to: entry.toEdge,
-        viaPoints: entry.viaCanvas,
-        zoomLevel: zoomLevel,
-        isSelected: entry.isSelected,
-        startTangent: entry.startTangent,
-        endTangent: entry.endTangent,
-      );
-      if (layout != null) {
-        labelLayouts.add(layout);
+      if (renderStatic) {
+        labelEntries.add((
+          link: link,
+          fromEdge: fromEdge,
+          toEdge: toEdge,
+          viaCanvas: viaCanvas,
+          startTangent: startTangent,
+          endTangent: endTangent,
+          isSelected: selectedLink == link,
+        ));
       }
     }
 
-    resolveLinkLabelOverlaps(labelLayouts);
-    for (final layout in labelLayouts) {
-      paintLinkLabelLayout(canvas, layout, zoomLevel: zoomLevel);
+    if (renderStatic) {
+      final labelLayouts = <LinkLabelLayout>[];
+      for (final entry in labelEntries) {
+        final layout = buildLinkLabelLayout(
+          link: entry.link,
+          from: entry.fromEdge,
+          to: entry.toEdge,
+          viaPoints: entry.viaCanvas,
+          zoomLevel: zoomLevel,
+          isSelected: entry.isSelected,
+          startTangent: entry.startTangent,
+          endTangent: entry.endTangent,
+        );
+        if (layout != null) {
+          labelLayouts.add(layout);
+        }
+      }
+
+      resolveLinkLabelOverlaps(labelLayouts);
+      for (final layout in labelLayouts) {
+        paintLinkLabelLayout(canvas, layout, zoomLevel: zoomLevel);
+      }
     }
 
-    if (linkingFromPoint != null &&
+    if (renderStatic &&
+        linkingFromPoint != null &&
         linkSourceBlock != null &&
         currentMousePosition != null) {
       paintPendingLinkPreview(
@@ -319,6 +385,96 @@ class MiroLinkLayerPainter {
 
   double _linkStrokeWidth() {
     return (3.0 * zoomLevel).clamp(0.8, 9.0);
+  }
+
+  bool _shouldAnimateParticlesForLink(BlockLink link) {
+    if (!renderParticles) {
+      return false;
+    }
+    if (detachPreviewLinkId == link.id) {
+      return true;
+    }
+
+    switch (particleAnimationMode) {
+      case ParticleAnimationMode.always:
+        return true;
+      case ParticleAnimationMode.hoverBlock:
+        final hoveredId = hoveredBlockId;
+        final hoveredLink = hoveredLinkId;
+        if (hoveredLink != null && hoveredLink == link.id) {
+          return true;
+        }
+        if (hoveredId == null) {
+          return false;
+        }
+        return link.fromBlockId == hoveredId || link.toBlockId == hoveredId;
+      case ParticleAnimationMode.hoverLink:
+        return hoveredLinkId != null && hoveredLinkId == link.id;
+    }
+  }
+
+  _ConnectorGeometry _resolveConnectorGeometry({
+    required BlockLink link,
+    required Offset fromEdge,
+    required Offset toEdge,
+    required ConnectorType connectorType,
+    required List<Offset> viaCanvas,
+    required Offset startTangent,
+    required Offset endTangent,
+  }) {
+    final key = _geometryKey(
+      link: link,
+      fromEdge: fromEdge,
+      toEdge: toEdge,
+      connectorType: connectorType,
+      viaCanvas: viaCanvas,
+      startTangent: startTangent,
+      endTangent: endTangent,
+    );
+
+    final cached = _geometryCache.remove(key);
+    if (cached != null) {
+      _geometryCache[key] = cached;
+      return cached;
+    }
+
+    final path = buildLinkConnectorPath(
+      from: fromEdge,
+      to: toEdge,
+      connectorType: connectorType,
+      viaPoints: viaCanvas,
+      startTangent: startTangent,
+      endTangent: endTangent,
+    );
+    final bounds = path.getBounds();
+    final geometry = _ConnectorGeometry(path: path, bounds: bounds);
+    _geometryCache[key] = geometry;
+    if (_geometryCache.length > _maxGeometryCacheEntries) {
+      _geometryCache.remove(_geometryCache.keys.first);
+    }
+    return geometry;
+  }
+
+  String _geometryKey({
+    required BlockLink link,
+    required Offset fromEdge,
+    required Offset toEdge,
+    required ConnectorType connectorType,
+    required List<Offset> viaCanvas,
+    required Offset startTangent,
+    required Offset endTangent,
+  }) {
+    final via = viaCanvas
+        .map((p) => '${p.dx.toStringAsFixed(2)},${p.dy.toStringAsFixed(2)}')
+        .join('|');
+    return '${link.id}:${connectorType.index}:'
+        '${fromEdge.dx.toStringAsFixed(2)},${fromEdge.dy.toStringAsFixed(2)}:'
+        '${toEdge.dx.toStringAsFixed(2)},${toEdge.dy.toStringAsFixed(2)}:'
+        '${startTangent.dx.toStringAsFixed(2)},${startTangent.dy.toStringAsFixed(2)}:'
+        '${endTangent.dx.toStringAsFixed(2)},${endTangent.dy.toStringAsFixed(2)}:'
+        'z${zoomLevel.toStringAsFixed(3)}:'
+        'o${canvasOffset.dx.toStringAsFixed(2)},${canvasOffset.dy.toStringAsFixed(2)}:'
+        '$via';
   }
 
   void _paintDirectionalNoteArrow({
@@ -625,4 +781,11 @@ class MiroLinkLayerPainter {
     );
     textPainter.paint(canvas, textOffset);
   }
+}
+
+class _ConnectorGeometry {
+  final Path path;
+  final Rect bounds;
+
+  const _ConnectorGeometry({required this.path, required this.bounds});
 }

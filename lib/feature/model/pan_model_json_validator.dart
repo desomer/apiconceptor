@@ -8,6 +8,7 @@ import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/export/export2file_fake.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
+import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/widget_example_choiser.dart';
@@ -44,12 +45,12 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
 
   ModelAccessorAttr getAccessor() {
     ModelSchema model = currentCompany.currentModel!;
-    var examplesNode = model.getExtendedNode("#examples");
+    var examplesNode = model.getExtendedNode(cstExample);
 
     var access = ModelAccessorAttr(
       node: examplesNode,
       schema: model,
-      propName: '#examples',
+      propName: cstExample,
     );
     return access;
   }

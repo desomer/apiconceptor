@@ -89,7 +89,7 @@ class MappingEngineConfig {
   Map<String, dynamic>? dataDest;
   bool isInit = false;
 
-  ModelAccessorAttr getAccessor() {
+  ModelAccessorAttr getAccessorExtended() {
     ModelSchema model = currentCompany.currentDataMap!;
     var dm = currentCompany.currentDataMapSel;
     var id = "#${dm?.info.masterID}";
@@ -100,7 +100,7 @@ class MappingEngineConfig {
   }
 
   void loadEngineConfig(State? state) {
-    var d = getAccessor().get();
+    var d = getAccessorExtended().get();
     if (d != null && isInit == false) {
       saveData = jsonDecode(d);
       loadModels(saveData!).then((value) {
@@ -367,7 +367,7 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
       "fields": config.listMapping.map((e) => e.getJson()).toList(),
     };
     var j = jsonEncode(object);
-    config.getAccessor().set(j);
+    config.getAccessorExtended().set(j);
     config.saveData = object;
   }
 

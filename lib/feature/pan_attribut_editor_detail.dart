@@ -204,6 +204,17 @@ class _AttributPropertiesState extends State<AttributProperties> {
             TextButton(onPressed: () {}, child: const Text('Go to definition')),
           CellCheckEditor(
             key: ValueKey(
+              'valueObject#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: '#valueObject',
+            ),
+            inArray: false,
+          ),
+          CellCheckEditor(
+            key: ValueKey(
               'required#${info.hashCode}@${info.info.numUpdateForKey}',
             ),
             acces: ModelAccessorAttr(
@@ -279,6 +290,17 @@ class _AttributPropertiesState extends State<AttributProperties> {
         children: [
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
+          CellCheckEditor(
+            key: ValueKey(
+              'valueObject#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: '#valueObject',
+            ),
+            inArray: false,
+          ),
           if (withRequired)
             CellCheckEditor(
               key: ValueKey(
@@ -415,6 +437,17 @@ class _AttributPropertiesState extends State<AttributProperties> {
         children: [
           if (info.info.isInitByRef)
             TextButton(onPressed: () {}, child: Text("Go to definition")),
+          CellCheckEditor(
+            key: ValueKey(
+              'valueObject#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: '#valueObject',
+            ),
+            inArray: false,
+          ),
           if (withRequired)
             CellCheckEditor(
               key: ValueKey(

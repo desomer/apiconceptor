@@ -334,7 +334,7 @@ extension _MiroLikeWidgetStateJsonMethods on _MiroLikeWidgetState {
     _pushUndoSnapshot();
 
     // ignore: invalid_use_of_protected_member
-    this.setState(() {
+    setState(() {
       final duplicatedBlocks = <Block>[];
       final idMapping = <String, String>{};
       for (var i = 0; i < pastedBlocks.length; i++) {

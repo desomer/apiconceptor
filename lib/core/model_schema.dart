@@ -152,7 +152,9 @@ class ModelSchema {
 
   String modelYaml = '';
   Map mapModelYaml = {};
-  Map<String, dynamic> modelProperties = {};
+  Map<String, dynamic> modelPropertiesByPath = {};
+  final Map<String, NodeAttribut> modelPropExtended = {};
+
   ModelSchema? olderModelSchema;
 
   final List<ModelSchema> dependency = [];
@@ -169,8 +171,6 @@ class ModelSchema {
   final List<AttributInfo> notUseAttributInfo = [];
   final List<AttributInfo> useAttributInfo = [];
   final Map<String, List<NodeAttribut>> nodeByMasterId = {};
-
-  final Map<String, NodeAttribut> modelPropExtended = {};
 
   int lastNbNode = 0;
   bool first = true;
@@ -199,6 +199,14 @@ class ModelSchema {
   bool isFile = false;
 
   ModelSchemaQuality? qualityInfo;
+
+  NodeAttribut createExtend(AttributInfo info) {
+    return NodeAttribut(
+      parent: null,
+      yamlNode: MapEntry('extended', 'extended'),
+      info: info,
+    );
+  }
 
   /// #doc  ou #example
   NodeAttribut getExtendedNode(String id) {
@@ -254,11 +262,7 @@ class ModelSchema {
       return;
     }
     attr.selected = true;
-    selectedAttr = NodeAttribut(
-      info: attr,
-      parent: null,
-      yamlNode: const MapEntry('', null),
-    );
+    selectedAttr = createExtend(attr);
   }
 
   List<AttributInfo>? getModelByRefName(String refName) {
@@ -280,7 +284,7 @@ class ModelSchema {
 
     modelYaml = '';
     mapModelYaml = {};
-    modelProperties = {};
+    modelPropertiesByPath = {};
     modelPropExtended.clear();
 
     histories.clear();
@@ -767,12 +771,12 @@ class ModelSchema {
     } catch (e) {
       print(e);
     }
-    modelProperties = {};
+    modelPropertiesByPath = {};
     String pa = 'root>$path>';
-    for (var element in source.modelProperties.entries) {
+    for (var element in source.modelPropertiesByPath.entries) {
       if (element.key.startsWith(pa)) {
         var p = element.key.substring(pa.length);
-        modelProperties['root>$p'] = element.value;
+        modelPropertiesByPath['root>$p'] = element.value;
       }
     }
     isLoadProp = true;
@@ -900,7 +904,7 @@ class ModelSchema {
 
   Future<Map<String, dynamic>> getProperties() async {
     await _loadProperties(cache: true);
-    return modelProperties;
+    return modelPropertiesByPath;
   }
 
   Future _loadProperties({required bool cache}) async {
@@ -916,7 +920,7 @@ class ModelSchema {
         setcache: true,
       );
       if (l == null) {
-        modelProperties = {};
+        modelPropertiesByPath = {};
       }
 
       // print("load properties model = $id");
@@ -935,10 +939,10 @@ class ModelSchema {
       );
       if (l is! Future) {
         if (l == null || (l is Map && l.isEmpty)) {
-          modelProperties = {};
+          modelPropertiesByPath = {};
           modelPropExtended.clear();
         } else {
-          modelProperties = l['prop'];
+          modelPropertiesByPath = l['prop'];
           modelPropExtended.addAll(l['extended']);
         }
         // print("load properties model = $id");

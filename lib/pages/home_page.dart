@@ -30,14 +30,8 @@ class HomePage extends GenericPageStateless {
                 children: [
                   // getExpansible("Get started", getMenuStarted(context)),
                   // SizedBox(height: 30),
-                  getExpansible(
-                    "For tech designer",
-                    getMenuDesigner(context),
-                  ),
-                  getExpansible(
-                    "For architect",
-                    getMenuArchitect(context),
-                  ),
+                  getExpansible("For tech designer", getMenuDesigner(context)),
+                  getExpansible("For architect", getMenuArchitect(context)),
                   getExpansible("For developer", getMenuDevelopper(context)),
                   getExpansible(
                     "For content manager & app designer",
@@ -165,8 +159,14 @@ class HomePage extends GenericPageStateless {
             route: Pages.api,
           ),
           WidgetMenuBtn(
+            key: showCaseInfo.keys['usecase'] = GlobalKey(),
+            label: 'Design Usecase',
+            icon: Icons.task_alt_outlined,
+            //route: Pages.asyncApi,
+          ),
+          WidgetMenuBtn(
             key: showCaseInfo.keys['message'] = GlobalKey(),
-            label: 'Design Flows',
+            label: 'Design external Flows',
             icon: Icons.message_outlined,
             route: Pages.asyncApi,
           ),
@@ -308,6 +308,7 @@ class HomePage extends GenericPageStateless {
             icon: Icons.domain,
             route: Pages.domain,
           ),
+          WidgetMenuBtn(label: 'Manage prompt', icon: Icons.settings),
           WidgetMenuBtn(label: 'Naming rules', icon: Icons.settings),
           WidgetMenuBtn(
             label: 'Environnements',

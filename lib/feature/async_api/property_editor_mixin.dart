@@ -3,7 +3,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/async_api/pan_attribut_editor_async.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
-import 'package:jsonschema/widget/miro_like/widgets/image2base64_widget.dart';
+import 'package:jsonschema/widget/image2base64_widget.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 mixin PropertyEditorMixin {
@@ -116,17 +116,24 @@ mixin PropertyEditorMixin {
   ) {
     switch (prop.type) {
       case 'logo':
+        var info2 =  model.getExtendedNode(info.info.getMasterID());
+        info2.info.singleSaveKey = prop.name;
         var v = ModelAccessorAttr(
-          node: info,
+          node: info2,
           schema: model,
           propName: prop.name,
         );
+
         row.add(
           ImageUrlToBase64Widget(
             initialBase64: v.get(),
             showBase64Text: false,
             onBase64Changed: (value) {
-              v.set(value);
+              if (value.isEmpty) {
+                v.remove();
+                return;
+              }
+              v.set(value, withHistory: false);
             },
           ),
         );

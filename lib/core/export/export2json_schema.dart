@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -19,7 +20,7 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
   @override
   void onInit(ModelSchema model) {
     List example = [];
-    var ex = model.getExtendedNode('#examples').info.properties?['#examples'];
+    var ex = model.getExtendedNode(cstExample).info.properties?[cstExample];
     if (ex is List) {
       for (var element in ex) {
         if (element['json'] is String && !model.isFile) {
@@ -34,8 +35,8 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
       }
     }
 
-    NodeAttribut? docNode = model.modelPropExtended['#doc'];
-    String? doc = docNode?.info.properties?['#doc'];
+    NodeAttribut? docNode = model.modelPropExtended[cstDoc];
+    String? doc = docNode?.info.properties?[cstDoc];
     doc =
         (doc ?? '') +
         (currentCompany.currentModelSel?.info.properties?['description'] ?? '');
@@ -100,9 +101,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
 
       var model = listRefModel[refName];
 
-      NodeAttribut? docNode = model?.modelPropExtended['#doc'];
-      String? doc = docNode?.info.properties?['#doc'];
-      doc = '${model?.modelProperties['description'] ?? ''}\n${doc ?? ''}';
+      NodeAttribut? docNode = model?.modelPropExtended[cstDoc];
+      String? doc = docNode?.info.properties?[cstDoc];
+      doc =
+          '${model?.modelPropertiesByPath['description'] ?? ''}\n${doc ?? ''}';
 
       node.addChildOn = "items";
       ref[refName] = NodeJson(
@@ -189,9 +191,9 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
 
     var model = listRefModel[refName];
 
-    NodeAttribut? docNode = model?.modelPropExtended['#doc'];
-    String? doc = docNode?.info.properties?['#doc'];
-    doc = '${model?.modelProperties['description'] ?? ''}\n${doc ?? ''}';
+    NodeAttribut? docNode = model?.modelPropExtended[cstDoc];
+    String? doc = docNode?.info.properties?[cstDoc];
+    doc = '${model?.modelPropertiesByPath['description'] ?? ''}\n${doc ?? ''}';
 
     ref[refName] = NodeJson(
       name: name,
@@ -269,6 +271,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
     }
     Map<String, dynamic> prop = getProp(node);
     bool nullable = node.info.properties?['#nullable'] ?? false;
+    // bool isOV = node.info.properties?['#valueObject'] ?? false;
+    // if (isOV) {
+    //   prop['x-value-object'] = true;
+    // }
     Map<String, dynamic> child = {
       'type': nullable ? [type, 'null'] : type,
       ...prop,

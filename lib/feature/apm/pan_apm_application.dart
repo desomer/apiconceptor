@@ -3,6 +3,7 @@ import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/apm/widget_app_sheet.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_model.dart';
+import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/core/json_browser.dart';
@@ -84,90 +85,117 @@ class PanAPMApplication extends PanYamlTree {
       ),
     );
     if (attr.info.type != 'root' && attr.info.type != 'category') {
-      row.add(
-        TextButton(
-          onPressed: () {
-            // dialog to show application profile WidgetAppSheet
-            showDialog<void>(
-              context: context,
-              barrierDismissible: true, // user must tap button!
-              builder: (BuildContext dialogContext) {
-                Size size = MediaQuery.of(dialogContext).size;
-                double width = (size.width * 0.9).clamp(0.0, 600.0).toDouble();
-                double height = size.height * 0.8;
+      row.add(getBtnProfile(context, attr));
+    }
+    if (attr.info.type == 'microservice') {
+      row.add(getBtnPrompt(context, attr));
+    }    
+  }
 
-                ModelSchema tempModel = ModelSchema(
-                  category: Category.apm,
-                  headerName: '',
-                  id: '',
-                  infoManager: InfoManagerApmAppli(),
-                  refDomain: null,
-                );
-                tempModel.autoSaveProperties = false;
+  TextButton getBtnPrompt(BuildContext context, NodeAttribut attr) {
+    return TextButton.icon(
+      icon: const Icon(Icons.smart_toy),
+      onPressed: () {
+        Pages.apmAppPrompt.goto(context);
+      },
+      label: const Text('AI Prompt'),
+    );
+  }
 
-                var mapEntryEmpty = const MapEntry('', null);
-                tempModel.selectedAttr = NodeAttribut(
-                  yamlNode: mapEntryEmpty,
-                  info: AttributInfo()
-                    ..properties = {...attr.info.properties ?? {}},
-                  parent: null,
-                );
+  TextButton getBtnProfile(BuildContext context, NodeAttribut attr) {
+    return TextButton(
+      onPressed: () {
+        // dialog to show application profile WidgetAppSheet
+        showDialog<void>(
+          context: context,
+          barrierDismissible: true, // user must tap button!
+          builder: (BuildContext dialogContext) {
+            Size size = MediaQuery.of(dialogContext).size;
+            double width = (size.width * 0.9).clamp(0.0, 600.0).toDouble();
+            double height = size.height * 0.8;
 
-                return AlertDialog(
-                  content: SizedBox(
-                    width: width,
-                    height: height,
-                    child: SingleChildScrollView(
-                      child: WidgetAppSheet(model: tempModel),
-                    ),
-                  ),
-                  actions: [
-                    TextButton.icon(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      icon: const Icon(Icons.close),
-                      label: const Text('Close'),
-                    ),
-                    FilledButton.icon(
-                      onPressed: () {
-                        tempModel.selectedAttr?.info.properties?.forEach((
-                          key,
-                          value,
-                        ) {
-                          var accessor = ModelAccessorAttr(
-                            node: attr,
-                            schema: currentCompany.currentAPM,
-                            propName: key,
+            ModelSchema tempModel = ModelSchema(
+              category: Category.apm,
+              headerName: '',
+              id: '',
+              infoManager: InfoManagerApmAppli(),
+              refDomain: null,
+            );
+            tempModel.autoSaveProperties = false;
+
+            var mapEntryEmpty = const MapEntry('', null);
+            tempModel.selectedAttr = NodeAttribut(
+              yamlNode: mapEntryEmpty,
+              info: AttributInfo()
+                ..properties = {...attr.info.properties ?? {}},
+              parent: null,
+            );
+
+            return AlertDialog(
+              content: SizedBox(
+                width: width,
+                height: height,
+                child: SingleChildScrollView(
+                  child: WidgetAppSheet(model: tempModel),
+                ),
+              ),
+              actions: [
+                TextButton.icon(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  icon: const Icon(Icons.close),
+                  label: const Text('Close'),
+                ),
+                FilledButton.icon(
+                  onPressed: () {
+                    tempModel.selectedAttr?.info.properties?.forEach((
+                      key,
+                      value,
+                    ) {
+                      if (key == 'identity.logo') {
+                        attr = currentCompany.currentAPM!.getExtendedNode(
+                          attr.info.getMasterID(),
+                        );
+                        attr.info.singleSaveKey = 'identity.logo';
+                      }
+                      var accessor = ModelAccessorAttr(
+                        node: attr,
+                        schema: currentCompany.currentAPM,
+                        propName: key,
+                      );
+                      accessor.set(value);
+                    });
+                    // retire the model to avoid saving changes on close
+                    attr.info.properties?.forEach((key, value) {
+                      if (!['title', constMasterID].contains(key) &&
+                          tempModel.selectedAttr?.info.properties?[key] ==
+                              null) {
+                        if (key == 'identity.logo') {
+                          attr = currentCompany.currentAPM!.getExtendedNode(
+                            attr.info.getMasterID(),
                           );
-                          accessor.set(value);
-                        });
-                        // retire the model to avoid saving changes on close
-                        attr.info.properties?.forEach((key, value) {
-                          if (!['title', constMasterID].contains(key) &&
-                              tempModel.selectedAttr?.info.properties?[key] ==
-                                  null) {
-                            var accessor = ModelAccessorAttr(
-                              node: attr,
-                              schema: currentCompany.currentAPM,
-                              propName: key,
-                            );
-                            accessor.remove();
-                          }
-                        });
+                          attr.info.singleSaveKey = 'identity.logo';
+                        }
+                        var accessor = ModelAccessorAttr(
+                          node: attr,
+                          schema: currentCompany.currentAPM,
+                          propName: key,
+                        );
+                        accessor.remove();
+                      }
+                    });
 
-                        Navigator.of(dialogContext).pop();
-                      },
-                      icon: const Icon(Icons.save),
-                      label: const Text('Save'),
-                    ),
-                  ],
-                );
-              },
+                    Navigator.of(dialogContext).pop();
+                  },
+                  icon: const Icon(Icons.save),
+                  label: const Text('Save'),
+                ),
+              ],
             );
           },
-          child: const Text('Application Profile'),
-        ),
-      );
-    }
+        );
+      },
+      child: const Text('Application Profile'),
+    );
   }
 
   @override

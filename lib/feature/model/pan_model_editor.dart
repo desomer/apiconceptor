@@ -4,6 +4,7 @@ import 'package:fuzzy/data/result.dart' show Result;
 import 'package:fuzzy/fuzzy.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_detail.dart';
@@ -637,6 +638,7 @@ class PanModelEditor extends PanYamlTree
       listTab: [
         const Tab(text: 'Schema detail'),
         const Tab(text: 'Documentation'),
+        const Tab(text: 'Methods & rules'),
         // Tab(text: 'Change log'),
         // Tab(text: 'Life cycle method'),
         // Tab(text: 'Mapping rules'),
@@ -645,6 +647,7 @@ class PanModelEditor extends PanYamlTree
       listTabCont: [
         viewer,
         WidgetDoc(accessorAttr: getDocAccessor()),
+        Container(), // PanModelMethodList(schema: currentCompany.currentModel!),
         //_getChangeLogTab(),
         //getLifeCycleTab(),
         //Container(),
@@ -669,12 +672,12 @@ class PanModelEditor extends PanYamlTree
 
   ModelAccessorAttr getDocAccessor() {
     ModelSchema model = currentCompany.currentModel!;
-    var examplesNode = model.getExtendedNode("#doc");
+    var examplesNode = model.getExtendedNode(cstDoc);
 
     var access = ModelAccessorAttr(
       node: examplesNode,
       schema: model,
-      propName: '#doc',
+      propName: cstDoc,
     );
     return access;
   }

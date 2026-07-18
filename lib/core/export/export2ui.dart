@@ -1,22 +1,24 @@
 import 'package:faker/faker.dart';
+import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/randexp.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/start_core.dart';
 
-class NodeJson {
-  NodeJson({required this.name, required this.value});
-  String name;
-  dynamic value;
-  dynamic parentOfChild;
-  bool add = true;
-}
+// class NodeJson {
+//   NodeJson({required this.name, required this.value});
+//   String name;
+//   dynamic value;
+//   dynamic parentOfChild;
+//   bool add = true;
+// }
 
 var cstType = '\$\$__type\$\$__';
 var cstContent = '\$\$__content\$\$__';
 var cstProp = '\$\$__prop\$\$__';
 var cstAnyChoice = '##__choise__##';
 var cstPropLabel = '\$\$__proplabel\$\$__';
+
 
 class Export2UI<T> extends JsonBrowser<T> {
   

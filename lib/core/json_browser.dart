@@ -290,7 +290,7 @@ class JsonBrowser<T> {
       bool unkowned = info == null;
 
       // recherche le masterID via le jonPath dans le modelProperties
-      var masterID = model.modelProperties[aJsonPath]?[constMasterID];
+      var masterID = model.modelPropertiesByPath[aJsonPath]?[constMasterID];
 
       var childNodeAttribut = NodeAttribut(
         parent: attr.nodeAttribut,
@@ -527,7 +527,7 @@ class JsonBrowser<T> {
 
     if (bi.ref != null && bi.aJsonPathRef != null) {
       if (!info.isInitByRef) {
-        var prop = bi.ref!.modelProperties[bi.aJsonPathRef];
+        var prop = bi.ref!.modelPropertiesByPath[bi.aJsonPathRef];
         if (prop != null) {
           //print("get prop on ref");
           info.properties = prop;
@@ -536,7 +536,7 @@ class JsonBrowser<T> {
       }
     }
 
-    var masterID = model.modelProperties[aJsonPath]?[constMasterID];
+    var masterID = model.modelPropertiesByPath[aJsonPath]?[constMasterID];
     masterID ??= info.properties?[constMasterID];
     if (info.properties?[constMasterID] != null &&
         masterID != info.properties?[constMasterID]) {
@@ -551,8 +551,8 @@ class JsonBrowser<T> {
     if (info.path != '' && info.path != aJsonPath && info.masterID != null) {
       //print("path change ${nodeAttribut.info.path} => $aJsonPath");
       _doPathChangeHistory(nodeAttribut, aJsonPath, model);
-      model.modelProperties[aJsonPath] = info.properties;
-      model.modelProperties.remove(info.path);
+      model.modelPropertiesByPath[aJsonPath] = info.properties;
+      model.modelPropertiesByPath.remove(info.path);
       model.mapInfoByJsonPath.remove(info.path);
       info.cacheRowWidget = null;
       info.cacheHeaderWidget = null;
@@ -563,7 +563,7 @@ class JsonBrowser<T> {
     info.path = aJsonPath;
 
     // affecte les properties si 1° fois
-    info.properties ??= model.modelProperties[aJsonPath] ?? {};
+    info.properties ??= model.modelPropertiesByPath[aJsonPath] ?? {};
     if (info.properties![constMasterID] == null) {
       bi.masterId = uuid.v7();
       //bi.browser.asyncMaster.add(bi);
@@ -764,6 +764,7 @@ class AttributInfo {
   String? isRefError;
   bool inRef = false;
   bool isInitByRef = false;
+  String? singleSaveKey;
 
   Map<String, dynamic>? properties;
   Map<EnumErrorType, AttributError>? error;
@@ -926,6 +927,10 @@ abstract class InfoManager {
   ModelSchema? modelSchema;
 
   Function? getValidateKey();
+
+  bool isSingleUseKey(String key) {
+    return false;
+  }
 
   /// permet egalement d'affecter une couleur de fond node.bgcolor
   String getTypeTitle(NodeAttribut node, String name, dynamic type);

@@ -735,8 +735,9 @@ class TreeViewBrowserWidget extends JsonBrowser {
 
     double wIcon = 30;
     double marge = 10;
+    double dropBox = 30;
 
-    double sizeType = wIcon + node.info.type.length * 8 * (zoom.value / 100);
+    double sizeType = wIcon + node.info.type.length * 8 * (zoom.value / 100) + dropBox;
     double size =
         marge +
         wIcon +

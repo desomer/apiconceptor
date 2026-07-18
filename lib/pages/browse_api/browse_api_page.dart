@@ -35,11 +35,7 @@ import 'package:jsonschema/widget/splitview/widget_split.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 class BrowseAPIPage extends GenericPageStateful {
-  BrowseAPIPage({
-    required this.namespace,
-    required this.byTag,
-    super.key,
-  });
+  BrowseAPIPage({required this.namespace, required this.byTag, super.key});
   final String namespace;
   final bool byTag;
   final ShowCaseInfo showCaseInfo = ShowCaseInfo();
@@ -377,7 +373,7 @@ class BrowseAPIPageState extends GenericPageState<BrowseAPIPage> {
               requestHelper
                   ?.apiCallInfo
                   .currentAPIResponse
-                  ?.modelProperties
+                  ?.modelPropertiesByPath
                   .isEmpty ??
               true,
           requestHelper: requestHelper!,

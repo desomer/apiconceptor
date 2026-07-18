@@ -159,7 +159,7 @@ msix_config:
   display_name: Api Architec
   publisher_display_name: ApiArchitec
   identity_name: apiarchitec
-  msix_version: 1.0.6.2
+  msix_version: 1.0.6.3
   logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
   capabilities: internetClient
   sign_msix: true

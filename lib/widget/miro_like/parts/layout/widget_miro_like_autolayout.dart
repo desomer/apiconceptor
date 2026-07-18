@@ -4,36 +4,36 @@ extension _MiroLikeWidgetStateAutoLayoutMethods on _MiroLikeWidgetState {
   // static const String _auditLogFilePath = r'C:\apiconceptor_elk_audit.log';
   // static const String _auditLogFileName = 'apiconceptor_elk_audit.log';
 
-  Future<({String? path, String? error})> _writeAuditTrailToFile(
-    List<String> trail,
-  ) async {
-    // final content = '${trail.join('\n')}\n';
-    // // final fallbackTempPath =
-    // //     '${Directory.systemTemp.path}${Platform.pathSeparator}$_auditLogFileName';
-    // // const fallbackPublicPath = r'C:\Users\Public\apiconceptor_elk_audit.log';
-    // final candidates = <String>[
-    //  //_auditLogFilePath,
-    //   // fallbackPublicPath,
-    //   // fallbackTempPath,
-    // ];
+  // Future<({String? path, String? error})> _writeAuditTrailToFile(
+  //   List<String> trail,
+  // ) async {
+  //   // final content = '${trail.join('\n')}\n';
+  //   // // final fallbackTempPath =
+  //   // //     '${Directory.systemTemp.path}${Platform.pathSeparator}$_auditLogFileName';
+  //   // // const fallbackPublicPath = r'C:\Users\Public\apiconceptor_elk_audit.log';
+  //   // final candidates = <String>[
+  //   //  //_auditLogFilePath,
+  //   //   // fallbackPublicPath,
+  //   //   // fallbackTempPath,
+  //   // ];
 
-    final errors = <String>[];
-    // for (final candidate in candidates) {
-    //   try {
-    //   //  await File(candidate).writeAsString(content, flush: true);
-    //     //if (candidate != _auditLogFilePath) {
-    //       AutoLayoutEngine.debugLog(
-    //         'stage=audit_file_fallback_used requested=$_auditLogFilePath actual=$candidate',
-    //       );
-    //     }
-    //     return (path: candidate, error: null);
-    //   } catch (e) {
-    //     errors.add('$candidate -> $e');
-    //   }
-    // }
+  //   final errors = <String>[];
+  //   // for (final candidate in candidates) {
+  //   //   try {
+  //   //   //  await File(candidate).writeAsString(content, flush: true);
+  //   //     //if (candidate != _auditLogFilePath) {
+  //   //       AutoLayoutEngine.debugLog(
+  //   //         'stage=audit_file_fallback_used requested=$_auditLogFilePath actual=$candidate',
+  //   //       );
+  //   //     }
+  //   //     return (path: candidate, error: null);
+  //   //   } catch (e) {
+  //   //     errors.add('$candidate -> $e');
+  //   //   }
+  //   // }
 
-    return (path: null, error: errors.join(' | '));
-  }
+  //   return (path: null, error: errors.join(' | '));
+  // }
 
   Future<void> _logNodePositionsForAutoLayoutDebug() async {
     if (_isSequenceDiagramView) {

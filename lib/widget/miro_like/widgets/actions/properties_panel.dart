@@ -9,7 +9,7 @@ import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'dart:convert';
 import '../../models/block_model.dart';
 import '../../models/link_model.dart';
-import '../image2base64_widget.dart';
+import '../../../image2base64_widget.dart';
 
 // Theme colors (same as in widget_miro_like.dart)
 const Color colorPropertiesPanelBg = Color.fromARGB(255, 24, 24, 27);
@@ -1820,9 +1820,9 @@ class _PropertiesPanelState extends State<PropertiesPanel> {
     return '$arrowType ${_describeFlowArrowType(arrowType)}';
   }
 
-  bool _isDashedArrowType(String arrowType) {
-    return arrowType.contains('.') || arrowType.startsWith('--');
-  }
+  // bool _isDashedArrowType(String arrowType) {
+  //   return arrowType.contains('.') || arrowType.startsWith('--');
+  // }
 
   bool _isFlowDashedArrowType(String arrowType) {
     return arrowType.contains('.');

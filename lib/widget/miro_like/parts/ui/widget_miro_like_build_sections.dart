@@ -3,6 +3,17 @@
 part of '../../widget_miro_like.dart';
 
 extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
+  String _particleAnimationModeLabel(ParticleAnimationMode mode) {
+    switch (mode) {
+      case ParticleAnimationMode.always:
+        return 'Toujours (tous les liens)';
+      case ParticleAnimationMode.hoverBlock:
+        return 'Survol bloc (liens du bloc)';
+      case ParticleAnimationMode.hoverLink:
+        return 'Survol lien';
+    }
+  }
+
   Widget _buildCanvasWorkspace() {
     final canCreateSubgraphFromSelection =
         !_isSequenceDiagramView && _selectedBlockIds.length > 1;
@@ -21,25 +32,52 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
       zoomLevel: zoomLevel,
       selectedBlock: selectedBlock,
       linkSourceBlock: linkSourceBlock,
-      foregroundPainter: MiroCanvasPainter(
+      blockOverlayPainter: MiroBlockOverlayPainter(
         blocks: blocks,
-        links: links,
         canvasOffset: canvasOffset,
         zoomLevel: zoomLevel,
         showSequenceParticipantLifelines: _isSequenceDiagramView,
         highlightedSequenceParticipantId: linkSourceBlock == null
             ? null
             : _sequenceLinkTargetHoverBlockId,
-        selectedBlock: selectedBlock,
+      ),
+      linkOverlayPainter: MiroLinkOverlayPainter(
+        blocks: blocks,
+        links: links,
+        canvasOffset: canvasOffset,
+        zoomLevel: zoomLevel,
         selectedLink: selectedLink,
         linkingFromPoint: linkingFromPoint,
         currentMousePosition: currentMousePosition,
         linkSourceBlock: linkSourceBlock,
         flowAnimation: _flowController,
         pendingInflectionPoints: pendingInflectionPoints,
+        showSequenceParticipantLifelines: _isSequenceDiagramView,
         detachPreviewLinkId: _detachPreviewLinkId,
         detachPreviewCanvasPosition: _detachPreviewCanvasPosition,
         detachPreviewIsSource: _detachPreviewIsSource,
+        particleAnimationMode: _particleAnimationMode,
+        hoveredBlockId: _hoveredBlockId,
+        hoveredLinkId: _hoveredLinkId,
+      ),
+      particleOverlayPainter: MiroParticleOverlayPainter(
+        blocks: blocks,
+        links: links,
+        canvasOffset: canvasOffset,
+        zoomLevel: zoomLevel,
+        selectedLink: selectedLink,
+        linkingFromPoint: linkingFromPoint,
+        currentMousePosition: currentMousePosition,
+        linkSourceBlock: linkSourceBlock,
+        flowAnimation: _flowController,
+        pendingInflectionPoints: pendingInflectionPoints,
+        showSequenceParticipantLifelines: _isSequenceDiagramView,
+        detachPreviewLinkId: _detachPreviewLinkId,
+        detachPreviewCanvasPosition: _detachPreviewCanvasPosition,
+        detachPreviewIsSource: _detachPreviewIsSource,
+        particleAnimationMode: _particleAnimationMode,
+        hoveredBlockId: _hoveredBlockId,
+        hoveredLinkId: _hoveredLinkId,
       ),
       overlayWidgets: [
         Positioned(
@@ -49,18 +87,37 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
             color: Colors.transparent,
             child: Row(
               children: [
-                IconButton.filled(
-                  tooltip: 'paramètres',
-                  style: IconButton.styleFrom(
-                    backgroundColor: colorLinkCreation.withValues(alpha: 0.92),
-                    foregroundColor: Colors.white,
-
-                    padding: EdgeInsets.all(0),
-                    minimumSize: Size(32, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                PopupMenuButton<ParticleAnimationMode>(
+                  tooltip:
+                      'Paramètres particules (${_particleAnimationModeLabel(_particleAnimationMode)})',
+                  onSelected: (mode) {
+                    setState(() {
+                      _particleAnimationMode = mode;
+                    });
+                  },
+                  itemBuilder: (context) => ParticleAnimationMode.values
+                      .map(
+                        (mode) => CheckedPopupMenuItem<ParticleAnimationMode>(
+                          value: mode,
+                          checked: mode == _particleAnimationMode,
+                          child: Text(_particleAnimationModeLabel(mode)),
+                        ),
+                      )
+                      .toList(growable: false),
+                  child: IconButton.filled(
+                    tooltip: 'paramètres',
+                    style: IconButton.styleFrom(
+                      backgroundColor: colorLinkCreation.withValues(
+                        alpha: 0.92,
+                      ),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.all(0),
+                      minimumSize: Size(32, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: null,
+                    icon: const Icon(Icons.settings),
                   ),
-                  onPressed: null,
-                  icon: const Icon(Icons.settings),
                 ),
 
                 PopupMenuButton<String>(
@@ -331,6 +388,19 @@ extension _MiroLikeWidgetStateBuildSectionsMethods on _MiroLikeWidgetState {
       onHover: (event) {
         setState(() {
           currentMousePosition = event.localPosition;
+          _hoveredLinkId = _findLinkAtCanvasPosition(event.localPosition)?.id;
+          final hoveredModelPosition =
+              (event.localPosition - canvasOffset) / zoomLevel;
+          _hoveredBlockId = _findTopBlockAtModelPosition(
+            hoveredModelPosition,
+          )?.id;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          currentMousePosition = null;
+          _hoveredBlockId = null;
+          _hoveredLinkId = null;
         });
       },
       onPointerSignal: (event) {

@@ -109,12 +109,12 @@ class ExampleManager extends StatelessWidget {
 
   ModelAccessorAttr getAccessor() {
     ModelSchema model = currentCompany.currentModel!;
-    var examplesNode = model.getExtendedNode("#examples");
+    var examplesNode = model.getExtendedNode(cstExample);
 
     var access = ModelAccessorAttr(
       node: examplesNode,
       schema: model,
-      propName: '#examples',
+      propName: cstExample,
     );
     return access;
   }

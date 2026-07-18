@@ -15,6 +15,7 @@ import 'package:jsonschema/core/json_browser/browse_api.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
 import 'package:jsonschema/pages/apm/apm_page.dart';
+import 'package:jsonschema/pages/apm/apm_prompt.dart';
 import 'package:jsonschema/pages/apm/app_flow_editor_page.dart';
 import 'package:jsonschema/pages/apm/app_flow_page.dart';
 import 'package:jsonschema/pages/apps/apps_list_page.dart';
@@ -41,6 +42,7 @@ import 'package:jsonschema/pages/model_design/design_model_detail_page.dart';
 import 'package:jsonschema/pages/model_design/design_model_detail_scrum_page.dart';
 import 'package:jsonschema/pages/model_design/design_model_graph_page.dart';
 import 'package:jsonschema/pages/model_design/design_model_page.dart';
+import 'package:jsonschema/pages/model_design/design_model_prompt.dart';
 import 'package:jsonschema/pages/model_design/design_model_ui_page.dart';
 import 'package:jsonschema/pages/config/domain_page.dart';
 import 'package:jsonschema/pages/config/env_page.dart';
@@ -85,6 +87,7 @@ enum Pages {
 
   asyncApi("/async"),
   apm("/apm"),
+  apmAppPrompt("/apm/prompt"),
   appFlow("/appflow"),
   appFlowEditor("/appflow/editor"),
 
@@ -109,7 +112,10 @@ enum Pages {
   listApps("/apps"),
   pageDesigner("/pages/designer"),
   pageViewer("/pages/viewer"),
-  pageDebug("/pages/debug");
+  pageDebug("/pages/debug"),
+
+  apiPromptAI("/apis/promptAI"),
+  modelPromptAI("/models/promptAI");
 
   const Pages(this.urlpath);
   final String urlpath;
@@ -315,8 +321,7 @@ class RouteManager {
       if (!location.contains('?id=')) {
         location = '$location?id=${currentCompany.currentModel?.id ?? ''}';
       }
-    } 
-    else if (location.startsWith("${Pages.api.urlpath}/")) {
+    } else if (location.startsWith("${Pages.api.urlpath}/")) {
       if (!location.contains('?id=')) {
         //location = '$location?id=${currentCompany.currentModel?.id ?? ''}';
       }
@@ -332,7 +337,7 @@ class RouteManager {
       location = '$location${sep}ns=${currentCompany.currentNameSpace}';
     } else if (location.startsWith(Pages.api.urlpath)) {
       location = '$location${sep}ns=${currentCompany.currentNameSpace}';
-    }else if (location.startsWith(Pages.asyncApi.urlpath)) {
+    } else if (location.startsWith(Pages.asyncApi.urlpath)) {
       location = '$location${sep}ns=${currentCompany.currentNameSpace}';
     }
     return location;
@@ -459,10 +464,12 @@ final GoRouter router = GoRouter(
         addRouteBy(Pages.modelGraph, const DesignModelGraphPage()),
         addRouteBy(Pages.modelScrum, const DesignModelDetailScrumPage()),
         addRouteBy(Pages.modelUI, DesignModelUIPage()),
+        addRouteBy(Pages.modelPromptAI, DesignModelPromptPage()),
         //----------------------------------------------------------------
         addRouteBy(Pages.appFlow, const AppFlowPage()),
         addRouteBy(Pages.appFlowEditor, AppFlowEditorPage()),
         addRouteBy(Pages.apm, const ApmPage()),
+        addRouteBy(Pages.apmAppPrompt, const ApmPrompt()),
         //----------------------------------------------------------------
         addRoute(
           GoRoute(path: Pages.api.urlpath, pageBuilder: getPageAnim),
@@ -667,6 +674,7 @@ class ApiRequestNavigator {
           model.id,
           model.headerName,
           TypeModelBreadcrumb.businessmodel,
+          category: model.category,
           namespace: model.namespace,
           version: model.olderVersion,
           //browser: TreeViewBrowserWidget(),

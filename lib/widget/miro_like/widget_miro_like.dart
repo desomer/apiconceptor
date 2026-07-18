@@ -135,6 +135,8 @@ enum _ZoneResizeHandle { topLeft, topRight, bottomLeft, bottomRight }
 
 enum _DiagramLayoutMode { flowchart, sequence }
 
+enum ParticleAnimationMode { always, hoverBlock, hoverLink }
+
 class _UndoIntent extends Intent {
   const _UndoIntent();
 }
@@ -190,6 +192,9 @@ class _MiroLikeWidgetState extends State<MiroLikeWidget>
   Block? linkSourceBlock;
   Offset? linkingFromPoint;
   Offset? currentMousePosition;
+  String? _hoveredBlockId;
+  String? _hoveredLinkId;
+  ParticleAnimationMode _particleAnimationMode = ParticleAnimationMode.always;
   final List<Offset> pendingInflectionPoints = [];
   Offset canvasOffset = Offset.zero;
   double zoomLevel = 1.0;

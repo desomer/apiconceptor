@@ -303,8 +303,8 @@ class TreeViewState<T> extends State<TreeView<T>> {
             (headerSize < data.headerSize && dragInProgess == 0)) {
           headerSize = data.headerSize;
           repaintInProgess = timeBuild;
-          if (headerSize > size.width - 300 - 350 - 550) {
-            headerSize = size.width - 300 - 350 - 550;
+          if (headerSize > size.width - 300 - 350 - 0) {
+            headerSize = size.width - 300 - 350 - 0;
           }
           if (headerSize < 200) headerSize = 200;
         }
