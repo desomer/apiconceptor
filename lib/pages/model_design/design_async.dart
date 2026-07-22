@@ -6,6 +6,7 @@ import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
+import 'package:jsonschema/widget/widget_glowing_halo.dart';
 
 class DesignAsyncPage extends GenericPageStateless {
   const DesignAsyncPage({super.key, this.state});
@@ -18,17 +19,87 @@ class DesignAsyncPage extends GenericPageStateless {
         const BackgroundScreen(num: 1),
         Container(
           color: Colors.black87,
-          child: PanAsyncSelector(
-            key: ValueKey(state?.uri.toString() ?? ''),
-            getSchemaFct: () async {
-              await Future.delayed(Duration(milliseconds: gotoDelay));
-              await loadAsync(currentCompany.currentNameSpace, false);
-              return currentCompany.listAsync!;
-            },
-            type: TypeAsyncSelector.model,
+          child: Column(
+            children: [
+              getAction(),
+              Expanded(
+                child: PanAsyncSelector(
+                  key: ValueKey(state?.uri.toString() ?? ''),
+                  getSchemaFct: () async {
+                    await Future.delayed(Duration(milliseconds: gotoDelay));
+                    await loadAsync(currentCompany.currentNameSpace, false);
+                    return currentCompany.listAsync!;
+                  },
+                  type: TypeAsyncSelector.model,
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget getAction() {
+    var style = ElevatedButton.styleFrom(
+      backgroundColor: Colors.blueGrey.shade800,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(5), // button's shape
+      ),
+      elevation: 5, // button's elevation when it's pressed
+    );
+
+    return SizedBox(
+      height: 30,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        spacing: 10,
+        children: [
+          SizedBox(width: 1),
+          GlowingHalo(
+            child: ElevatedButton.icon(
+              icon: Icon(Icons.wifi),
+              onPressed: () {
+                // if (currentCompany.listAPI != null) {
+                //   selector.showImportDialog(context);
+                // }
+              },
+              style: style,
+              label: Text('New Channel'),
+            ),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.storage_rounded),
+            onPressed: () {
+              // if (currentCompany.listAPI != null) {
+              //   selector.showSwaggerDialog(context);
+              // }
+            },
+            style: style,
+            label: Text('New Bucket'),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.create_new_folder_outlined),
+            onPressed: () {
+              // if (currentCompany.listAPI != null) {
+              //   selector.showSwaggerDialog(context);
+              // }
+            },
+            style: style,
+            label: Text('New Ftp'),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.schedule),
+            onPressed: () {
+              // if (currentCompany.listAPI != null) {
+              //   selector.showSwaggerDialog(context);
+              // }
+            },
+            style: style,
+            label: Text('New Cron'),
+          ),
+        ],
+      ),
     );
   }
 

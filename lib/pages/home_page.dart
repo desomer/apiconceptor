@@ -31,7 +31,7 @@ class HomePage extends GenericPageStateless {
                   // getExpansible("Get started", getMenuStarted(context)),
                   // SizedBox(height: 30),
                   getExpansible("For tech designer", getMenuDesigner(context)),
-                  getExpansible("For architect", getMenuArchitect(context)),
+                  getExpansible("For urban planner & architect", getMenuArchitect(context)),
                   getExpansible("For developer", getMenuDevelopper(context)),
                   getExpansible(
                     "For content manager & app designer",
@@ -123,6 +123,12 @@ class HomePage extends GenericPageStateless {
             icon: Icons.account_tree_outlined,
             route: Pages.appFlow,
           ),
+          WidgetMenuBtn(
+            key: showCaseInfo.keys['flowsAI'] = GlobalKey(),
+            label: 'Chat with AI',
+            icon: Icons.chat_bubble_outline,
+            route: Pages.apmAskIA,
+          ),
           // WidgetMenuBtn(
           //   label: 'Validation Workflow',
           //   icon: Icons.wechat_rounded,
@@ -153,20 +159,20 @@ class HomePage extends GenericPageStateless {
             route: Pages.models,
           ),
           WidgetMenuBtn(
-            key: showCaseInfo.keys['api'] = GlobalKey(),
-            label: 'Design API',
-            icon: Icons.api,
-            route: Pages.api,
-          ),
-          WidgetMenuBtn(
             key: showCaseInfo.keys['usecase'] = GlobalKey(),
             label: 'Design Usecase',
             icon: Icons.task_alt_outlined,
             //route: Pages.asyncApi,
           ),
           WidgetMenuBtn(
+            key: showCaseInfo.keys['api'] = GlobalKey(),
+            label: 'Design API',
+            icon: Icons.api,
+            route: Pages.api,
+          ),
+          WidgetMenuBtn(
             key: showCaseInfo.keys['message'] = GlobalKey(),
-            label: 'Design external Flows',
+            label: 'Design Infrastructure',
             icon: Icons.message_outlined,
             route: Pages.asyncApi,
           ),
@@ -192,18 +198,18 @@ class HomePage extends GenericPageStateless {
             icon: Icons.insert_drive_file_outlined,
             route: Pages.apiBrowserTag,
           ),
-          WidgetMenuBtn(
-            label: 'Your favorite API',
-            icon: Icons.call_end_outlined,
-            // route: Pages.apiByTree,
-          ),
+          // WidgetMenuBtn(
+          //   label: 'Your favorite API',
+          //   icon: Icons.call_end_outlined,
+          //   // route: Pages.apiByTree,
+          // ),
           WidgetMenuBtn(
             label: 'Mock API',
             icon: Icons.av_timer,
             route: Pages.mock,
           ),
           WidgetMenuBtn(label: 'Proxy API', icon: Icons.call_merge_outlined),
-          WidgetMenuBtn(label: 'Generate Code', icon: Icons.code),
+          // WidgetMenuBtn(label: 'Generate Code', icon: Icons.code),
           WidgetMenuBtn(
             label: 'JSON Tools',
             icon: Icons.travel_explore_outlined,

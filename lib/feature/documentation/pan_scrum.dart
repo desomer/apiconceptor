@@ -18,7 +18,8 @@ class PanScrumModel extends StatefulWidget {
 
 class _PanScrumModelState extends State<PanScrumModel> {
   DocumentationInfo info = DocumentationInfo();
-  bool apiIsLoading = false;
+  bool apiIsLoaded = false;
+  bool modelIsLoaded = false;
 
   Future<WidgetAPIHelper> initAPI() async {
     var apiCallInfo = widget.requestHelper!.apiCallInfo;
@@ -26,7 +27,7 @@ class _PanScrumModelState extends State<PanScrumModel> {
     if (apiCallInfo.currentAPIRequest != null &&
         apiCallInfo.currentAPIResponse != null &&
         apiCallInfo.responseSchema != null) {
-      apiIsLoading = true;
+      apiIsLoaded = true;
       return widget.requestHelper!;
     }
 
@@ -55,15 +56,19 @@ class _PanScrumModelState extends State<PanScrumModel> {
     apiCallInfo.currentAPIRequest = apiRequest;
     apiCallInfo.currentAPIResponse = apiResponse;
     apiCallInfo.responseSchema?.headerName = 'Response 200';
-    apiIsLoading = true;
+    apiIsLoaded = true;
 
     return widget.requestHelper!;
+  }
+
+  Future<String?>? initModel() async {
+    return '';
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.mode == ScrumModeEnum.api) {
-      if (apiIsLoading) {
+      if (apiIsLoaded) {
         return getWidgetToDisplay(
           DocumentationOptions(
             context: context,
@@ -95,11 +100,25 @@ class _PanScrumModelState extends State<PanScrumModel> {
       if (currentCompany.currentModel == null) {
         return Text('select model first');
       }
-      return getWidgetToDisplay(
-        DocumentationOptions(
-          info: info,
-          context: context,
-        ).getModelDocumentation(),
+      
+      return FutureBuilder(
+        future: initModel(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Text('Erreur : ${snapshot.error}');
+          }
+
+          return getWidgetToDisplay(
+            DocumentationOptions(
+              info: info,
+              context: context,
+            ).getModelDocumentation(""),
+          );
+        },
       );
     }
   }
@@ -175,5 +194,3 @@ class _PanScrumModelState extends State<PanScrumModel> {
     );
   }
 }
-
-

@@ -44,7 +44,10 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   );
   final GlobalKey keyAttrEditor = GlobalKey(debugLabel: 'keyAttrEditor');
 
-  final TreeViewBrowserWidget jsonBrowserWidget = TreeViewBrowserWidget(
+  late TreeViewBrowserWidget jsonBrowserWidget = TreeViewBrowserWidget(
+    getSizeFct: (NodeAttribut node) {
+      return getHeaderSize(node);
+    },
     config: BrowserConfig(),
   );
 
@@ -53,6 +56,21 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   TextSelection? getTextSelection() {
     return _yamlConfig?.codeEditorState?.controller.selection;
+  }
+
+  double getHeaderSize(NodeAttribut node) {
+    double wIcon = 30;
+    double marge = 10;
+    double dropBox = 30;
+    
+    double sizeType = wIcon + node.info.type.length * 8 * (zoom.value / 100) + dropBox;
+    double size =
+        marge +
+        wIcon +
+        (node.info.name.length * 8 * (zoom.value / 100)) +
+        (node.level * ((node.info.widgetRowState as TreeViewState).indent.indent)) +
+        sizeType;
+    return size;
   }
 
   void scrollCodeEditorTo(NodeAttribut attr) {
@@ -220,7 +238,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
         axis: Axis.vertical,
         primaryWidth: -1,
         secondaryWidth: -1,
-        flex2: 2,
+        flex2: 3,
         children: [viewer, bottomWidget],
       );
     } else {
@@ -257,7 +275,6 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
   String getHeaderCode() {
     return _schema.headerName;
-    //    TypeModelBreadcrumb.valString(_schema.typeBreabcrumb);
   }
 
   int tapSinceEpoch = 0;
@@ -642,7 +659,9 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
 //-------------------------------------------------------------------------------
 class TreeViewBrowserWidget extends JsonBrowser {
-  TreeViewBrowserWidget({required super.config});
+  TreeViewBrowserWidget({required super.config, required this.getSizeFct});
+
+  final double Function(NodeAttribut node) getSizeFct;
 
   List<String>? pathFilter;
   double maxSize = 0;
@@ -733,17 +752,7 @@ class TreeViewBrowserWidget extends JsonBrowser {
     );
     newNode.bgColor = node.bgcolor;
 
-    double wIcon = 30;
-    double marge = 10;
-    double dropBox = 30;
-
-    double sizeType = wIcon + node.info.type.length * 8 * (zoom.value / 100) + dropBox;
-    double size =
-        marge +
-        wIcon +
-        (node.info.name.length * 8 * (zoom.value / 100)) +
-        (node.level * (repaintRowState?.indent.indent ?? 0)) +
-        sizeType;
+    double size = getSizeFct(node);
 
     if (maxSize < size) {
       maxSize = size;
@@ -757,6 +766,7 @@ class TreeViewBrowserWidget extends JsonBrowser {
     }
     return newNode;
   }
+
 
   NodeAttribut? getFirstAttr() {
     if (rootTree == null) return null;

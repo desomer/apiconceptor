@@ -4,6 +4,7 @@ import 'package:faker/faker.dart';
 import 'package:jsonschema/core/randexp.dart';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/start_core.dart';
 
 enum ModeArrayEnum { anyInstance, randomInstance }
@@ -206,8 +207,14 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     bool useFakeAlgo = ['email', 'url'].contains(format);
 
     if (pattern != null && !useFakeAlgo) {
-      String vString = RandExp(RegExp(pattern)).gen();
-      return getValueTyped(type, vString);
+      final safePattern = sanitizeJsonSchemaPattern(
+        pattern.toString(),
+        dropIfStillInvalid: true,
+      );
+      if (safePattern != null) {
+        String vString = RandExp(RegExp(safePattern)).gen();
+        return getValueTyped(type, vString);
+      }
     }
 
     var lowerCase = name.toLowerCase();

@@ -5,6 +5,7 @@ import 'package:jsonschema/core/yaml_browser.dart';
 class Url2Api {
   String raw = '';
   List<ApiImportDesc> apiInfo = [];
+  List<dynamic>? definitions;
 
   ImportData doImportJSON(ModelSchema api) {
     ImportData data = ImportData();
@@ -16,9 +17,11 @@ class Url2Api {
     docYaml.doAnalyse();
 
     var lines = raw.split('\n');
+    int l = -1;
     for (var urll in lines) {
       urll = urll.trim();
       if (urll.isEmpty || urll.startsWith('#')) continue;
+      l++;
       var apiDesc = ApiImportDesc();
 
       var ope = 'get';
@@ -79,12 +82,16 @@ class Url2Api {
               return element.name == root;
             },
             orElse: () {
-              YamlLine ret =  docYaml.addAtEnd(root, '');
+              YamlLine ret = docYaml.addAtEnd(root, '');
               docYaml.addChild(ret, '\$server', "{base_url}");
+              docYaml.listRoot.add(ret);
               return ret;
             },
           );
+
         }
+
+        path.write('>${row.name}');
 
         for (var i = nbSlash; i < s.length; i++) {
           if (s[i].trim().isEmpty) continue;
@@ -98,6 +105,10 @@ class Url2Api {
       }
 
       apiDesc.path = path.toString();
+      if (definitions != null) {
+        definitions![l]['pathJSON'] = apiDesc.path;
+      }
+
       print("add api ${apiDesc.path} with params ${apiDesc.params}");
       apiInfo.add(apiDesc);
     }

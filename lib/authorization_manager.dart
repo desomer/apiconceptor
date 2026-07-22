@@ -54,6 +54,7 @@ class CompanyModelSchema {
   ModelSchema? currentApps;
   ModelSchema? currentFlow;
   ModelSchema? currentAPM;
+  ModelSchema? currentTechno;
 
   MappingEngineConfig? currentMapEngine;
   GlossaryManager glossaryManager = GlossaryManager();
@@ -255,4 +256,5 @@ enum Category {
   asyncApi,
   appflow,
   apm,
+  behavior,
 }

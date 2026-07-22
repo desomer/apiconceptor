@@ -213,6 +213,92 @@ dynamic yamlToDart(dynamic value, {bool stringifyNonStringMapKeys = false}) {
   return value; // String, num, bool, null
 }
 
+bool isValidDartRegExp(String pattern) {
+  try {
+    RegExp(pattern);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+String? sanitizeJsonSchemaPattern(
+  String? pattern, {
+  bool dropIfStillInvalid = false,
+}) {
+  if (pattern == null || pattern.isEmpty) return pattern;
+  if (isValidDartRegExp(pattern)) return pattern;
+
+  final fixed = _escapeInvalidHyphensInCharClasses(pattern);
+  if (isValidDartRegExp(fixed)) return fixed;
+
+  return dropIfStillInvalid ? null : pattern;
+}
+
+String _escapeInvalidHyphensInCharClasses(String pattern) {
+  final out = StringBuffer();
+  var inClass = false;
+  var escaped = false;
+
+  bool isRangeChar(String c) {
+    if (c.isEmpty) return false;
+    final code = c.codeUnitAt(0);
+    final isLower = code >= 97 && code <= 122;
+    final isUpper = code >= 65 && code <= 90;
+    final isDigit = code >= 48 && code <= 57;
+    return isLower || isUpper || isDigit;
+  }
+
+  for (var i = 0; i < pattern.length; i++) {
+    final ch = pattern[i];
+
+    if (escaped) {
+      out.write(ch);
+      escaped = false;
+      continue;
+    }
+
+    if (ch == r'\') {
+      out.write(ch);
+      escaped = true;
+      continue;
+    }
+
+    if (ch == '[' && !inClass) {
+      inClass = true;
+      out.write(ch);
+      continue;
+    }
+
+    if (ch == ']' && inClass) {
+      inClass = false;
+      out.write(ch);
+      continue;
+    }
+
+    if (inClass && ch == '-') {
+      final prev = i > 0 ? pattern[i - 1] : '';
+      final next = i + 1 < pattern.length ? pattern[i + 1] : '';
+      final isRange =
+          prev.isNotEmpty &&
+          prev != '[' &&
+          next.isNotEmpty &&
+          next != ']' &&
+          isRangeChar(prev) &&
+          isRangeChar(next);
+
+      if (!isRange) {
+        out.write(r'\-');
+        continue;
+      }
+    }
+
+    out.write(ch);
+  }
+
+  return out.toString();
+}
+
 Map<String, dynamic> yamlToDartMap(
   dynamic value, {
   bool stringifyNonStringMapKeys = false,

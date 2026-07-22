@@ -36,8 +36,8 @@ class ApmPage extends GenericPageStateless {
           getSchemaFct: () async {
             // currentCompany.glossaryManager.dico.clear();
             // currentCompany.listGlossary = await loadGlossary('glossary', 'Glossary');
-            currentCompany.currentAPM = await loadApmTechnologie('all', true);
-            return currentCompany.currentAPM!;
+            currentCompany.currentTechno = await loadApmTechnologie('all', true);
+            return currentCompany.currentTechno!;
           },
         ),
       ],

@@ -3,6 +3,7 @@ import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/randexp.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/start_core.dart';
 
 // class NodeJson {
@@ -19,9 +20,7 @@ var cstProp = '\$\$__prop\$\$__';
 var cstAnyChoice = '##__choise__##';
 var cstPropLabel = '\$\$__proplabel\$\$__';
 
-
 class Export2UI<T> extends JsonBrowser<T> {
-  
   @override
   dynamic getChild(
     ModelSchema model,
@@ -66,10 +65,9 @@ class Export2UI<T> extends JsonBrowser<T> {
       toAdd = doRefOf(name, node);
     } else if (type == 'object') {
       if (name.toLowerCase() == constInherit) {
-        toAdd =
-            doRef(name, node)
-              ..parentOfChild = parent
-              ..add = false;
+        toAdd = doRef(name, node)
+          ..parentOfChild = parent
+          ..add = false;
       } else if (node.info.isRef != null) {
         toAdd = doRef(name, node);
       } else {
@@ -209,8 +207,14 @@ class Export2UI<T> extends JsonBrowser<T> {
 
     var pattern = node.info.properties?['pattern'];
     if (pattern != null) {
-      String vString = RandExp(RegExp(pattern)).gen();
-      return getValueTyped(type, vString);
+      final safePattern = sanitizeJsonSchemaPattern(
+        pattern.toString(),
+        dropIfStillInvalid: true,
+      );
+      if (safePattern != null) {
+        String vString = RandExp(RegExp(safePattern)).gen();
+        return getValueTyped(type, vString);
+      }
     }
 
     var lowerCase = name.toLowerCase();

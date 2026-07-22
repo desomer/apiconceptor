@@ -156,7 +156,7 @@ class DocumentationOptions {
     return access;
   }
 
-  String getModelDocumentation() {
+  String getModelDocumentation(String extendedContext) {
     refDisplayed.clear();
     var exportSchema = Export2JsonSchema(
       config: BrowserConfig(
@@ -164,7 +164,7 @@ class DocumentationOptions {
       ),
     )..browse(currentCompany.currentModel!, false);
 
-    StringBuffer md = getMarkdown(exportSchema);
+    StringBuffer md = getMarkdown(exportSchema, extendedContext);
 
     var exportJsonSchema = Export2JsonSchema(
       config: BrowserConfig(
@@ -173,7 +173,9 @@ class DocumentationOptions {
     )..browse(currentCompany.currentModel!, false);
 
     md.writeln('# 📘JSON Schema\n');
-    md.writeln("```json\n${exportJsonSchema.prettyPrintJson(exportJsonSchema.json)}");
+    md.writeln(
+      "```json\n${exportJsonSchema.prettyPrintJson(exportJsonSchema.json)}",
+    );
     md.writeln("```");
 
     return md.toString();
@@ -181,13 +183,15 @@ class DocumentationOptions {
 
   StringBuffer getMarkdown(
     Export2JsonSchema<Map<String, dynamic>> exportSchema,
+    String extendedContext,
   ) {
     StringBuffer md = StringBuffer();
 
-    md.writeln('# 🔗 Model Specification\n');
+    md.writeln('# 🔗 ${currentCompany.currentModel!.headerName} Model Context \n');
     md.writeln(
       getDocAccessor(currentCompany.currentModel!).get() ?? 'No documentation',
     );
+    md.writeln(extendedContext);
 
     getMarkdownModel(currentCompany.currentModel!, exportSchema, md, null);
     return md;

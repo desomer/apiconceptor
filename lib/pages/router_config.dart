@@ -14,6 +14,7 @@ import 'package:jsonschema/feature/design/page_designer.dart';
 import 'package:jsonschema/core/json_browser/browse_api.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/main.dart';
+import 'package:jsonschema/pages/apm/apm_ask_ia.dart';
 import 'package:jsonschema/pages/apm/apm_page.dart';
 import 'package:jsonschema/pages/apm/apm_prompt.dart';
 import 'package:jsonschema/pages/apm/app_flow_editor_page.dart';
@@ -88,6 +89,7 @@ enum Pages {
   asyncApi("/async"),
   apm("/apm"),
   apmAppPrompt("/apm/prompt"),
+  apmAskIA("/apm/ask/ia"),
   appFlow("/appflow"),
   appFlowEditor("/appflow/editor"),
 
@@ -470,6 +472,7 @@ final GoRouter router = GoRouter(
         addRouteBy(Pages.appFlowEditor, AppFlowEditorPage()),
         addRouteBy(Pages.apm, const ApmPage()),
         addRouteBy(Pages.apmAppPrompt, const ApmPrompt()),
+        addRouteBy(Pages.apmAskIA, const ApmAskIA()),
         //----------------------------------------------------------------
         addRoute(
           GoRoute(path: Pages.api.urlpath, pageBuilder: getPageAnim),

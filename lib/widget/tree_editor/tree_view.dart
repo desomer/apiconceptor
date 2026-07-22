@@ -306,7 +306,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
           if (headerSize > size.width - 300 - 350 - 0) {
             headerSize = size.width - 300 - 350 - 0;
           }
-          if (headerSize < 200) headerSize = 200;
+          if (headerSize < 100) headerSize = 100;
         }
         return Scrollbar(
           controller: _scrollController,

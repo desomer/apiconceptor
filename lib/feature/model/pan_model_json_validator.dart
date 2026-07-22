@@ -8,7 +8,6 @@ import 'package:json_schema/json_schema.dart';
 import 'package:jsonschema/core/export/export2file_fake.dart';
 import 'package:jsonschema/core/export/export2json_fake.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/widget_example_choiser.dart';

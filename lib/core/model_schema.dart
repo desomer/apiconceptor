@@ -208,6 +208,12 @@ class ModelSchema {
     );
   }
 
+  NodeAttribut? getNodeFromAttributInfo(AttributInfo info) {
+    var path = info.getMasterIDPath();
+    if (path.isEmpty) path = info.getMasterID();
+    return getNodeByMasterIdPath(path);
+  }
+
   /// #doc  ou #example
   NodeAttribut getExtendedNode(String id) {
     NodeAttribut? exampleExtended = modelPropExtended[id];
@@ -815,13 +821,13 @@ class ModelSchema {
         savedYamlModel = ifEmpty;
       }
 
-      if (savedYamlModel != null && savedYamlModel != "") {
+      if (savedYamlModel != null && savedYamlModel.toString().trim() != "") {
         modelYaml = savedYamlModel;
         try {
           mapModelYaml = loadYaml(modelYaml, recover: true);
           //print("load yaml model = $id");
         } catch (e) {
-          showError("load yaml model = $id");
+          showError("error load yaml model = $id");
           print(e);
         }
       } else {

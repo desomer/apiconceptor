@@ -45,7 +45,8 @@ void main() async {
   FlutterError.onError = (FlutterErrorDetails details) {
     final message = "[FLUTTER ERROR] ${details.exceptionAsString()}";
     saveError(message, details.stack);
-    debugPrintSynchronously(message);
+    //debugPrintSynchronously(message /*, stackTrace: details.stack*/);
+    FlutterError.dumpErrorToConsole(details);
   };
 
   runZonedGuarded(
@@ -64,7 +65,11 @@ void main() async {
     (error, stack) {
       final message = "[DART ERROR] $error\n$stack";
       saveError(message, stack);
-      debugPrintSynchronously(message);
+      //debugPrintSynchronously(message);
+      FlutterError.dumpErrorToConsole(FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+      ));
     },
     zoneSpecification: ZoneSpecification(
       print: (self, parent, zone, line) {

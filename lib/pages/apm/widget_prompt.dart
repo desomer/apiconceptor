@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 
@@ -94,13 +95,15 @@ class _WidgetPromptState extends State<WidgetPrompt> {
               FilledButton.icon(
                 onPressed: () async {
                   // recuperer les prompts selectionnés et les copier dans le clipboard
+                  String dateSortable = DateFormat('yyMMdd-HHmm_').format(DateTime.now());
 
                   for (int i = 0; i < items.length; i++) {
+
                     if (checked[i]) {
                       final cancelToken = CancelToken();
                       var ret = await CallerApi()
                           .sendApi('POST', "http://localhost:3128/pushfile", {
-                            "path": '/prompts/${items[i].fileName}',
+                            "path": '/prompts/$dateSortable${items[i].fileName}',
                             "content": items[i].markdown,
                           }, cancelToken);
                       print(

@@ -6,7 +6,6 @@ import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/api/caller_api.dart';
 import 'package:jsonschema/core/api/session_storage.dart';
 import 'package:jsonschema/core/export/export2json_schema.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';

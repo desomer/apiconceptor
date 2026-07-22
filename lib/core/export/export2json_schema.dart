@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
 import 'package:jsonschema/core/export2generic.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
@@ -336,6 +335,22 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
               r"^[a-zA-Z0-9._%+\-']+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
           break;
         // add more formats as needed
+      }
+    }
+
+    if (prop['pattern'] is String) {
+      final originalPattern = prop['pattern'] as String;
+      final sanitizedPattern = sanitizeJsonSchemaPattern(
+        originalPattern,
+        dropIfStillInvalid: true,
+      );
+
+      if (sanitizedPattern == null) {
+        prop.remove('pattern');
+        errorParse?.value =
+            'Invalid regex pattern removed from schema for field "${node.info.name}".';
+      } else {
+        prop['pattern'] = sanitizedPattern;
       }
     }
 

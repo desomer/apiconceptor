@@ -311,7 +311,7 @@ Future<ModelSchema> loadApps(String idDomain, bool cache) async {
 Future<ModelSchema> loadAsync(String idDomain, bool cache) async {
   var schema = ModelSchema(
     category: Category.asyncApi,
-    headerName: "async Api",
+    headerName: "Infrastructure",
     id: 'async/$idDomain',
     infoManager: InfoManagerAsync(),
     refDomain: null,
