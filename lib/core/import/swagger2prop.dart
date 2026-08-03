@@ -41,7 +41,7 @@ class JsonSchemaParser {
     "exclusiveMaximum",
     "pattern",
     "items",
-    "properties",
+    //"properties",
     "oneOf",
     "anyOf",
     "allOf",
@@ -62,6 +62,15 @@ class JsonSchemaParser {
     r"$comment",
   ];
 
+  dynamic _getProperty(Map<String, dynamic> node, String key) {
+    var value = node[key];
+    if (value is List) {
+      String listAsString = value.map((e) => e.toString()).join("\n");
+      return listAsString;
+    }
+    return value;
+  }
+
   void _walkSchema(
     Map<String, dynamic> node, {
     required String currentPath,
@@ -69,16 +78,13 @@ class JsonSchemaParser {
   }) {
     final type = _schemaType(node["type"]);
 
-    var requiredProperties = node['required'];
-    //TODO: handle required properties if needed
-
-    // Ajoute le noeud courant
     collector.add(
       JsonSchemaPath(
         pathJson: currentPath.isEmpty ? "<root>" : "root>$currentPath",
         type: type,
-        properties: {for (var key in listProperties) key: node[key]}
-          ..removeWhere((key, value) => value == null),
+        properties: {
+          for (var key in listProperties) key: _getProperty(node, key),
+        }..removeWhere((key, value) => value == null),
       ),
     );
 
@@ -97,12 +103,13 @@ class JsonSchemaParser {
         );
       }
     }
-
     // --- ARRAY ---
-    if (type == "array" && node["items"] is Map<String, dynamic>) {
+    else if (type == "array" && node["items"] is Map<String, dynamic>) {
       final items = node["items"] as Map<String, dynamic>;
       final newPath = "$currentPath[]";
       _walkSchema(items, currentPath: newPath, collector: collector);
+    } else {
+      // Ajoute le noeud courant
     }
 
     // --- COMPOSITIONS ---
@@ -161,6 +168,7 @@ class JsonSchemaParser {
 
     for (final p in paths) {
       if (p.pathJson == "<root>") continue;
+      if (p.type == "object" || p.type == "array") continue;
 
       final segments = p.pathJson.split('>');
       Map<String, dynamic> current = tree;

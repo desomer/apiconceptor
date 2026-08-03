@@ -60,7 +60,7 @@ class DesignModelPromptPage extends GenericPageStateless {
     return promptIntegration.replaceAll('{{MODULE}}', module);
   }
 
-  Future<String> initModel() async {
+  Future<Map<String, String>> initIAContext() async {
     var result = await loadBehaviour(
       currentCompany.currentModel!.namespace!,
       currentCompany.currentModel!.id,
@@ -69,7 +69,8 @@ class DesignModelPromptPage extends GenericPageStateless {
 
     BrowseSingle(config: BrowserConfig()).browse(result, false);
 
-    StringBuffer md = StringBuffer();
+    StringBuffer mdModel = StringBuffer();
+    StringBuffer mdPersistance = StringBuffer();
 
     result.modelPropertiesByPath.forEach((key, value) {
       Map<String, dynamic> props = value;
@@ -81,47 +82,57 @@ class DesignModelPromptPage extends GenericPageStateless {
       String? policyBehaviors = props['policyBehaviors'];
       String? domainEventBehaviors = props['domainEventBehaviors'];
       String? factoryBehaviors = props['factoryBehaviors'];
+      String? persistenceBehaviors = props['persistencePolicy'];
 
-      md.writeln('# set of features ${attr.name} at ${attr.type}\n');
+      mdModel.writeln('# set of features ${attr.name} at ${attr.type}\n');
 
       if (invariantsBehaviors != null && invariantsBehaviors.isNotEmpty) {
-        md.writeln('## Invariants behaviors\n');
-        md.writeln(invariantsBehaviors);
+        mdModel.writeln('## Invariants behaviors\n');
+        mdModel.writeln(invariantsBehaviors);
       }
       if (stateChangingBehaviors != null && stateChangingBehaviors.isNotEmpty) {
-        md.writeln('## State‑changing behaviors\n');
-        md.writeln(stateChangingBehaviors);
+        mdModel.writeln('## State‑changing behaviors\n');
+        mdModel.writeln(stateChangingBehaviors);
       }
       if (queryBehavior != null && queryBehavior.isNotEmpty) {
-        md.writeln('## Query behaviors\n');
-        md.writeln(queryBehavior);
+        mdModel.writeln('## Query behaviors\n');
+        mdModel.writeln(queryBehavior);
       }
       if (policyBehaviors != null && policyBehaviors.isNotEmpty) {
-        md.writeln('## Policy Services\n');
-        md.writeln(policyBehaviors);
+        mdModel.writeln('## Policy Services\n');
+        mdModel.writeln(policyBehaviors);
       }
       if (domainEventBehaviors != null && domainEventBehaviors.isNotEmpty) {
-        md.writeln('## Domain event behaviors\n');
-        md.writeln(domainEventBehaviors);
+        mdModel.writeln('## Domain event behaviors\n');
+        mdModel.writeln(domainEventBehaviors);
       }
       if (factoryBehaviors != null && factoryBehaviors.isNotEmpty) {
-        md.writeln('## Factory behaviors\n');
-        md.writeln(factoryBehaviors);
+        mdModel.writeln('## Factory behaviors\n');
+        mdModel.writeln(factoryBehaviors);
+      }
+      if (persistenceBehaviors != null && persistenceBehaviors.isNotEmpty) {
+        mdModel.writeln('## Persistence behaviors\n');
+        mdModel.writeln(persistenceBehaviors);
+        mdPersistance.writeln('## Persistence Policy\n');
+        mdPersistance.writeln(persistenceBehaviors);
       }
     });
 
-    return md.toString();
+    return {
+      'mdModel': mdModel.toString(),
+      'mdPersistance': mdPersistance.toString(),
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    DocumentationInfo info = DocumentationInfo();
+    DocumentationConfig info = DocumentationConfig();
     info.showExampleAvro = false;
     info.showExampleDto = false;
     info.showExampleMongoose = false;
 
-    return FutureBuilder<String>(
-      future: initModel(),
+    return FutureBuilder<Map<String, String>>(
+      future: initIAContext(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
@@ -131,25 +142,27 @@ class DesignModelPromptPage extends GenericPageStateless {
           return Text('Erreur : ${snapshot.error}');
         }
 
-        return getPromptSelectedWidget(snapshot.data ?? '', info, context);
+        return getPromptSelectedWidget(snapshot.data ?? {}, info, context);
       },
     );
   }
 
   Widget getPromptSelectedWidget(
-    String extendedMd,
-    DocumentationInfo info,
+    Map<String, String> extendedMd,
+    DocumentationConfig info,
     BuildContext context,
   ) {
-    var mdModel = DocumentationOptions(
-      info: info,
-      context: context,
-    ).getModelDocumentation('\n$extendedMd\n');
+    var mdModel = DocumentationGenerator(
+      config: info,
+    ).getModelDocumentation('\n${extendedMd['mdModel'] ?? ''}\n');
 
-    var mdOther = DocumentationOptions(
-      info: info,
-      context: context,
-    ).getModelDocumentation("");
+    var mdPersistance = DocumentationGenerator(
+      config: info,
+    ).getModelDocumentation('\n${extendedMd['mdPersistance'] ?? ''}\n');
+
+    // var mdOther = DocumentationGenerator(
+    //   config: info,
+    // ).getModelDocumentation("");
 
     //return MiroLikeWidget();
 
@@ -164,37 +177,43 @@ class DesignModelPromptPage extends GenericPageStateless {
         PromptItem(
           name: 'domain',
           isSelectable: true,
-          markdown: getPromptModel(mdModel, module),
+          markdownBuild: getPromptModel(mdModel, module),
+          markdownKownledge: mdModel,
           fileName: 'domain-$module-$aggregate.md',
-        ),
-        PromptItem(
-          name: 'persistence',
-          isSelectable: true,
-          markdown: getPromptPersistance(mdOther, module),
-          fileName: 'persistence-$module-$aggregate.md',
-        ),
-        PromptItem(
-          name: 'domain unit test',
-          isSelectable: true,
-          markdown: getPromptTest(mdModel, module),
-          fileName: 'domain_unit_test-$module-$aggregate.md',
         ),
         PromptItem(
           name: 'use case',
           isSelectable: true,
-          markdown: getPromptUseCase(module, aggregate),
+          markdownBuild: getPromptUseCase(module, aggregate),
+          markdownKownledge: '',
           fileName: 'usecase-$module-$aggregate.md',
+        ),
+        PromptItem(
+          name: 'domain unit test',
+          isSelectable: true,
+          markdownBuild: getPromptTest(mdModel, module),
+          markdownKownledge: '',
+          fileName: 'domain_unit_test-$module-$aggregate.md',
+        ),
+        PromptItem(
+          name: 'persistence',
+          isSelectable: true,
+          markdownBuild: getPromptPersistance(mdPersistance, module),
+          markdownKownledge: mdPersistance,
+          fileName: 'persistence-$module-$aggregate.md',
         ),
         PromptItem(
           name: 'interface',
           isSelectable: true,
-          markdown: getPromptInterface(module, aggregate),
+          markdownBuild: getPromptInterface(module, aggregate),
+          markdownKownledge: '',
           fileName: 'interface-$module-$aggregate.md',
         ),
         PromptItem(
           name: 'check integration',
           isSelectable: true,
-          markdown: getPromptIntegration(module),
+          markdownBuild: getPromptIntegration(module),
+          markdownKownledge: '',
           fileName: 'check-integration-$module.md',
         ),
       ],

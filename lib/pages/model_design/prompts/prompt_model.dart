@@ -34,7 +34,11 @@ Ajoute ou modifie la couche **Domaine** pour le module <{{module}}> suivant cett
   - laisser un Use Case orchestrer la collaboration
   - laisser un Domain Service appliquer une règle inter‑agrégats
  
-  2. Le dossier services :
+  2. Le dossier read-model :
+  - Lecture optimisée pour les cas d’usage
+  - Contient des projections de données pour les cas d’usage
+
+  3. Le dossier services :
   - Logique métier qui ne rentre pas dans un Aggregate
     Exemples :
     calculs complexes
@@ -56,19 +60,60 @@ Ajoute ou modifie la couche **Domaine** pour le module <{{module}}> suivant cett
   - Opérations métier qui ne doivent pas être dans un handler
     Parce qu’un handler = orchestration, pas logique métier.
 
-# Format attendu :
-- Arborescence des fichiers de type
-   src/
-     core/                # Domaine pur (DDD)
-       <module>/
-            ports/
-              logger/
-              repositories/ 
-            domain/
+
+# MODE STRICT - CONTRAINTES BLOQUANTES
+
+Tu dois appliquer ces règles AVANT de coder.  
+Si une seule règle ne peut pas être respectée, STOP, n’écris aucun fichier, et demande validation.
+
+## 1) Arborescence obligatoire (hard requirement)
+Tous les fichiers créés/modifiés DOIVENT être uniquement sous :
+
+src/
+  core/                # Domaine pur (DDD)
+    <module>/
+          ports/
+            logging/
+            repositories/ 
+            read-model/     # lecture complexe multi aggregates optimisée (uniquement si nécessaire)
+            messaging/  
+          domain/
+            models/
               aggregates/
               entities/
               value-objects/
-              services/       # services métier stateless
-              errors/      
+            services/       # services métier stateless
+            events/
+            errors/  
 
-- Explications des choix métier''';
+Interdiction absolue de créer/modifier en dehors de cette arborescence.
+
+## 2) Politique d’exécution
+- Étape 1: proposer le plan + liste exacte des fichiers ciblés.
+- Étape 2: attendre ma validation explicite “GO”.
+- Étape 3: coder.
+- Étape 4: vérifier build/tests.
+- Étape 5: afficher checklist de conformité.
+- Étape 6: archiver les prompts UNIQUEMENT si checklist = 100%.
+
+## 3) Checklist de conformité obligatoire
+- [ ] Aucun fichier hors arborescence imposée.
+- [ ] Domaine en TypeScript pur (pas de décorateurs NestJS, pas de framework).
+- [ ] Ports/domain/services/events/errors présents selon besoin.
+- [ ] Invariants métier implémentés.
+- [ ] Build OK.
+- [ ] Diff final listé fichier par fichier.
+
+## 4) Règle d’ambiguïté
+Si une contrainte est ambiguë ou contradictoire avec le code existant:
+- STOP
+- Pose 1 question précise
+- N’écris rien tant que je n’ai pas répondu.
+
+## 5) Règle d’archivage
+Ne déplace les prompts en archive qu’après:
+- build OK
+- checklist complète validée
+- mon message “ARCHIVE OK”.
+
+''';

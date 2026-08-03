@@ -149,6 +149,26 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     return NodeJson(name: name, value: getValue(name, type, node));
   }
 
+  String _applyLengthConstraints(String value, NodeAttribut node) {
+    final int? minLength = int.tryParse(
+      node.info.properties?['minLength']?.toString() ?? '',
+    );
+    final int? maxLength = int.tryParse(
+      node.info.properties?['maxLength']?.toString() ?? '',
+    );
+    String result = value;
+    if (maxLength != null && result.length > maxLength) {
+      result = result.substring(0, maxLength);
+    }
+    if (minLength != null && result.length < minLength) {
+      while (result.length < minLength) {
+        result += faker.lorem.word();
+      }
+      result = result.substring(0, minLength);
+    }
+    return result;
+  }
+
   double roundDouble(double value, int places) {
     num mod = pow(10.0, places);
     return ((value * mod).round().toDouble() / mod);
@@ -201,10 +221,14 @@ class Export2FakeJson<T extends Map<String, dynamic>>
         pattern ??=
             r'^https?:\/\/(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d{2,5})?(?:\/[^\s]*)?$';
         break;
+      case 'uuid':
+        pattern ??=
+            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
+        break;
       // add more formats as needed
     }
 
-    bool useFakeAlgo = ['email', 'url'].contains(format);
+    bool useFakeAlgo = ['email', 'url', 'uuid'].contains(format);
 
     if (pattern != null && !useFakeAlgo) {
       final safePattern = sanitizeJsonSchemaPattern(
@@ -213,6 +237,7 @@ class Export2FakeJson<T extends Map<String, dynamic>>
       );
       if (safePattern != null) {
         String vString = RandExp(RegExp(safePattern)).gen();
+        vString = _applyLengthConstraints(vString, node);
         return getValueTyped(type, vString);
       }
     }
@@ -231,23 +256,30 @@ class Export2FakeJson<T extends Map<String, dynamic>>
         return faker.internet.email();
       } else if (format == 'url') {
         return faker.internet.httpsUrl();
-      } else if (lowerCase.contains('firstname')) {
-        return faker.person.firstName();
+      } else if (format == 'uuid') {
+        return faker.guid.guid();
+      }
+
+      String result;
+      if (lowerCase.contains('firstname')) {
+        result = faker.person.firstName();
       } else if (lowerCase.contains('lastname')) {
-        return faker.person.lastName();
+        result = faker.person.lastName();
       } else if (lowerCase.contains('city')) {
-        return faker.address.city();
+        result = faker.address.city();
       } else if (lowerCase.contains('zipcode') ||
           lowerCase.contains('postalcode')) {
-        return faker.address.zipCode();
+        result = faker.address.zipCode();
       } else if (lowerCase.contains('address')) {
-        return faker.address.streetAddress();
+        result = faker.address.streetAddress();
       } else if (lowerCase.contains('mail')) {
         return faker.internet.email();
       } else if (lowerCase.contains('phonenumber')) {
-        return faker.phoneNumber.us();
+        result = faker.phoneNumber.us();
+      } else {
+        result = faker.lorem.word();
       }
-      return faker.lorem.word();
+      return _applyLengthConstraints(result, node);
     }
   }
 

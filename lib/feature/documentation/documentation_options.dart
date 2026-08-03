@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/core/export/export2avro.dart';
 import 'package:jsonschema/core/export/export2dto_nestjs.dart';
@@ -10,20 +9,26 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 
-class DocumentationInfo {
+class DocumentationConfig {
   bool full = true;
   bool showExampleDto = true;
   bool showExampleMongoose = true;
   bool showExampleAvro = true;
+
+  void withoutExample() {
+    showExampleDto = false;
+    showExampleMongoose = false;
+    showExampleAvro = false;
+  }
 }
 
-class DocumentationOptions {
-  final BuildContext context;
-  final DocumentationInfo info;
+class DocumentationGenerator {
+  final DocumentationConfig config;
+  ModelSchema? model;
 
   List<String> refDisplayed = [];
 
-  DocumentationOptions({required this.context, required this.info});
+  DocumentationGenerator({required this.config, this.model});
 
   String getAPIDocumentation(final WidgetAPIHelper? requestHelper) {
     refDisplayed.clear();
@@ -158,19 +163,17 @@ class DocumentationOptions {
 
   String getModelDocumentation(String extendedContext) {
     refDisplayed.clear();
+    model ??= currentCompany.currentModel;
+
     var exportSchema = Export2JsonSchema(
-      config: BrowserConfig(
-        isApi: currentCompany.currentModel!.readOnlyApi != null,
-      ),
-    )..browse(currentCompany.currentModel!, false);
+      config: BrowserConfig(isApi: model!.readOnlyApi != null),
+    )..browse(model!, false);
 
     StringBuffer md = getMarkdown(exportSchema, extendedContext);
 
     var exportJsonSchema = Export2JsonSchema(
-      config: BrowserConfig(
-        isApi: currentCompany.currentModel!.readOnlyApi != null,
-      ),
-    )..browse(currentCompany.currentModel!, false);
+      config: BrowserConfig(isApi: model!.readOnlyApi != null),
+    )..browse(model!, false);
 
     md.writeln('# 📘JSON Schema\n');
     md.writeln(
@@ -187,13 +190,11 @@ class DocumentationOptions {
   ) {
     StringBuffer md = StringBuffer();
 
-    md.writeln('# 🔗 ${currentCompany.currentModel!.headerName} Model Context \n');
-    md.writeln(
-      getDocAccessor(currentCompany.currentModel!).get() ?? 'No documentation',
-    );
+    md.writeln('# 🔗 ${model!.headerName} Model Context \n');
+    md.writeln(getDocAccessor(model!).get() ?? 'No documentation');
     md.writeln(extendedContext);
 
-    getMarkdownModel(currentCompany.currentModel!, exportSchema, md, null);
+    getMarkdownModel(model!, exportSchema, md, null);
     return md;
   }
 
@@ -238,7 +239,7 @@ class DocumentationOptions {
     md.writeln("```json\n$json");
     md.writeln("```");
 
-    if (info.showExampleDto) {
+    if (config.showExampleDto) {
       var exportJS = Export2DtoNestjs().jsonSchemaToNestDto(exportSchema.json);
       md.writeln('---');
       md.writeln('# 📘 exemple DTO\n');
@@ -246,7 +247,7 @@ class DocumentationOptions {
       md.writeln("```");
     }
 
-    if (info.showExampleMongoose) {
+    if (config.showExampleMongoose) {
       var exportMongoose = Export2DtoMongooseNestjs().jsonSchemaToNestMongoose(
         exportSchema.json,
       );
@@ -256,7 +257,7 @@ class DocumentationOptions {
       md.writeln("```");
     }
 
-    if (info.showExampleAvro) {
+    if (config.showExampleAvro) {
       var exportAvro = Export2Avro().jsonSchemaToAvro(exportSchema.json);
       md.writeln('---');
       md.writeln('# 📘 exemple avro\n');
@@ -352,7 +353,7 @@ class DocumentationOptions {
       buffer.writeln('## 🧩 Object $name - $title\n');
     }
 
-    if (info.full) {
+    if (config.full) {
       buffer.writeln(
         '| Name | Type | Required | Default | Enum | Valid. | title | Desc. | isVO | Tags |',
       );
@@ -464,7 +465,7 @@ class DocumentationOptions {
     } else {
       var typeDisplay = nameRef ?? type;
 
-      if (info.full) {
+      if (config.full) {
         buffer.writeln(
           '| `$name` | `$typeDisplay` | $isRequired | $defaultValue | $enumValues | $validationStr | $title | $description | $isOV | $tags |',
         );

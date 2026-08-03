@@ -17,7 +17,7 @@ class PanScrumModel extends StatefulWidget {
 }
 
 class _PanScrumModelState extends State<PanScrumModel> {
-  DocumentationInfo info = DocumentationInfo();
+  DocumentationConfig info = DocumentationConfig();
   bool apiIsLoaded = false;
   bool modelIsLoaded = false;
 
@@ -70,9 +70,8 @@ class _PanScrumModelState extends State<PanScrumModel> {
     if (widget.mode == ScrumModeEnum.api) {
       if (apiIsLoaded) {
         return getWidgetToDisplay(
-          DocumentationOptions(
-            context: context,
-            info: info,
+          DocumentationGenerator(
+            config: info,
           ).getAPIDocumentation(widget.requestHelper),
         );
       }
@@ -89,9 +88,8 @@ class _PanScrumModelState extends State<PanScrumModel> {
           }
 
           return getWidgetToDisplay(
-            DocumentationOptions(
-              context: context,
-              info: info,
+            DocumentationGenerator(
+              config: info,
             ).getAPIDocumentation(widget.requestHelper),
           );
         },
@@ -100,7 +98,7 @@ class _PanScrumModelState extends State<PanScrumModel> {
       if (currentCompany.currentModel == null) {
         return Text('select model first');
       }
-      
+
       return FutureBuilder(
         future: initModel(),
         builder: (context, snapshot) {
@@ -113,10 +111,7 @@ class _PanScrumModelState extends State<PanScrumModel> {
           }
 
           return getWidgetToDisplay(
-            DocumentationOptions(
-              info: info,
-              context: context,
-            ).getModelDocumentation(""),
+            DocumentationGenerator(config: info).getModelDocumentation(""),
           );
         },
       );

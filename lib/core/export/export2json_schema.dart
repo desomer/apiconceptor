@@ -334,6 +334,10 @@ class Export2JsonSchema<T extends Map<String, dynamic>>
           prop['pattern'] =
               r"^[a-zA-Z0-9._%+\-']+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
           break;
+        case 'uuid':
+          prop['pattern'] =
+              r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
+          break;
         // add more formats as needed
       }
     }

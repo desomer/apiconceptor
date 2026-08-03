@@ -4,7 +4,7 @@ Future<String> callGeminiProxy(
   String prompt, {
   CancelToken? cancelToken,
 }) async {
-  const proxyUrl = 'http://localhost:3128/callGemini';
+  const proxyUrl = 'http://127.0.0.1:3128/callGemini';
 
   final dio = Dio(
     BaseOptions(validateStatus: (_) => true, receiveDataWhenStatusError: true),
@@ -40,9 +40,9 @@ Future<String> callGeminiProxy(
       throw StateError('Gemini proxy request cancelled');
     }
     print('Unexpected error while calling Gemini proxy: $e');
-    throw StateError('Unexpected error while calling Gemini proxy.');
+    throw StateError('Unexpected error while calling Gemini proxy. $e');
   } catch (e) {
     print('Unexpected error while calling Gemini proxy: $e');
-    throw StateError('Unexpected error while calling Gemini proxy.');
+    throw StateError('Unexpected error while calling Gemini proxy. $e');
   }
 }

@@ -6,11 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:highlight/languages/cmake.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/ia/call_gemini_proxy.dart';
+import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/context_ia/pan_context_ia.dart';
+import 'package:jsonschema/feature/documentation/documentation_options.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/import/url2api.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
+import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
 // ignore: must_be_immutable
@@ -32,7 +37,22 @@ class PanAPIImport extends StatelessWidget {
         Tab(text: 'From Open API Swagger'),
       ],
       listTabCont: [
-        _getAskGemini(ctx),
+        Column(
+          children: [
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    // print('ask gemini');
+                    doShowContextDialog(ctx);
+                  },
+                  child: const Text('Add models context'),
+                ),
+              ],
+            ),
+            Expanded(child: _getAskGemini(ctx)),
+          ],
+        ),
         _getURLImport(import),
         _getAttrSelector(model),
       ],
@@ -54,23 +74,68 @@ class PanAPIImport extends StatelessWidget {
       controller: promptIAtextEditingController,
       focusNode: FocusNode(),
       context: context,
+      editorOnly: true,
     );
   }
 
-  // void fromJsonSchema(Map<String, String> info) {
-  //   String js = jsonschema;
-  //   if (js.trim().isEmpty) {
-  //     return;
-  //   }
-  //   JsonSchemaParser parser = JsonSchemaParser();
-  //   var paths = parser.parse(js);
-  //   // paths.forEach((element) {
-  //   //   print(element);
-  //   // });
-  //   String treeYaml = parser.getTreeYaml(paths);
-  //   //print('jsonschema parsed : ${treeYaml}');
-  //   fromJson(treeYaml, info, propByPath: paths);
-  // }
+  void doShowContextDialog(BuildContext context) {
+    double width = MediaQuery.of(context).size.width * 0.8;
+    double height = MediaQuery.of(context).size.height * 0.8;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        var panContextIa = PanContextIa();
+
+        return AlertDialog(
+          title: const Text('Set context for Gemini'),
+          content: SizedBox(width: width, height: height, child: panContextIa),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Set'),
+              onPressed: () async {
+                var handler = panContextIa.panModelSelector!.getHandler();
+                Set<TreeNodeData<NodeAttribut>> node = handler
+                    .getSelectedNode();
+
+                StringBuffer sb = StringBuffer();
+
+                for (var n in node) {
+                  var masterID = n.data.info.getMasterID();
+                  var aModel = await currentCompany.getModelByMasterId(
+                    currentCompany.currentNameSpace,
+                    masterID,
+                  );
+                  if (aModel != null) {
+                    BrowseSingle(config: BrowserConfig()).browse(aModel, false);
+                    var mdOther = DocumentationGenerator(
+                      model: aModel,
+                      config: DocumentationConfig()..withoutExample(),
+                    ).getModelDocumentation("");
+
+                    sb.writeln(' - $mdOther');
+                    promptIAtextEditingController.text =
+                        '''
+${promptIAtextEditingController.text}
+voici les modèles de données à utiliser pour la modélisation des routes API REST :
+${sb.toString()}
+''';
+                  }
+                }
+                // ignore: use_build_context_synchronously
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _getURLImport(Url2Api import) {
     var dom = currentCompany.listDomain!.selectedAttr;
@@ -154,79 +219,85 @@ class PanAPIImport extends StatelessWidget {
                 return;
               }
               var modelSchemaDetail = currentCompany.listAPI!;
+              await modelSchemaDetail.prepareChange();
               modelSchemaDetail.modelYaml = import
                   .doImportJSON(modelSchemaDetail)
                   .yaml
                   .toString();
 
-              modelSchemaDetail.doChangeAndRepaintYaml(
+              await modelSchemaDetail.saveYaml(
                 yamlEditorConfig,
                 true,
                 'import',
               );
+              
+              await BrowseSingle(
+                config: BrowserConfig(),
+              ).browseSync(modelSchemaDetail, false, 0);
               await bddStorage.doStoreSync();
 
-              Future.delayed(Duration(seconds: 1)).then((_) async {
-                var path = modelSchemaDetail.mapInfoByJsonPath;
-                print('listRoute: ${listRoute.length}');
-                for (var route in listRoute) {
-                  var attr = path[route['pathJSON']];
-                  attr?.properties ??= {};
-                  attr?.properties!['summary'] = route['usage'];
-                  attr?.properties!['description'] = route['description'];
-                  attr?.properties!['tag'] = route['tag'];
-                  var node = modelSchemaDetail.getNodeFromAttributInfo(attr!);
-                  node?.info.action = 'U';
-                }
-                if (modelSchemaDetail.autoSaveProperties) {
-                  modelSchemaDetail.saveProperties();
-                }
-                await bddStorage.doStoreSync();
-                yamlEditorConfig.repaintTree();
+              // Future.delayed(Duration(seconds: 1)).then((_) async {
+              var path = modelSchemaDetail.mapInfoByJsonPath;
+              print('listRoute: ${listRoute.length}');
+              for (var route in listRoute) {
+                var attr = path[route['pathJSON']];
+                attr?.properties ??= {};
+                attr?.properties!['summary'] = route['usage'];
+                attr?.properties!['description'] = route['description'];
+                attr?.properties!['tag'] = route['tag'];
+                var node = modelSchemaDetail.getNodeFromAttributInfo(attr!);
+                node?.info.action = 'U';
+              }
+              if (modelSchemaDetail.autoSaveProperties) {
+                await modelSchemaDetail.saveProperties();
+              }
+              await bddStorage.doStoreSync();
+              yamlEditorConfig.repaintTree();
+              // });
 
-                // for (var aPropByPath in propByPath) {
-                //   if (aPropByPath.properties.isNotEmpty) {
-                //     var p = aModel.mapInfoByJsonPath[aPropByPath.pathJson];
-                //     p?.properties ??= {};
-                //     p?.properties!.addAll(aPropByPath.properties);
-                //   }
-                // }
+              // for (var aPropByPath in propByPath) {
+              //   if (aPropByPath.properties.isNotEmpty) {
+              //     var p = aModel.mapInfoByJsonPath[aPropByPath.pathJson];
+              //     p?.properties ??= {};
+              //     p?.properties!.addAll(aPropByPath.properties);
+              //   }
+              // }
 
-                // save du json du model
-                // var newModel = modelSchemaDetail
-                //     .mapInfoByJsonPath['root>$domainKey>$nameKey'];
-                // var id = newModel!.masterID!;
-                // var aModel = ModelSchema(
-                //   category: Category.model,
-                //   infoManager: InfoManagerModel(typeMD: TypeMD.model),
-                //   headerName: nameKey,
-                //   id: id,
-                //   refDomain: currentCompany.listModel,
-                // );
-                // aModel.modelYaml = yaml;
-                // aModel.doChangeAndRepaintYaml(null, true, 'import');
-                // if (propByPath != null) {
-                //   // aModel = ModelSchema(
-                //   //   category: Category.model,
-                //   //   infoManager: InfoManagerModel(typeMD: TypeMD.model),
-                //   //   headerName: nameKey,
-                //   //   id: id,
-                //   //   refDomain: currentCompany.listModel,
-                //   // );
-                //   // aModel.modelYaml = yaml;
-                //   BrowseSingle(config: BrowserConfig()).browse(aModel, false);
+              // save du json du model
+              // var newModel = modelSchemaDetail
+              //     .mapInfoByJsonPath['root>$domainKey>$nameKey'];
+              // var id = newModel!.masterID!;
+              // var aModel = ModelSchema(
+              //   category: Category.model,
+              //   infoManager: InfoManagerModel(typeMD: TypeMD.model),
+              //   headerName: nameKey,
+              //   id: id,
+              //   refDomain: currentCompany.listModel,
+              // );
+              // aModel.modelYaml = yaml;
+              // aModel.doChangeAndRepaintYaml(null, true, 'import');
+              // if (propByPath != null) {
+              //   // aModel = ModelSchema(
+              //   //   category: Category.model,
+              //   //   infoManager: InfoManagerModel(typeMD: TypeMD.model),
+              //   //   headerName: nameKey,
+              //   //   id: id,
+              //   //   refDomain: currentCompany.listModel,
+              //   // );
+              //   // aModel.modelYaml = yaml;
+              //   BrowseSingle(config: BrowserConfig()).browse(aModel, false);
 
-                //   Future.delayed(Duration(seconds: 1)).then((_) {
-                //     for (var aPropByPath in propByPath) {
-                //       if (aPropByPath.properties.isNotEmpty) {
-                //         var p = aModel.mapInfoByJsonPath[aPropByPath.pathJson];
-                //         p?.properties ??= {};
-                //         p?.properties!.addAll(aPropByPath.properties);
-                //       }
-                //     }
-                //   });
-                //}
-              });
+              //   Future.delayed(Duration(seconds: 1)).then((_) {
+              //     for (var aPropByPath in propByPath) {
+              //       if (aPropByPath.properties.isNotEmpty) {
+              //         var p = aModel.mapInfoByJsonPath[aPropByPath.pathJson];
+              //         p?.properties ??= {};
+              //         p?.properties!.addAll(aPropByPath.properties);
+              //       }
+              //     }
+              //   });
+              //}
+              // });
             } else if (tabImport.index == 1) {
               var modelSchemaDetail = currentCompany.listAPI!;
               modelSchemaDetail.modelYaml = import

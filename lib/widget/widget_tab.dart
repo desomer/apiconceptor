@@ -13,6 +13,7 @@ class WidgetTab extends StatefulWidget {
     this.tabDisable,
     this.onConfig,
     this.fgColor,
+    this.initialTabIndex = 0,
   });
 
   final List<Widget> listTab;
@@ -23,8 +24,9 @@ class WidgetTab extends StatefulWidget {
   final Set<int>? tabDisable;
   final Function? onConfig;
   final Color? fgColor;
+  final int initialTabIndex;
 
-  int saveTabIndex = 0;
+  late int saveTabIndex = initialTabIndex;
 
   @override
   State<WidgetTab> createState() {
@@ -45,6 +47,8 @@ class _WidgetTabState extends State<WidgetTab>
       animationDuration: const Duration(milliseconds: 200),
     );
 
+    final maxIndex = widget.listTab.length - 1;
+    widget.saveTabIndex = widget.saveTabIndex.clamp(0, maxIndex);
     controllerTab.index = widget.saveTabIndex;
 
     if (widget.onInitController != null) {

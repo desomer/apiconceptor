@@ -26,6 +26,8 @@ core/
         queries/                  # role: intentions de lecture (recuperation)
           <query>.dart            # role: contrat de requete
           <query>_handler.dart    # role: recuperation + orchestration du cas d'usage
+        responses/                # role: objets applicatifs de sortie renvoyes au controleur
+        
         sagas/                    # role: processus metier long/distribue, 
                                         souvent asynchrone
       app-services/               # role: orchestration bout en bout 
@@ -44,7 +46,7 @@ infrastructure/
   <module>/
     adapters/
       inbound/
-        http/<v1>/         # role: adaptateurs HTTP entrants avec version
+        http/<v1>/       # role: adaptateurs HTTP entrants avec version
           controllers/   # role: recoit les API
           dto-in/        # role: contrats d'entree transport
           dto-out/       # role: contrats de sortie transport
@@ -94,8 +96,10 @@ infrastructure/
 1. Une regle metier complexe va dans domain/services.
 2. Un enchainement de plusieurs etapes metier-techniques va dans application/use-cases/*_handler.
 3. Un processus long, asynchrone ou distribue va dans application/use-cases/sagas.
-4. Les classes d'erreur restent dans leur couche d'origine (domain/errors ou application/errors).
-5. Les implementations techniques ne remontent jamais dans core/.
+4. Les objets applicatifs de sortie vont dans application/use-cases/responses.
+5. Les classes d'erreur restent dans leur couche d'origine (domain/errors ou application/errors).
+6. Les implementations techniques ne remontent jamais dans core/.
+7. `application/use-cases/responses` et `infrastructure/.../dto-out` peuvent avoir les memes champs, mais restent deux types distincts relies par un mapper.
 
 ## Terminologie (uniformisee)
 - Utiliser les noms techniques en anglais pour les dossiers: domain, application, ports, adapters, inbound, outbound.
@@ -115,7 +119,6 @@ infrastructure/
 8. Evenement de domaine: `<resource>_<past_tense>_event.dart`.
 9. Erreur metier: `<business_rule>_error.dart`.
 10. Saga: `<process_name>_saga.dart`.
-
 
 ## Placement des schemas Avro et SWAGGER
 Arborescence recommandee:
@@ -200,6 +203,62 @@ Compatibilite conseillee:
 6. Si le traitement metier et la persistance reussissent, le consumer Pub/Sub fait `ack`.
 7. En cas d'erreur transitoire (timeout DB/API), le consumer fait `nack` pour declencher un retry Pub/Sub.
 8. En cas d'erreur non recuperable (payload invalide/schema incompatible), le message est redirige vers la DLQ puis `ack` pour eviter une boucle infinie.
+
+
+
+### Exemple: CreateOrder
+- DTO d'entree HTTP: `infrastructure/<module>/adapters/inbound/http/<v1>/dto-in/create_order_request.dart`.
+- DTO de sortie HTTP: `infrastructure/<module>/adapters/inbound/http/<v1>/dto-out/create_order_response.dart`.
+- Fichier: `core/<module>/application/use-cases/commands/create_order_command.dart`.
+- Handler: `core/<module>/application/use-cases/commands/create_order_command_handler.dart`.
+- Forme attendue:
+
+```dart
+class CreateOrderCommand {
+  final String customerId;
+  final List<CreateOrderItemCommand> items;
+  final String shippingAddress;
+
+  const CreateOrderCommand({
+    required this.customerId,
+    required this.items,
+    required this.shippingAddress,
+  });
+}
+
+class CreateOrderItemCommand {
+  final String productId;
+  final int quantity;
+
+  const CreateOrderItemCommand({
+    required this.productId,
+    required this.quantity,
+  });
+}
+```
+
+```dart
+class CreateOrderCommandHandler {
+  Future<CreateOrderResponse> handle(CreateOrderCommand command) async {
+    // orchestration du cas d'usage
+    return CreateOrderResponse(
+      orderId: 'order_123',
+      status: 'created',
+    );
+  }
+}
+```
+```dart
+class CreateOrderResponse {
+  final String orderId;
+  final String status;
+
+  const CreateOrderResponse({
+    required this.orderId,
+    required this.status,
+  });
+}
+```
 
 
 

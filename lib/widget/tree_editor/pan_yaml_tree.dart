@@ -33,6 +33,9 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
   final Function? showable;
   final ShowCaseInfo showCaseInfo;
 
+  NodeAttribut? oldSelected;
+  int timeStampSelected = 0;
+
   Widget? _cacheContent;
   late ModelSchema _schema;
   CodeEditorConfig? _yamlConfig;
@@ -58,24 +61,30 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return _yamlConfig?.codeEditorState?.controller.selection;
   }
 
+  Handler getHandler() {
+    return Handler(currentYamlTree: this);
+  }
+
   double getHeaderSize(NodeAttribut node) {
     double wIcon = 30;
     double marge = 10;
     double dropBox = 30;
-    
-    double sizeType = wIcon + node.info.type.length * 8 * (zoom.value / 100) + dropBox;
+
+    double sizeType =
+        wIcon + node.info.type.length * 8 * (zoom.value / 100) + dropBox;
     double size =
         marge +
         wIcon +
         (node.info.name.length * 8 * (zoom.value / 100)) +
-        (node.level * ((node.info.widgetRowState as TreeViewState).indent.indent)) +
+        (node.level *
+            ((node.info.widgetRowState as TreeViewState).indent.indent)) +
         sizeType;
     return size;
   }
 
   void scrollCodeEditorTo(NodeAttribut attr) {
     var yamlPath = attr.info.getJsonPath(withType: true);
-    print("scroll to path $yamlPath");
+    //print("scroll to path $yamlPath");
     //keyTreeEditor.currentState?.scrollToData(attr);
     _yamlConfig?.codeEditorState?.scrollToJsonPath(yamlPath);
   }
@@ -94,8 +103,8 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
       doShowAttrEditor(jsonBrowserWidget.getFirstAttr());
     };
 
-    onInit(context);
     currentYamlTree = this;
+    onInit(context);
 
     if (showable != null && showable!() == false) {
       return const SizedBox.shrink();
@@ -385,8 +394,6 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return getWidgetPropForTooltip(key, value);
   }
 
-
-
   Widget getYamlEditor() {
     var doc = getDoc();
     final GlobalKey<TextEditorState> yamlEditor = GlobalKey(
@@ -506,9 +513,6 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     // // ignore: invalid_use_of_protected_member
     // attr.widgetSelectState?.setState(() {});
   }
-
-  NodeAttribut? oldSelected;
-  int timeStampSelected = 0;
 
   void doSelectedRow(NodeAttribut attr, bool withNode) {
     timeStampSelected = DateTime.now().millisecondsSinceEpoch;
@@ -767,7 +771,6 @@ class TreeViewBrowserWidget extends JsonBrowser {
     return newNode;
   }
 
-
   NodeAttribut? getFirstAttr() {
     if (rootTree == null) return null;
     if (rootTree!.children?.isEmpty ?? true) return rootTree!.data;
@@ -776,5 +779,17 @@ class TreeViewBrowserWidget extends JsonBrowser {
       node = node.children!.first;
     }
     return node.data;
+  }
+}
+
+class Handler {
+  Handler({required this.currentYamlTree});
+
+  final PanYamlTree currentYamlTree;
+
+  Set<TreeNodeData<NodeAttribut>> getSelectedNode() {
+    var selectedNodes =
+        currentYamlTree.keyTreeEditor.currentState?.selectedNodes ?? {};
+    return selectedNodes as Set<TreeNodeData<NodeAttribut>>;
   }
 }

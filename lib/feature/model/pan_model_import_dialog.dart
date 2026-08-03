@@ -1,12 +1,9 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
-import 'package:jsonschema/core/ia/call_gemini.dart';
-import 'package:jsonschema/core/ia/call_gemini_proxy.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
@@ -16,13 +13,14 @@ import 'package:jsonschema/core/import/json2schema_yaml.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 
 import '../../core/import/swagger2prop.dart';
 
 // ignore: must_be_immutable
-class PanModelImportDialog extends StatelessWidget {
+class PanModelImportDialog extends StatelessWidget with WidgetHelper {
   PanModelImportDialog({super.key, required this.yamlEditorConfig});
 
   final CodeEditorConfig yamlEditorConfig;
@@ -107,6 +105,8 @@ class PanModelImportDialog extends StatelessWidget {
     List<JsonSchemaPath>? propByPath,
   }) async {
     var modelSchemaDetail = currentCompany.listModel!;
+    await modelSchemaDetail.prepareChange();
+
     YamlDoc docYaml = YamlDoc();
     docYaml.load(modelSchemaDetail.modelYaml);
     docYaml.doAnalyse();
@@ -124,52 +124,78 @@ class PanModelImportDialog extends StatelessWidget {
     docYaml.addChild(domain, nameKey, 'model');
     var newYaml = docYaml.getDoc();
     modelSchemaDetail.modelYaml = newYaml;
-    modelSchemaDetail.doChangeAndRepaintYaml(yamlEditorConfig, true, 'import');
+    await modelSchemaDetail.saveYaml(yamlEditorConfig, true, 'norepaint');
     await bddStorage.doStoreSync();
 
-    Future.delayed(Duration(seconds: 1)).then((_) async {
-      await bddStorage.doStoreSync();
-      // save du json du model
-      var newModel =
-          modelSchemaDetail.mapInfoByJsonPath['root>$domainKey>$nameKey'];
-      var id = newModel!.masterID!;
-      var aModel = ModelSchema(
-        category: Category.model,
-        infoManager: InfoManagerModel(typeMD: TypeMD.model),
-        headerName: nameKey,
-        id: id,
-        refDomain: currentCompany.listModel,
-      );
-      aModel.modelYaml = yaml;
-      aModel.doChangeAndRepaintYaml(null, true, 'import');
-      if (propByPath != null) {
-        // aModel = ModelSchema(
-        //   category: Category.model,
-        //   infoManager: InfoManagerModel(typeMD: TypeMD.model),
-        //   headerName: nameKey,
-        //   id: id,
-        //   refDomain: currentCompany.listModel,
-        // );
-        // aModel.modelYaml = yaml;
-        BrowseSingle(config: BrowserConfig()).browse(aModel, false);
+    //SchedulerBinding.instance.addPostFrameCallback((_) async {
+    await BrowseSingle(
+      config: BrowserConfig(),
+    ).browseSync(modelSchemaDetail, false, 0);
+    await bddStorage.doStoreSync();
 
-        Future.delayed(Duration(seconds: 1)).then((_) {
-          for (var aPropByPath in propByPath) {
-            if (aPropByPath.properties.isNotEmpty) {
-              var p = aModel.mapInfoByJsonPath[aPropByPath.pathJson];
-              p?.properties ??= {};
-              p?.properties!.addAll(aPropByPath.properties);
-              var node = aModel.getNodeFromAttributInfo(p!);
-              node?.info.action = 'U';
-              //node?.repaint();
-            }
+    // save du json du model
+    var newModel =
+        modelSchemaDetail.mapInfoByJsonPath['root>$domainKey>$nameKey'];
+    var id = newModel!.masterID!;
+    var aPropByPath = propByPath?.first;
+    newModel.properties ??= {};
+    newModel.properties!.addAll(aPropByPath?.properties ?? {});
+    var node = modelSchemaDetail.getNodeFromAttributInfo(newModel);
+    node?.info.action = 'U';
+    await modelSchemaDetail.saveProperties();
+    await bddStorage.doStoreSync();
+    //node?.repaint();
+    await modelSchemaDetail.saveYaml(yamlEditorConfig, true, 'import');
+
+    var aModel = ModelSchema(
+      category: Category.model,
+      infoManager: InfoManagerModel(typeMD: TypeMD.model),
+      headerName: nameKey,
+      id: id,
+      refDomain: currentCompany.listModel,
+    );
+    aModel.modelYaml = yaml;
+    await aModel.saveYaml(null, true, 'norepaint');
+
+    if (propByPath != null) {
+      // SchedulerBinding.instance.addPostFrameCallback((_) async {
+      await bddStorage.doStoreSync();
+      await BrowseSingle(config: BrowserConfig()).browseSync(aModel, false, 0);
+      for (var aPropByPath in propByPath) {
+        if (aPropByPath.properties.isNotEmpty) {
+          String pathJson = aPropByPath.pathJson;
+          if (pathJson == '<root>') {
+            continue;
           }
-          if (aModel.autoSaveProperties) {
-            aModel.saveProperties();
+          var p = aModel.mapInfoByJsonPath[pathJson];
+          p?.properties ??= {};
+          p?.properties!.addAll(aPropByPath.properties);
+          if (p != null) {
+            var node = aModel.getNodeFromAttributInfo(p);
+            node?.info.action = 'U';
+            //node?.repaint();
           }
-        });
+        }
       }
-    });
+
+      if (info['context'] != null) {
+        // save du context dans le model
+        var contextNode = aModel.getExtendedNode(cstDoc);
+        var accessContext = ModelAccessorAttr(
+          node: contextNode,
+          schema: aModel,
+          propName: cstDoc,
+        );
+        accessContext.set(info['context']!, withHistory: false);
+      }
+
+      if (aModel.autoSaveProperties) {
+        await aModel.saveProperties();
+        await bddStorage.doStoreSync();
+      }
+      //});
+    }
+    //});
   }
 
   Widget _getImportTab(BuildContext ctx) {
@@ -242,9 +268,13 @@ Génère moi un objet métier :
 - il doit permettre de gérer les cas d'utilisation suivants :
 
 <REMPLIR LES CAS D'UTILISATION ICI>
+
+- Ne dois pas générer les cas d'utilisation suivants :
+<REMPLIR LES CAS D'UTILISATION A NE PAS GERER ICI>
 ''';
 
     return MarkDownEditor(
+      editorOnly: true,
       controller: promptIAtextEditingController,
       focusNode: FocusNode(),
       context: context,
@@ -267,17 +297,22 @@ Génère moi un objet métier :
   }
 
   Future<bool> fromIA(BuildContext context, Map<String, String> info) async {
-    final cancelToken = CancelToken();
+    //    final cancelToken = CancelToken();
     var text = promptIAtextEditingController.text;
-    final loadingNotifier = ValueNotifier<bool>(true);
-    final errorNotifier = ValueNotifier<String?>(null);
-    final dialogContextCompleter = Completer<BuildContext>();
+    // final loadingNotifier = ValueNotifier<bool>(true);
+    // final errorNotifier = ValueNotifier<String?>(null);
+    // final dialogContextCompleter = Completer<BuildContext>();
 
     var textWithContext =
         '''
 Tu es un expert en modélisation de données (dataSteward). 
 donne moi un jsonschemas (version draft = "2020-12") complet pour modéliser un ${info['model name']} du domaine ${info['subdomain']}.
 donne un title, description et un example (si interresant) et pattern (si interessant) pour chaque attribut
+
+préférer des objets imbriqués plutôt que de longues listes d'attributs, sauf si c'est vraiment nécessaire.
+Gérer un maximum de 3 niveaux d'imbrication, sauf si c'est vraiment nécessaire (les items d'un array repartent de zero).
+Proposer des enums en majuscule pour les attributs qui ont un nombre limité de valeurs possibles.
+Positionne des facets de recherche search_references (si pertinent) sur les notions qui sont susceptibles d'être utilisés pour filtrer les données.
 
 voici le contexte et contraintes de modélisation :
 $text
@@ -286,155 +321,72 @@ utilise, de préférence, ce catalogue de notion pour nommer les propriétés (d
 - id : identifiant unique, type string, format uuid
 - name : nom de l'objet
 - description : description de l'objet
+- status : statut de l'objet
 
 Sortie attendue :
    - format de sortie de type jsonschemas 
    - sortie le json uniquement (pas de blabla, pas d'explication, pas de texte, pas de code block)
 ''';
 
-    final dialogFuture = showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        if (!dialogContextCompleter.isCompleted) {
-          dialogContextCompleter.complete(dialogContext);
-        }
-
-        return PopScope(
-          canPop: false,
-          child: AlertDialog(
-            title: const Text('Attente reponse Gemini'),
-            content: SizedBox(
-              width: 700,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ValueListenableBuilder<bool>(
-                    valueListenable: loadingNotifier,
-                    builder: (ctx, isLoading, _) {
-                      return Row(
-                        children: [
-                          if (isLoading) ...[
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                          Expanded(
-                            child: Text(
-                              isLoading
-                                  ? 'Generation en cours...'
-                                  : 'La generation a echoue.',
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Prompt envoye :'),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    constraints: const BoxConstraints(maxHeight: 220),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: SingleChildScrollView(
-                      child: SelectableText(textWithContext),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ValueListenableBuilder<String?>(
-                    valueListenable: errorNotifier,
-                    builder: (ctx, error, _) {
-                      if (error == null || error.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-
-                      return Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          border: Border.all(color: Colors.red.shade300),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Erreur Gemini: $error',
-                          style: TextStyle(color: Colors.red.shade900),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              ValueListenableBuilder<bool>(
-                valueListenable: loadingNotifier,
-                builder: (ctx, isLoading, _) {
-                  return TextButton(
-                    onPressed: () {
-                      if (isLoading && !cancelToken.isCancelled) {
-                        cancelToken.cancel('cancelled by user');
-                      }
-                      Navigator.of(dialogContext).pop();
-                    },
-                    child: Text(isLoading ? 'Annuler' : 'Fermer'),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-    final dialogContext = await dialogContextCompleter.future;
-
-    try {
-      final response = await callGeminiProxy(
-        textWithContext,
-        cancelToken: cancelToken,
-      );
-      final cleanedResponse = response
-          .replaceAll(RegExp(r'```json'), '')
-          .replaceAll(RegExp(r'```'), '');
-
-      jsonschema = cleanedResponse;
+    void doIAResponse(String response) {
+      jsonschema = response;
+      info['context'] = text;
       fromJsonSchema(info);
-
-      loadingNotifier.value = false;
-      if (Navigator.of(dialogContext).canPop()) {
-        Navigator.of(dialogContext).pop();
-      }
-
-      await dialogFuture;
-      return true;
-    } catch (e) {
-      loadingNotifier.value = false;
-
-      if (cancelToken.isCancelled) {
-        if (Navigator.of(dialogContext).canPop()) {
-          Navigator.of(dialogContext).pop();
-        }
-        await dialogFuture;
-        return false;
-      }
-
-      errorNotifier.value = e.toString();
-      await dialogFuture;
-      return false;
-    } finally {
-      loadingNotifier.dispose();
-      errorNotifier.dispose();
     }
+
+    return await doCallIA(context, textWithContext, doIAResponse);
+
+    // Future<void> dialogFuture = showIADialog(
+    //   context: context,
+    //   dialogContextCompleter: dialogContextCompleter,
+    //   loadingNotifier: loadingNotifier,
+    //   textWithContext: textWithContext,
+    //   errorNotifier: errorNotifier,
+    //   cancelToken: cancelToken,
+    // );
+
+    // final dialogContext = await dialogContextCompleter.future;
+
+    // try {
+    //   final response = await callGeminiProxy(
+    //     textWithContext,
+    //     cancelToken: cancelToken,
+    //   );
+    //   final cleanedResponse = response
+    //       .replaceAll(RegExp(r'```json'), '')
+    //       .replaceAll(RegExp(r'```'), '');
+
+    //   jsonschema = cleanedResponse;
+    //   info['context'] = text;
+    //   fromJsonSchema(info);
+
+    //   loadingNotifier.value = false;
+    //   // ignore: use_build_context_synchronously
+    //   if (Navigator.of(dialogContext).canPop()) {
+    //     // ignore: use_build_context_synchronously
+    //     Navigator.of(dialogContext).pop();
+    //   }
+
+    //   await dialogFuture;
+    //   return true;
+    // } catch (e) {
+    //   loadingNotifier.value = false;
+
+    //   if (cancelToken.isCancelled) {
+    //     if (Navigator.of(dialogContext).canPop()) {
+    //       Navigator.of(dialogContext).pop();
+    //     }
+    //     await dialogFuture;
+    //     return false;
+    //   }
+
+    //   errorNotifier.value = e.toString();
+    //   await dialogFuture;
+    //   return false;
+    // } finally {
+    //   loadingNotifier.dispose();
+    //   errorNotifier.dispose();
+    // }
   }
 }
 

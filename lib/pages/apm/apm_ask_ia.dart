@@ -35,8 +35,8 @@ class _ApmAskIAView extends StatefulWidget {
 }
 
 class _ApmAskIAViewState extends State<_ApmAskIAView> {
-  static const String _endpoint = 'http://localhost:3128/rag/query';
-  static const String _reindexEndpoint = 'http://localhost:3128/rag/reindex';
+  static const String _endpoint = 'http://127.0.0.1:3128/rag/query';
+  static const String _reindexEndpoint = 'http://127.0.0.1:3128/rag/reindex';
 
   final TextEditingController _questionController = TextEditingController();
   final FocusNode _questionFocusNode = FocusNode();
@@ -141,7 +141,7 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
       final dio = Dio(
         BaseOptions(
           connectTimeout: const Duration(seconds: 20),
-          receiveTimeout: const Duration(seconds: 120),
+          receiveTimeout: const Duration(seconds: 1200),
           sendTimeout: const Duration(seconds: 20),
           headers: const <String, String>{'Content-Type': 'application/json'},
         ),
@@ -187,6 +187,7 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
         },
       );
     } on DioException catch (e) {
+      print('DioException during reindex: ${e}');
       final serverMessage = e.response?.data;
       setState(() {
         _lastError = serverMessage == null
@@ -333,6 +334,7 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
       child: Padding(
         padding: const EdgeInsets.all(8),
         child: MarkDownEditor(
+          editorOnly: true,
           controller: _questionController,
           focusNode: _questionFocusNode,
           context: context,
@@ -358,7 +360,7 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
               controller: _historyScrollController,
               padding: const EdgeInsets.all(12),
               itemCount: _history.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final turn = _history[index];
                 return _buildTurnCard(turn, theme);

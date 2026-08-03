@@ -268,6 +268,7 @@ class _CellDropMenuEditorState extends State<CellDropMenuEditor> {
         DropdownMenuEntry(value: 'time', label: 'Time'),
         DropdownMenuEntry(value: 'duration', label: 'Duration'),
         DropdownMenuEntry(value: 'url', label: 'Url'),
+        DropdownMenuEntry(value: 'uuid', label: 'Uuid'),
       ],
       onSelected: (value) {
         // Handle menu item selection

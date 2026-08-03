@@ -37,7 +37,7 @@ class ApmPrompt extends GenericPageStateless {
         name: 'docker apiarchitec',
         fileName: 'docker-apiarchitec.md',
         isSelectable: false,
-        markdown: '''
+        markdownBuild: '''
 creer un dossier a la racine
    docker/apiarchitec
 
@@ -53,6 +53,9 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
+    environment:
+      OLLAMA_CONTEXT_LENGTH: 8192
+      OLLAMA_NUM_PARALLEL: 2    
     env_file:
       - .env
     ports:
@@ -65,6 +68,8 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.13.2
     container_name: qdrant
+    environment:
+      QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: 128
     env_file:
       - .env
     ports:
@@ -92,26 +97,31 @@ services:
       KNOWLEDGE_DIR: /knowledge
       RAG_CANDIDATE_K: 12
       RAG_TOP_K: 4
+      RAG_CHUNK_MAX_CHARS: 500
+      RAG_CHUNK_OVERLAP: 50
+      RAG_CHUNK_MIN_CHARS: 150
       GEMINI_API_KEY: \${GEMINI_API_KEY}
       GEMINI_MODEL : gemini-flash-latest
       GEMINI_TIMEOUT_MS : 60000
     volumes:
-      - ../../knowledge:/knowledge:ro
+      - ../../knowledge:/knowledge
       - ../../prompts:/prompts
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3128/healthz"]
-      interval: 10s
+      interval: 60s
       timeout: 5s
       retries: 3
       start_period: 5s
 ```
 ''',
+        markdownKownledge: '',
       ),
       PromptItem(
         name: 'docker mongo',
         fileName: 'docker-mongo.md',
         isSelectable: true,
-        markdown: '''
+        markdownKownledge: '',
+        markdownBuild: '''
 creer un dossier a la racine
    docker/mongo
 
@@ -132,7 +142,8 @@ services:
         name: 'docker pubsub',
         fileName: 'docker-pubsub.md',
         isSelectable: true,
-        markdown: '''
+        markdownKownledge: '',
+        markdownBuild: '''
 creer un dossier a la racine
    docker/pubsub
 
@@ -167,7 +178,8 @@ services:
         name: 'stack boilerplate',
         fileName: 'stack-boilerplate.md',
         isSelectable: true,
-        markdown:
+        markdownKownledge: '',
+        markdownBuild:
             '''
 Tu es un expert NestJS. Génère un boilerplate light avec les exigences suivantes :
 

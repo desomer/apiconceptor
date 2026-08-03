@@ -601,7 +601,7 @@ YourExample : example
 }
 
 //////////////////////////////////////////////////////////////////////////////
-class InfoManagerAPIParam extends InfoManagerModel with WidgetHelper {
+class InfoManagerAPIParam extends InfoManagerModel {
   InfoManagerAPIParam({required super.typeMD});
 
   @override

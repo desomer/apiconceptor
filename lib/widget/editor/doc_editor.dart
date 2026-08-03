@@ -1,13 +1,8 @@
 // ignore_for_file: experimental_member_use
 
 import 'package:flutter/material.dart';
-// import 'package:flutter_quill/flutter_quill.dart';
-// import 'package:flutter_quill_extensions/flutter_quill_extensions.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
-import 'package:jsonschema/widget/splitview/widget_split.dart';
-import 'package:markdown_widget/config/configs.dart';
-import 'package:markdown_widget/widget/markdown.dart';
 
 class WidgetDoc extends StatefulWidget {
   const WidgetDoc({super.key, this.accessorAttr});
@@ -54,38 +49,7 @@ class _WidgetDocState extends State<WidgetDoc> {
       _controller.text = doc.toString();
     }
 
-    return SplitView(
-      secondaryWidth: -1,
-      primaryWidth: -1,
-      children: [
-        Row(
-          children: [
-            Expanded(child: _buildEditor()),
-            const VerticalDivider(),
-          ],
-        ),
-        Column(
-          children: [
-            Container(
-              color: Theme.of(context).colorScheme.secondaryContainer,
-              child: const Center(child: Text('Preview')),
-            ),
-            const Divider(),
-            Expanded(
-              child: ValueListenableBuilder(
-                valueListenable: _controller,
-                builder: (context, value, child) {
-                  return MarkdownWidget(
-                    data: _controller.text,
-                    config: MarkdownConfig.darkConfig,
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
+    return _buildEditor();
   }
 
   Widget _buildEditor() {

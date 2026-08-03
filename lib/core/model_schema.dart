@@ -200,6 +200,22 @@ class ModelSchema {
 
   ModelSchemaQuality? qualityInfo;
 
+  Future<void> prepareChange() async {
+    notUseAttributInfo.clear();
+    mapInfoByName.clear();
+    mapInfoByTreePath.clear();
+    mapInfoByJsonPath.clear();
+    allAttributInfo.clear();
+    modelPropertiesByPath.clear();
+    nodeByMasterId.clear();
+
+    await bddStorage.doStoreSync();
+    var rModel = loadYamlAndPropertiesSyncOrNot(cache: false);
+    if (rModel is Future<ModelSchema>) {
+      await rModel;
+    }
+  }
+
   NodeAttribut createExtend(AttributInfo info) {
     return NodeAttribut(
       parent: null,
@@ -957,10 +973,35 @@ class ModelSchema {
     }
   }
 
-  void saveProperties() {
+  Future<void> saveProperties() async {
     if (withBdd) {
-      bddStorage.prepareSaveModel(this);
+      await bddStorage.prepareSaveModel(this);
     }
+  }
+
+  Future<bool> saveYaml(
+    CodeEditorConfig? config,
+    bool save,
+    String action,
+  ) async {
+    var parser = ParseYamlManager()..validateKey = config?.validateKey;
+    bool parseOk = parser.doParseYaml(modelYaml, config);
+
+    if (parseOk) {
+      mapModelYaml = parser.mapYaml!;
+      if (save) {
+        await bddStorage.saveYAML(model: this, type: 'YAML', value: modelYaml);
+      }
+
+      if (action == 'event' || action == 'import') {
+        config?.repaintCode();
+        config?.repaintTree();
+      } else if (action != 'norepaint') {
+        config?.repaintTree();
+      }
+    }
+
+    return parseOk;
   }
 
   bool doChangeAndRepaintYaml(
@@ -978,14 +1019,9 @@ class ModelSchema {
       }
 
       if (action == 'event' || action == 'import') {
-        // if (config?.codeEditorState?.mounted ?? false) {
-        //   // ignore: invalid_use_of_protected_member
-        //   config?.codeEditorState!.setState(() {});
-
-        // }
         config?.repaintCode();
         config?.repaintTree();
-      } else {
+      } else if (action != 'norepaint') {
         config?.repaintTree();
       }
     }

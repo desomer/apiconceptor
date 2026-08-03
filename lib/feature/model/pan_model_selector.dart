@@ -20,14 +20,21 @@ class PanModelSelector extends PanYamlTree {
     required this.type,
     this.onSelectModel,
     required super.showCaseInfo,
+    this.isEditable = true,
   });
 
   final TypeModelSelector type;
   final Function? onSelectModel;
+  final bool isEditable;
 
   @override
   bool withEditor() {
-    return type == TypeModelSelector.model;
+    return isEditable && type == TypeModelSelector.model;
+  }
+
+  @override
+  bool isReadOnly() {
+    return isEditable == false || super.isReadOnly();
   }
 
   @override

@@ -1,10 +1,17 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart' show GoRouterHelper;
+import 'package:jsonschema/core/ia/call_gemini_proxy.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
+import 'package:jsonschema/widget/editor/mark_down_editor.dart';
 import 'package:jsonschema/widget/login/background_screen_login.dart';
 import 'package:jsonschema/widget/login/heading_text.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
@@ -12,6 +19,7 @@ import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'package:jsonschema/widget/widget_dialog_card.dart';
 
 mixin class WidgetHelper {
+
   Future<bool> askUser(
     BuildContext context,
     String title,
@@ -435,6 +443,226 @@ mixin class WidgetHelper {
     } else {
       row.add(getChip(Text(master.toString()), color: null));
     }
+  }
+
+  Future<bool> doCallIA(
+    BuildContext context,
+    String prompt,
+    Function doIAResponse,
+  ) async {
+    CancelToken cancelToken = CancelToken();
+    final loadingNotifier = ValueNotifier<bool>(true);
+    final errorNotifier = ValueNotifier<String?>(null);
+    final dialogContextCompleter = Completer<BuildContext>();
+
+    Future<void> dialogFuture = _showPromptDialog(
+      context: context,
+      dialogContextCompleter: dialogContextCompleter,
+      loadingNotifier: loadingNotifier,
+      textWithContext: prompt,
+      errorNotifier: errorNotifier,
+      cancelToken: cancelToken,
+    );
+
+    final dialogContext = await dialogContextCompleter.future;
+
+    try {
+      final response = await callGeminiProxy(prompt, cancelToken: cancelToken);
+      // retire le ```json  si present
+      final cleanedResponse = response
+          .replaceAll(RegExp(r'```json'), '')
+          .replaceAll(RegExp(r'```'), '');
+
+      print('Gemini response: $cleanedResponse');
+
+      doIAResponse(cleanedResponse);
+
+      loadingNotifier.value = false;
+      // ignore: use_build_context_synchronously
+      if (Navigator.of(dialogContext).canPop()) {
+        // ignore: use_build_context_synchronously
+        Navigator.of(dialogContext).pop();
+      }
+
+      await dialogFuture;
+      return true;
+    } catch (e) {
+      print('Gemini request failed: $e');
+      loadingNotifier.value = false;
+
+      if (cancelToken.isCancelled) {
+        // ignore: use_build_context_synchronously
+        // if (Navigator.of(dialogContext).canPop()) {
+        //   // ignore: use_build_context_synchronously
+        //   Navigator.of(dialogContext).pop();
+        // }
+        return false;
+      }
+
+      errorNotifier.value = e.toString();
+      await dialogFuture; // attente du close
+      return false;
+    } finally {
+      loadingNotifier.dispose();
+      errorNotifier.dispose();
+    }
+  }
+
+  Future<void> _showPromptDialog({
+    required BuildContext context,
+    required Completer<BuildContext> dialogContextCompleter,
+    required ValueNotifier<bool> loadingNotifier,
+    required String textWithContext,
+    required ValueNotifier<String?> errorNotifier,
+    required CancelToken cancelToken,
+  }) {
+    final dialogFuture = showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        if (!dialogContextCompleter.isCompleted) {
+          dialogContextCompleter.complete(dialogContext);
+        }
+
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text('Attente reponse Gemini'),
+            content: SizedBox(
+              width: 700,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ValueListenableBuilder<bool>(
+                    valueListenable: loadingNotifier,
+                    builder: (ctx, isLoading, _) {
+                      return Row(
+                        children: [
+                          if (isLoading) ...[
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          Expanded(
+                            child: Text(
+                              isLoading
+                                  ? 'Generation en cours...'
+                                  : 'La generation a echoue.',
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Prompt :'),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(textWithContext),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<String?>(
+                    valueListenable: errorNotifier,
+                    builder: (ctx, error, _) {
+                      if (error == null || error.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          border: Border.all(color: Colors.red.shade300),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Erreur Gemini: $error',
+                          style: TextStyle(color: Colors.red.shade900),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              ValueListenableBuilder<bool>(
+                valueListenable: loadingNotifier,
+                builder: (ctx, isLoading, _) {
+                  return TextButton(
+                    onPressed: () {
+                      if (isLoading && !cancelToken.isCancelled) {
+                        cancelToken.cancel('cancelled by user');
+                      }
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: Text(isLoading ? 'Annuler' : 'Fermer'),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    return dialogFuture;
+  }
+
+  void doShowContextDialog(ModelAccessorAttr ma, BuildContext context) {
+    // Implement the logic to show the context dialog here
+
+    var width = MediaQuery.of(context).size.width * 0.8;
+    var height = MediaQuery.of(context).size.height * 0.8;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        var textEditingController = TextEditingController(
+          text: ma.get()?.toString() ?? '',
+        );
+        return AlertDialog(
+          title: const Text('Add Features Context'),
+          content: SizedBox(
+            width: width,
+            height: height,
+            child: MarkDownEditor(
+              controller: textEditingController,
+              focusNode: FocusNode(),
+              context: context,
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Close the dialog
+              },
+              child: const Text('Close'),
+            ),
+            TextButton(
+              onPressed: () {
+                ma.set(textEditingController.text, withHistory: true);
+                Navigator.of(dialogContext).pop(); // Close the dialog
+              },
+              child: const Text('Save context'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 

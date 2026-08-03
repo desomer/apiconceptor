@@ -228,8 +228,7 @@ class TreeViewState<T> extends State<TreeView<T>> {
   String filterType = 'all';
 
   final Set<TreeNodeData<T>> selectedNodes = {};
-
-  late bool showCheckboxes;
+  bool showCheckboxes = false;
 
   void toggleCheckboxMode() {
     setState(() {

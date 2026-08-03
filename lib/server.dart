@@ -18,7 +18,7 @@ void startServer() async {
       .addMiddleware(logRequests())
       .addHandler(_echoRequest);
 
-  server = await shelf_io.serve(handler, 'localhost', 1234);
+  server = await shelf_io.serve(handler, '127.0.0.1', 1234);
 
   // Enable content compression
   server!.autoCompress = true;
@@ -44,7 +44,7 @@ void startServer() async {
             modelApi.getNodeByMasterIdPath(api.masterID!)!,
           );
           apiCallInfo.requestVariableValue['base_url'] =
-              'http://localhost:1234/';
+              'http://127.0.0.1:1234/';
           url = apiCallInfo.replaceVarInRequest(url);
           appApi.add(url);
         }
@@ -61,7 +61,7 @@ Future<Response> _echoRequest(Request request) async {
     html.write('<ul>');
     for (var element in appApi) {
       html.write(
-        '<li><a href="http://localhost:1234/$element">$element</a></li>',
+        '<li><a href="http://127.0.0.1:1234/$element">$element</a></li>',
       );
     }
     html.write('</ul>');

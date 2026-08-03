@@ -160,7 +160,7 @@ class HomePage extends GenericPageStateless {
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['usecase'] = GlobalKey(),
-            label: 'Design Usecase',
+            label: 'Design Usecase & orchestration',
             icon: Icons.task_alt_outlined,
             //route: Pages.asyncApi,
           ),

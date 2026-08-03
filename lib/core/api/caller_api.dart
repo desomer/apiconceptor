@@ -55,8 +55,7 @@ class CallerApi {
     }
 
     if (dataProviderMode.value == 'proxy') {
-      url =
-          'http://localhost:3128/proxy?url=${Uri.encodeComponent(url)}';
+      url = 'http://127.0.0.1:3128/proxy?url=${Uri.encodeComponent(url)}';
     }
 
     var ret = await sendApi(info.httpOperation, url, info.body, cancelToken);

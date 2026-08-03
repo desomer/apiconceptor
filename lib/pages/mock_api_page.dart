@@ -17,7 +17,7 @@ class MockApiPage extends GenericPageStateless {
             onPressed: () {
               startServer();
               Future.delayed(Duration(seconds: 1)).then((value) {
-                _launchUrl('http://localhost:1234/all/api');
+                _launchUrl('http://127.0.0.1:1234/all/api');
               });
             },
             child: Text('Start'),

@@ -1,6 +1,9 @@
 // ignore_for_file: experimental_member_use
 
 import 'package:flutter/material.dart';
+import 'package:jsonschema/widget/widget_tab.dart';
+import 'package:markdown_widget/config/configs.dart';
+import 'package:markdown_widget/widget/markdown.dart';
 import 'package:markdown_toolbar/markdown_toolbar.dart';
 
 class MarkDownEditor extends StatelessWidget {
@@ -9,50 +12,68 @@ class MarkDownEditor extends StatelessWidget {
     required TextEditingController controller,
     required FocusNode focusNode,
     required this.context,
+    this.defaultTabIndex = 0,
+    this.editorOnly = false,
   }) : _controller = controller,
        _focusNode = focusNode;
 
   final TextEditingController _controller;
   final FocusNode _focusNode;
   final BuildContext context;
+  final int defaultTabIndex;
+  final bool editorOnly;
 
   @override
   Widget build(BuildContext context) {
+    if (editorOnly) {
+      return _buildEditor(context);
+    }
+
+    return WidgetTab(
+      initialTabIndex: defaultTabIndex,
+      listTab: const [
+        Tab(text: 'Editor'),
+        Tab(text: 'Preview'),
+      ],
+      listTabCont: [
+        _buildEditor(context),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _controller,
+          builder: (context, value, child) {
+            return Padding(
+              padding: const EdgeInsets.all(12),
+              child: MarkdownWidget(
+                data: value.text,
+                config: MarkdownConfig.darkConfig,
+              ),
+            );
+          },
+        ),
+      ],
+      heightTab: 30,
+    );
+  }
+
+  Widget _buildEditor(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      // Change the toolbar alignment
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         const SizedBox(height: 5.0),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: MarkdownToolbar(
-            // If you set useIncludedTextField to true, remove
-            // a) the controller and focusNode fields below and
-            // b) the TextField outside below widget
             useIncludedTextField: false,
             controller: _controller,
             focusNode: _focusNode,
-
-            // Uncomment some of the options below to observe the changes. This list is not exhaustive
             collapsable: false,
-            // alignCollapseButtonEnd: true,
             backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-            // dropdownTextColor: Colors.red,
             iconColor: Colors.white,
             iconSize: 20,
             borderRadius: const BorderRadius.all(Radius.circular(8.0)),
             width: 30,
             height: 30,
-            // spacing: 16.0,
-            // runSpacing: 12.0,
             alignment: WrapAlignment.start,
-            // italicCharacter: '_',
-            // bulletedListCharacter: '*',
-            // horizontalRuleCharacter: '***',
-            // hideImage: true,
-            // hideCode: true,
-            // linkTooltip: 'Add a link',
           ),
         ),
         const Divider(),
@@ -60,8 +81,8 @@ class MarkDownEditor extends StatelessWidget {
           child: TextField(
             controller: _controller,
             focusNode: _focusNode,
-            expands: true, // prend toute la hauteur dispo
-            maxLines: null, // obligatoire avec expands
+            expands: true,
+            maxLines: null,
             minLines: null,
             textAlignVertical: TextAlignVertical.top,
             decoration: const InputDecoration(

@@ -1,8 +1,9 @@
-import 'dart:async';
-import 'dart:convert';
+import 'dart:convert' show json;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/authorization_manager.dart';
+import 'package:jsonschema/core/ia/call_gemini_proxy.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/documentation/documentation_options.dart';
@@ -15,30 +16,97 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_show_error.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
-class PanModelMethodsRules extends StatefulWidget {
-  const PanModelMethodsRules({super.key});
+class PanUseCase extends StatefulWidget {
+  const PanUseCase({super.key});
 
   @override
-  State<PanModelMethodsRules> createState() => _PanModelMethodsRulesState();
+  State<PanUseCase> createState() => _PanUseCaseState();
 }
 
 /*
-| Catégorie | Rôle |
-| --- | --- |
-| **Invariants behaviors** | Vérifier les invariants |
-| **State‑changing behaviors** | Modifier l’état de l’entité |
-| **Query behaviors** | Lire l’état |
-| **Policy Service** | Appliquer des règles complexes aux agrégats ou inter‑agrégats |
-| **Factory behaviors** | Créer des entités valides |
-| **Domain event behaviors** | Publier des événements |
+Titre :
+[UseCase] <Action métier>
 
+Contexte :
+<Pourquoi ce use case existe>
 
+Description du Use Case :
+- Acteur :
+- Intention :
+- Résultat métier :
+
+Règles métier :
+- ...
+- ...
+
+Entrées (Command) :
+- ...
+
+Sorties (Result) :
+- ...
+
+Ports utilisés :
+- ...
+
+Scénarios :
+- Given / When / Then
+- ...
+
+Critères d’acceptation :
+- ...
+
+Non-objectifs :
+- ...
 */
 
-class _PanModelMethodsRulesState extends State<PanModelMethodsRules> {
+/*
+USE CASE: UpdateProductPrice
+
+1. Objectif métier
+   Permettre la mise à jour du prix d’un produit existant.
+
+2. Déclencheur (Input)
+   - productId: string (UUID)
+   - newPrice: number (> 0)
+   - updatedBy: string (userId)
+
+3. Règles métier
+   - Le produit doit exister.
+   - Le prix doit être strictement positif.
+   - Le changement doit être historisé.
+   - L’utilisateur doit être autorisé à modifier le prix.
+
+4. Ports utilisés
+   - ProductRepository
+   - PriceHistoryRepository
+   - UserAuthorizationService
+
+5. Processus détaillé
+   1. Charger le produit via ProductRepository.findById
+   2. Vérifier les droits via UserAuthorizationService.canUpdatePrice
+   3. Appeler product.updatePrice(newPrice)
+   4. Sauvegarder via ProductRepository.save
+   5. Enregistrer l’historique via PriceHistoryRepository.recordChange
+   6. Retourner le produit mis à jour
+
+6. Sortie (Output)
+   - productId
+   - oldPrice
+   - newPrice
+   - updatedAt
+   - updatedBy
+
+7. Erreurs possibles
+   - ProductNotFound
+   - UnauthorizedUser
+   - InvalidPrice
+   - RepositoryError
+*/
+
+class _PanUseCaseState extends State<PanUseCase> {
   @override
   Widget build(BuildContext context) {
-    return PanBehavior(
+    return PanUseCaseTree(
       getSchemaFct: () async {
         return await loadBehaviour(
           currentCompany.currentModel!.namespace!,
@@ -51,8 +119,8 @@ class _PanModelMethodsRulesState extends State<PanModelMethodsRules> {
 }
 
 // ignore: must_be_immutable
-class PanBehavior extends PanYamlTree {
-  PanBehavior({super.key, required super.getSchemaFct});
+class PanUseCaseTree extends PanYamlTree {
+  PanUseCaseTree({super.key, required super.getSchemaFct});
 
   @override
   Widget getToolTip({
@@ -101,10 +169,7 @@ class PanBehavior extends PanYamlTree {
       valueListenable: refresh,
       builder: (context, value, child) {
         if (getSchema().selectedAttr == null) {
-          return Container(
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
-            child: Center(child: Text("Select a set of features to edit")),
-          );
+          return const Center(child: Text("Select a set of features to edit"));
         }
 
         ControleurBehaviors controleurBehaviors = ControleurBehaviors();
@@ -131,64 +196,54 @@ class PanBehavior extends PanYamlTree {
           'persistencePolicy',
         );
 
-        return Container(
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey)),
-          child: WidgetTab(
-            listTab: [
-              Tab(text: "Invariants"),
-              Tab(text: "State changing"),
-              Tab(text: "Query"),
-              Tab(text: "Policy Services"),
-              Tab(text: "Factory"),
-              Tab(text: "Domain events"),
-              Tab(text: "Persistence policy"),
-            ],
-            listTabCont: [
-              MarkDownEditor(
-                defaultTabIndex: 1,
-                controller: controleurBehaviors.controllerInvariant,
-                focusNode: FocusNode(),
-                context: context,
-              ),
-              MarkDownEditor(
-                defaultTabIndex: 1,
-                controller: controleurBehaviors.controllerStateChanging,
-                focusNode: FocusNode(),
-                context: context,
-              ),
-              MarkDownEditor(
-                defaultTabIndex: 1,
-                controller: controleurBehaviors.controllerQuery,
-                focusNode: FocusNode(),
-                context: context,
-              ),
-              MarkDownEditor(
-                defaultTabIndex: 1,
-                controller: controleurBehaviors.controllerPolicy,
-                focusNode: FocusNode(),
-                context: context,
-              ),
-              MarkDownEditor(
-                defaultTabIndex: 1,
-                controller: controleurBehaviors.controllerFactory,
-                focusNode: FocusNode(),
-                context: context,
-              ),
-              MarkDownEditor(
-                defaultTabIndex: 1,
-                controller: controleurBehaviors.controllerDomainEvent,
-                focusNode: FocusNode(),
-                context: context,
-              ),
-              MarkDownEditor(
-                defaultTabIndex: 1,
-                controller: controleurBehaviors.controllerPersistencePolicy,
-                focusNode: FocusNode(),
-                context: context,
-              ),
-            ],
-            heightTab: 30,
-          ),
+        return WidgetTab(
+          listTab: [
+            Tab(text: "Invariants"),
+            Tab(text: "State changing"),
+            Tab(text: "Query"),
+            Tab(text: "Policy Services"),
+            Tab(text: "Factory"),
+            Tab(text: "Domain events"),
+            Tab(text: "Persistence policy"),
+          ],
+          listTabCont: [
+            MarkDownEditor(
+              controller: controleurBehaviors.controllerInvariant,
+              focusNode: FocusNode(),
+              context: context,
+            ),
+            MarkDownEditor(
+              controller: controleurBehaviors.controllerStateChanging,
+              focusNode: FocusNode(),
+              context: context,
+            ),
+            MarkDownEditor(
+              controller: controleurBehaviors.controllerQuery,
+              focusNode: FocusNode(),
+              context: context,
+            ),
+            MarkDownEditor(
+              controller: controleurBehaviors.controllerPolicy,
+              focusNode: FocusNode(),
+              context: context,
+            ),
+            MarkDownEditor(
+              controller: controleurBehaviors.controllerFactory,
+              focusNode: FocusNode(),
+              context: context,
+            ),
+            MarkDownEditor(
+              controller: controleurBehaviors.controllerDomainEvent,
+              focusNode: FocusNode(),
+              context: context,
+            ),
+            MarkDownEditor(
+              controller: controleurBehaviors.controllerPersistencePolicy,
+              focusNode: FocusNode(),
+              context: context,
+            ),
+          ],
+          heightTab: 30,
         ); // Replace with your actual widget
       },
     );
@@ -255,40 +310,39 @@ class ControleurBehaviors {
 class InfoManagerBehaviors extends InfoManager with WidgetHelper {
   ControleurBehaviors? controleurBehaviors;
 
-  // Future<void> _showGeminiWaitingDialog(
-  //   BuildContext context, {
-  //   required VoidCallback onCancel,
-  //   required ValueChanged<BuildContext> onDialogContext,
-  //   required String prompt,
-  // }) {
-  //   return showDialog<void>(
-  //     context: context,
-  //     barrierDismissible: false,
-  //     builder: (dialogContext) {
-  //       onDialogContext(dialogContext);
-  //       return AlertDialog(
-  //         title: const Text('Gemini request'),
-  //         content: const Column(
-  //           mainAxisSize: MainAxisSize.min,
-  //           children: [
-  //             CircularProgressIndicator(),
-  //             SizedBox(height: 16),
-  //             Text('Please wait while Gemini is generating the response...'),
-  //           ],
-  //         ),
-  //         actions: [
-  //           TextButton(
-  //             onPressed: () {
-  //               Navigator.of(dialogContext).pop();
-  //               onCancel();
-  //             },
-  //             child: const Text('Cancel'),
-  //           ),
-  //         ],
-  //       );
-  //     },
-  //   );
-  // }
+  Future<void> _showGeminiWaitingDialog(
+    BuildContext context, {
+    required VoidCallback onCancel,
+    required ValueChanged<BuildContext> onDialogContext,
+  }) {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        onDialogContext(dialogContext);
+        return AlertDialog(
+          title: const Text('Gemini request'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Please wait while Gemini is generating the response...'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                onCancel();
+              },
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void addRowWidget(
@@ -300,27 +354,26 @@ class InfoManagerBehaviors extends InfoManager with WidgetHelper {
     var isRoot = attr.info.type == 'root';
     if (isRoot) return;
 
-    var ma = ModelAccessorAttr(
-      node: attr,
-      schema: schema,
-      propName: '#context',
-    );
-
     row.add(
       ElevatedButton(
         onPressed: () {
+          var ma = ModelAccessorAttr(
+            node: attr,
+            schema: schema,
+            propName: '#context',
+          );
           doShowContextDialog(ma, context);
         },
-        child: Text('Context'),
+        child: Text('Features Context'),
       ),
     );
 
     row.add(
       ElevatedButton(
         onPressed: () async {
-          await askGemini(ma, context);
+          await askGemini(context);
         },
-        child: Text('Ask Gemini for behaviors'),
+        child: Text('Ask Gemini for usecase'),
       ),
     );
     // row.add(
@@ -335,7 +388,7 @@ class InfoManagerBehaviors extends InfoManager with WidgetHelper {
     // );
   }
 
-  Future<bool> askGemini(ModelAccessorAttr ma, BuildContext context) async {
+  Future<void> askGemini(BuildContext context) async {
     DocumentationConfig info = DocumentationConfig();
     info.showExampleAvro = false;
     info.showExampleDto = false;
@@ -354,18 +407,12 @@ donne moi la liste des
 - Policy Service (et Méthodes internes associées)
 - Factory behaviors (et Méthodes internes associées)
 - Domain event behaviors (et Méthodes internes associées)
-- Persistence policy behaviors (et Méthodes internes associées)
-
-pour le context métier suivant :
-    
-    ${ma.get()?.toString() ?? ''}
-
 pour le modèle suivant :
 
     $modelDesc
 
 contraintes de sortie :
-- format de sortie de type json avec les clés suivantes : "invariant_behaviors", "state_changing_behaviors", "query_behaviors", "policy_service_behaviors", "factory_behaviors", "domain_event_behaviors", "persistence_policy_behaviors"
+- format de sortie de type json avec les clés suivantes : "invariant_behaviors", "state_changing_behaviors", "query_behaviors", "policy_service_behaviors", "factory_behaviors", "domain_event_behaviors"
 - pour invariant_behaviors : avoir une liste de controles invariant en fonction des attribut du modeles
     - validateXXX()
 - pour state_changing_behaviors : avoir une liste de methodes qui modifie l'etat du modele
@@ -377,20 +424,6 @@ contraintes de sortie :
     - createXXX(), fromSnapshot(rawData)
 - pour domain_event_behaviors : avoir une liste de methodes qui publie des événements
     - publishXXX(), onXXX() 
-- pour persistence_policy_behaviors : avoir une liste de methodes qui applique des règles de persistance
-    - en fonction des catégories suivantes (si pertinent uniquement) :
-      - CRUD métier : saveXXX(), findByXXX()
-      - Vérification : existsXXX(), isUniqueXXX(), existsByXXX(), isUniqueByXXX(), canBeDeletedXXX(), canBeDeletedByXXX(), isAvailableXXX(), hasActiveXXX()
-      - Recherche métier : findByStatusXXX(), findByXXX(), findByXXXAndYYY(), findByXXXOrYYY()
-      - Pagination métier : findPaginatedXXX(), findRecentXXX(), findByPeriodXXX(), findTopXXX()
-      - Agrégats : loadAggregateXXX(), findAggregateByXXX(), saveAggregateXXX(), findChildrenByXXX()
-      - Transaction métier : reserveXXX(), lockXXX(), unlockXXX(), commitReserveXXX()
-      - Statistiques : countXXX(), countByXXX(), countForPeriod()
-      - Batch : saveAllXXX()
-    - ainsi que des règles sur les index de recherches, des contraintes d'unicité, des transactions, etc.
-
-- assure toi que les contraintes d'unicité et les index de recherches sont bien présicées dans les rules du persistence_policy_behaviors. 
-    tu peux ajouter des rules sans méthodes associées si nécessaire pour préciser les contraintes d'unicité et les index de recherches. ci ses règles sont déjà présentes dans les autres catégories, tu peux les dupliquer dans la catégorie persistence_policy_behaviors pour plus de clarté.
 
 - chaque clé contient une liste d'objets avec les clés suivantes : 
     {
@@ -402,44 +435,77 @@ contraintes de sortie :
     }
 - sortie le json uniquement
 ''';
-    return await doCallIA(context, prompt, doIAResponse);
-  }
+    CancelToken cancelToken = CancelToken();
+    BuildContext? dialogContext;
 
-  void doIAResponse(String response) {
-    var decoded = json.decode(response) as Map<String, dynamic>;
-    var behaviorsModel = BehaviorsModel.fromJson(decoded);
+    void closeWaitingDialog() {
+      final ctx = dialogContext;
+      if (ctx != null && Navigator.of(ctx).canPop()) {
+        Navigator.of(ctx).pop();
+      }
+    }
 
-    StringBuffer buffer = StringBuffer();
+    _showGeminiWaitingDialog(
+      context,
+      onCancel: () {
+        cancelToken.cancel('User cancelled the Gemini request');
+        closeWaitingDialog();
+      },
+      onDialogContext: (ctx) {
+        dialogContext = ctx;
+      },
+    );
 
-    behaviorsModel.writeSection(buffer, behaviorsModel.invariantBehaviors);
-    controleurBehaviors?.controllerInvariant.text = buffer.toString();
-    buffer.clear();
+    try {
+      final response = await callGeminiProxy(prompt, cancelToken: cancelToken);
+      // retire le ```json  si present
+      final cleanedResponse = response
+          .replaceAll(RegExp(r'```json'), '')
+          .replaceAll(RegExp(r'```'), '');
 
-    behaviorsModel.writeSection(buffer, behaviorsModel.stateChangingBehaviors);
-    controleurBehaviors?.controllerStateChanging.text = buffer.toString();
-    buffer.clear();
+      final decoded = json.decode(cleanedResponse);
+      var behaviorsModel = BehaviorsModel.fromJson(decoded);
 
-    behaviorsModel.writeSection(buffer, behaviorsModel.queryBehaviors);
-    controleurBehaviors?.controllerQuery.text = buffer.toString();
-    buffer.clear();
+      StringBuffer buffer = StringBuffer();
 
-    behaviorsModel.writeSection(buffer, behaviorsModel.policyServiceBehaviors);
-    controleurBehaviors?.controllerPolicy.text = buffer.toString();
-    buffer.clear();
+      behaviorsModel.writeSection(buffer, behaviorsModel.invariantBehaviors);
+      controleurBehaviors?.controllerInvariant.text = buffer.toString();
+      buffer.clear();
 
-    behaviorsModel.writeSection(buffer, behaviorsModel.factoryBehaviors);
-    controleurBehaviors?.controllerFactory.text = buffer.toString();
-    buffer.clear();
+      behaviorsModel.writeSection(
+        buffer,
+        behaviorsModel.stateChangingBehaviors,
+      );
+      controleurBehaviors?.controllerStateChanging.text = buffer.toString();
+      buffer.clear();
 
-    behaviorsModel.writeSection(buffer, behaviorsModel.domainEventBehaviors);
-    controleurBehaviors?.controllerDomainEvent.text = buffer.toString();
-    buffer.clear();
+      behaviorsModel.writeSection(buffer, behaviorsModel.queryBehaviors);
+      controleurBehaviors?.controllerQuery.text = buffer.toString();
+      buffer.clear();
 
-    behaviorsModel.writeSection(buffer, behaviorsModel.persistenceBehaviors);
-    controleurBehaviors?.controllerPersistencePolicy.text = buffer.toString();
-    buffer.clear();
+      behaviorsModel.writeSection(
+        buffer,
+        behaviorsModel.policyServiceBehaviors,
+      );
+      controleurBehaviors?.controllerPolicy.text = buffer.toString();
+      buffer.clear();
 
-    print('Generated Markdown:\n${buffer.toString()}');
+      behaviorsModel.writeSection(buffer, behaviorsModel.factoryBehaviors);
+      controleurBehaviors?.controllerFactory.text = buffer.toString();
+      buffer.clear();
+
+      behaviorsModel.writeSection(buffer, behaviorsModel.domainEventBehaviors);
+      controleurBehaviors?.controllerDomainEvent.text = buffer.toString();
+      buffer.clear();
+
+      print('Generated Markdown:\n${buffer.toString()}');
+
+      closeWaitingDialog();
+      print('Gemini response: $response');
+    } catch (e) {
+      closeWaitingDialog();
+      print('Gemini request failed: $e');
+    }
   }
 
   @override
@@ -487,7 +553,6 @@ class BehaviorsModel {
   final List<BehaviorGroup> policyServiceBehaviors;
   final List<BehaviorGroup> factoryBehaviors;
   final List<BehaviorGroup> domainEventBehaviors;
-  final List<BehaviorGroup> persistenceBehaviors;
 
   BehaviorsModel({
     required this.invariantBehaviors,
@@ -496,7 +561,6 @@ class BehaviorsModel {
     required this.policyServiceBehaviors,
     required this.factoryBehaviors,
     required this.domainEventBehaviors,
-    required this.persistenceBehaviors,
   });
 
   factory BehaviorsModel.fromJson(Map<String, dynamic> json) {
@@ -513,7 +577,6 @@ class BehaviorsModel {
       policyServiceBehaviors: parseList("policy_service_behaviors"),
       factoryBehaviors: parseList("factory_behaviors"),
       domainEventBehaviors: parseList("domain_event_behaviors"),
-      persistenceBehaviors: parseList("persistence_policy_behaviors"),
     );
   }
 
@@ -528,9 +591,6 @@ class BehaviorsModel {
         .toList(),
     "factory_behaviors": factoryBehaviors.map((e) => e.toJson()).toList(),
     "domain_event_behaviors": domainEventBehaviors
-        .map((e) => e.toJson())
-        .toList(),
-    "persistence_policy_behaviors": persistenceBehaviors
         .map((e) => e.toJson())
         .toList(),
   };
