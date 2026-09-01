@@ -2,7 +2,7 @@ import 'dart:developer' as dev show log;
 
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
+import 'package:jsonschema/core/json_browser/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/content/pan_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';

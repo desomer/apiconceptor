@@ -1,4 +1,4 @@
-import 'package:jsonschema/core/import/json2schema_yaml.dart';
+import 'package:jsonschema/core/json_browser/import/json2schema_yaml.dart';
 import 'package:yaml/yaml.dart';
 
 void main(List<String> args) {

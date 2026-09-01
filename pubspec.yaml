@@ -62,7 +62,7 @@ dependencies:
   #collection: ^1.19.1
   #desktop_webview_window: ^0.2.3
   path_provider: ^2.1.5   #pour les export en csv et excel sur desktop
-  go_router: ^17.0.0
+  go_router: ^18.0.0
   #tabbed_view: ^2.0.0
   #flutter_js: ^0.8.5
   #dart_eval: ^0.8.1
@@ -159,7 +159,7 @@ msix_config:
   display_name: Api Architec
   publisher_display_name: ApiArchitec
   identity_name: apiarchitec
-  msix_version: 1.0.7.2
+  msix_version: 1.0.7.3
   logo_path: C:\dev\src\apiconceptor\web\icons\Colorful-eye-192.png
   capabilities: internetClient
   sign_msix: true

@@ -1,7 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
+import 'package:jsonschema/core/json_browser/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/util.dart';

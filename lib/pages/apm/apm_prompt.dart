@@ -95,8 +95,12 @@ services:
       QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION: knowledge_markdown
       KNOWLEDGE_DIR: /knowledge
-      RAG_CANDIDATE_K: 12
+      
+      RAG_CANDIDATE_K: 10
       RAG_TOP_K: 4
+      RAG_DIVERSIFY_SOURCES: 1
+      RAG_MAX_CHUNKS_PER_SOURCE: 2    
+
       RAG_CHUNK_MAX_CHARS: 500
       RAG_CHUNK_OVERLAP: 50
       RAG_CHUNK_MIN_CHARS: 150

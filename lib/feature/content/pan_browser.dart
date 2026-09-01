@@ -1,4 +1,4 @@
-import 'package:jsonschema/core/export/export2ui.dart';
+import 'package:jsonschema/core/json_browser/export/export2ui.dart';
 import 'package:jsonschema/core/json_browser.dart';
 
 class BrowserPan {

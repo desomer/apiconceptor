@@ -231,12 +231,12 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     if (withSep) {
       return Row(
         children: [
-          Expanded(child: getYamlEditor()),
+          Expanded(child: getYamlEditor(context)),
           const VerticalSep(),
         ],
       );
     } else {
-      return getYamlEditor();
+      return getYamlEditor(context);
     }
   }
 
@@ -394,7 +394,11 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
     return getWidgetPropForTooltip(key, value);
   }
 
-  Widget getYamlEditor() {
+  Widget getActionYaml(BuildContext context) {
+    return SizedBox.shrink();
+  }
+
+  Widget getYamlEditor(BuildContext context) {
     var doc = getDoc();
     final GlobalKey<TextEditorState> yamlEditor = GlobalKey(
       debugLabel: 'yamlEditor',
@@ -402,59 +406,68 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
 
     return readOnlyCapable(
       isReadOnly(),
-      Container(
-        key: showCaseInfo.keys['yamlCard'] = GlobalKey(debugLabel: 'yamlCard'),
-        color: Colors.black,
-        child: TextEditor(
-          onHistory: (BuildContext ctx) {
-            Size size = MediaQuery.of(ctx).size;
-            double width = size.width * 0.8;
-            double height = size.height * 0.8;
-            showDialog(
-              context: ctx,
-              barrierDismissible: true,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  content: SizedBox(
-                    width: width,
-                    height: height,
-                    child: PanModelChangeLog(currentModel: _schema),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('Close'),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-          onSelection: (String yamlPath) {
-            print("on Selection go to path $yamlPath");
-            var attr = _schema.getNodeByMasterJsonPath(yamlPath);
-            if (attr != null) {
-              doSelectedRow(attr, true);
-              doScrollToSelected();
-            }
-          },
-          header: getHeaderCode(),
-          onHelp: doc != null
-              ? (BuildContext ctx) {
+      Column(
+        children: [
+          getActionYaml(context),
+          Expanded(
+            child: Container(
+              key: showCaseInfo.keys['yamlCard'] = GlobalKey(
+                debugLabel: 'yamlCard',
+              ),
+              color: Colors.black,
+              child: TextEditor(
+                onHistory: (BuildContext ctx) {
+                  Size size = MediaQuery.of(ctx).size;
+                  double width = size.width * 0.8;
+                  double height = size.height * 0.8;
                   showDialog(
                     context: ctx,
                     barrierDismissible: true,
                     builder: (BuildContext context) {
-                      return doc;
+                      return AlertDialog(
+                        content: SizedBox(
+                          width: width,
+                          height: height,
+                          child: PanModelChangeLog(currentModel: _schema),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text('Close'),
+                          ),
+                        ],
+                      );
                     },
                   );
-                }
-              : null,
-          key: yamlEditor,
-          config: _yamlConfig!,
-        ),
+                },
+                onSelection: (String yamlPath) {
+                  print("on Selection go to path $yamlPath");
+                  var attr = _schema.getNodeByMasterJsonPath(yamlPath);
+                  if (attr != null) {
+                    doSelectedRow(attr, true);
+                    doScrollToSelected();
+                  }
+                },
+                header: getHeaderCode(),
+                onHelp: doc != null
+                    ? (BuildContext ctx) {
+                        showDialog(
+                          context: ctx,
+                          barrierDismissible: true,
+                          builder: (BuildContext context) {
+                            return doc;
+                          },
+                        );
+                      }
+                    : null,
+                key: yamlEditor,
+                config: _yamlConfig!,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

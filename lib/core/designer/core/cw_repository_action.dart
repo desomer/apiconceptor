@@ -4,7 +4,7 @@ import 'package:jsonschema/core/api/session_storage.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/designer/core/cw_repository.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
-import 'package:jsonschema/core/export/export2json_fake.dart';
+import 'package:jsonschema/core/json_browser/export/export2json_fake.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';

@@ -45,7 +45,7 @@ class JsonSchemaParser {
     "oneOf",
     "anyOf",
     "allOf",
-    "additionalProperties",
+    //"additionalProperties",
     "const",
     "uniqueItems",
     "minItems",

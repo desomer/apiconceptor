@@ -12,7 +12,7 @@ import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/context_ia/pan_context_ia.dart';
 import 'package:jsonschema/feature/documentation/documentation_options.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:jsonschema/core/import/url2api.dart';
+import 'package:jsonschema/core/json_browser/import/url2api.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
 import 'package:jsonschema/widget/tree_editor/tree_view.dart';

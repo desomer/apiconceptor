@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +18,6 @@ import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'package:jsonschema/widget/widget_dialog_card.dart';
 
 mixin class WidgetHelper {
-
   Future<bool> askUser(
     BuildContext context,
     String title,
@@ -184,10 +182,14 @@ mixin class WidgetHelper {
     );
   }
 
-  Future<void> dialogBuilder(BuildContext context, Widget child) {
+  Future<void> dialogBuilder(
+    BuildContext context,
+    Widget child, {
+    Function? onValidate,
+  }) {
     return showDialog<void>(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext context2) {
         return AlertDialog(
           contentPadding: const EdgeInsets.all(5),
           content: child,
@@ -195,12 +197,58 @@ mixin class WidgetHelper {
             TextButton(
               child: const Text('Cancel'),
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(context2).pop();
               },
             ),
+            if (onValidate != null)
+              TextButton(
+                child: const Text('Validate'),
+                onPressed: () {
+                  Navigator.of(context2).pop();
+                  onValidate();
+                },
+              ),
           ],
         );
       },
+    );
+  }
+
+  Future<void> dialogChatAIBuilder(BuildContext context, Function? onValidate) {
+    final TextEditingController questionController = TextEditingController();
+    return dialogBuilder(
+      context,
+      _buildEditorPanel(context, Theme.of(context), questionController),
+      onValidate: () {
+        if (onValidate != null) {
+          onValidate(questionController.text);
+        }
+      },
+    );
+  }
+
+  Widget _buildEditorPanel(
+    BuildContext context,
+    ThemeData theme,
+    TextEditingController questionController,
+  ) {
+    final FocusNode questionFocusNode = FocusNode();
+
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.8,
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: MarkDownEditor(
+          editorOnly: true,
+          controller: questionController,
+          focusNode: questionFocusNode,
+          context: context,
+        ),
+      ),
     );
   }
 

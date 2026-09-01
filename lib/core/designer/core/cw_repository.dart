@@ -3,7 +3,7 @@ import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/designer/core/cw_widget.dart';
 import 'package:jsonschema/core/designer/core/cw_widget_factory.dart';
 import 'package:jsonschema/core/designer/core/widget_catalog/cw_table_row.dart';
-import 'package:jsonschema/core/export/export2json_fake.dart';
+import 'package:jsonschema/core/json_browser/export/export2json_fake.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/content/state_manager.dart';

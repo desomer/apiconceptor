@@ -7,9 +7,10 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
+import 'package:jsonschema/prompts/prompt_model_design.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
-import 'package:jsonschema/core/import/json2schema_yaml.dart';
+import 'package:jsonschema/core/json_browser/import/json2schema_yaml.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
@@ -17,7 +18,7 @@ import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
 
-import '../../core/import/swagger2prop.dart';
+import '../../core/json_browser/import/swagger2prop.dart';
 
 // ignore: must_be_immutable
 class PanModelImportDialog extends StatelessWidget with WidgetHelper {
@@ -303,31 +304,12 @@ Génère moi un objet métier :
     // final errorNotifier = ValueNotifier<String?>(null);
     // final dialogContextCompleter = Completer<BuildContext>();
 
-    var textWithContext =
-        '''
-Tu es un expert en modélisation de données (dataSteward). 
-donne moi un jsonschemas (version draft = "2020-12") complet pour modéliser un ${info['model name']} du domaine ${info['subdomain']}.
-donne un title, description et un example (si interresant) et pattern (si interessant) pour chaque attribut
-
-préférer des objets imbriqués plutôt que de longues listes d'attributs, sauf si c'est vraiment nécessaire.
-Gérer un maximum de 3 niveaux d'imbrication, sauf si c'est vraiment nécessaire (les items d'un array repartent de zero).
-Proposer des enums en majuscule pour les attributs qui ont un nombre limité de valeurs possibles.
-Positionne des facets de recherche search_references (si pertinent) sur les notions qui sont susceptibles d'être utilisés pour filtrer les données.
-
-voici le contexte et contraintes de modélisation :
-$text
-
-utilise, de préférence, ce catalogue de notion pour nommer les propriétés (d'autres sont acceptables si nouvelle notion) :
-- id : identifiant unique, type string, format uuid
-- name : nom de l'objet
-- description : description de l'objet
-- status : statut de l'objet
-
-Sortie attendue :
-   - format de sortie de type jsonschemas 
-   - sortie le json uniquement (pas de blabla, pas d'explication, pas de texte, pas de code block)
-''';
-
+    var textWithContext = promptModelDesign
+        .replaceAll('{{modelname}}', info['model name']!)
+        .replaceAll('{{subdomain}}', info['subdomain']!)
+        .replaceAll('{{contraints}}', text);
+    
+ 
     void doIAResponse(String response) {
       jsonschema = response;
       info['context'] = text;

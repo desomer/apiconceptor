@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
+import 'package:jsonschema/core/json_browser/export/export2ui.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/feature/content_viewer/pan_model_ui_viewer.dart';
 import 'package:jsonschema/feature/content/widget/widget_content_helper.dart';

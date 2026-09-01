@@ -125,7 +125,7 @@ class HomePage extends GenericPageStateless {
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['flowsAI'] = GlobalKey(),
-            label: 'Chat with AI',
+            label: 'Chat with Expert AI',
             icon: Icons.chat_bubble_outline,
             route: Pages.apmAskIA,
           ),

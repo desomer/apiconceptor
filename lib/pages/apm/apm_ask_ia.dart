@@ -44,6 +44,7 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
 
   bool _loading = false;
   bool _reindexLoading = false;
+  _SearchMode _searchMode = _SearchMode.functional;
   String? _lastError;
   final List<_ChatTurn> _history = <_ChatTurn>[];
 
@@ -77,9 +78,27 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
         ),
       );
 
+
+      var questionWithMode = question;
+      if (_searchMode == _SearchMode.functional) {
+        questionWithMode = 
+'''
+Tu es un expert fonctionnel (Business analyst) qui répond sur une base de fichier technique. 
+voici la question : $question
+Réponds de manière synthétique et concise en des termes métiers, pas de code, pas de technique, pas de framework, pas de langage de programmation.
+en te basant uniquement sur les informations contenues dans les fichiers techniques.
+Tu ne proposes pas de solution ni de proposition de modélisation. Juste réponds sur la base de connaissances contenues dans les fichiers techniques.
+''';
+        // Add functional mode specific headers or parameters if needed
+      } else if (_searchMode == _SearchMode.archi) {
+        // Add archi mode specific headers or parameters if needed
+      } else if (_searchMode == _SearchMode.dev) {
+        // Add dev mode specific headers or parameters if needed
+      }
+
       final response = await dio.post<dynamic>(
         _endpoint,
-        data: <String, dynamic>{'question': question},
+        data: <String, dynamic>{'question': questionWithMode},
       );
 
       final payload = response.data;
@@ -187,7 +206,7 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
         },
       );
     } on DioException catch (e) {
-      print('DioException during reindex: ${e}');
+      print('DioException during reindex: $e');
       final serverMessage = e.response?.data;
       setState(() {
         _lastError = serverMessage == null
@@ -225,6 +244,44 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
     );
   }
 
+  Widget _buildSearchModeRadio({
+    required String label,
+    required _SearchMode value,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Radio<_SearchMode>(value: value),
+        Text(label),
+      ],
+    );
+  }
+
+  Widget _buildSearchModeSelector() {
+    return RadioGroup<_SearchMode>(
+      groupValue: _searchMode,
+      onChanged: (selected) {
+        if (selected == null || _loading || _reindexLoading) {
+          return;
+        }
+
+        setState(() {
+          _searchMode = selected;
+        });
+      },
+      child: Row(
+        children: [
+          _buildSearchModeRadio(
+            label: 'Functional',
+            value: _SearchMode.functional,
+          ),
+          _buildSearchModeRadio(label: 'Archi', value: _SearchMode.archi),
+          _buildSearchModeRadio(label: 'Dev', value: _SearchMode.dev),
+        ],
+      ),
+    );
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_historyScrollController.hasClients) return;
@@ -246,15 +303,20 @@ class _ApmAskIAViewState extends State<_ApmAskIAView> {
         children: [
           Row(
             children: [
-              Text('Ask IA (RAG)', style: theme.textTheme.titleLarge),
+              Text('Ask with Expert IA', style: theme.textTheme.titleLarge),
+
               const SizedBox(width: 12),
+              _buildSearchModeSelector(),
+
+              const Spacer(),
               SelectableText(
                 _endpoint,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.primary,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
+
               OutlinedButton.icon(
                 onPressed: (_loading || _reindexLoading)
                     ? null
@@ -445,3 +507,5 @@ class _ChatTurn {
   final List<dynamic> matches;
   final DateTime timestamp;
 }
+
+enum _SearchMode { functional, archi, dev }

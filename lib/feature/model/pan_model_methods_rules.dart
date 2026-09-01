@@ -468,7 +468,7 @@ contraintes de sortie :
   Widget getRowHeader(TreeNodeData<NodeAttribut> node, BuildContext context) {
     var isRoot = node.isRoot;
     var attr = node.data.info;
-    if (isRoot) return const Text("select");
+    if (isRoot) return const Text("Package");
 
     return InkWell(
       onTap: () {

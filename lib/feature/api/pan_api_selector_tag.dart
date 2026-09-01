@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:jsonschema/core/export/export2swagger.dart';
+import 'package:jsonschema/core/json_browser/export/export2swagger.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/widget/widget_expansive.dart';

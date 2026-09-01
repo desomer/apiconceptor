@@ -6,7 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:highlight/languages/json.dart';
 import 'package:jsonschema/core/api/call_ds_manager.dart';
 import 'package:jsonschema/core/api/session_storage.dart';
-import 'package:jsonschema/core/export/export2ui.dart';
+import 'package:jsonschema/core/json_browser/export/export2ui.dart';
 import 'package:jsonschema/core/designer/editor/engine/widget_selectable.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/feature/content/json_to_ui.dart';

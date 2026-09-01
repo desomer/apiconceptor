@@ -1,9 +1,9 @@
 import 'package:jsonschema/core/api/widget_api_helper.dart';
-import 'package:jsonschema/core/export/export2avro.dart';
-import 'package:jsonschema/core/export/export2dto_nestjs.dart';
-import 'package:jsonschema/core/export/export2json_fake.dart';
-import 'package:jsonschema/core/export/export2json_schema.dart';
-import 'package:jsonschema/core/export/export2mongoose_nestjs.dart';
+import 'package:jsonschema/core/json_browser/export/export2avro.dart';
+import 'package:jsonschema/core/json_browser/export/export2dto_nestjs.dart';
+import 'package:jsonschema/core/json_browser/export/export2json_fake.dart';
+import 'package:jsonschema/core/json_browser/export/export2json_schema.dart';
+import 'package:jsonschema/core/json_browser/export/export2mongoose_nestjs.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/start_core.dart';

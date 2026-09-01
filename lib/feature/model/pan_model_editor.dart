@@ -4,12 +4,15 @@ import 'package:fuzzy/data/result.dart' show Result;
 import 'package:fuzzy/fuzzy.dart';
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/json_browser/export/export2json_schema.dart';
+import 'package:jsonschema/core/json_browser/import/swagger2prop.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/feature/model/pan_model_methods_rules.dart';
 import 'package:jsonschema/feature/model/pan_model_version_list.dart';
 import 'package:jsonschema/feature/pan_attribut_editor_detail.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/pages/model_design/design_model_page.dart';
+import 'package:jsonschema/prompts/prompt_model_design.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
@@ -522,6 +525,74 @@ class PanModelEditor extends PanYamlTree
         ),
         Expanded(child: super.getLoader()),
       ],
+    );
+  }
+
+  @override
+  Widget getActionYaml(BuildContext context) {
+    void doIAResponse(String response) async {
+      print("IA Response: $response");
+      JsonSchemaParser parser = JsonSchemaParser();
+      var paths = parser.parse(response);
+      // paths.forEach((element) {
+      //   print(element);
+      // });
+      String treeYaml = parser.getTreeYaml(paths);
+      //print("Tree YAML:\n$treeYaml");
+      var aModel = getSchema();
+      aModel.modelYaml = treeYaml;
+      await getSchema().saveYaml(null, true, 'norepaint');
+      // SchedulerBinding.instance.addPostFrameCallback((_) async {
+      await bddStorage.doStoreSync();
+
+      await jsonBrowserWidget.browseSync(aModel, true, 0);
+      for (var aPropByPath in paths) {
+        if (aPropByPath.properties.isNotEmpty) {
+          String pathJson = aPropByPath.pathJson;
+          if (pathJson == '<root>') {
+            continue;
+          }
+          var p = aModel.mapInfoByJsonPath[pathJson];
+          if (p != null) {
+            p.properties ??= {};
+            int nb = 0;
+            for (var entry in aPropByPath.properties.entries) {
+              if (p.properties![entry.key] != entry.value) {
+                p.properties![entry.key] = entry.value;
+                nb++;
+              }
+            }
+            if (nb > 0) {
+              var node = aModel.getNodeFromAttributInfo(p);
+              node?.info.action = 'U';
+            }
+          }
+        }
+      }
+
+      aModel.doChangeAndRepaintYaml(getYamlConfig(), true, 'import');
+    }
+
+    return ElevatedButton(
+      onPressed: () {
+        dialogChatAIBuilder(context, (text) async {
+          var export = Export2JsonSchema(config: BrowserConfig())
+            ..browse(getSchema(), false);
+
+          var prompt = promptModelChange
+              .replaceAll('{{modelname}}', getSchema().headerName)
+              .replaceAll(
+                '{{jsonschema}}',
+                "```json\n${export.prettyPrintJson(export.json)}\n```",
+              )
+              .replaceAll('{{contraints}}', text);
+
+          await doCallIA(context, prompt, doIAResponse);
+        });
+
+        //
+      },
+      child: const Text('AI-driven change'),
     );
   }
 
