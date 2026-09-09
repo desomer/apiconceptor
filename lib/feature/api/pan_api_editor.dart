@@ -11,7 +11,6 @@ import 'package:jsonschema/core/bdd/data_acces.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/repaint_manager.dart';
-import 'package:jsonschema/core/api/call_api_manager.dart';
 import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/api/html_swagger.dart';
@@ -38,7 +37,6 @@ import '../../core/designer/core/widget_catalog/export/export_csv.dart';
 import '../../pages/browse_api/browse_api_page.dart';
 import '../../widget/editor/doc_editor.dart';
 import 'pan_api_request.dart';
-import 'package:json2yaml/json2yaml.dart';
 
 TabController? tabSubApi;
 
