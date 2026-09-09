@@ -147,7 +147,7 @@ api_manifest:
  
  */
 
-var dto_manifest = r'''
+var dtoManifest = r'''
 dto:
   metadata:
     name: "enterprise-dto"
@@ -300,7 +300,7 @@ dto:
 
 ''';
 
-var dto_model = r'''
+var dtoModel = r'''
 dto:
   metadata:
     name: "enterprise-dto"

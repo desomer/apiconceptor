@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/compute/core_data_eval.dart';
 import 'pages/router_config.dart';
 // import 'package:fleather/fleather.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:timezone/data/latest.dart' as tz;
+
+import 'core/bdd/shared_preferences_recovery.dart';
 
 late SharedPreferences prefs;
 // List<String> logs = [];
@@ -52,9 +55,20 @@ void main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       try {
-        prefs = await SharedPreferences.getInstance();
+        await dotenv.load(fileName: "env");
       } catch (e) {
-        print('Error initializing SharedPreferences: $e');
+        print('Error loading .env file: $e');
+      }
+      try {
+        prefs = await SharedPreferences.getInstance();
+      } on FormatException catch (error) {
+        print('SharedPreferences corrupted, resetting file: $error');
+        final wasReset = await resetSharedPreferencesFile();
+        if (!wasReset) rethrow;
+        prefs = await SharedPreferences.getInstance();
+      } catch (error) {
+        print('Error initializing SharedPreferences: $error');
+        rethrow;
       }
 
       CoreDataEval().initializeJSEngine();
@@ -65,10 +79,9 @@ void main() async {
       final message = "[DART ERROR] $error\n$stack";
       saveError(message, stack);
       //debugPrintSynchronously(message);
-      FlutterError.dumpErrorToConsole(FlutterErrorDetails(
-        exception: error,
-        stack: stack,
-      ));
+      FlutterError.dumpErrorToConsole(
+        FlutterErrorDetails(exception: error, stack: stack),
+      );
     },
     zoneSpecification: ZoneSpecification(
       print: (self, parent, zone, line) {

@@ -37,6 +37,7 @@ import 'package:jsonschema/pages/model_design/design_api_detail_page.dart';
 import 'package:jsonschema/pages/model_design/design_api_detail_scrum_page.dart';
 import 'package:jsonschema/pages/model_design/design_api_detail_ui.dart';
 import 'package:jsonschema/pages/model_design/design_api_page.dart';
+import 'package:jsonschema/pages/model_design/design_api_prompt.dart';
 import 'package:jsonschema/pages/model_design/design_async.dart';
 import 'package:jsonschema/pages/model_design/design_model_jsonschema_page.dart';
 import 'package:jsonschema/pages/model_design/design_model_detail_page.dart';
@@ -486,6 +487,7 @@ final GoRouter router = GoRouter(
 
         addRouteBy(Pages.apiUI, CallAPIPageDetailUI()),
         addRouteBy(Pages.apiScrum, DesignApiDetailScrumPage()),
+        addRouteBy(Pages.apiPromptAI, DesignApiPromptPage()),
         //----------------------------------------------------------------
         addRoute(
           GoRoute(path: Pages.asyncApi.urlpath, pageBuilder: getPageAnim),

@@ -11,6 +11,8 @@ Positionne des facets de recherche search_references (si pertinent) sur les noti
 voici le contexte et contraintes de modélisation :
 {{contraints}}
 
+interdit les balises if, then et else
+
 utilise, de préférence, ce catalogue de notion pour nommer les propriétés (d'autres sont acceptables si nouvelle notion) :
 - id : identifiant unique, type string, format uuid
 - name : nom de l'objet
@@ -41,6 +43,8 @@ préférer des objets imbriqués plutôt que de longues listes d'attributs, sauf
 Gérer un maximum de 3 niveaux d'imbrication, sauf si c'est vraiment nécessaire (les items d'un array repartent de zero).
 Proposer des enums en majuscule pour les attributs qui ont un nombre limité de valeurs possibles.
 Positionne des facets de recherche search_references (si pertinent) sur les notions qui sont susceptibles d'être utilisés pour filtrer les données.
+
+interdit les balises if, then et else
 
 utilise, de préférence, ce catalogue de notion pour nommer les propriétés (d'autres sont acceptables si nouvelle notion) :
 - id : identifiant unique, type string, format uuid

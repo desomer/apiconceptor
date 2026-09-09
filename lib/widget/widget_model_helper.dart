@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart' show GoRouterHelper;
-import 'package:jsonschema/core/ia/call_gemini_proxy.dart';
+import 'package:jsonschema/core/ia/call_gemini.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
@@ -515,7 +515,7 @@ mixin class WidgetHelper {
     final dialogContext = await dialogContextCompleter.future;
 
     try {
-      final response = await callGeminiProxy(prompt, cancelToken: cancelToken);
+      final response = await callGemini(prompt, /*cancelToken: cancelToken*/);
       // retire le ```json  si present
       final cleanedResponse = response
           .replaceAll(RegExp(r'```json'), '')

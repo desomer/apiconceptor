@@ -2,7 +2,10 @@ String promptInterface = '''
 # Contexte techniques :  
 Tu es un expert en architecture Hexagonale, DDD, CQRS et Clean Architecture.
 
-Génère la couche **interface** complète pour le module <{{module}}> et aggregates <{{aggregates}}>.
+Génère la couche **interface** complète pour ce swagger d'une API.
+
+## swagger a implementer : 
+{{swagger}}
 
 ## Contexte de code source :
 - Le domaine est déjà défini.

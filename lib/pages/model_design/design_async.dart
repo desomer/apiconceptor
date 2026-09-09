@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart' show GoRouterState;
+import 'package:jsonschema/core/bdd/data_acces.dart';
+import 'package:jsonschema/core/yaml_browser.dart';
 import 'package:jsonschema/feature/async_api/pan_async_selector.dart';
 import 'package:jsonschema/feature/home/background_screen.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/pages/router_layout.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_glowing_halo.dart';
@@ -59,82 +62,161 @@ class DesignAsyncPage extends GenericPageStateless {
           GlowingHalo(
             child: ElevatedButton.icon(
               icon: Icon(Icons.wifi),
-              onPressed: () {
-                // if (currentCompany.listAPI != null) {
-                //   selector.showImportDialog(context);
-                // }
+              onPressed: () async {
+                await addChannelSend();
               },
               style: style,
-              label: Text('New Channel'),
+              label: Text('New send channel'),
             ),
           ),
+
           ElevatedButton.icon(
-            icon: Icon(Icons.storage_rounded),
-            onPressed: () {
-              // if (currentCompany.listAPI != null) {
-              //   selector.showSwaggerDialog(context);
-              // }
+            icon: Icon(Icons.wifi),
+            onPressed: () async {
+              await addChannelReceive();
             },
             style: style,
-            label: Text('New Bucket'),
+            label: Text('New receive Channel'),
+          ),
+
+          ElevatedButton.icon(
+            icon: Icon(Icons.storage_rounded),
+            onPressed: () async {
+              await addStorage('new Storage');
+            },
+            style: style,
+            label: Text('New storage'),
           ),
           ElevatedButton.icon(
             icon: Icon(Icons.create_new_folder_outlined),
-            onPressed: () {
-              // if (currentCompany.listAPI != null) {
-              //   selector.showSwaggerDialog(context);
-              // }
+            onPressed: () async {
+              await addStorage('new Ftp');
             },
             style: style,
             label: Text('New Ftp'),
           ),
           ElevatedButton.icon(
             icon: Icon(Icons.schedule),
-            onPressed: () {
-              // if (currentCompany.listAPI != null) {
-              //   selector.showSwaggerDialog(context);
-              // }
+            onPressed: () async {
+              await addScheduler('new Scheduler');
             },
             style: style,
-            label: Text('New Cron'),
+            label: Text('New scheduler'),
           ),
         ],
       ),
     );
   }
 
-  // Widget build2(BuildContext context) {
-  //   return WidgetTab(
-  //     key: stateModel.keyTab,
-  //     onInitController: (TabController tab) {
-  //       stateModel.tabModel = tab;
-  //       tab.addListener(() {
-  //         if (tab.index == 0) {
-  //           stateModel.setTab();
-  //         }
-  //       });
-  //     },
-  //     tabDisable: stateModel.tabDisable,
-  //     listTab: [
-  //       Tab(text: 'Models Browser'),
-  //       Tab(text: 'Model Editor'),
-  //       Tab(text: 'Json schema'),
-  //     ],
-  //     listTabCont: [
-  //       Column(
-  //         children: [
-  //           PanModelActionHub(),
-  //           Expanded(child: KeepAliveWidget(child: WidgetModelMain())),
-  //         ],
-  //       ),
-  //       KeepAliveWidget(
-  //         child: WidgetModelEditor(key: stateModel.keyModelEditor),
-  //       ),
-  //       WidgetJsonValidator(),
-  //     ],
-  //     heightTab: 40,
-  //   );
-  // }
+  Future<void> addChannelReceive() async {
+    var listAsync = currentCompany.listAsync;
+    String yaml = listAsync!.modelYaml;
+    YamlDoc docYaml = YamlDoc();
+    docYaml.load(yaml);
+    docYaml.doAnalyse();
+
+    String? subdomain = 'new Receive Channel';
+
+    YamlLine? domain;
+    for (var element in docYaml.listRoot) {
+      if (element.name?.toLowerCase() == subdomain.toLowerCase()) {
+        domain = element;
+        break;
+      }
+    }
+
+    domain ??= docYaml.addAtEnd(subdomain, '');
+    docYaml.addChild(domain, 'new-topic', 'channel');
+    docYaml.addChild(domain, 'new-event', 'message');
+    docYaml.addChild(domain, 'new-sub', 'receive');
+    YamlLine subNode = docYaml.addChild(domain, 'new-sub-dlq', '');
+    docYaml.addChild(subNode, 'new-topic-dlq', 'channel');
+    docYaml.addChild(subNode, 'new-dlq-sub', 'receive');
+
+    var newYaml = docYaml.getDoc();
+    listAsync.modelYaml = newYaml;
+    await listAsync.saveYaml(currentYamlTree!.getYamlConfig(), true, 'import');
+    await bddStorage.doStoreSync();
+  }
+
+  Future<void> addChannelSend() async {
+    var listAsync = currentCompany.listAsync;
+    String yaml = listAsync!.modelYaml;
+    YamlDoc docYaml = YamlDoc();
+    docYaml.load(yaml);
+    docYaml.doAnalyse();
+
+    String? subdomain = 'new Send Channel';
+
+    YamlLine? domain;
+    for (var element in docYaml.listRoot) {
+      if (element.name?.toLowerCase() == subdomain.toLowerCase()) {
+        domain = element;
+        break;
+      }
+    }
+
+    domain ??= docYaml.addAtEnd(subdomain, '');
+    docYaml.addChild(domain, 'new-topic', 'channel');
+    docYaml.addChild(domain, 'new-event', 'message');
+
+    var newYaml = docYaml.getDoc();
+    listAsync.modelYaml = newYaml;
+    await listAsync.saveYaml(currentYamlTree!.getYamlConfig(), true, 'import');
+    await bddStorage.doStoreSync();
+  }
+
+  Future<void> addStorage(String subdomain) async {
+    var listAsync = currentCompany.listAsync;
+    String yaml = listAsync!.modelYaml;
+    YamlDoc docYaml = YamlDoc();
+    docYaml.load(yaml);
+    docYaml.doAnalyse();
+
+    YamlLine? domain;
+    for (var element in docYaml.listRoot) {
+      if (element.name?.toLowerCase() == subdomain.toLowerCase()) {
+        domain = element;
+        break;
+      }
+    }
+
+    domain ??= docYaml.addAtEnd(subdomain, '');
+    docYaml.addChild(domain, 'new-bucket', 'bucket');
+    docYaml.addChild(domain, 'new-file', 'flatfile');
+    docYaml.addChild(domain, 'new-topic', 'channel');
+    docYaml.addChild(domain, 'new-file-event', 'message');
+
+    var newYaml = docYaml.getDoc();
+    listAsync.modelYaml = newYaml;
+    await listAsync.saveYaml(currentYamlTree!.getYamlConfig(), true, 'import');
+    await bddStorage.doStoreSync();
+  }
+
+  Future<void> addScheduler(String subdomain) async {
+    var listAsync = currentCompany.listAsync;
+    String yaml = listAsync!.modelYaml;
+    YamlDoc docYaml = YamlDoc();
+    docYaml.load(yaml);
+    docYaml.doAnalyse();
+
+    YamlLine? domain;
+    for (var element in docYaml.listRoot) {
+      if (element.name?.toLowerCase() == subdomain.toLowerCase()) {
+        domain = element;
+        break;
+      }
+    }
+
+    domain ??= docYaml.addAtEnd(subdomain, '');
+    docYaml.addChild(domain, 'new-scheduler', 'scheduler');
+
+    var newYaml = docYaml.getDoc();
+    listAsync.modelYaml = newYaml;
+    await listAsync.saveYaml(currentYamlTree!.getYamlConfig(), true, 'import');
+    await bddStorage.doStoreSync();
+  }
+
 
   @override
   NavigationInfo initNavigation(

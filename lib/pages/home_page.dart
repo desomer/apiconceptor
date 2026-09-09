@@ -113,13 +113,13 @@ class HomePage extends GenericPageStateless {
         children: [
           WidgetMenuBtn(
             key: showCaseInfo.keys['apps'] = GlobalKey(),
-            label: 'Applications',
+            label: 'Systems & Services',
             icon: Icons.apps,
             route: Pages.apm,
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['flows'] = GlobalKey(),
-            label: 'Application Flow Maps',
+            label: 'System Flow Maps',
             icon: Icons.account_tree_outlined,
             route: Pages.appFlow,
           ),
@@ -166,12 +166,12 @@ class HomePage extends GenericPageStateless {
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['api'] = GlobalKey(),
-            label: 'Design API',
+            label: 'Design API & MCP',
             icon: Icons.api,
             route: Pages.api,
           ),
           WidgetMenuBtn(
-            key: showCaseInfo.keys['message'] = GlobalKey(),
+            key: showCaseInfo.keys['infra'] = GlobalKey(),
             label: 'Design Infrastructure',
             icon: Icons.message_outlined,
             route: Pages.asyncApi,
@@ -370,10 +370,10 @@ class HomePage extends GenericPageStateless {
             ],
           ),
           CoachStep(
-            targetKey: keys['message']!,
-            title: 'Modeling new message',
+            targetKey: keys['infra']!,
+            title: 'Modeling new infrastructure',
             description: [
-              'ajout d\'un nouveau message',
+              'ajout d\'une nouvelle infrastructure',
               "basées sur les modèles définis précédemment",
             ],
           ),

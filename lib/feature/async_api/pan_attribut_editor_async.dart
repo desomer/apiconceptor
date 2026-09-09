@@ -175,7 +175,8 @@ class _EditorPropertiesState extends State<EditorProperties>
       AttributeEditorAsync(name: 'scheduler.type', type: 'string'),
       AttributeEditorAsync(name: 'trigger.cron', type: 'string'),
       AttributeEditorAsync(name: 'trigger.timezone', type: 'string'),
-      AttributeEditorAsync(name: 'taskrunner.type', type: 'string'),
+      AttributeEditorAsync(name: 'target.type', type: 'string'),
+      AttributeEditorAsync(name: 'target.payload', type: 'string'),
     ];
 
     var row = <Widget>[];

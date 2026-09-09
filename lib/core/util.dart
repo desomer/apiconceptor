@@ -1,6 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:json2yaml/json2yaml.dart';
+import 'package:jsonschema/core/api/call_api_manager.dart';
+import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:yaml/yaml.dart';
+
+APICallManager getAPICall(String namespace, AttributInfo attr) {
+  String httpOpe = attr.name.toLowerCase();
+  var apiCallInfo = APICallManager(
+    namespace: namespace,
+    attrApi: attr,
+    httpOperation: httpOpe,
+  );
+  return apiCallInfo;
+}
+
+Future<({String swagger, Map yamlSwagger, Map path})> getSwaggerFromApiCallInfo(
+  dynamic requestHelper,
+) async {
+  var cmp = {'schemas': {}};
+  var path = {};
+  var servers = [];
+
+  Map aPath = await requestHelper.apiCallInfo.generateSwagger(servers, cmp);
+
+  path.addAll(aPath);
+
+  Map aYamlSwagger = getOpenApiSpec(
+    servers,
+    path,
+    cmp,
+    'apis/detail?id=${currentCompany.listAPI!.selectedAttr!.info.masterID!}&ns=${currentCompany.currentNameSpace}',
+  );
+
+  var swag = json2yaml(
+    toStringKeyMap(aYamlSwagger),
+    yamlStyle: YamlStyle.pubspecYaml,
+  );
+  return (swagger: swag, yamlSwagger: aYamlSwagger, path: path);
+}
 
 Map getOpenApiSpec(dynamic servers, dynamic path, dynamic cmp, String surl) {
   String title =

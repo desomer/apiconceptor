@@ -68,9 +68,9 @@ class _PanApiEditorState extends State<PanApiEditor>
     currentCompany.listAPI!.selectedAttr = attr;
     requestHelper = WidgetAPIHelper(
       apiNodeForCalculatePath: currentCompany.listAPI!.selectedAttr!,
-      apiCallInfo: _getAPICall(
+      apiCallInfo: getAPICall(
         currentCompany.currentNameSpace,
-        currentCompany.listAPI!.selectedAttr!,
+        currentCompany.listAPI!.selectedAttr!.info,
       ),
     );
 
@@ -84,28 +84,10 @@ class _PanApiEditorState extends State<PanApiEditor>
           repaintManager.doRepaint(ChangeTag.apiparam);
           //}
           if (tab.index == 3) {
-            var cmp = {'schemas': {}};
-            var path = {};
-            var servers = [];
+            final swagger = await getSwaggerFromApiCallInfo(requestHelper);
 
-            Map aPath = await requestHelper.apiCallInfo.generateSwagger(
-              servers,
-              cmp,
-            );
-
-            path.addAll(aPath);
-
-            yamlSwagger = getOpenApiSpec(
-              servers,
-              path,
-              cmp,
-              'apis/detail?id=${currentCompany.listAPI!.selectedAttr!.info.masterID!}&ns=${currentCompany.currentNameSpace}',
-            );
-
-            modelSwagger.value = json2yaml(
-              toStringKeyMap(yamlSwagger),
-              yamlStyle: YamlStyle.pubspecYaml,
-            );
+            yamlSwagger = swagger.yamlSwagger;
+            modelSwagger.value = swagger.swagger;
           }
         });
       },
@@ -443,15 +425,15 @@ YourExample : example
     );
   }
 
-  APICallManager _getAPICall(String namespace, NodeAttribut attr) {
-    String httpOpe = attr.info.name.toLowerCase();
-    var apiCallInfo = APICallManager(
-      namespace: namespace,
-      attrApi: attr.info,
-      httpOperation: httpOpe,
-    );
-    return apiCallInfo;
-  }
+  // APICallManager _getAPICall(String namespace, NodeAttribut attr) {
+  //   String httpOpe = attr.info.name.toLowerCase();
+  //   var apiCallInfo = APICallManager(
+  //     namespace: namespace,
+  //     attrApi: attr.info,
+  //     httpOperation: httpOpe,
+  //   );
+  //   return apiCallInfo;
+  // }
 
   Widget _getDefinitionApiTab() {
     return WidgetTab(

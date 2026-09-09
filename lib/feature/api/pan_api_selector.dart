@@ -242,9 +242,9 @@ class PanAPISelector extends PanYamlTree {
   ) async {
     currentCompany.listAPI!.selectedAttr =
         currentCompany.listAPI!.nodeByMasterId[value.masterID]!.first;
-    var getAPICall = _getAPICall(currentCompany.listAPI!.namespace!, value);
+    var aGetAPICall = getAPICall(currentCompany.listAPI!.namespace!, value);
 
-    Map aPath = await getAPICall.generateSwagger(servers, cmp);
+    Map aPath = await aGetAPICall.generateSwagger(servers, cmp);
     for (var key in aPath.keys) {
       if (path[key] == null) {
         path[key] = aPath[key];
@@ -253,16 +253,16 @@ class PanAPISelector extends PanYamlTree {
         (path[key] as Map).addAll(aPath[key]);
       }
     }
-    return getAPICall;
+    return aGetAPICall;
   }
 
-  APICallManager _getAPICall(String namespace, AttributInfo attr) {
-    String httpOpe = attr.name.toLowerCase();
-    var apiCallInfo = APICallManager(
-      namespace: namespace,
-      attrApi: attr,
-      httpOperation: httpOpe,
-    );
-    return apiCallInfo;
-  }
+  // APICallManager _getAPICall(String namespace, AttributInfo attr) {
+  //   String httpOpe = attr.name.toLowerCase();
+  //   var apiCallInfo = APICallManager(
+  //     namespace: namespace,
+  //     attrApi: attr,
+  //     httpOperation: httpOpe,
+  //   );
+  //   return apiCallInfo;
+  // }
 }
