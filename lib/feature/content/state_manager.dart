@@ -167,7 +167,7 @@ class StateManager {
     }
   }
 
-  void _initInputControleur(dynamic parent, String pathData, var json, int antiLoop) {
+  void _initInputControleur(dynamic parent, String pathData, String json, int antiLoop) {
     if (antiLoop > 3) {
       //print("********** no visible pathData: $pathData $antiLoop");
       return;

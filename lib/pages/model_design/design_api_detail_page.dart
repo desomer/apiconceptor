@@ -36,7 +36,7 @@ List<BreadNode> getLeftNavApi(String query) {
     ),
     BreadNode(
       icon: const Icon(Icons.smart_toy),
-      settings: const RouteSettings(name: 'Prompt AI'),
+      settings: const RouteSettings(name: 'AI agent spec'),
       type: BreadNodeType.widget,
       path: Pages.apiPromptAI.id(query),
     ),
@@ -91,6 +91,4 @@ class CallAPIPageDetail extends GenericPageStateless {
   }
 }
 
-
-  //  return NavigationInfo()..breadcrumbs = goTo.getBreadcrumbApi(query);
-  
+//  return NavigationInfo()..breadcrumbs = goTo.getBreadcrumbApi(query);

@@ -20,6 +20,7 @@ import 'package:jsonschema/pages/apm/apm_prompt.dart';
 import 'package:jsonschema/pages/apm/app_flow_editor_page.dart';
 import 'package:jsonschema/pages/apm/app_flow_page.dart';
 import 'package:jsonschema/pages/apps/apps_list_page.dart';
+import 'package:jsonschema/pages/config/skills_page.dart';
 import 'package:jsonschema/pages/content/content_map_engine_yaml.dart';
 import 'package:jsonschema/pages/content/content_map_page.dart';
 import 'package:jsonschema/pages/datasource/data_sources_data_viewer.dart';
@@ -118,7 +119,8 @@ enum Pages {
   pageDebug("/pages/debug"),
 
   apiPromptAI("/apis/promptAI"),
-  modelPromptAI("/models/promptAI");
+  modelPromptAI("/models/promptAI"),
+  skills("/skills");
 
   const Pages(this.urlpath);
   final String urlpath;
@@ -488,6 +490,7 @@ final GoRouter router = GoRouter(
         addRouteBy(Pages.apiUI, CallAPIPageDetailUI()),
         addRouteBy(Pages.apiScrum, DesignApiDetailScrumPage()),
         addRouteBy(Pages.apiPromptAI, DesignApiPromptPage()),
+        addRouteBy(Pages.skills, const SkillsPage()),
         //----------------------------------------------------------------
         addRoute(
           GoRoute(path: Pages.asyncApi.urlpath, pageBuilder: getPageAnim),

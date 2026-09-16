@@ -30,8 +30,11 @@ class HomePage extends GenericPageStateless {
                 children: [
                   // getExpansible("Get started", getMenuStarted(context)),
                   // SizedBox(height: 30),
-                  getExpansible("For tech designer", getMenuDesigner(context)),
-                  getExpansible("For urban planner & architect", getMenuArchitect(context)),
+                  getExpansible("For backend designer", getMenuDesigner(context)),
+                  getExpansible(
+                    "For urban planner & architect",
+                    getMenuArchitect(context),
+                  ),
                   getExpansible("For developer", getMenuDevelopper(context)),
                   getExpansible(
                     "For content manager & app designer",
@@ -154,9 +157,22 @@ class HomePage extends GenericPageStateless {
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['model'] = GlobalKey(),
-            label: 'Design Models',
+            label: 'Design Models & Contracts',
             icon: Icons.data_object,
             route: Pages.models,
+          ),
+          WidgetMenuBtn(
+            key: showCaseInfo.keys['api'] = GlobalKey(),
+            label: 
+'''Design API & 
+MCP''',
+            icon: Icons.api,
+            route: Pages.api,
+          ),
+          WidgetMenuBtn(
+            label: 'Mapping Spec.',
+            icon: Icons.map,
+            route: Pages.mapData,
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['usecase'] = GlobalKey(),
@@ -165,14 +181,8 @@ class HomePage extends GenericPageStateless {
             //route: Pages.asyncApi,
           ),
           WidgetMenuBtn(
-            key: showCaseInfo.keys['api'] = GlobalKey(),
-            label: 'Design API & MCP',
-            icon: Icons.api,
-            route: Pages.api,
-          ),
-          WidgetMenuBtn(
             key: showCaseInfo.keys['infra'] = GlobalKey(),
-            label: 'Design Infrastructure',
+            label: 'Design infra. adapters',
             icon: Icons.message_outlined,
             route: Pages.asyncApi,
           ),
@@ -245,11 +255,6 @@ class HomePage extends GenericPageStateless {
             label: 'Browse content',
             icon: Icons.content_paste_search,
           ),
-          WidgetMenuBtn(
-            label: 'Map content',
-            icon: Icons.map,
-            route: Pages.mapData,
-          ),
         ],
       ),
     );
@@ -314,7 +319,11 @@ class HomePage extends GenericPageStateless {
             icon: Icons.domain,
             route: Pages.domain,
           ),
-          WidgetMenuBtn(label: 'Manage prompt', icon: Icons.settings),
+          WidgetMenuBtn(
+            label: 'Manage spec. skills',
+            icon: Icons.settings,
+            route: Pages.skills,
+          ),
           WidgetMenuBtn(label: 'Naming rules', icon: Icons.settings),
           WidgetMenuBtn(
             label: 'Environnements',

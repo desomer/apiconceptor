@@ -1,3 +1,38 @@
+String promptPathAPI = '''
+Tu es un expert en modélisation d'API REST a la norme juheapi. 
+donne moi les routes API REST. 
+
+voici le contexte et contraintes de modélisation de ce sous-domaine nommée "{{domain}}" :
+{{text}}
+
+voici les contraintes de sortie à respecter pour la modélisation des routes API REST :
+- le format de sortie doit être un tableau d'objets JSON
+- chaque objet JSON doit contenir les champs suivants : 
+   usage : a quoi sert la route API REST 
+   description : description de la route API REST
+   path : chemin de la route API avec subdomain et version (ex: {{domain}}/v1/<model>/{id}) 
+   tag : tag de la route API REST 
+   method : méthode HTTP de la route API REST (GET, POST, PUT, DELETE, PATCH)
+   request usage : description de l'utilisation de la requête
+   request :
+      - path : chemin de la requête 
+          description : description du paramètre de la requête
+          name : nom du paramètre de la requête (ex: id)
+          type : type du paramètre de la requête (ex: string, integer)
+          example : exemple de la valeur du paramètre de la requête
+      - query : paramètres de la requête (ex: ?name=John&age=30)
+          description : description du paramètre de la requête
+          name : nom du paramètre de la requête (ex: name)
+          type : type du paramètre de la requête (ex: string, integer)
+          example : exemple de la valeur du paramètre de la requête
+   responses usage : description de l'utilisation de la réponse      
+
+Sortie attendue :
+   - format de sortie de type json 
+   - sortie le json uniquement (pas de blabla, pas d'explication, pas de texte, pas de code block)
+''';
+
+
 String promptInterface = '''
 # Contexte techniques :  
 Tu es un expert en architecture Hexagonale, DDD, CQRS et Clean Architecture.

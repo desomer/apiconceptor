@@ -1,9 +1,15 @@
+import 'package:jsonschema/prompts/prompt_header.dart';
+
 String promptPersistence = '''
+---
+$promptHeader
+---
+
 # Contexte techniques :  
 Tu es un expert en architecture hexagonale, NestJS et MongoDB.
 Ajoute ou modifie la couche **Infrastructure → Persistence (MongoDB)** <{{module}}> suivant cette spécification :
 
-{{definition du domaine}}
+{{spec}}
 
 ## Contexte de code source :
 - Le domaine est déjà défini.

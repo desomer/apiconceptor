@@ -6,14 +6,18 @@ import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:jsonschema/core/ia/call_gemini.dart';
 import 'package:jsonschema/core/json_browser.dart';
+import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/core/model_schema.dart';
 import 'package:jsonschema/core/yaml_browser.dart';
+import 'package:jsonschema/feature/context_ia/pan_context_ia.dart';
+import 'package:jsonschema/feature/documentation/documentation_options.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
 import 'package:jsonschema/widget/login/background_screen_login.dart';
 import 'package:jsonschema/widget/login/heading_text.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
+import 'package:jsonschema/widget/tree_editor/tree_view.dart';
 import 'package:jsonschema/widget/widget_tooltip.dart';
 import 'package:jsonschema/widget/widget_dialog_card.dart';
 
@@ -515,7 +519,7 @@ mixin class WidgetHelper {
     final dialogContext = await dialogContextCompleter.future;
 
     try {
-      final response = await callGemini(prompt, /*cancelToken: cancelToken*/);
+      final response = await callGemini(prompt /*cancelToken: cancelToken*/);
       // retire le ```json  si present
       final cleanedResponse = response
           .replaceAll(RegExp(r'```json'), '')
@@ -670,7 +674,85 @@ mixin class WidgetHelper {
     return dialogFuture;
   }
 
-  void doShowContextDialog(ModelAccessorAttr ma, BuildContext context) {
+  void insertTextAtCursor(
+    TextEditingController controller,
+    String textToInsert,
+  ) {
+    final TextEditingValue value = controller.value;
+    final TextSelection selection = value.selection;
+
+    final int start = selection.isValid ? selection.start : value.text.length;
+    final int end = selection.isValid ? selection.end : value.text.length;
+
+    final String newText = value.text.replaceRange(start, end, textToInsert);
+
+    controller.value = value.copyWith(
+      text: newText,
+      selection: TextSelection.collapsed(offset: start + textToInsert.length),
+      composing: TextRange.empty,
+    );
+  }
+
+  void doShowContextDialogForPrompt(
+    BuildContext context,
+    Function(String) onContextSet,
+  ) {
+    double width = MediaQuery.of(context).size.width * 0.8;
+    double height = MediaQuery.of(context).size.height * 0.8;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        var panContextIa = PanContextIa();
+
+        return AlertDialog(
+          title: const Text('Set context for Gemini'),
+          content: SizedBox(width: width, height: height, child: panContextIa),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Set'),
+              onPressed: () async {
+                var handler = panContextIa.panModelSelector!.getHandler();
+                Set<TreeNodeData<NodeAttribut>> node = handler
+                    .getSelectedNode();
+
+                StringBuffer sb = StringBuffer();
+
+                for (var n in node) {
+                  var masterID = n.data.info.getMasterID();
+                  var aModel = await currentCompany.getModelByMasterId(
+                    currentCompany.currentNameSpace,
+                    masterID,
+                  );
+                  if (aModel != null) {
+                    BrowseSingle(config: BrowserConfig()).browse(aModel, false);
+                    var mdOther = DocumentationGenerator(
+                      model: aModel,
+                      config: DocumentationConfig()..withoutExample(),
+                    ).getModelDocumentation("");
+
+                    sb.writeln('''<spec-file name="${aModel.headerName}">
+$mdOther 
+</spec-file>''');
+                  }
+                }
+                onContextSet(sb.toString());
+                // ignore: use_build_context_synchronously
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void showContextDialogForAttr(ModelAccessorAttr ma, BuildContext context) {
     // Implement the logic to show the context dialog here
 
     var width = MediaQuery.of(context).size.width * 0.8;

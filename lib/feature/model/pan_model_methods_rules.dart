@@ -309,7 +309,7 @@ class InfoManagerBehaviors extends InfoManager with WidgetHelper {
     row.add(
       ElevatedButton(
         onPressed: () {
-          doShowContextDialog(ma, context);
+          showContextDialogForAttr(ma, context);
         },
         child: Text('Context'),
       ),

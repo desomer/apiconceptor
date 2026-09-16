@@ -362,7 +362,7 @@ class InfoManagerBehaviors extends InfoManager with WidgetHelper {
             schema: schema,
             propName: '#context',
           );
-          doShowContextDialog(ma, context);
+          showContextDialogForAttr(ma, context);
         },
         child: Text('Features Context'),
       ),

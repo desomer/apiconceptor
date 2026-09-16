@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:highlight/languages/json.dart' show json;
 import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
@@ -14,6 +15,7 @@ import 'package:jsonschema/core/json_browser/import/json2schema_yaml.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
+import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 import 'package:jsonschema/widget/widget_md_doc.dart';
@@ -22,9 +24,11 @@ import '../../core/json_browser/import/swagger2prop.dart';
 
 // ignore: must_be_immutable
 class PanModelImportDialog extends StatelessWidget with WidgetHelper {
-  PanModelImportDialog({super.key, required this.yamlEditorConfig});
+  PanModelImportDialog({super.key, required this.panYamlTree});
 
-  final CodeEditorConfig yamlEditorConfig;
+  PanYamlTree panYamlTree;
+
+  // final CodeEditorConfig yamlEditorConfig;
   var promptIAtextEditingController = TextEditingController();
 
   late TabController tabImport;
@@ -88,11 +92,11 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
                 Navigator.of(context).pop();
               }
             } else if (tabImport.index == 1) {
+              Navigator.of(context).pop();
               fromJson(import.doImportJSON().yaml.toString(), info);
-              Navigator.of(context).pop();
             } else if (tabImport.index == 2) {
-              fromJsonSchema(info);
               Navigator.of(context).pop();
+              fromJsonSchema(info);
             }
           },
         ),
@@ -105,7 +109,9 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
     Map<String, String> info, {
     List<JsonSchemaPath>? propByPath,
   }) async {
-    var modelSchemaDetail = currentCompany.listModel!;
+    var modelSchemaDetail = panYamlTree.getSchema();
+    CodeEditorConfig yamlEditorConfig = panYamlTree.getYamlConfig();
+
     await modelSchemaDetail.prepareChange();
 
     YamlDoc docYaml = YamlDoc();
@@ -125,54 +131,56 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
     docYaml.addChild(domain, nameKey, 'model');
     var newYaml = docYaml.getDoc();
     modelSchemaDetail.modelYaml = newYaml;
+
     await modelSchemaDetail.saveYaml(yamlEditorConfig, true, 'norepaint');
     await bddStorage.doStoreSync();
 
-    //SchedulerBinding.instance.addPostFrameCallback((_) async {
+
     await BrowseSingle(
       config: BrowserConfig(),
     ).browseSync(modelSchemaDetail, false, 0);
     await bddStorage.doStoreSync();
 
     // save du json du model
-    var newModel =
+    var newModelAttr =
         modelSchemaDetail.mapInfoByJsonPath['root>$domainKey>$nameKey'];
-    var id = newModel!.masterID!;
+    var id = newModelAttr!.masterID!;
     var aPropByPath = propByPath?.first;
-    newModel.properties ??= {};
-    newModel.properties!.addAll(aPropByPath?.properties ?? {});
-    var node = modelSchemaDetail.getNodeFromAttributInfo(newModel);
+    newModelAttr.properties ??= {};
+    newModelAttr.properties!.addAll(aPropByPath?.properties ?? {});
+    var node = modelSchemaDetail.getNodeFromAttributInfo(newModelAttr);
     node?.info.action = 'U';
     await modelSchemaDetail.saveProperties();
     await bddStorage.doStoreSync();
-    //node?.repaint();
+
+    yamlEditorConfig = panYamlTree.getYamlConfig();
     await modelSchemaDetail.saveYaml(yamlEditorConfig, true, 'import');
 
-    var aModel = ModelSchema(
+    var aNewModel = ModelSchema(
       category: Category.model,
       infoManager: InfoManagerModel(typeMD: TypeMD.model),
       headerName: nameKey,
       id: id,
       refDomain: currentCompany.listModel,
     );
-    aModel.modelYaml = yaml;
-    await aModel.saveYaml(null, true, 'norepaint');
+    aNewModel.modelYaml = yaml;
+    await aNewModel.saveYaml(null, true, 'norepaint');
 
     if (propByPath != null) {
       // SchedulerBinding.instance.addPostFrameCallback((_) async {
       await bddStorage.doStoreSync();
-      await BrowseSingle(config: BrowserConfig()).browseSync(aModel, false, 0);
+      await BrowseSingle(config: BrowserConfig()).browseSync(aNewModel, false, 0);
       for (var aPropByPath in propByPath) {
         if (aPropByPath.properties.isNotEmpty) {
           String pathJson = aPropByPath.pathJson;
           if (pathJson == '<root>') {
             continue;
           }
-          var p = aModel.mapInfoByJsonPath[pathJson];
+          var p = aNewModel.mapInfoByJsonPath[pathJson];
           p?.properties ??= {};
           p?.properties!.addAll(aPropByPath.properties);
           if (p != null) {
-            var node = aModel.getNodeFromAttributInfo(p);
+            var node = aNewModel.getNodeFromAttributInfo(p);
             node?.info.action = 'U';
             //node?.repaint();
           }
@@ -181,20 +189,24 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
 
       if (info['context'] != null) {
         // save du context dans le model
-        var contextNode = aModel.getExtendedNode(cstDoc);
+        var contextNode = aNewModel.getExtendedNode(cstDoc);
         var accessContext = ModelAccessorAttr(
           node: contextNode,
-          schema: aModel,
+          schema: aNewModel,
           propName: cstDoc,
         );
         accessContext.set(info['context']!, withHistory: false);
       }
 
-      if (aModel.autoSaveProperties) {
-        await aModel.saveProperties();
+      if (aNewModel.autoSaveProperties) {
+        await aNewModel.saveProperties();
         await bddStorage.doStoreSync();
       }
-      //});
+
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        panYamlTree.reload();
+        panYamlTree.repaint();
+      });
     }
     //});
   }
@@ -274,11 +286,30 @@ Génère moi un objet métier :
 <REMPLIR LES CAS D'UTILISATION A NE PAS GERER ICI>
 ''';
 
-    return MarkDownEditor(
-      editorOnly: true,
-      controller: promptIAtextEditingController,
-      focusNode: FocusNode(),
-      context: context,
+    var addModelsContextButton = ElevatedButton(
+      onPressed: () async {
+        doShowContextDialogForPrompt(context, (contextText) {
+          insertTextAtCursor(promptIAtextEditingController, '''
+voici les modèles de données externes à utiliser pour t'aider dans la modélisation:
+${contextText.toString()}
+''');
+        });
+      },
+      child: const Text('Add models context'),
+    );
+
+    return Column(
+      children: [
+        Row(children: [addModelsContextButton]),
+        Expanded(
+          child: MarkDownEditor(
+            editorOnly: true,
+            controller: promptIAtextEditingController,
+            focusNode: FocusNode(),
+            context: context,
+          ),
+        ),
+      ],
     );
   }
 
@@ -308,12 +339,13 @@ Génère moi un objet métier :
         .replaceAll('{{modelname}}', info['model name']!)
         .replaceAll('{{subdomain}}', info['subdomain']!)
         .replaceAll('{{contraints}}', text);
-    
- 
+
     void doIAResponse(String response) {
       jsonschema = response;
       info['context'] = text;
-      fromJsonSchema(info);
+      Future.delayed(Duration.zero, () {
+        fromJsonSchema(info);
+      });
     }
 
     return await doCallIA(context, textWithContext, doIAResponse);

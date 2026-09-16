@@ -1,10 +1,36 @@
 
+
+import 'package:jsonschema/prompts/prompt_header.dart';
+
+var headerModel = '''
+identifiers:
+  primary:
+    - customerId
+  alternate:
+    - email
+  external:
+    - crmCustomerId
+
+contracts:
+   schema: schemas/customer.schema.json
+
+relations:
+  - type: hasMany
+    target: Order
+  - type: belongsTo
+    target: Company
+''';
+
 String promptModel = '''
+---
+$promptHeader
+---
+
 # Contexte techniques :  
 Tu es un expert en architecture hexagonale et en DDD.  
 Ajoute ou modifie la couche **Domaine** pour le module <{{module}}> suivant cette spécification :
 
-{{definition du domaine}}
+{{spec}}
 
 # Contraintes techniques :
 - Aucun décorateur NestJS.

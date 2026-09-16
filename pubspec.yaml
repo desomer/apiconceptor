@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.1+1
 
 environment:
-  sdk: ^3.11.5
+  sdk: ^3.13.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -28,6 +28,8 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  #quickjs: ^1.0.0
+  uuid: any
   flutter_code_editor: ^0.3.3
   #animated_tree_view: ^2.3.0
   #uuid: ^4.5.1
@@ -64,7 +66,8 @@ dependencies:
   path_provider: ^2.1.5   #pour les export en csv et excel sur desktop
   go_router: ^18.0.0
   #tabbed_view: ^2.0.0
-  #flutter_js: ^0.8.5
+  flutter_js: ^0.8.5
+  #quickjs_engine: ^0.1.5
   #dart_eval: ^0.8.1
   jmespath: ^2.0.1
   event_listener: ^0.2.0
@@ -84,7 +87,7 @@ dependencies:
   json2yaml: ^3.0.1
   timezone: ^0.11.0
   web: ^1.1.1
-  flutter_js: ^0.8.7
+  #flutter_js: ^0.8.7
   archive: ^4.0.9
   intl: ^0.20.2
   collection: ^1.19.1
@@ -101,7 +104,6 @@ dependencies:
 
   flutter_localizations:
     sdk: flutter
-
 
 dev_dependencies:
   flutter_test:
@@ -154,6 +156,12 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: fonts/Roboto-Variable.ttf
+        - asset: fonts/Roboto-Italic-Variable.ttf
+          style: italic
 
 
 msix_config:

@@ -65,11 +65,11 @@ class DesignModelUIPage extends GenericPageStateless {
           type: BreadNodeType.widget,
           path: Pages.modelScrum.urlpath,
         ),
-        
+
         BreadNode(
           // icon IA
           icon: const Icon(Icons.smart_toy),
-          settings: const RouteSettings(name: 'Prompt AI'),
+          settings: const RouteSettings(name: 'AI agent spec'),
           type: BreadNodeType.widget,
           path: Pages.modelPromptAI.urlpath,
         ),

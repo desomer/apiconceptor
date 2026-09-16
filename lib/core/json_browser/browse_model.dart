@@ -229,10 +229,17 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
                     maxLines: 1,
                     style: TextStyle(fontSize: 14),
                     onTap: () {
-                      if (attr.type != 'folder') {
+                      if (attr.type != 'folder' &&
+                          (editor?.actionRowOnTapDetail ?? false) == false) {
+                        // pas de selection si actionRowOnTapDetail est true
                         var key = attr.properties![constMasterID];
                         // ignore: use_build_context_synchronously
                         RouteManager.goto(Pages.modelDetail.id(key), context);
+                      }
+                      if (editor?.actionRowOnTapDetail ?? false) {
+                        // pour gérer l'action sur la ligne du tableau lorsque actionRowOnTapDetail est true  
+                        // le cas des PanModelSelector
+                        currentYamlTree?.onActionRow(node, context);
                       }
                     },
                   ),
@@ -303,9 +310,9 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
       case 'xresponsedto':
         return Colors.indigo;
       case 'xlistitemdto':
-        return Colors.limeAccent;
+        return Colors.deepPurple;
       case 'xquerydto':
-        return Colors.lime;
+        return Colors.deepPurple;
       case 'eventxpayloaddto':
         return Colors.indigo;
       case 'eventxenvelopedto':
@@ -746,7 +753,10 @@ class InfoManagerModel extends InfoManager with WidgetHelper {
 
   Widget _getWidgetType(NodeAttribut attr, bool isRoot, BuildContext context) {
     if (isRoot) {
-      return Text('${modelSchema?.useAttributInfo.length} properties', style: const TextStyle(fontSize: 14));
+      return Text(
+        '${modelSchema?.useAttributInfo.length} properties',
+        style: const TextStyle(fontSize: 14),
+      );
     }
 
     bool hasError = attr.info.error?[EnumErrorType.errorRef] != null;

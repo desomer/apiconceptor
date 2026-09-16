@@ -186,20 +186,25 @@ class Export2FakeJson<T extends Map<String, dynamic>>
       var vString = enumer[faker.randomGenerator.integer(enumer.length)];
       return getValueTyped(type, vString);
     }
+
+    var pattern = node.info.properties?['pattern'];
+    var format = node.info.properties!['format'];
+
     if (node.info.properties?['example'] != null) {
-      List<String> enumer = node.info.properties!['example'].toString().split(
-        '\n',
-      );
-      var vString = enumer[faker.randomGenerator.integer(enumer.length)];
-      return getValueTyped(type, vString);
+      if (pattern == null && format == null && type == 'string') {
+        //on mets l'example que si pas de regex ni de format
+        List<String> enumer = node.info.properties!['example'].toString().split(
+          '\n',
+        );
+        var vString = enumer[faker.randomGenerator.integer(enumer.length)];
+        return getValueTyped(type, vString);
+      }
     }
 
     if (mode == ModeEnum.empty) {
       return getValueTyped(type, '');
     }
 
-    var pattern = node.info.properties?['pattern'];
-    var format = node.info.properties!['format'];
     switch (format) {
       case 'date':
         pattern ??=
@@ -243,11 +248,53 @@ class Export2FakeJson<T extends Map<String, dynamic>>
     }
 
     var lowerCase = name.toLowerCase();
+    double? multipleOf = double.tryParse(
+      node.info.properties?['multipleOf']?.toString() ?? '',
+    );
+    num? min = node.info.properties?['minimum'];
+    num? max = node.info.properties?['maximum'];
 
     if (type == "integer") {
-      return faker.randomGenerator.integer(100);
+      if (multipleOf != null && multipleOf > 0 && multipleOf % 1 == 0) {
+        final int step = multipleOf.toInt();
+        final int minValue = min?.ceil() ?? 0;
+        final int maxValue = max?.floor() ?? 100;
+        final int firstMultiple = (minValue / step).ceil();
+        final int lastMultiple = (maxValue / step).floor();
+        if (firstMultiple <= lastMultiple) {
+          return step *
+              faker.randomGenerator.integer(lastMultiple, min: firstMultiple);
+        }
+      }
+      return faker.randomGenerator.integer(
+        min: min?.toInt() ?? 0,
+        max?.toInt() ?? 100,
+      );
     } else if (type == "number") {
-      return roundDouble(faker.randomGenerator.decimal(min: 0, scale: 100), 2);
+      if (multipleOf != null && multipleOf > 0) {
+        final int nbDecimal = multipleOf.toString().split('.').length > 1
+            ? multipleOf.toString().split('.')[1].length
+            : 0;
+
+        final double minValue = min?.toDouble() ?? 0;
+        final double maxValue = max?.toDouble() ?? 100;
+        final int firstMultiple = (minValue / multipleOf).ceil();
+        final int lastMultiple = (maxValue / multipleOf).floor();
+        if (firstMultiple <= lastMultiple) {
+          return roundDouble(
+            multipleOf *
+                faker.randomGenerator.integer(lastMultiple, min: firstMultiple),
+            nbDecimal,
+          );
+        }
+      }
+      return roundDouble(
+        faker.randomGenerator.decimal(
+          min: min?.toDouble() ?? 0,
+          scale: (max?.toDouble() ?? 100) - (min?.toDouble() ?? 0),
+        ),
+        2,
+      );
     } else if (type == "boolean") {
       return faker.randomGenerator.boolean();
     } else {
@@ -386,4 +433,8 @@ class Export2FakeJson<T extends Map<String, dynamic>>
 
     return NodeJson(name: name, value: null)..add = false;
   }
+}
+
+class Test(final String name) {
+
 }

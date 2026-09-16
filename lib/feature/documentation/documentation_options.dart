@@ -30,7 +30,7 @@ class DocumentationGenerator {
 
   DocumentationGenerator({required this.config, this.model});
 
-  String getAPIDocumentation(final WidgetAPIHelper? requestHelper) {
+  String getAPIDocumentation(WidgetAPIHelper? requestHelper) {
     refDisplayed.clear();
     var apiCallInfo = requestHelper!.apiCallInfo;
     Export2JsonSchema? exportSchema;

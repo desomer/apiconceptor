@@ -857,6 +857,18 @@ class _AttributPropertiesState extends State<AttributProperties> {
             ),
             inArray: false,
           ),
+          CellCheckEditor(
+            key: ValueKey(
+              'search_references#${info.hashCode}@${info.info.numUpdateForKey}',
+            ),
+            acces: ModelAccessorAttr(
+              node: info,
+              schema: model,
+              propName: 'search_references',
+            ),
+            inArray: false,
+          ),
+
           CellEditor(
             key: ValueKey(
               'comment#${info.hashCode}@${info.info.numUpdateForKey}',

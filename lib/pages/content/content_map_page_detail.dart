@@ -35,6 +35,15 @@ class MappingInfo {
       "transforms": transforms,
     };
   }
+
+  Map getIAJson() {
+    return {
+      'id': shortid.generate(),
+      "source": pathSrc?.info.getJsonPath(withRoot: false),
+      "target": pathDest?.info.getJsonPath(withRoot: false),
+      "transforms": transforms,
+    };
+  }
 }
 
 class ContentMapDetailPage extends GenericPageStateless {
@@ -56,14 +65,14 @@ class ContentMapDetailPage extends GenericPageStateless {
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.api_outlined),
-          settings: const RouteSettings(name: 'Map Spec.'),
+          settings: const RouteSettings(name: 'Spec.'),
           type: BreadNodeType.widget,
           path: Pages.mapDataDetail.urlpath,
         ),
 
         BreadNode(
-          icon: const Icon(Icons.engineering),
-          settings: const RouteSettings(name: 'Yaml'),
+          icon: const Icon(Icons.smart_toy),
+          settings: const RouteSettings(name: 'AI agent spec.'),
           type: BreadNodeType.widget,
           path: Pages.mapDataYaml.urlpath,
         ),
@@ -137,7 +146,7 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
   @override
   Widget build(BuildContext context) {
     if (config.currentDestModel == null) {
-      config.currentSrcModel = currentCompany.currentModel;
+      config.currentSrcModel ??= currentCompany.currentModel;
     } else {
       config.currentDestModel ??= currentCompany.currentModel;
     }
@@ -152,8 +161,9 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
         config.currentDestModel != null) {
       config.listMapping.clear();
       for (var field in config.saveData!['fields']) {
-        NodeAttribut pathSrc =
-            config.currentSrcModel!.getNodeByMasterIdPath(field['source'])!;
+        NodeAttribut pathSrc = config.currentSrcModel!.getNodeByMasterIdPath(
+          field['source'],
+        )!;
         NodeAttribut? pathDest = config.currentDestModel!.getNodeByMasterIdPath(
           field['target'],
         );
@@ -225,18 +235,22 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
                   child: WidgetHeader(
                     title: 'Seed model',
                     modelWidget: srcWidget,
+                    onChange: () {
+                      setState(() {
+                        doCleanAll(keyDerivedMapping, keyMapping);
+                      });
+                    },
                   ),
                 ),
                 Expanded(
-                  child:
-                      config.currentSrcModel == null
-                          ? Center(
-                            child: ElevatedButton(
-                              onPressed: () => selectModel(context, true),
-                              child: Text('select source model'),
-                            ),
-                          )
-                          : srcWidget,
+                  child: config.currentSrcModel == null
+                      ? Center(
+                          child: ElevatedButton(
+                            onPressed: () => selectModel(context, true),
+                            child: Text('select source model'),
+                          ),
+                        )
+                      : srcWidget,
                 ),
               ],
             ),
@@ -256,18 +270,22 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
                   child: WidgetHeader(
                     title: 'Destination model',
                     modelWidget: destWidget,
+                    onChange: () {
+                      setState(() {
+                        doCleanAll(keyDerivedMapping, keyMapping);
+                      });
+                    },
                   ),
                 ),
                 Expanded(
-                  child:
-                      config.currentDestModel == null
-                          ? Center(
-                            child: ElevatedButton(
-                              onPressed: () => selectModel(context, false),
-                              child: Text('select destination model'),
-                            ),
-                          )
-                          : destWidget,
+                  child: config.currentDestModel == null
+                      ? Center(
+                          child: ElevatedButton(
+                            onPressed: () => selectModel(context, false),
+                            child: Text('select destination model'),
+                          ),
+                        )
+                      : destWidget,
                 ),
               ],
             ),
@@ -277,12 +295,25 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
     );
   }
 
+  void doCleanAll(
+    GlobalKey<WidgetDerivedFieldState> keyDerivedMapping,
+    GlobalKey<WidgetMappingState> keyMapping,
+  ) {
+    config.listMapping.clear();
+    config.listDerivedMapping.clear();
+    keyDerivedMapping.currentState?.valueListenable.value++;
+    keyMapping.currentState?.valueListenable.value++;
+    config.saveData = null;
+    config.currentDestModel = null;
+  }
+
   void selectModel(BuildContext context, bool isSrc) {
     BuildContext? aCtx;
 
     PanModelSelector panModelSelector = PanModelSelector(
       type: TypeModelSelector.dataMap,
       showCaseInfo: ShowCaseInfo(),
+      isEditable: false,
       onSelectModel: (ModelSchema schema, NodeAttribut attr) async {
         aCtx?.pop();
         var aModel = await currentCompany.getModelByMasterId(
@@ -310,9 +341,12 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
           namespace: currentCompany.currentNameSpace,
           config: BrowserConfig(),
         );
+        currentCompany.listModel!.isReadOnlyModel = true;
         return currentCompany.listModel!;
       },
     );
+
+    panModelSelector.actionRowOnTapDetail = true;
 
     double width = MediaQuery.of(context).size.width * 0.8;
     double height = MediaQuery.of(context).size.height * 0.8;
@@ -336,8 +370,9 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
   Future<void> executeMapping(PanDestSelector destWidget) async {
     Map<String, dynamic> engineConfig = {'fields': []};
     for (var field in config.saveData!['fields']) {
-      NodeAttribut pathSrc =
-          config.currentSrcModel!.getNodeByMasterIdPath(field['source'])!;
+      NodeAttribut pathSrc = config.currentSrcModel!.getNodeByMasterIdPath(
+        field['source'],
+      )!;
       NodeAttribut? pathDest = config.currentDestModel!.getNodeByMasterIdPath(
         field['target'],
       );
@@ -435,10 +470,12 @@ class WidgetHeader extends StatelessWidget {
     super.key,
     required this.modelWidget,
     required this.title,
+    required this.onChange,
   });
 
   final PanDestSelector modelWidget;
   final String title;
+  final Function onChange;
 
   @override
   Widget build(BuildContext context) {
@@ -461,6 +498,24 @@ class WidgetHeader extends StatelessWidget {
           child: Text('load fake'),
         ),
         Expanded(child: Center(child: Text(title))),
+        FilledButton.icon(
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(
+              EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            ),
+            minimumSize: WidgetStateProperty.all(Size.zero),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+          onPressed: () {
+            // modelWidget.initSchema();
+            // modelWidget.repaint();
+            onChange();
+          },
+          icon: Icon(Icons.delete),
+          label: Text('change'),
+        ),
+        SizedBox(width: 10),
       ],
     );
   }

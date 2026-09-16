@@ -16,8 +16,8 @@ class ApmPage extends GenericPageStateless {
       onInitController: (TabController tab) {},
       listTab: [
         Tab(text: 'Applications'),
-        Tab(text: 'Infrastructures'),
         Tab(text: 'Technologies'),
+        Tab(text: 'Infrastructures'),
       ],
       listTabCont: [
         PanAPMApplication(
@@ -28,10 +28,6 @@ class ApmPage extends GenericPageStateless {
             return currentCompany.currentAPM!;
           },
         ),
-        Container(
-          padding: const EdgeInsets.all(20),
-          child: const Text('Infrastructures', style: TextStyle(fontSize: 20)),
-        ),
         PanAPMTechnologie(
           getSchemaFct: () async {
             // currentCompany.glossaryManager.dico.clear();
@@ -40,9 +36,38 @@ class ApmPage extends GenericPageStateless {
             return currentCompany.currentTechno!;
           },
         ),
+        getInfraWidget(),
       ],
       heightTab: 40,
     );
+  }
+
+  Container getInfraWidget() {
+    return Container(
+        padding: const EdgeInsets.all(20),
+        child: const Text('''Infrastructures
+        Couche Infrastructure (Where ?)
+
+Elle décrit où les technologies sont hébergées.
+
+Exemples :
+
+VM VMware
+Serveurs physiques
+Clusters Kubernetes
+Azure AKS
+Réseau
+Load Balancer
+Firewall
+Stockage
+
+Questions :
+
+Où est déployé le composant ?
+Quelle disponibilité ?
+Quelle zone réseau ?
+Quel hébergement ?''', style: TextStyle(fontSize: 20)),
+      );
   }
 
   @override

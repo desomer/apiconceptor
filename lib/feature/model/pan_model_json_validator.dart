@@ -106,7 +106,7 @@ class _WidgetJsonValidatorState extends State<WidgetJsonValidator> {
         WidgetTab(
           listTab: [
             Tab(text: "Manage examples"),
-            Tab(text: "JSON Schema"),
+            Tab(text: "JSON Schema spec."),
           ],
           listTabCont: [_getExample(), _getJsonViewer()],
           heightTab: 30,

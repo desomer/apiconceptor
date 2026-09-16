@@ -1,4 +1,6 @@
 String promptIntegration = '''
+# Contexte techniques :  
+Tu es un expert TypeScript, NestJS.
 Intègre (ou met à jour) les couches Infrastructure MongoDB, Application (usecase) et Interface HTTP du module <{{MODULE}}> dans l’application NestJS existante.
 
 Contexte :

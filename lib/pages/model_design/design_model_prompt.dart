@@ -6,12 +6,10 @@ import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/feature/documentation/documentation_options.dart';
 import 'package:jsonschema/feature/model/pan_model_methods_rules.dart';
 import 'package:jsonschema/pages/apm/widget_prompt.dart';
-import 'package:jsonschema/prompts/prompt_integration.dart';
-import 'package:jsonschema/prompts/prompt_interface.dart';
+import 'package:jsonschema/prompts/prompt_header.dart';
 import 'package:jsonschema/prompts/prompt_model.dart';
 import 'package:jsonschema/prompts/prompt_persistence.dart';
 import 'package:jsonschema/prompts/prompt_test.dart';
-import 'package:jsonschema/prompts/prompt_usecase.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -24,41 +22,44 @@ class DesignModelPromptPage extends GenericPageStateless {
   DesignModelPromptPage({super.key});
   String query = '';
 
-  String getPromptTest(String md, String module) {
-    return promptTest
-        .replaceAll('{{definition du domaine}}', md)
-        .replaceAll('{{module}}', module);
+  String getPromptTest(String md, String module, HeaderSpec kind) {
+    return fillHeader(
+      promptTestDomain,
+      kind,
+    ).replaceAll('{{spec}}', md).replaceAll('{{module}}', module);
   }
 
-  String getPromptModel(String md, String module) {
-    return promptModel
-        .replaceAll('{{definition du domaine}}', md)
-        .replaceAll('{{module}}', module);
+  String getPromptModel(String md, String module, HeaderSpec kind) {
+    return fillHeader(
+      promptModel,
+      kind,
+    ).replaceAll('{{spec}}', md).replaceAll('{{module}}', module);
   }
 
-  String getPromptPersistance(String md, String module) {
-    return promptPersistence
-        .replaceAll('{{definition du domaine}}', md)
-        .replaceAll('{{module}}', module);
+  String getPromptPersistance(String md, String module, HeaderSpec kind) {
+    return fillHeader(
+      promptPersistence,
+      kind,
+    ).replaceAll('{{spec}}', md).replaceAll('{{module}}', module);
   }
 
-  String getPromptUseCase(String module, String aggregates) {
-    // remplace {{definition du domaine}} par le contenu de md
-    return promptUseCase
-        .replaceAll('{{module}}', module)
-        .replaceAll('{{aggregates}}', aggregates);
-  }
+  // String getPromptUseCase(String module, String aggregates) {
+  //   // remplace {{definition du domaine}} par le contenu de md
+  //   return promptUseCase
+  //       .replaceAll('{{module}}', module)
+  //       .replaceAll('{{aggregates}}', aggregates);
+  // }
 
-  String getPromptInterface(String module, String aggregates) {
-    // remplace {{definition du domaine}} par le contenu de md
-    return promptInterface
-        .replaceAll('{{module}}', module)
-        .replaceAll('{{aggregates}}', aggregates);
-  }
+  // String getPromptInterface(String module, String aggregates) {
+  //   // remplace {{definition du domaine}} par le contenu de md
+  //   return promptInterface
+  //       .replaceAll('{{module}}', module)
+  //       .replaceAll('{{aggregates}}', aggregates);
+  // }
 
-  String getPromptIntegration(String module) {
-    return promptIntegration.replaceAll('{{MODULE}}', module);
-  }
+  // String getPromptIntegration(String module) {
+  //   return promptIntegration.replaceAll('{{MODULE}}', module);
+  // }
 
   Future<Map<String, String>> initIAContext() async {
     var result = await loadBehaviour(
@@ -172,50 +173,131 @@ class DesignModelPromptPage extends GenericPageStateless {
     var aggregate =
         currentCompany.listModel!.selectedAttr?.info.name ?? 'aggregate';
 
+    var kind = currentCompany.listModel!.selectedAttr?.info.type ?? 'kind';
+    var title =
+        currentCompany.listModel!.selectedAttr?.info.properties?['title'] ??
+        'title';
+    var description =
+        currentCompany
+            .listModel!
+            .selectedAttr
+            ?.info
+            .properties?['description'] ??
+        'description';
+    var version =
+        currentCompany.listModel!.selectedAttr?.info.properties?['#version'] ??
+        '0.0.0';
+
     WidgetPrompt promptWidget = WidgetPrompt(
       listPrompt: [
         PromptItem(
           name: 'domain',
           isSelectable: true,
-          markdownBuild: getPromptModel(mdModel, module),
+          markdownBuild: getPromptModel(
+            mdModel,
+            module,
+            HeaderSpec(
+              kind: kind,
+              name: aggregate,
+              title: title,
+              domain: currentCompany.listDomain?.selectedAttr?.info.name ?? '?',
+              description: description,
+              created: DateTime.now().toIso8601String(),
+              updated: DateTime.now().toIso8601String(),
+              tags: '   - $kind',
+              version: version,
+              generationDomain: '''
+    domain: true
+    application: false
+    infrastructure: false
+    openapi: false
+    tests: false
+    documentation: true
+''',
+            ),
+          ),
           markdownKownledge: mdModel,
           fileName: 'domain-$module-$aggregate.md',
         ),
         PromptItem(
-          name: 'use case',
-          isSelectable: true,
-          markdownBuild: getPromptUseCase(module, aggregate),
-          markdownKownledge: '',
-          fileName: 'usecase-$module-$aggregate.md',
-        ),
-        PromptItem(
-          name: 'domain unit test',
-          isSelectable: true,
-          markdownBuild: getPromptTest(mdModel, module),
-          markdownKownledge: '',
-          fileName: 'domain_unit_test-$module-$aggregate.md',
-        ),
-        PromptItem(
           name: 'persistence',
           isSelectable: true,
-          markdownBuild: getPromptPersistance(mdPersistance, module),
+          markdownBuild: getPromptPersistance(
+            mdPersistance,
+            module,
+            HeaderSpec(
+              kind: 'entity',
+              name: aggregate,
+              title: title,
+              domain: currentCompany.listDomain?.selectedAttr?.info.name ?? '?',
+              description: description,
+              created: DateTime.now().toIso8601String(),
+              updated: DateTime.now().toIso8601String(),
+              version: version,
+              tags: '   - $kind',
+              generationDomain: '''
+    domain: false
+    application: false
+    infrastructure: true
+    openapi: false
+    tests: false
+    documentation: true
+''',
+            ),
+          ),
           markdownKownledge: mdPersistance,
           fileName: 'persistence-$module-$aggregate.md',
         ),
         PromptItem(
-          name: 'interface',
+          name: 'domain unit test',
           isSelectable: true,
-          markdownBuild: getPromptInterface(module, aggregate),
+          markdownBuild: getPromptTest(
+            mdModel,
+            module,
+            HeaderSpec(
+              kind: 'test',
+              name: aggregate,
+              title: title,
+              domain: currentCompany.listDomain?.selectedAttr?.info.name ?? '?',
+              description: description,
+              created: DateTime.now().toIso8601String(),
+              updated: DateTime.now().toIso8601String(),
+              tags: '   - test',
+              version: version,
+              generationDomain: '''
+    domain: false
+    application: false
+    infrastructure: false
+    openapi: false
+    tests: true
+    documentation: true
+''',
+            ),
+          ),
           markdownKownledge: '',
-          fileName: 'interface-$module-$aggregate.md',
+          fileName: 'domain_unit_test-$module-$aggregate.md',
         ),
-        PromptItem(
-          name: 'check integration',
-          isSelectable: true,
-          markdownBuild: getPromptIntegration(module),
-          markdownKownledge: '',
-          fileName: 'check-integration-$module.md',
-        ),
+        // PromptItem(
+        //   name: 'use case',
+        //   isSelectable: true,
+        //   markdownBuild: getPromptUseCase(module, aggregate),
+        //   markdownKownledge: '',
+        //   fileName: 'usecase-$module-$aggregate.md',
+        // ),
+        // PromptItem(
+        //   name: 'interface',
+        //   isSelectable: true,
+        //   markdownBuild: getPromptInterface(module, aggregate),
+        //   markdownKownledge: '',
+        //   fileName: 'interface-$module-$aggregate.md',
+        // ),
+        // PromptItem(
+        //   name: 'check integration',
+        //   isSelectable: true,
+        //   markdownBuild: getPromptIntegration(module),
+        //   markdownKownledge: '',
+        //   fileName: 'check-integration-$module.md',
+        // ),
       ],
     );
 
@@ -330,7 +412,7 @@ class DesignModelPromptPage extends GenericPageStateless {
         BreadNode(
           // icon IA
           icon: const Icon(Icons.smart_toy),
-          settings: const RouteSettings(name: 'Prompt AI'),
+          settings: const RouteSettings(name: 'AI agent spec'),
           type: BreadNodeType.widget,
           path: Pages.modelPromptAI.urlpath,
         ),

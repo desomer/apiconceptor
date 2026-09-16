@@ -21,7 +21,13 @@ class JsonSchemaParser {
     final Map<String, dynamic> schema = jsonDecode(jsonSchemaString);
     final List<JsonSchemaPath> results = [];
 
-    _walkSchema(schema, currentPath: "", collector: results);
+    _walkSchema(
+      name: "",
+      schema,
+      currentPath: "",
+      collector: results,
+      requiredFields: [],
+    );
 
     return results;
   }
@@ -68,6 +74,12 @@ class JsonSchemaParser {
       String listAsString = value.map((e) => e.toString()).join("\n");
       return listAsString;
     }
+    if (value.toString().toLowerCase() == 'true') {
+      return true;
+    }
+    if (value.toString().toLowerCase() == 'false') {
+      return false;
+    }
     return value;
   }
 
@@ -75,6 +87,8 @@ class JsonSchemaParser {
     Map<String, dynamic> node, {
     required String currentPath,
     required List<JsonSchemaPath> collector,
+    required List<String> requiredFields,
+    required String name,
   }) {
     final type = _schemaType(node["type"]);
 
@@ -83,6 +97,7 @@ class JsonSchemaParser {
         pathJson: currentPath.isEmpty ? "<root>" : "root>$currentPath",
         type: type,
         properties: {
+          if (requiredFields.contains(name)) "required": true,
           for (var key in listProperties) key: _getProperty(node, key),
         }..removeWhere((key, value) => value == null),
       ),
@@ -91,6 +106,7 @@ class JsonSchemaParser {
     // --- OBJECT ---
     if (type == "object" && node["properties"] is Map<String, dynamic>) {
       final props = node["properties"] as Map<String, dynamic>;
+      final requiredFields = List<String>.from(node['required'] ?? []);
 
       for (final entry in props.entries) {
         final newPath = currentPath.isEmpty
@@ -98,6 +114,8 @@ class JsonSchemaParser {
             : "$currentPath>${entry.key}";
         _walkSchema(
           entry.value as Map<String, dynamic>,
+          name: entry.key,
+          requiredFields: requiredFields,
           currentPath: newPath,
           collector: collector,
         );
@@ -107,7 +125,13 @@ class JsonSchemaParser {
     else if (type == "array" && node["items"] is Map<String, dynamic>) {
       final items = node["items"] as Map<String, dynamic>;
       final newPath = "$currentPath[]";
-      _walkSchema(items, currentPath: newPath, collector: collector);
+      _walkSchema(
+        items,
+        currentPath: newPath,
+        collector: collector,
+        requiredFields: requiredFields,
+        name: name,
+      );
     } else {
       // Ajoute le noeud courant
     }
@@ -139,7 +163,13 @@ class JsonSchemaParser {
           ),
         );
 
-        _walkSchema(subSchema, currentPath: compPath, collector: collector);
+        _walkSchema(
+          subSchema,
+          currentPath: compPath,
+          collector: collector,
+          requiredFields: [],
+          name: key,
+        );
       }
     }
   }

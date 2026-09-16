@@ -144,7 +144,7 @@ class _WidgetPromptState extends State<WidgetPrompt> {
                     context: context,
                     builder: (context) {
                       return AlertDialog(
-                        title: const Text('Upload prompts'),
+                        title: const Text('Upload specification prompts'),
                         content: const Text(maxLines: 5, '''
 Les prompts selectionnés ont été uploadés.
 Tu peux les retrouver dans le dossier /prompts du container apiarchitec.
@@ -177,7 +177,7 @@ Pour reduire les couts et limiter les hallucinations, ouvre un nouveau chat/cont
                   );
                 },
                 icon: const Icon(Icons.upload_file_outlined),
-                label: const Text('upload prompts'),
+                label: const Text('upload specification prompts'),
               ),
             ],
           ),

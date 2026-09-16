@@ -304,6 +304,8 @@ mixin PanModelEditorHelper implements WidgetHelper {
         //SizedBox(width: 10),
         if (attr.info.properties?['required'] == true)
           const Icon(Icons.check_circle_outline),
+        if (attr.info.properties?['search_references'] == true)
+          const Icon(Icons.search),          
         if (attr.info.properties?['#nullable'] == true)
           getChip(const Text('nullable', style: textStyle), color: null),
         if (attr.info.properties?['const'] != null)

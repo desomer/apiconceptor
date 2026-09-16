@@ -29,12 +29,20 @@ class MappingEnginePage extends GenericPageStateless {
   Widget build(BuildContext context) {
     MappingEngineConfig config = currentCompany.currentMapEngine!;
 
+    if (config.currentSrcModel == null || config.currentDestModel == null) {
+      return const Center(
+        child: Text('Source or Destination model is not selected.'),
+      );
+    }
+
     var object = {
-      "src": config.currentSrcModel!.id,
-      "srcMamespace": config.currentSrcModel!.namespace,
-      "dest": config.currentDestModel!.id,
-      "destMamespace": config.currentDestModel!.namespace,
-      "fields": config.listMapping.map((e) => e.getJson()).toList(),
+      //  "src": config.currentSrcModel!.id,
+      //  "srcMamespace": config.currentSrcModel!.namespace,
+      //  "dest": config.currentDestModel!.id,
+      //  "destMamespace": config.currentDestModel!.namespace,
+      "src": config.currentSrcModel!.headerName,
+      "dest": config.currentDestModel!.headerName,
+      "fields": config.listMapping.map((e) => e.getIAJson()).toList(),
     };
 
     Map<String, dynamic> dest = {};
@@ -78,14 +86,14 @@ class MappingEnginePage extends GenericPageStateless {
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.api_outlined),
-          settings: const RouteSettings(name: 'Map Spec.'),
+          settings: const RouteSettings(name: 'Spec.'),
           type: BreadNodeType.widget,
           path: Pages.mapDataDetail.urlpath,
         ),
 
         BreadNode(
-          icon: const Icon(Icons.engineering),
-          settings: const RouteSettings(name: 'Yaml'),
+          icon: const Icon(Icons.smart_toy),
+          settings: const RouteSettings(name: 'AI agent spec'),
           type: BreadNodeType.widget,
           path: Pages.mapDataYaml.urlpath,
         ),
@@ -116,13 +124,15 @@ class MappingEnginePage extends GenericPageStateless {
         } else if (key == 'source') {
           var attr = currentCompany.currentMapEngine!.currentSrcModel!
               .getNodeByMasterIdPath(value);
-          dest[key] =
-              attr != null ? attr.info.getJsonPath(withRoot: false) : value;
+          dest[key] = attr != null
+              ? attr.info.getJsonPath(withRoot: false)
+              : value;
         } else if (key == 'target') {
           var attr = currentCompany.currentMapEngine!.currentDestModel!
               .getNodeByMasterIdPath(value);
-          dest[key] =
-              attr != null ? attr.info.getJsonPath(withRoot: false) : value;
+          dest[key] = attr != null
+              ? attr.info.getJsonPath(withRoot: false)
+              : value;
         } else {
           dest[key] = value;
         }

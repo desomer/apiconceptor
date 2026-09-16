@@ -1,9 +1,15 @@
-String promptTest = ''' 
+import 'package:jsonschema/prompts/prompt_header.dart';
+
+String promptTestDomain = '''
+---
+$promptHeader
+---
+
 # Contexte techniques :  
 Tu es un expert TypeScript, DDD et tests unitaires.
 Je veux que tu génères (ou modifies) et implémentes les tests unitaires de la couche domaine de mon module <{{module}}> suivant cette spécification :.
 
-{{definition du domaine}}
+{{spec}}
 
 ## Contexte du code source : 
 - Le domaine est déjà défini.

@@ -53,7 +53,7 @@ class InfoManagerDataMap extends InfoManager with WidgetHelper {
           currentCompany.currentDataMapSel = attr;
           RouteManager.goto(Pages.mapDataDetail.id(attr.info.masterID!), context);
         },
-        child: Text('Configure data map'),
+        child: Text('Mapping spec.'),
       ),
     );
     // row.add(

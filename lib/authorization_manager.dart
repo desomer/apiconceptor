@@ -257,4 +257,5 @@ enum Category {
   appflow,
   apm,
   behavior,
+  skills
 }

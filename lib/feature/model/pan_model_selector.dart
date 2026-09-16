@@ -170,7 +170,7 @@ class PanModelSelector extends PanYamlTree {
       context: ctx,
       barrierDismissible: false, // user must tap button!
       builder: (BuildContext context) {
-        return PanModelImportDialog(yamlEditorConfig: getYamlConfig());
+        return PanModelImportDialog(panYamlTree: this);
       },
     );
   }

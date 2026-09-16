@@ -5,21 +5,23 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:highlight/languages/cmake.dart';
 import 'package:jsonschema/core/bdd/data_acces.dart';
-import 'package:jsonschema/core/ia/call_gemini_proxy.dart';
+import 'package:jsonschema/core/ia/call_gemini.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/core/model_schema.dart';
-import 'package:jsonschema/feature/context_ia/pan_context_ia.dart';
-import 'package:jsonschema/feature/documentation/documentation_options.dart';
+import 'package:jsonschema/prompts/prompt_interface.dart';
+import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/code_editor.dart';
 import 'package:jsonschema/core/json_browser/import/url2api.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
-import 'package:jsonschema/widget/tree_editor/tree_view.dart';
+import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
 
+import '../model/pan_model_import_dialog.dart';
+
 // ignore: must_be_immutable
-class PanAPIImport extends StatelessWidget {
+class PanAPIImport extends StatelessWidget with WidgetHelper {
   PanAPIImport({super.key, required this.yamlEditorConfig});
 
   late TabController tabImport;
@@ -41,10 +43,22 @@ class PanAPIImport extends StatelessWidget {
           children: [
             Row(
               children: [
+                SizedBox(
+                  width: 300,
+                  child: CellEditor(
+                    acces: InfoAccess(map: info, name: 'subdomain'),
+                    inArray: false,
+                  ),
+                ),
                 ElevatedButton(
                   onPressed: () async {
-                    // print('ask gemini');
-                    doShowContextDialog(ctx);
+                    doShowContextDialogForPrompt(ctx, (contextText) {
+                      insertTextAtCursor(promptIAtextEditingController, 
+'''
+voici les modèles de données à utiliser pour la modélisation des routes API REST :
+${contextText.toString()}
+''');
+                    });
                   },
                   child: const Text('Add models context'),
                 ),
@@ -63,6 +77,8 @@ class PanAPIImport extends StatelessWidget {
   final TextEditingController promptIAtextEditingController =
       TextEditingController(text: '');
 
+  Map<String, String> info = {};
+
   Widget _getAskGemini(BuildContext context) {
     promptIAtextEditingController.text = '''
 - il doit permettre de gérer les cas d'utilisation suivants :
@@ -78,64 +94,67 @@ class PanAPIImport extends StatelessWidget {
     );
   }
 
-  void doShowContextDialog(BuildContext context) {
-    double width = MediaQuery.of(context).size.width * 0.8;
-    double height = MediaQuery.of(context).size.height * 0.8;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        var panContextIa = PanContextIa();
+  //   void doShowContextDialog(BuildContext context) {
+  //     double width = MediaQuery.of(context).size.width * 0.8;
+  //     double height = MediaQuery.of(context).size.height * 0.8;
+  //     showDialog(
+  //       context: context,
+  //       builder: (BuildContext context) {
+  //         var panContextIa = PanContextIa();
 
-        return AlertDialog(
-          title: const Text('Set context for Gemini'),
-          content: SizedBox(width: width, height: height, child: panContextIa),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Set'),
-              onPressed: () async {
-                var handler = panContextIa.panModelSelector!.getHandler();
-                Set<TreeNodeData<NodeAttribut>> node = handler
-                    .getSelectedNode();
+  //         return AlertDialog(
+  //           title: const Text('Set context for Gemini'),
+  //           content: SizedBox(width: width, height: height, child: panContextIa),
+  //           actions: <Widget>[
+  //             TextButton(
+  //               child: const Text('Cancel'),
+  //               onPressed: () {
+  //                 Navigator.of(context).pop();
+  //               },
+  //             ),
+  //             TextButton(
+  //               child: const Text('Set'),
+  //               onPressed: () async {
+  //                 var handler = panContextIa.panModelSelector!.getHandler();
+  //                 Set<TreeNodeData<NodeAttribut>> node = handler
+  //                     .getSelectedNode();
 
-                StringBuffer sb = StringBuffer();
+  //                 StringBuffer sb = StringBuffer();
 
-                for (var n in node) {
-                  var masterID = n.data.info.getMasterID();
-                  var aModel = await currentCompany.getModelByMasterId(
-                    currentCompany.currentNameSpace,
-                    masterID,
-                  );
-                  if (aModel != null) {
-                    BrowseSingle(config: BrowserConfig()).browse(aModel, false);
-                    var mdOther = DocumentationGenerator(
-                      model: aModel,
-                      config: DocumentationConfig()..withoutExample(),
-                    ).getModelDocumentation("");
+  //                 for (var n in node) {
+  //                   var masterID = n.data.info.getMasterID();
+  //                   var aModel = await currentCompany.getModelByMasterId(
+  //                     currentCompany.currentNameSpace,
+  //                     masterID,
+  //                   );
+  //                   if (aModel != null) {
+  //                     BrowseSingle(config: BrowserConfig()).browse(aModel, false);
+  //                     var mdOther = DocumentationGenerator(
+  //                       model: aModel,
+  //                       config: DocumentationConfig()..withoutExample(),
+  //                     ).getModelDocumentation("");
 
-                    sb.writeln(' - $mdOther');
-                    promptIAtextEditingController.text =
-                        '''
-${promptIAtextEditingController.text}
-voici les modèles de données à utiliser pour la modélisation des routes API REST :
-${sb.toString()}
-''';
-                  }
-                }
-                // ignore: use_build_context_synchronously
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+  //                     sb.writeln(
+  // '''<spec-file name="${aModel.headerName}">
+  // $mdOther
+  // </spec-file>''');
+  //                     promptIAtextEditingController.text =
+  //                         '''
+  // ${promptIAtextEditingController.text}
+  // voici les modèles de données à utiliser pour la modélisation des routes API REST :
+  // ${sb.toString()}
+  // ''';
+  //                   }
+  //                 }
+  //                 // ignore: use_build_context_synchronously
+  //                 Navigator.of(context).pop();
+  //               },
+  //             ),
+  //           ],
+  //         );
+  //       },
+  //     );
+  //   }
 
   Widget _getURLImport(Url2Api import) {
     var dom = currentCompany.listDomain!.selectedAttr;
@@ -214,7 +233,7 @@ ${sb.toString()}
           child: const Text('Create'),
           onPressed: () async {
             if (tabImport.index == 0) {
-              List<dynamic>? listRoute = await fromIA(context, import, {});
+              List<dynamic>? listRoute = await fromIA(context, import, info);
               if (listRoute == null || listRoute.isEmpty) {
                 return;
               }
@@ -230,7 +249,7 @@ ${sb.toString()}
                 true,
                 'import',
               );
-              
+
               await BrowseSingle(
                 config: BrowserConfig(),
               ).browseSync(modelSchemaDetail, false, 0);
@@ -371,45 +390,9 @@ ${sb.toString()}
     final errorNotifier = ValueNotifier<String?>(null);
     final dialogContextCompleter = Completer<BuildContext>();
 
-    var model = '';
-
-    var textWithContext =
-        '''
-Tu es un expert en modélisation d'API REST a la norme juheapi. 
-donne moi les routes API REST. 
-
-voici le contexte et contraintes de modélisation :
-$text
-
-voici le modéle de données à utiliser pour la modélisation des routes API REST :
-$model
-
-voici les contraintes de sortie à respecter pour la modélisation des routes API REST :
-- le format de sortie doit être un tableau d'objets JSON
-- chaque objet JSON doit contenir les champs suivants : 
-   usage : a quoi sert la route API REST 
-   description : description de la route API REST
-   path : chemin de la route API REST
-   tag : tag de la route API REST 
-   method : méthode HTTP de la route API REST (GET, POST, PUT, DELETE, PATCH)
-   request usage : description de l'utilisation de la requête
-   request :
-      - path : chemin de la requête (ex: /users/{id})
-          description : description du paramètre de la requête
-          name : nom du paramètre de la requête (ex: id)
-          type : type du paramètre de la requête (ex: string, integer)
-          example : exemple de la valeur du paramètre de la requête
-      - query : paramètres de la requête (ex: ?name=John&age=30)
-          description : description du paramètre de la requête
-          name : nom du paramètre de la requête (ex: name)
-          type : type du paramètre de la requête (ex: string, integer)
-          example : exemple de la valeur du paramètre de la requête
-   responses usage : description de l'utilisation de la réponse      
-
-Sortie attendue :
-   - format de sortie de type json 
-   - sortie le json uniquement (pas de blabla, pas d'explication, pas de texte, pas de code block)
-''';
+    var textWithContext = promptPathAPI
+        .replaceAll('{{domain}}', info['subdomain'] ?? '')
+        .replaceAll('{{text}}', text);
 
     final dialogFuture = showDialog<void>(
       context: context,
@@ -518,9 +501,9 @@ Sortie attendue :
     final dialogContext = await dialogContextCompleter.future;
 
     try {
-      final response = await callGeminiProxy(
+      final response = await callGemini(
         textWithContext,
-        cancelToken: cancelToken,
+        //cancelToken: cancelToken,
       );
       final cleanedResponse = response
           .replaceAll(RegExp(r'```json'), '')

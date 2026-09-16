@@ -127,6 +127,8 @@ class PanApiExample extends PanYamlTree {
 
   Future<void> gotoTestApi(NodeAttribut attr, bool mock, bool api) async {
     requestHelper.apiCallInfo.selectedExample = attr.info;
+    if (attr.info.masterID == null) return;
+    
     var jsonParam = await bddStorage.getAPIParam(
       requestHelper.apiCallInfo.currentAPIRequest!,
       attr.info.masterID!,

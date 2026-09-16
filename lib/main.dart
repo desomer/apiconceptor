@@ -331,6 +331,8 @@ class MyApp extends StatelessWidget {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorSchemeSeed: Colors.blueGrey,
+      fontFamily:
+          'Roboto', // force une police unique (évite le glyph overlap sur Web)
       textTheme: const TextTheme(
         bodyMedium: TextStyle(fontSize: 16), // texte saisi
       ),

@@ -1,4 +1,9 @@
+import 'package:jsonschema/prompts/prompt_header.dart';
+
 String promptUseCase = '''
+---
+$promptHeader
+---
 # Contexte techniques :  
 Tu es un expert en architecture hexagonale, DDD, CQRS et NestJS.
 Génère la couche **Application** complète pour le module <{{module}}> et aggregates <{{aggregates}}> suivants :

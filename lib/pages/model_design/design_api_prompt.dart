@@ -6,9 +6,11 @@ import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/documentation/documentation_options.dart';
 import 'package:jsonschema/pages/apm/widget_prompt.dart';
 import 'package:jsonschema/pages/model_design/design_api_detail_page.dart';
+import 'package:jsonschema/prompts/prompt_integration.dart';
 import 'package:jsonschema/prompts/prompt_interface.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/prompts/prompt_usecase.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:markdown_widget/config/configs.dart';
@@ -32,13 +34,34 @@ class DesignApiPromptPage extends GenericPageStateless {
         .replaceAll('{{swagger}}', swagger);
   }
 
-  // String getPromptIntegration(String module) {
-  //   return promptIntegration.replaceAll('{{MODULE}}', module);
-  // }
+  String getPromptIntegration(String module) {
+    return promptIntegration.replaceAll('{{MODULE}}', module);
+  }
 
-  Future<Map<String, String>> initIAContext() async {
+  String getPromptUseCase(String module, String aggregates) {
+    // remplace {{definition du domaine}} par le contenu de md
+    return promptUseCase
+        .replaceAll('{{module}}', module)
+        .replaceAll('{{aggregates}}', aggregates);
+  }
+
+  String endpointToFileName(String endpoint) {
+    return endpoint
+        .replaceAllMapped(RegExp(r'\{([^}]+)\}'), (m) => 'by_${m.group(1)}')
+        .replaceAll('/', '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '')
+        .replaceAll(RegExp(r'_+'), '_');
+  }
+
+  Future<Map<String, dynamic>> initIAContext() async {
     var attr = currentCompany.listAPI!.getNodeByMasterIdPath(query)!;
     currentCompany.listAPI!.selectedAttr = attr;
+
+    //rechercher de l'avant derrier noeud
+    var parentAttr = attr.parent;
+    while (parentAttr?.parent?.info.name != "root") {
+      parentAttr = parentAttr!.parent;
+    }
 
     var requestHelper = WidgetAPIHelper(
       apiNodeForCalculatePath: attr,
@@ -49,7 +72,7 @@ class DesignApiPromptPage extends GenericPageStateless {
     );
 
     var aSwaggerinfo = await getSwaggerFromApiCallInfo(requestHelper);
-
+    var endpointName = endpointToFileName(requestHelper.apiCallInfo.url);
 
     // var _schema = currentCompany.current
 
@@ -115,7 +138,11 @@ class DesignApiPromptPage extends GenericPageStateless {
     //   }
     // });
 
-    return {'swagger': aSwaggerinfo.swagger, 'mdApi': ""};
+    return {
+      'swagger': aSwaggerinfo.swagger,
+      'subdomain': parentAttr!.info.name,
+      'aggregate': endpointName,
+    };
   }
 
   @override
@@ -125,7 +152,7 @@ class DesignApiPromptPage extends GenericPageStateless {
     info.showExampleDto = false;
     info.showExampleMongoose = false;
 
-    return FutureBuilder<Map<String, String>>(
+    return FutureBuilder<Map<String, dynamic>>(
       future: initIAContext(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -142,7 +169,7 @@ class DesignApiPromptPage extends GenericPageStateless {
   }
 
   Widget getPromptSelectedWidget(
-    Map<String, String> extendedMd,
+    Map<String, dynamic> extendedMd,
     DocumentationConfig info,
     BuildContext context,
   ) {
@@ -160,21 +187,28 @@ class DesignApiPromptPage extends GenericPageStateless {
 
     //return MiroLikeWidget();
 
-    var module =
-        currentCompany.listModel!.selectedAttr?.parent?.info.name ?? 'module';
-
-    // var aggregate =
-    //     currentCompany.listModel!.selectedAttr?.info.name ?? 'aggregate';
+    String subdomain = extendedMd['subdomain'] ?? '';
+    String aggregate = extendedMd['aggregate'] ?? '';
 
     WidgetPrompt promptWidget = WidgetPrompt(
       listPrompt: [
+
+        PromptItem(
+          name: 'use case',
+          isSelectable: true,
+          markdownBuild: getPromptUseCase(subdomain, aggregate),
+          markdownKownledge: '',
+          fileName: 'usecase-$subdomain-$aggregate.md',
+        ),
+
         PromptItem(
           name: 'interface',
           isSelectable: true,
-          markdownBuild: getPromptInterface("module", extendedMd["swagger"]!),
+          markdownBuild: getPromptInterface(subdomain, extendedMd["swagger"]!),
           markdownKownledge: '',
-          fileName: 'interface-$module-swagger.md',
+          fileName: 'interface-$subdomain-$aggregate-swagger.md',
         ),
+
         // PromptItem(
         //   name: 'domain unit test',
         //   isSelectable: true,
@@ -182,13 +216,13 @@ class DesignApiPromptPage extends GenericPageStateless {
         //   markdownKownledge: '',
         //   fileName: 'domain_unit_test-$module-$aggregate.md',
         // ),
-        // PromptItem(
-        //   name: 'check integration',
-        //   isSelectable: true,
-        //   markdownBuild: getPromptIntegration(module),
-        //   markdownKownledge: '',
-        //   fileName: 'check-integration-$module.md',
-        // ),
+        PromptItem(
+          name: 'check integration',
+          isSelectable: true,
+          markdownBuild: getPromptIntegration(subdomain),
+          markdownKownledge: '',
+          fileName: 'check-integration-$subdomain.md',
+        ),
       ],
     );
 
