@@ -75,7 +75,7 @@ class CallAPIPageDetail extends GenericPageStateless {
           path: Pages.api.urlpath,
         ),
         BreadNode(
-          settings: const RouteSettings(name: 'List API'),
+          settings: const RouteSettings(name: 'List Endpoints'),
           type: BreadNodeType.widget,
           path: Pages.api.urlpath,
           onTap: () {

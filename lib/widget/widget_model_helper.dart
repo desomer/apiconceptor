@@ -135,6 +135,41 @@ mixin class WidgetHelper {
     );
   }
 
+  void openTypeSelectorOn(
+    BuildContext context,
+    List<OptionSelect> listOptions,
+    GlobalKey k,
+    ValueNotifier<String> typeModel,
+  ) {
+    BuildContext? bCtx;
+
+    dialogBuilderBelow(
+      context,
+      SizedBox(
+        width: 110,
+        height: 220,
+        child: ListView(
+          children: listOptions.map<Widget>((option) {
+            return ListTile(
+              dense: true,
+              leading: Icon(option.icon, color: option.color),
+              title: Text(option.label),
+              onTap: () {
+                typeModel.value = option.label;
+                bCtx?.pop();
+              },
+            );
+          }).toList(),
+        ),
+      ),
+      k,
+      const Offset(-40, -20),
+      (BuildContext ctx) {
+        bCtx = ctx;
+      },
+    );
+  }
+
   Widget readOnlyCapable(bool isReadOnly, Widget child) {
     if (isReadOnly) {
       return Banner(
@@ -218,11 +253,25 @@ mixin class WidgetHelper {
     );
   }
 
-  Future<void> dialogChatAIBuilder(BuildContext context, Function? onValidate) {
-    final TextEditingController questionController = TextEditingController();
+  Future<void> dialogChatAIBuilder(
+    TextEditingController questionController,
+    BuildContext context,
+    Function? onValidate,
+  ) {
     return dialogBuilder(
       context,
-      _buildEditorPanel(context, Theme.of(context), questionController),
+      Column(
+        children: [
+          Row(children: [getAddContextBtn(questionController, context)]),
+          Expanded(
+            child: _buildEditorPanel(
+              context,
+              Theme.of(context),
+              questionController,
+            ),
+          ),
+        ],
+      ),
       onValidate: () {
         if (onValidate != null) {
           onValidate(questionController.text);
@@ -506,6 +555,8 @@ mixin class WidgetHelper {
     final loadingNotifier = ValueNotifier<bool>(true);
     final errorNotifier = ValueNotifier<String?>(null);
     final dialogContextCompleter = Completer<BuildContext>();
+    final responseOnError = ValueNotifier<String?>(null);
+    ;
 
     Future<void> dialogFuture = _showPromptDialog(
       context: context,
@@ -514,12 +565,13 @@ mixin class WidgetHelper {
       textWithContext: prompt,
       errorNotifier: errorNotifier,
       cancelToken: cancelToken,
+      responseOnError: responseOnError,
     );
 
     final dialogContext = await dialogContextCompleter.future;
-
+    String response = "";
     try {
-      final response = await callGemini(prompt /*cancelToken: cancelToken*/);
+      response = await callGemini(prompt /*cancelToken: cancelToken*/);
       // retire le ```json  si present
       final cleanedResponse = response
           .replaceAll(RegExp(r'```json'), '')
@@ -550,13 +602,14 @@ mixin class WidgetHelper {
         // }
         return false;
       }
-
+      responseOnError.value = response;
       errorNotifier.value = e.toString();
       await dialogFuture; // attente du close
       return false;
     } finally {
       loadingNotifier.dispose();
       errorNotifier.dispose();
+      responseOnError.dispose();
     }
   }
 
@@ -567,6 +620,7 @@ mixin class WidgetHelper {
     required String textWithContext,
     required ValueNotifier<String?> errorNotifier,
     required CancelToken cancelToken,
+    required ValueNotifier<String?> responseOnError,
   }) {
     final dialogFuture = showDialog<void>(
       context: context,
@@ -602,8 +656,8 @@ mixin class WidgetHelper {
                           Expanded(
                             child: Text(
                               isLoading
-                                  ? 'Generation en cours...'
-                                  : 'La generation a echoue.',
+                                  ? 'Réflexion en cours...'
+                                  : 'Le traitement a echoué.',
                             ),
                           ),
                         ],
@@ -641,9 +695,41 @@ mixin class WidgetHelper {
                           border: Border.all(color: Colors.red.shade300),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          'Erreur Gemini: $error',
-                          style: TextStyle(color: Colors.red.shade900),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Erreur Gemini: $error',
+                                style: TextStyle(color: Colors.red.shade900),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('Response'),
+                                      content: SingleChildScrollView(
+                                        child: SelectableText(
+                                          responseOnError.value ?? '',
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                          child: const Text('Close'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                              child: const Text('show response'),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -750,6 +836,24 @@ $mdOther
         );
       },
     );
+  }
+
+  Widget getAddContextBtn(
+    TextEditingController textController,
+    BuildContext context,
+  ) {
+    var addModelsContextButton = ElevatedButton(
+      onPressed: () async {
+        doShowContextDialogForPrompt(context, (contextText) {
+          insertTextAtCursor(textController, '''
+voici les modèles de données externes à utiliser pour t'aider dans la modélisation:
+${contextText.toString()}
+''');
+        });
+      },
+      child: const Text('Add other spec context'),
+    );
+    return addModelsContextButton;
   }
 
   void showContextDialogForAttr(ModelAccessorAttr ma, BuildContext context) {

@@ -1,0 +1,93 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart' show GoRouterState;
+import 'package:jsonschema/feature/apm/pan_usecase.dart';
+import 'package:jsonschema/pages/router_config.dart';
+import 'package:jsonschema/pages/router_generic_page.dart';
+import 'package:jsonschema/widget/widget_breadcrumb.dart';
+
+// ignore: must_be_immutable
+class DesignUsecase extends GenericPageStateless {
+  DesignUsecase({super.key});
+  String model = '';
+  String nameModel = '';
+
+  @override
+  Widget build(BuildContext context) {
+    return PanUseCase();
+  }
+
+  @override
+  NavigationInfo initNavigation(
+    GoRouterState routerState,
+    BuildContext context,
+    GlobalKey keyPage,
+    PageInit? pageInit,
+  ) {
+    // model =
+    //     routerState.uri.queryParameters['id'] ??
+    //     currentCompany.currentModel!.id;
+    // var attr = currentCompany.listModel!.getNodeByMasterIdPath(model);
+    // nameModel = attr!.info.name;
+
+    return NavigationInfo()
+      ..navLeft = [
+        BreadNode(
+          icon: const Icon(Icons.rule),
+          settings: const RouteSettings(name: 'Design usecase'),
+          type: BreadNodeType.widget,
+          path: Pages.usecase.urlpath,
+        ),
+
+        // BreadNode(
+        //   icon: const Icon(Icons.verified),
+        //   settings: const RouteSettings(name: 'Examples'),
+        //   type: BreadNodeType.widget,
+        //   path: Pages.modelJsonSchema.urlpath,
+        // ),
+
+        // BreadNode(
+        //   icon: const Icon(Icons.devices),
+        //   settings: const RouteSettings(name: 'UI view'),
+        //   type: BreadNodeType.widget,
+        //   path: Pages.modelUI.urlpath,
+        // ),
+
+        // BreadNode(
+        //   icon: const Icon(Icons.bubble_chart),
+        //   settings: const RouteSettings(name: 'Graph view'),
+        //   type: BreadNodeType.widget,
+        // ),
+
+        // BreadNode(
+        //   icon: const Icon(Icons.airplane_ticket),
+        //   settings: const RouteSettings(name: 'Doc.'),
+        //   type: BreadNodeType.widget,
+        //   path: Pages.modelScrum.urlpath,
+        // ),
+
+        // BreadNode(
+        //   // icon IA
+        //   icon: const Icon(Icons.smart_toy),
+        //   settings: const RouteSettings(name: 'AI agent spec'),
+        //   type: BreadNodeType.widget,
+        //   path: Pages.modelPromptAI.urlpath,
+        // ),
+      ]
+      ..breadcrumbs = [
+        // BreadNode(
+        //   settings: const RouteSettings(name: 'Domain'),
+        //   type: BreadNodeType.domain,
+        //   path: Pages.models.urlpath,
+        // ),
+        // BreadNode(
+        //   settings: const RouteSettings(name: 'List model & contract'),
+        //   type: BreadNodeType.widget,
+        //   path: Pages.models.urlpath,
+        // ),
+        // BreadNode(
+        //   settings: RouteSettings(name: nameModel),
+        //   type: BreadNodeType.widget,
+        // ),
+      ];
+  }
+}

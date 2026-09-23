@@ -53,8 +53,7 @@ class PanAPIImport extends StatelessWidget with WidgetHelper {
                 ElevatedButton(
                   onPressed: () async {
                     doShowContextDialogForPrompt(ctx, (contextText) {
-                      insertTextAtCursor(promptIAtextEditingController, 
-'''
+                      insertTextAtCursor(promptIAtextEditingController, '''
 voici les modèles de données à utiliser pour la modélisation des routes API REST :
 ${contextText.toString()}
 ''');
@@ -250,9 +249,8 @@ ${contextText.toString()}
                 'import',
               );
 
-              await BrowseSingle(
-                config: BrowserConfig(),
-              ).browseSync(modelSchemaDetail, false, 0);
+              await BrowseSingle(config: BrowserConfig())
+                  .browseSync(modelSchemaDetail, false, 0);
               await bddStorage.doStoreSync();
 
               // Future.delayed(Duration(seconds: 1)).then((_) async {

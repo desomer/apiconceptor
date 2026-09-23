@@ -62,7 +62,7 @@ class CallAPIPageDetailUI extends GenericPageStateless {
           path: Pages.api.urlpath,
         ),
         BreadNode(
-          settings: const RouteSettings(name: 'List API'),
+          settings: const RouteSettings(name: 'List Endpoints'),
           type: BreadNodeType.widget,
           path: Pages.api.urlpath,
           onTap: () {
@@ -74,6 +74,4 @@ class CallAPIPageDetailUI extends GenericPageStateless {
   }
 }
 
-
-  //  return NavigationInfo()..breadcrumbs = goTo.getBreadcrumbApi(query);
-  
+//  return NavigationInfo()..breadcrumbs = goTo.getBreadcrumbApi(query);

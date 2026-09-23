@@ -22,11 +22,10 @@ class RandExp {
 
   RandExp(
     this._regexp, {
-    int maxRepetition = 100,
+    this._maxRepetition = 100,
     DRange? range,
     this.randInt = _randInt,
-  })  : _tokens = tokenizer(_regexp.pattern),
-        _maxRepetition = maxRepetition {
+  })  : _tokens = tokenizer(_regexp.pattern) {
     _defaultRange = range ?? DRange(32, 126);
   }
 

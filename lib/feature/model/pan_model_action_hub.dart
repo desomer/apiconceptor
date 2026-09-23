@@ -20,6 +20,7 @@ class PanModelActionHub extends StatelessWidget {
     return SizedBox(
       height: 30,
       child: Row(
+        spacing: 10,
         children: [
           SizedBox(width: 10),
           GlowingHalo(
@@ -27,11 +28,35 @@ class PanModelActionHub extends StatelessWidget {
             child: ElevatedButton.icon(
               icon: Icon(Icons.add_box_outlined),
               onPressed: () {
-                panModelSelector.showImportDialog(context);
+                panModelSelector.showImportDialog(context, 'model');
               },
               style: style,
               label: Text('New Model'),
             ),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.add_box_outlined),
+            onPressed: () {
+              panModelSelector.showImportDialog(context, 'XResponseDto');
+            },
+            style: style,
+            label: Text('New DTO'),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.add_box_outlined),
+            onPressed: () {
+              panModelSelector.showImportDialog(context, 'eventXPayloadDto');
+            },
+            style: style,
+            label: Text('New Event'),
+          ),
+          ElevatedButton.icon(
+            icon: Icon(Icons.add_box_outlined),
+            onPressed: () {
+              panModelSelector.showImportDialog(context, 'flatFile');
+            },
+            style: style,
+            label: Text('New Flatfile'),
           ),
           // ElevatedButton(onPressed: () {}, child: Text('New component')),
           // ElevatedButton(onPressed: () {}, child: Text('New DTO')),

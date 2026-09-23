@@ -165,12 +165,12 @@ class PanModelSelector extends PanYamlTree {
     );
   }
 
-  Future<void> showImportDialog(BuildContext ctx) async {
+  Future<void> showImportDialog(BuildContext ctx, String type) async {
     return showDialog<void>(
       context: ctx,
       barrierDismissible: false, // user must tap button!
       builder: (BuildContext context) {
-        return PanModelImportDialog(panYamlTree: this);
+        return PanModelImportDialog(panYamlTree: this, type: type);
       },
     );
   }

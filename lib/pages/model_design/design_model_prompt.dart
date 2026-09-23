@@ -5,7 +5,7 @@ import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/json_browser/browse_model.dart';
 import 'package:jsonschema/feature/documentation/documentation_options.dart';
 import 'package:jsonschema/feature/model/pan_model_methods_rules.dart';
-import 'package:jsonschema/pages/apm/widget_prompt.dart';
+import 'package:jsonschema/pages/apm/widget_download_prompt.dart';
 import 'package:jsonschema/prompts/prompt_header.dart';
 import 'package:jsonschema/prompts/prompt_model.dart';
 import 'package:jsonschema/prompts/prompt_persistence.dart';
@@ -153,13 +153,11 @@ class DesignModelPromptPage extends GenericPageStateless {
     DocumentationConfig info,
     BuildContext context,
   ) {
-    var mdModel = DocumentationGenerator(
-      config: info,
-    ).getModelDocumentation('\n${extendedMd['mdModel'] ?? ''}\n');
+    var mdModel = DocumentationGenerator(config: info)
+        .getModelDocumentation('\n${extendedMd['mdModel'] ?? ''}\n');
 
-    var mdPersistance = DocumentationGenerator(
-      config: info,
-    ).getModelDocumentation('\n${extendedMd['mdPersistance'] ?? ''}\n');
+    var mdPersistance = DocumentationGenerator(config: info)
+        .getModelDocumentation('\n${extendedMd['mdPersistance'] ?? ''}\n');
 
     // var mdOther = DocumentationGenerator(
     //   config: info,
@@ -311,9 +309,8 @@ class DesignModelPromptPage extends GenericPageStateless {
           icon: const Icon(Icons.copy),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: md));
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('copied to clipboard')));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('copied to clipboard')));
           },
           label: Text('Prompt in clipboard'),
         ),
@@ -424,7 +421,7 @@ class DesignModelPromptPage extends GenericPageStateless {
           path: Pages.models.urlpath,
         ),
         BreadNode(
-          settings: const RouteSettings(name: 'List model'),
+          settings: const RouteSettings(name: 'List model & contract'),
           type: BreadNodeType.widget,
           path: Pages.models.urlpath,
         ),

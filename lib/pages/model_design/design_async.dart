@@ -217,7 +217,6 @@ class DesignAsyncPage extends GenericPageStateless {
     await bddStorage.doStoreSync();
   }
 
-
   @override
   NavigationInfo initNavigation(
     GoRouterState routerState,
@@ -260,7 +259,7 @@ class DesignAsyncPage extends GenericPageStateless {
           path: Pages.asyncApi.urlpath,
         ),
         // BreadNode(
-        //   settings: const RouteSettings(name: 'List model'),
+        //   settings: const RouteSettings(name: 'List model & contract'),
         //   type: BreadNodeType.widget,
         // ),
       ]

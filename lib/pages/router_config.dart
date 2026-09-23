@@ -54,6 +54,7 @@ import 'package:jsonschema/pages/config/organization_page.dart';
 import 'package:jsonschema/pages/config/profile_page.dart';
 import 'package:jsonschema/pages/log_page.dart';
 import 'package:jsonschema/pages/mock_api_page.dart';
+import 'package:jsonschema/pages/model_design/design_usecase.dart';
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/pages/config/user_page.dart';
 import 'package:jsonschema/start_core.dart';
@@ -89,6 +90,7 @@ enum Pages {
   mock("/apis/mock"),
 
   asyncApi("/async"),
+  usecase("/usecase"),
   apm("/apm"),
   apmAppPrompt("/apm/prompt"),
   apmAskIA("/apm/ask/ia"),
@@ -496,6 +498,7 @@ final GoRouter router = GoRouter(
           GoRoute(path: Pages.asyncApi.urlpath, pageBuilder: getPageAnim),
           (context, state) => DesignAsyncPage(state: state),
         ),
+        addRouteBy(Pages.usecase, DesignUsecase()),
         //------------------------------------
         addRouteBy(Pages.env, const EnvPage()),
         addRoute(
@@ -690,6 +693,7 @@ class ApiRequestNavigator {
           ref: model.refDomain,
           config: BrowserConfig(),
         );
+        model.comparedModelSchema = model.olderModelSchema;
       }
     }
     model.isReadOnlyModel = isDomainAllowed(model.namespace ?? '') == false;

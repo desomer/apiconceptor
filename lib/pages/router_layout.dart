@@ -11,6 +11,7 @@ import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/back_action/universal_back_button.dart';
 import 'package:jsonschema/widget/login/login_screen.dart';
 import 'package:jsonschema/widget/tree_editor/pan_yaml_tree.dart';
+import 'package:jsonschema/widget/widget_asset_download_button.dart';
 import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_global_zoom.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
@@ -216,8 +217,10 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
               },
               child: Row(
                 children: [
-                  if (navigationItem != null) SizedBox(width: 100, child: navigationItem),
-                  if (navigationItem != null) const VerticalDivider(thickness: 1, width: 1),
+                  if (navigationItem != null)
+                    SizedBox(width: 100, child: navigationItem),
+                  if (navigationItem != null)
+                    const VerticalDivider(thickness: 1, width: 1),
                   Expanded(
                     child: widget.navChild,
                     //  IndexedStack(index: 0, children: pages),
@@ -320,9 +323,37 @@ class PageLayoutState extends State<PageLayout> with WidgetHelper {
                     );
                   },
                 ),
+                WidgetAssetDownloadButton(
+                  assetPath: 'assets/opencode-plugin-rest-api-1.0.0.tgz',
+                  label: 'Link OpenCode',
+                  fileName: 'opencode-plugin-rest-api-1.0.0.tgz',
+                  extraAssets: [
+                    AssetFileSpec(
+                      contentBuilder: (path) async {
+                        String content =
+                            '''
+{
+  "\$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    [
+      "opencode-plugin-rest-api@file:c:/xxx/$path/opencode-plugin-rest-api-1.0.0.tgz",
+      {
+        "port": 4567,
+        "host": "127.0.0.1"
+      }
+    ]
+  ]
+}
+''';
+                        return Uint8List.fromList(content.codeUnits);
+                      },
+                      fileName: 'opencode.json',
+                    ),
+                  ],
+                ),
                 Spacer(),
                 Text(
-                  'API Architec by Desomer G. V1.0.7.4',
+                  'API Architec by Desomer G. V1.0.8.0',
                   style: TextStyle(fontSize: 12),
                 ),
                 SizedBox(width: 20),

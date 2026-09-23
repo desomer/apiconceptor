@@ -9,13 +9,12 @@ import 'package:markdown_toolbar/markdown_toolbar.dart';
 class MarkDownEditor extends StatelessWidget {
   const MarkDownEditor({
     super.key,
-    required TextEditingController controller,
-    required FocusNode focusNode,
+    required this._controller,
+    required this._focusNode,
     required this.context,
     this.defaultTabIndex = 0,
     this.editorOnly = false,
-  }) : _controller = controller,
-       _focusNode = focusNode;
+  });
 
   final TextEditingController _controller;
   final FocusNode _focusNode;
@@ -42,9 +41,12 @@ class MarkDownEditor extends StatelessWidget {
           builder: (context, value, child) {
             return Padding(
               padding: const EdgeInsets.all(12),
-              child: MarkdownWidget(
-                data: value.text,
-                config: MarkdownConfig.darkConfig,
+              child: DefaultTextStyle.merge(
+                style: const TextStyle(fontFamily: 'RobotoMono'),
+                child: MarkdownWidget(
+                  data: value.text,
+                  config: MarkdownConfig.darkConfig,
+                ),
               ),
             );
           },
@@ -84,6 +86,7 @@ class MarkDownEditor extends StatelessWidget {
             expands: true,
             maxLines: null,
             minLines: null,
+            style: const TextStyle(fontFamily: 'RobotoMono'),
             textAlignVertical: TextAlignVertical.top,
             decoration: const InputDecoration(
               floatingLabelBehavior: FloatingLabelBehavior.always,

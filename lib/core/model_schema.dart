@@ -155,6 +155,7 @@ class ModelSchema {
   Map<String, dynamic> modelPropertiesByPath = {};
   final Map<String, NodeAttribut> modelPropExtended = {};
 
+  ModelSchema? comparedModelSchema;
   ModelSchema? olderModelSchema;
 
   final List<ModelSchema> dependency = [];

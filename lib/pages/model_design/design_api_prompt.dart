@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart' show GoRouterState, GoRouterHelper;
 import 'package:jsonschema/core/api/widget_api_helper.dart';
 import 'package:jsonschema/core/util.dart';
 import 'package:jsonschema/feature/documentation/documentation_options.dart';
-import 'package:jsonschema/pages/apm/widget_prompt.dart';
+import 'package:jsonschema/pages/apm/widget_download_prompt.dart';
 import 'package:jsonschema/pages/model_design/design_api_detail_page.dart';
 import 'package:jsonschema/prompts/prompt_integration.dart';
 import 'package:jsonschema/prompts/prompt_interface.dart';
@@ -192,7 +192,6 @@ class DesignApiPromptPage extends GenericPageStateless {
 
     WidgetPrompt promptWidget = WidgetPrompt(
       listPrompt: [
-
         PromptItem(
           name: 'use case',
           isSelectable: true,
@@ -236,9 +235,8 @@ class DesignApiPromptPage extends GenericPageStateless {
           icon: const Icon(Icons.copy),
           onPressed: () {
             Clipboard.setData(ClipboardData(text: md));
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('copied to clipboard')));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('copied to clipboard')));
           },
           label: Text('Prompt in clipboard'),
         ),
@@ -300,7 +298,7 @@ class DesignApiPromptPage extends GenericPageStateless {
           path: Pages.api.urlpath,
         ),
         BreadNode(
-          settings: const RouteSettings(name: 'List API'),
+          settings: const RouteSettings(name: 'List Endpoints'),
           type: BreadNodeType.widget,
           path: Pages.api.urlpath,
           onTap: () {

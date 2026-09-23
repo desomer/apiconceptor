@@ -186,7 +186,7 @@ class DesignModelDetailPage extends GenericPageStateless {
           path: Pages.models.urlpath,
         ),
         BreadNode(
-          settings: const RouteSettings(name: 'List model'),
+          settings: const RouteSettings(name: 'List model & contract'),
           type: BreadNodeType.widget,
           path: Pages.models.urlpath,
         ),

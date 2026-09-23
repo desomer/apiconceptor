@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -24,15 +25,34 @@ import '../../core/json_browser/import/swagger2prop.dart';
 
 // ignore: must_be_immutable
 class PanModelImportDialog extends StatelessWidget with WidgetHelper {
-  PanModelImportDialog({super.key, required this.panYamlTree});
+  PanModelImportDialog({
+    super.key,
+    required this.panYamlTree,
+    required this.type,
+  });
 
   PanYamlTree panYamlTree;
+  final String type;
 
   // final CodeEditorConfig yamlEditorConfig;
   var promptIAtextEditingController = TextEditingController();
+  late ValueNotifier<String> typeModel = ValueNotifier<String>(type);
 
   late TabController tabImport;
   JsonToSchemaYaml import = JsonToSchemaYaml();
+
+  Widget _getEditorType(
+    BuildContext context,
+    Widget child,
+    GlobalKey keyBelow,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        openTypeSelectorOn(context, getListModelType(), keyBelow, typeModel);
+      },
+      child: child,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,38 +61,67 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
     double height = size.height * 0.8;
     Map<String, String> info = {};
 
+    GlobalKey keyBelow = GlobalKey();
+
+    var sizedBox = SizedBox(
+      height: 80,
+      width: 800,
+      child: Row(
+        spacing: 20,
+        children: [
+          Text('Create', style: TextStyle(fontSize: 16)),
+          SizedBox(
+            key: keyBelow,
+            width: 200,
+            height: 30,
+            child: ValueListenableBuilder<String>(
+              valueListenable: typeModel,
+              builder: (context, type, _) {
+                String type = typeModel
+                    .value; // Replace with the actual type you want to display
+
+                var typeWidget = Row(
+                  spacing: 5,
+                  children: [
+                    getIconOfType(type),
+                    Text(type, style: TextStyle(fontSize: 14)),
+                    Spacer(),
+                    Icon(Icons.arrow_drop_down, size: 15),
+                  ],
+                );
+
+                var w = getChip(color: getColorOfType(type), typeWidget);
+                return _getEditorType(context, w, keyBelow);
+              },
+            ),
+          ),
+          Text('named', style: TextStyle(fontSize: 16)),
+          Flexible(
+            child: CellEditor(
+              acces: InfoAccess(map: info, name: 'model name'),
+              inArray: false,
+            ),
+          ),
+          Text('from subdomain', style: TextStyle(fontSize: 16)),
+          Flexible(
+            child: CellEditor(
+              acces: InfoAccess(map: info, name: 'subdomain'),
+              inArray: false,
+            ),
+          ),
+        ],
+      ),
+    );
+
     return AlertDialog(
-      title: const Text('Create model from ...'),
+      title: sizedBox,
       content: SizedBox(
         width: width,
         height: height,
 
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: 80,
-              width: 600,
-              child: Row(
-                spacing: 20,
-                children: [
-                  Flexible(
-                    child: CellEditor(
-                      acces: InfoAccess(map: info, name: 'subdomain'),
-                      inArray: false,
-                    ),
-                  ),
-                  Flexible(
-                    child: CellEditor(
-                      acces: InfoAccess(map: info, name: 'model name'),
-                      inArray: false,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(child: _getImportTab(context)),
-          ],
+          children: [Expanded(child: _getImportTab(context))],
         ),
       ),
       actions: <Widget>[
@@ -85,6 +134,8 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
         TextButton(
           child: const Text('Create'),
           onPressed: () async {
+            info['typeObj'] = typeModel.value;
+            
             if (tabImport.index == 0) {
               final ok = await fromIA(context, info);
               if (ok) {
@@ -128,17 +179,15 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
     var domainKey = info['subdomain'] ?? 'new';
     var nameKey = info['model name'] ?? 'new';
     domain ??= docYaml.addAtEnd(domainKey, '');
-    docYaml.addChild(domain, nameKey, 'model');
+    docYaml.addChild(domain, nameKey, info['typeObj']);
     var newYaml = docYaml.getDoc();
     modelSchemaDetail.modelYaml = newYaml;
 
     await modelSchemaDetail.saveYaml(yamlEditorConfig, true, 'norepaint');
     await bddStorage.doStoreSync();
 
-
-    await BrowseSingle(
-      config: BrowserConfig(),
-    ).browseSync(modelSchemaDetail, false, 0);
+    await BrowseSingle(config: BrowserConfig())
+        .browseSync(modelSchemaDetail, false, 0);
     await bddStorage.doStoreSync();
 
     // save du json du model
@@ -169,7 +218,8 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
     if (propByPath != null) {
       // SchedulerBinding.instance.addPostFrameCallback((_) async {
       await bddStorage.doStoreSync();
-      await BrowseSingle(config: BrowserConfig()).browseSync(aNewModel, false, 0);
+      await BrowseSingle(config: BrowserConfig())
+          .browseSync(aNewModel, false, 0);
       for (var aPropByPath in propByPath) {
         if (aPropByPath.properties.isNotEmpty) {
           String pathJson = aPropByPath.pathJson;
@@ -269,7 +319,7 @@ class PanModelImportDialog extends StatelessWidget with WidgetHelper {
 
   Widget _getAskGemini(BuildContext context) {
     promptIAtextEditingController.text = '''
-Génère moi un objet métier : 
+Génère moi un contrat de service : 
 - il doit servir à modéliser :
 
 <REMPLIR ICI LE CONTEXTE METIER DE L'OBJET>
@@ -286,21 +336,11 @@ Génère moi un objet métier :
 <REMPLIR LES CAS D'UTILISATION A NE PAS GERER ICI>
 ''';
 
-    var addModelsContextButton = ElevatedButton(
-      onPressed: () async {
-        doShowContextDialogForPrompt(context, (contextText) {
-          insertTextAtCursor(promptIAtextEditingController, '''
-voici les modèles de données externes à utiliser pour t'aider dans la modélisation:
-${contextText.toString()}
-''');
-        });
-      },
-      child: const Text('Add models context'),
-    );
+    
 
     return Column(
       children: [
-        Row(children: [addModelsContextButton]),
+        Row(children: [getAddContextBtn(promptIAtextEditingController, context)]),
         Expanded(
           child: MarkDownEditor(
             editorOnly: true,
@@ -318,8 +358,9 @@ ${contextText.toString()}
     if (js.trim().isEmpty) {
       return;
     }
+    Map<String, dynamic> schema = jsonDecode(js);
     JsonSchemaParser parser = JsonSchemaParser();
-    var paths = parser.parse(js);
+    var paths = parser.parse(schema);
     // paths.forEach((element) {
     //   print(element);
     // });
@@ -336,6 +377,13 @@ ${contextText.toString()}
     // final dialogContextCompleter = Completer<BuildContext>();
 
     var textWithContext = promptModelDesign
+        .replaceAll('{{type}}', typeModel.value)
+        .replaceAll(
+          '{{typeConstraints}}',
+          typeModel.value == 'flatFile'
+              ? typeFileContraint
+              : typeModelContraint,
+        )
         .replaceAll('{{modelname}}', info['model name']!)
         .replaceAll('{{subdomain}}', info['subdomain']!)
         .replaceAll('{{contraints}}', text);

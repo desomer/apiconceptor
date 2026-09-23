@@ -80,19 +80,28 @@ class ContentMapDetailPage extends GenericPageStateless {
   }
 }
 
+// ignore: must_be_immutable
 class DetailMappingPage extends StatefulWidget {
-  const DetailMappingPage({super.key});
+  DetailMappingPage({super.key});
+
+  MappingEngineConfig config = MappingEngineConfig();
 
   @override
-  State<DetailMappingPage> createState() => _DetailMappingPageState();
+  State<DetailMappingPage> createState() => DetailMappingPageState();
 }
 
 class MappingEngineConfig {
   List<MappingInfo> listMapping = [];
   List<MappingInfo> listDerivedMapping = [];
   Map<String, dynamic>? saveData;
-  ModelSchema? currentSrcModel;
-  ModelSchema? currentDestModel;
+
+  ModelSchema? _currentSrcModel;
+  ModelSchema? _currentDestModel;
+
+  ModelSchema? get currentSrcModel => _currentSrcModel;
+  ModelSchema? get currentDestModel => _currentDestModel;
+  set currentSrcModel(ModelSchema? model) => _currentSrcModel = model;
+  set currentDestModel(ModelSchema? model) => _currentDestModel = model;
 
   Map<String, dynamic>? dataSrc;
   Map<String, dynamic>? dataDest;
@@ -113,43 +122,55 @@ class MappingEngineConfig {
     if (d != null && isInit == false) {
       saveData = jsonDecode(d);
       loadModels(saveData!).then((value) {
-        isInit = true;
-        // ignore: invalid_use_of_protected_member
-        state?.setState(() {});
+        isInit = value;
+        if (value) {
+          // ignore: invalid_use_of_protected_member
+          state?.setState(() {});
+        }
       });
     }
   }
 
   Future<bool> loadModels(Map saveData) async {
-    currentSrcModel = await currentCompany.getModelByMasterId(
+    _currentSrcModel ??= await currentCompany.getModelByMasterId(
       saveData['srcMamespace'],
       saveData['src'],
     );
-    currentDestModel = await currentCompany.getModelByMasterId(
+    _currentDestModel ??= await currentCompany.getModelByMasterId(
       saveData['destMamespace'],
       saveData['dest'],
     );
 
-    await BrowseSingle(
-      config: BrowserConfig(),
-    ).browseSync(currentSrcModel!, false, 0);
-    await BrowseSingle(
-      config: BrowserConfig(),
-    ).browseSync(currentDestModel!, false, 0);
+    if (_currentSrcModel == null || _currentDestModel == null) {
+      return false;
+    }
+
+    await BrowseSingle(config: BrowserConfig())
+        .browseSync(_currentSrcModel!, false, 0);
+    await BrowseSingle(config: BrowserConfig())
+        .browseSync(_currentDestModel!, false, 0);
+
     return true;
   }
 }
 
-class _DetailMappingPageState extends State<DetailMappingPage> {
-  MappingEngineConfig config = MappingEngineConfig();
+class DetailMappingPageState extends State<DetailMappingPage> {
+  DetailMappingPageState();
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (config.currentDestModel == null) {
-      config.currentSrcModel ??= currentCompany.currentModel;
-    } else {
-      config.currentDestModel ??= currentCompany.currentModel;
-    }
+    // if (config.currentDestModel == null) {
+    //   config.currentSrcModel ??= currentCompany.currentModel;
+    // } else {
+    //   config.currentDestModel ??= currentCompany.currentModel;
+    // }
+
+    var config = widget.config;
 
     if (!config.isInit) {
       config.loadEngineConfig(this);
@@ -157,13 +178,13 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
     }
 
     if (config.saveData != null &&
-        config.currentSrcModel != null &&
-        config.currentDestModel != null) {
+        widget.config._currentSrcModel != null &&
+        widget.config._currentDestModel != null) {
       config.listMapping.clear();
       for (var field in config.saveData!['fields']) {
-        NodeAttribut pathSrc = config.currentSrcModel!.getNodeByMasterIdPath(
+        NodeAttribut? pathSrc = config.currentSrcModel!.getNodeByMasterIdPath(
           field['source'],
-        )!;
+        );
         NodeAttribut? pathDest = config.currentDestModel!.getNodeByMasterIdPath(
           field['target'],
         );
@@ -180,7 +201,11 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
     final GlobalKey<WidgetMappingState> keyMapping = GlobalKey();
     final GlobalKey<WidgetDerivedFieldState> keyDerivedMapping = GlobalKey();
 
+    final GlobalKey<WidgetMappingState> keySrc = GlobalKey();
+    final GlobalKey<WidgetMappingState> keyDest = GlobalKey();
+
     PanDestSelector srcWidget = PanDestSelector(
+      key: keySrc,
       getSchemaFct: () {
         return config.currentSrcModel;
       },
@@ -195,6 +220,7 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
     );
 
     PanDestSelector destWidget = PanDestSelector(
+      key: keyDest,
       onMapping: (json) {
         config.dataDest = json;
       },
@@ -233,11 +259,13 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
                   color: Colors.blue,
                   height: 30,
                   child: WidgetHeader(
+                    key: ObjectKey(config.currentSrcModel ?? "empty"),
                     title: 'Seed model',
                     modelWidget: srcWidget,
                     onChange: () {
                       setState(() {
                         doCleanAll(keyDerivedMapping, keyMapping);
+                        config.currentSrcModel = null;
                       });
                     },
                   ),
@@ -268,11 +296,13 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
                   color: Colors.blue,
                   height: 30,
                   child: WidgetHeader(
+                    key: ObjectKey(config.currentDestModel ?? "empty"),
                     title: 'Destination model',
                     modelWidget: destWidget,
                     onChange: () {
                       setState(() {
                         doCleanAll(keyDerivedMapping, keyMapping);
+                        config.currentDestModel = null;
                       });
                     },
                   ),
@@ -299,12 +329,12 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
     GlobalKey<WidgetDerivedFieldState> keyDerivedMapping,
     GlobalKey<WidgetMappingState> keyMapping,
   ) {
+    var config = widget.config;
     config.listMapping.clear();
     config.listDerivedMapping.clear();
     keyDerivedMapping.currentState?.valueListenable.value++;
     keyMapping.currentState?.valueListenable.value++;
     config.saveData = null;
-    config.currentDestModel = null;
   }
 
   void selectModel(BuildContext context, bool isSrc) {
@@ -320,15 +350,15 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
           schema.namespace!,
           attr.info.masterID!,
         );
+        
         if (isSrc) {
-          config.currentSrcModel = aModel;
+          widget.config.currentSrcModel = aModel;
         } else {
-          config.currentDestModel = aModel;
+          widget.config.currentDestModel = aModel;
         }
 
-        await BrowseSingle(
-          config: BrowserConfig(),
-        ).browseSync(aModel!, false, 0);
+        await BrowseSingle(config: BrowserConfig())
+            .browseSync(aModel!, false, 0);
         setState(() {});
       },
       getSchemaFct: () async {
@@ -369,11 +399,11 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
 
   Future<void> executeMapping(PanDestSelector destWidget) async {
     Map<String, dynamic> engineConfig = {'fields': []};
-    for (var field in config.saveData!['fields']) {
-      NodeAttribut pathSrc = config.currentSrcModel!.getNodeByMasterIdPath(
+    for (var field in widget.config.saveData!['fields']) {
+      NodeAttribut pathSrc = widget.config.currentSrcModel!.getNodeByMasterIdPath(
         field['source'],
       )!;
-      NodeAttribut? pathDest = config.currentDestModel!.getNodeByMasterIdPath(
+      NodeAttribut? pathDest = widget.config.currentDestModel!.getNodeByMasterIdPath(
         field['target'],
       );
       engineConfig['fields'].add({
@@ -386,24 +416,24 @@ class _DetailMappingPageState extends State<DetailMappingPage> {
     final registry = EnrichmentRegistry();
     final enrichmentEngine = EnrichmentEngine(registry);
     final engine = TransformEngine(engineConfig, enrichmentEngine);
-    final out = await engine.transformBatch([config.dataSrc!]);
-    config.dataDest?.clear();
-    config.dataDest?.addAll(out[0]);
+    final out = await engine.transformBatch([widget.config.dataSrc!]);
+    widget.config.dataDest?.clear();
+    widget.config.dataDest?.addAll(out[0]);
     destWidget.repaint();
     print(out);
   }
 
   void saveEngineConfig() {
     var object = {
-      "src": config.currentSrcModel!.id,
-      "srcMamespace": config.currentSrcModel!.namespace,
-      "dest": config.currentDestModel!.id,
-      "destMamespace": config.currentDestModel!.namespace,
-      "fields": config.listMapping.map((e) => e.getJson()).toList(),
+      "src": widget.config.currentSrcModel!.id,
+      "srcMamespace": widget.config.currentSrcModel!.namespace,
+      "dest": widget.config.currentDestModel!.id,
+      "destMamespace": widget.config.currentDestModel!.namespace,
+      "fields": widget.config.listMapping.map((e) => e.getJson()).toList(),
     };
     var j = jsonEncode(object);
-    config.getAccessorExtended().set(j);
-    config.saveData = object;
+    widget.config.getAccessorExtended().set(j);
+    widget.config.saveData = object;
   }
 
   late TabController tabController;
@@ -491,10 +521,12 @@ class WidgetHeader extends StatelessWidget {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             visualDensity: VisualDensity.compact,
           ),
-          onPressed: () {
-            modelWidget.initSchema();
-            modelWidget.repaint();
-          },
+          onPressed: modelWidget.getSchemaFct() == null
+              ? null
+              : () {
+                  modelWidget.initSchema();
+                  modelWidget.repaint();
+                },
           child: Text('load fake'),
         ),
         Expanded(child: Center(child: Text(title))),
@@ -508,8 +540,6 @@ class WidgetHeader extends StatelessWidget {
             visualDensity: VisualDensity.compact,
           ),
           onPressed: () {
-            // modelWidget.initSchema();
-            // modelWidget.repaint();
             onChange();
           },
           icon: Icon(Icons.delete),

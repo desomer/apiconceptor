@@ -1,7 +1,9 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:jsonschema/pages/router_config.dart';
 import 'package:jsonschema/start_core.dart';
+import 'package:jsonschema/widget/widget_tooltip.dart';
 
 class WidgetMenuBtn extends StatefulWidget {
   const WidgetMenuBtn({
@@ -9,10 +11,12 @@ class WidgetMenuBtn extends StatefulWidget {
     this.route,
     required this.label,
     required this.icon,
+    this.tooltip,
   });
   final Pages? route;
   final String label;
   final IconData icon;
+  final String? tooltip;
 
   @override
   State<WidgetMenuBtn> createState() => _WidgetMenuBtnState();
@@ -85,15 +89,22 @@ class _WidgetMenuBtnState extends State<WidgetMenuBtn> {
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: Text(
-                      widget.label,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: widget.route != null
-                            ? Colors.white
-                            : Colors.grey,
-                        fontWeight: FontWeight.w600,
-                        shadows: [Shadow(color: Colors.black26, blurRadius: 2)],
+                    child: AnimatedTooltip(
+                      delay: const Duration(milliseconds: 1000),
+                      visible: widget.tooltip != null,
+                      content: Text(widget.tooltip ?? ''),
+                      child: Text(
+                        widget.label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: widget.route != null
+                              ? Colors.white
+                              : Colors.grey,
+                          fontWeight: FontWeight.w600,
+                          shadows: [
+                            Shadow(color: Colors.black26, blurRadius: 2),
+                          ],
+                        ),
                       ),
                     ),
                   ),

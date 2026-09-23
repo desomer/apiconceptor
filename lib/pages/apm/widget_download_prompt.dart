@@ -96,38 +96,36 @@ class _WidgetPromptState extends State<WidgetPrompt> {
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: () async {
+                  var url = "http://127.0.0.1:3128/pushfile";
+
+                  url = 'http://127.0.0.1:4567/api/file';
+
                   // recuperer les prompts selectionnés et les copier dans le clipboard
-                  String dateSortable = DateFormat(
-                    'yyMMdd-HHmm',
-                  ).format(DateTime.now());
+                  String dateSortable = DateFormat('yyMMdd-HHmm')
+                      .format(DateTime.now());
 
                   int idxPrompt = 0;
                   for (int i = 0; i < items.length; i++) {
                     if (checked[i]) {
                       final cancelToken = CancelToken();
 
-                      if (items[i].markdownKownledge.isNotEmpty) {
-                        var ret2 = await CallerApi()
-                            .sendApi('POST', "http://127.0.0.1:3128/pushfile", {
-                              "path": '/knowledge/${items[i].fileName}',
-                              "content": items[i].markdownKownledge,
-                            }, cancelToken);
-
-                        print(
-                          "ret pushfile: ${ret2.reponse?.statusCode} ; ${ret2.reponse?.data}",
+                      var ret = await CallerApi().sendApi('POST', url, {
+                        "path":
+                            'prompts/${dateSortable}_${idxPrompt}_${items[i].fileName}',
+                        "content": items[i].markdownBuild,
+                      }, cancelToken);
+                      if (ret.reponse == null && ret.toDisplayError is Map) {
+                        Map toDisplayError = ret.toDisplayError;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Error uploading prompt\n${toDisplayError["message"]}',
+                            ),
+                          ),
                         );
+                        return;
                       }
 
-                      var ret = await CallerApi().sendApi(
-                        'POST',
-                        "http://127.0.0.1:3128/pushfile",
-                        {
-                          "path":
-                              '/prompts/${dateSortable}_${idxPrompt}_${items[i].fileName}',
-                          "content": items[i].markdownBuild,
-                        },
-                        cancelToken,
-                      );
                       print(
                         "ret pushfile: ${ret.reponse?.statusCode} ; ${ret.reponse?.data}",
                       );
@@ -146,7 +144,7 @@ class _WidgetPromptState extends State<WidgetPrompt> {
                       return AlertDialog(
                         title: const Text('Upload specification prompts'),
                         content: const Text(maxLines: 5, '''
-Les prompts selectionnés ont été uploadés.
+Les prompts selectionnés ont été uploadés dans OpenCode.
 Tu peux les retrouver dans le dossier /prompts du container apiarchitec.
 Lance la commande pour l'Agent IA dans ta fenêtre CLI IA de ton projet.
 Pour reduire les couts et limiter les hallucinations, ouvre un nouveau chat/contexte de l'agent IA.
@@ -155,21 +153,36 @@ Pour reduire les couts et limiter les hallucinations, ouvre un nouveau chat/cont
                           TextButton(
                             onPressed: () {
                               Navigator.of(context).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Command for Agent copied in clipboard',
-                                  ),
-                                ),
-                              );
-                              Clipboard.setData(
-                                const ClipboardData(
-                                  text:
-                                      'Execute directement le contenu des prompts du dossier /prompts. Déplace le fichier dans un dossier archive si terminé correctement.',
-                                ),
-                              );
                             },
-                            child: const Text('Close + cmd in clipboard '),
+                            child: const Text('Close'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.of(context).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('File send to OpenCode project')),
+                              );
+                              // Clipboard.setData(
+                              //   const ClipboardData(
+                              //     text: 'Execute directement le contenu des prompts du dossier /prompts. Déplace le fichier dans un dossier archive si terminé correctement.',
+                              //   ),
+                              // );
+
+                              await CallerApi().sendApi(
+                                'POST',
+                                'http://127.0.0.1:4567/api/prompt',
+                                {
+                                  "prompt": "Execute directement le contenu des prompts du dossier /prompts. Déplace le fichier dans un dossier /prompts/archive si terminé correctement.",
+                                  "submit": true,
+                                  "focus": true,
+                                },
+                                CancelToken(),
+                              );
+
+                              //  http://127.0.0.1:4567/api/type \
+                              // {"prompt": "Explique l architecture du projet", "submit": false}
+                            },
+                            child: const Text('Execute in OpenCode'),
                           ),
                         ],
                       );

@@ -30,7 +30,10 @@ class HomePage extends GenericPageStateless {
                 children: [
                   // getExpansible("Get started", getMenuStarted(context)),
                   // SizedBox(height: 30),
-                  getExpansible("For backend designer", getMenuDesigner(context)),
+                  getExpansible(
+                    "For backend designer",
+                    getMenuDesigner(context),
+                  ),
                   getExpansible(
                     "For urban planner & architect",
                     getMenuArchitect(context),
@@ -159,26 +162,30 @@ class HomePage extends GenericPageStateless {
             key: showCaseInfo.keys['model'] = GlobalKey(),
             label: 'Design Models & Contracts',
             icon: Icons.data_object,
+            tooltip: '''
+Design and manage data models, 
+Entities, 
+Response & Request structures, 
+FlatFile''',
             route: Pages.models,
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['api'] = GlobalKey(),
-            label: 
-'''Design API & 
-MCP''',
+            label: 'Design Endpoints',
+            tooltip: 'API, GraphQL or MCP Endpoints',
             icon: Icons.api,
             route: Pages.api,
-          ),
-          WidgetMenuBtn(
-            label: 'Mapping Spec.',
-            icon: Icons.map,
-            route: Pages.mapData,
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['usecase'] = GlobalKey(),
             label: 'Design Usecase & orchestration',
             icon: Icons.task_alt_outlined,
-            //route: Pages.asyncApi,
+            route: Pages.usecase,
+          ),
+          WidgetMenuBtn(
+            label: 'Mapping Spec. & external Call',
+            icon: Icons.map,
+            route: Pages.mapData,
           ),
           WidgetMenuBtn(
             key: showCaseInfo.keys['infra'] = GlobalKey(),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jsonschema/pages/apm/widget_prompt.dart';
+import 'package:jsonschema/pages/apm/widget_download_prompt.dart';
 
 import 'package:jsonschema/pages/router_generic_page.dart';
 import 'package:jsonschema/start_core.dart';

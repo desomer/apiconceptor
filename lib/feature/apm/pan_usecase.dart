@@ -6,7 +6,9 @@ import 'package:jsonschema/authorization_manager.dart';
 import 'package:jsonschema/core/ia/call_gemini_proxy.dart';
 import 'package:jsonschema/core/json_browser.dart';
 import 'package:jsonschema/core/model_schema.dart';
+import 'package:jsonschema/feature/apm/widget_usecase_list.dart';
 import 'package:jsonschema/feature/documentation/documentation_options.dart';
+import 'package:jsonschema/prompts/prompt_usecase.dart';
 import 'package:jsonschema/start_core.dart';
 import 'package:jsonschema/widget/editor/cell_prop_editor.dart';
 import 'package:jsonschema/widget/editor/mark_down_editor.dart';
@@ -22,6 +24,8 @@ class PanUseCase extends StatefulWidget {
   @override
   State<PanUseCase> createState() => _PanUseCaseState();
 }
+
+/* Event Storming */
 
 /*
 Titre :
@@ -103,18 +107,261 @@ USE CASE: UpdateProductPrice
    - RepositoryError
 */
 
-class _PanUseCaseState extends State<PanUseCase> {
+class _PanUseCaseState extends State<PanUseCase> with WidgetHelper {
+  TextEditingController controllerUseCase = TextEditingController();
+  TextEditingController controllerEventStorming = TextEditingController();
+  TextEditingController controllerJson = TextEditingController();
+  final TextEditingController questionController = TextEditingController();
+
   @override
   Widget build(BuildContext context) {
-    return PanUseCaseTree(
-      getSchemaFct: () async {
-        return await loadBehaviour(
-          currentCompany.currentModel!.namespace!,
-          currentCompany.currentModel!.id,
-          true,
-        );
-      },
+    questionController.text = '''''';
+
+    controllerEventStorming.text = '''
+Contexte métier
+
+La PetStore permet :
+de consulter le catalogue
+d'acheter des animaux
+d'acheter des accessoires
+de gérer les stocks
+de suivre les commandes
+
+---
+Parcours : Achat d'un animal
+ACTEUR
+Client
+
+COMMANDE
+Consulter le catalogue
+
+EVENEMENT
+Catalogue consulté
+
+COMMANDE
+Consulter une fiche animal
+
+EVENEMENT
+Fiche animal affichée
+
+COMMANDE
+Ajouter un animal au panier
+
+EVENEMENT
+Animal ajouté au panier
+
+COMMANDE
+Valider le panier
+
+EVENEMENT
+Panier validé
+
+COMMANDE
+Passer une commande
+
+EVENEMENT
+Commande créée
+
+POLICY
+Lorsqu'une commande est créée
+demander le paiement
+
+COMMANDE
+Payer la commande
+
+EVENEMENT
+Paiement accepté
+
+POLICY
+Lorsqu'un paiement est accepté
+réserver l'animal
+
+EVENEMENT
+Animal réservé
+
+POLICY
+Lorsqu'un animal est réservé
+mettre à jour le stock
+
+EVENEMENT
+Stock mis à jour
+
+COMMANDE
+Expédier la commande
+
+EVENEMENT
+Commande expédiée
+
+COMMANDE
+Livrer la commande
+
+EVENEMENT
+Commande livrée
+
+---
+
+Parcours : Gestion du stock
+
+ACTEUR
+Employé
+
+COMMANDE
+Ajouter un nouvel animal
+
+EVENEMENT
+Animal enregistré
+
+COMMANDE
+Mettre à jour les informations d'un animal
+
+EVENEMENT
+Animal modifié
+
+COMMANDE
+Retirer un animal de la vente
+
+EVENEMENT
+Animal retiré du catalogue
+
+COMMANDE
+Ajouter du stock d'accessoires
+
+EVENEMENT
+Stock augmenté
+
+COMMANDE
+Corriger un stock
+
+EVENEMENT
+Stock corrigé
+
+---
+
+Parcours : Inscription client
+
+ACTEUR
+Visiteur
+
+COMMANDE
+Créer un compte
+
+EVENEMENT
+Compte créé
+
+POLICY
+Lorsqu'un compte est créé
+envoyer un email de confirmation
+
+EVENEMENT
+Email de confirmation envoyé
+
+COMMANDE
+Confirmer son compte
+
+EVENEMENT
+Compte activé
+
+---
+
+Agrégats découverts :
+
+En lisant les événements, on identifie naturellement :
+- Customer
+- Animal
+- Product
+- Cart
+- Order
+- Payment
+- Inventory
+
+---
+Use Cases découverts :
+
+CreateCustomer
+ActivateCustomer
+
+BrowseCatalog
+ViewAnimal
+
+AddAnimalToCart
+ValidateCart
+
+CreateOrder
+PayOrder
+ShipOrder
+DeliverOrder
+
+CreateAnimal
+UpdateAnimal
+RemoveAnimal
+
+IncreaseStock
+AdjustStock
+
+''';
+
+    return WidgetTab(
+      listTab: [
+        const Tab(text: 'Use Case'),
+        const Tab(text: 'Event Storming'),
+        const Tab(text: 'Use Cases (liste)'),
+      ],
+      listTabCont: [
+        Column(
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                dialogChatAIBuilder(questionController, context, (text) async {
+                  text = promptDesignUseCase.replaceAll('{{usecase}}', text);
+                  await doAI(text);
+                });
+              },
+              child: const Text('Do AI'),
+            ),
+            Expanded(
+              child: MarkDownEditor(
+                controller: controllerUseCase,
+                focusNode: FocusNode(),
+                context: context,
+              ),
+            ),
+          ],
+        ),
+        MarkDownEditor(
+          controller: controllerEventStorming,
+          focusNode: FocusNode(),
+          context: context,
+        ),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controllerJson,
+          builder: (context, value, child) {
+            return WidgetUseCaseList(jsonSource: value.text);
+          },
+        ),
+      ],
+      heightTab: 30,
     );
+
+    // return PanUseCaseTree(
+    //   getSchemaFct: () async {
+    //     return await loadBehaviour(
+    //       currentCompany.currentModel!.namespace!,
+    //       currentCompany.currentModel!.id,
+    //       true,
+    //     );
+    //   },
+    // );
+  }
+
+  Future<bool> doAI(String text) async {
+    void doIAResponse(String response) {
+      controllerUseCase.text = useCasesToMarkdown(response);
+      controllerJson.text = response;
+    }
+
+    String textWithContext = text;
+
+    return await doCallIA(context, textWithContext, doIAResponse);
   }
 }
 
@@ -394,9 +641,8 @@ class InfoManagerBehaviors extends InfoManager with WidgetHelper {
     info.showExampleDto = false;
     info.showExampleMongoose = false;
 
-    var modelDesc = DocumentationGenerator(
-      config: info,
-    ).getModelDocumentation("");
+    var modelDesc = DocumentationGenerator(config: info)
+        .getModelDocumentation("");
 
     String prompt =
         '''

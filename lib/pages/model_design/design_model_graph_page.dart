@@ -64,7 +64,7 @@ class DesignModelGraphPage extends GenericPageStateless {
       ..navLeft = [
         BreadNode(
           icon: const Icon(Icons.data_object),
-          settings: const RouteSettings(name: 'List model'),
+          settings: const RouteSettings(name: 'List model & contract'),
           type: BreadNodeType.widget,
           path: Pages.models.urlpath,
         ),
@@ -89,7 +89,7 @@ class DesignModelGraphPage extends GenericPageStateless {
           path: Pages.models.urlpath,
         ),
         BreadNode(
-          settings: const RouteSettings(name: 'List model'),
+          settings: const RouteSettings(name: 'List model & contract'),
           type: BreadNodeType.widget,
         ),
       ];

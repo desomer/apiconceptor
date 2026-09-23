@@ -1,6 +1,200 @@
 import 'package:jsonschema/prompts/prompt_header.dart';
 
-String promptUseCase = '''
+String promptDesignUseCase = '''
+# Contexte techniques :  
+Tu es un expert en architecture hexagonale, Domain-Driven Design (DDD), CQRS et Saga
+
+{{usecase}}
+
+Donne moi la cartographie des Use Cases et des Sagas possibles de la couche applicative par Bounded Context, 
+suivie de la spécification détaillée de ses Use Case et des Saga orchestrées.
+
+# exemple de USE CASE: UpdateProductPrice
+
+1. Objectif métier
+   Permettre la mise à jour du prix d’un produit existant.
+
+2. Déclencheur (Input)
+   - productId: string (UUID)
+   - newPrice: number (> 0)
+   - updatedBy: string (userId)
+
+3. Règles métier
+   - Le produit doit exister.
+   - Le prix doit être strictement positif.
+   - Le changement doit être historisé.
+   - L’utilisateur doit être autorisé à modifier le prix.
+
+4. Ports utilisés
+   - ProductRepository
+   - PriceHistoryRepository
+   - UserAuthorizationService
+
+5. Processus détaillé
+   1. Charger le produit via ProductRepository.findById
+   2. Vérifier les droits via UserAuthorizationService.canUpdatePrice
+   3. Appeler product.updatePrice(newPrice)
+   4. Sauvegarder via ProductRepository.save
+   5. Enregistrer l’historique via PriceHistoryRepository.recordChange
+   6. Retourner le produit mis à jour
+
+6. Sortie (Output)
+   - productId
+   - oldPrice
+   - newPrice
+   - updatedAt
+   - updatedBy
+
+7. Erreurs possibles
+   - ProductNotFound
+   - UnauthorizedUser
+   - InvalidPrice
+   - RepositoryError
+
+8. Scénarios (Given / When / Then) :
+
+Scénario nominal : Mise à jour réussie du prix
+    Given un produit existe avec l'identifiant "product-123"
+    And son prix actuel est de 100.00
+    And l'utilisateur "user-456" est autorisé à modifier les prix
+
+    When l'utilisateur demande la mise à jour du prix à 120.00
+
+    Then le produit est récupéré depuis le ProductRepository
+    And le prix du produit est mis à jour à 120.00
+    And le produit est sauvegardé
+    And un historique de changement est enregistré
+    And les informations de mise à jour sont retournées
+
+Scénario d'erreur : Produit introuvable
+    Given aucun produit n'existe avec l'identifiant demandé
+
+    When l'utilisateur demande la mise à jour du prix
+
+    Then l'erreur ProductNotFound est retournée
+    And aucune modification n'est effectuée
+    And aucun historique n'est enregistré
+
+Scénario d'erreur : Prix invalide
+    Given le produit existe
+    And l'utilisateur est autorisé
+
+    When l'utilisateur fournit un prix inférieur ou égal à zéro
+
+    Then l'erreur InvalidPrice est retournée
+    And le produit n'est pas modifié
+    And aucun historique n'est enregistré
+
+
+9. Critères d'acceptation
+
+Le système doit permettre la mise à jour du prix d'un produit existant.
+Le système doit refuser toute valeur de prix inférieure ou égale à zéro.
+Le système doit vérifier les droits de l'utilisateur avant toute modification.
+Le système doit retourner une erreur ProductNotFound si le produit n'existe pas.
+Le système doit retourner une erreur UnauthorizedUser si l'utilisateur n'est pas autorisé.
+Le système doit retourner une erreur InvalidPrice si le prix fourni est invalide.
+Le système doit sauvegarder le nouveau prix dans le référentiel des produits.
+Le système doit enregistrer l'ancien prix et le nouveau prix dans l'historique.
+Le système doit enregistrer l'identifiant de l'utilisateur ayant effectué la modification.
+Le système doit enregistrer la date et l'heure de la modification.
+Le système doit retourner les informations de mise à jour après un traitement réussi.
+Aucun historique ne doit être créé lorsqu'une règle métier est violée.
+
+10. Non-objectifs
+
+Ce use case ne couvre pas :
+
+La création d'un produit.
+La suppression d'un produit.
+La modification d'autres attributs du produit (nom, description, stock, catégorie, etc.).
+Les mises à jour massives de prix sur plusieurs produits.
+La gestion des promotions ou remises temporaires.
+La planification d'un changement de prix à une date future.
+La gestion des devises ou des taux de conversion.
+Le calcul automatique de taxes ou de marges.
+La notification des utilisateurs suite à un changement de prix.
+La synchronisation avec des systèmes externes de facturation ou de catalogue.
+
+
+# exemple de SAGA : 
+
+- Spécification de la Saga en mermaid
+- Matrice des Compensations de la Saga
+    - Étape
+    - Action Nominale
+    - Action de Compensation (Rollback)
+    - Déclencheur du Rollback
+    - Criticité
+    - Idempotente
+    - Retryable
+    - Timeout
+
+
+
+# sortie attendue :
+   - sortie d'un json uniquement (pas de blabla, pas d'explication, pas de texte, pas de code block)
+   - sortie de type : 
+ {
+  "boundedContexts": [
+    {
+      "name": "",
+      "description": "",
+      "useCases": [
+        {
+          "name": "",
+          "objective": "",
+          "trigger": {},  // en jsonschemas mais sans attribut "\$schema"
+          "businessRules": [],   // tableau des règles métier en string
+          "ports": [],    // tableau des ports en string
+          "detailedProcess": [],  // tableau des étapes détaillées du processus en string
+          "output": {},    // en jsonschemas mais sans attribut "\$schema"
+          "possibleErrors": [],  // tableau des erreurs possibles en string
+          "scenarios": [
+            {
+              "type": "Nominal",
+              "title": "",
+              "given": "",
+              "when": "",
+              "then": ""
+            }
+          ],
+          "acceptanceCriteria": [],  // tableau des critères d'acceptation en string
+          "nonGoals": [],  // tableau des non-objectifs en string
+          "sagas": [
+            {
+              "name": "",
+              "description": "",
+              "mermaidDiagram": "",
+              "textDiagram": "",  // version textuelle markdown du diagramme 
+              "compensationMatrix": [
+                {
+                  "step": "",
+                  "nominalAction": "",
+                  "compensationAction": "",
+                  "rollbackTrigger": "",
+                  "criticality": "",  // niveau de criticité de l'étape CRITICAL, HIGH, MEDIUM, LOW
+                  "idempotent": false,
+                  "retryable": false,
+                  "timeout": ""   // durée au format ISO 8601
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+# MODE STRICT - CONTRAINTES BLOQUANTES : 
+  - vérification de la conformité du JSON des trigger et des output
+  - vérification de la conformité du global du JSON renvoyé. Il doit etre parsable par flutter.
+  - correction automatique des erreurs JSON avant de renvoyer la sortie.
+''';
+
+String promptUseCase =
+    '''
 ---
 $promptHeader
 ---

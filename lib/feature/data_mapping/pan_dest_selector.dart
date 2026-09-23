@@ -37,6 +37,7 @@ class PanDestSelector extends PanYamlTree with WidgetModelViewerHelper {
   @override
   dynamic initSchema() {
     ModelSchema m = getSchemaFct();
+
     var exportFake = Export2FakeJson(
       modeArray: ModeArrayEnum.anyInstance,
       mode: ModeEnum.fake,

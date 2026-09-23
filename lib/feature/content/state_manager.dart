@@ -136,7 +136,7 @@ class StateManager {
       _doReloadContainer(pathData);
     } else {
       // Valeur primitive
-      _initInputControleur(parent,pathData, json, 0);
+      _initInputControleur(parent,pathData, json.toString(), 0);
     }
   }
 

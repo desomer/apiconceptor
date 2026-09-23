@@ -12,6 +12,123 @@ import 'package:jsonschema/widget/widget_overflow.dart';
 
 import '../../widget/widget_md_doc.dart';
 
+Color? getColorOfType(String type) {
+  switch (type.toLowerCase()) {
+    case 'folder':
+      return null;
+    case 'model':
+      return Colors.blue;
+    case 'part':
+      return Colors.blueGrey;
+    case 'component':
+      return Colors.teal;
+    case 'createxdto':
+      return Colors.green;
+    case 'updatexdto':
+      return Colors.teal;
+    case 'xresponsedto':
+      return Colors.indigo;
+    case 'xlistitemdto':
+      return Colors.deepPurple;
+    case 'xquerydto':
+      return Colors.deepPurple;
+    case 'eventxpayloaddto':
+      return Colors.indigo;
+    case 'eventxenvelopedto':
+      return Colors.indigoAccent;
+    case 'flatfile':
+      return Colors.indigoAccent;
+    default:
+      return Colors.grey;
+  }
+}
+
+final List<OptionSelect> listOptionSelect = [
+  OptionSelect(
+    label: 'model',
+    name: 'model',
+    icon: Icons.data_object,
+    color: Colors.blueGrey,
+  ),
+  OptionSelect(
+    label: 'part',
+    name: 'part',
+    icon: Icons.extension,
+    color: Colors.purple,
+  ),
+  OptionSelect(
+    label: 'component',
+    name: 'component',
+    icon: Icons.build,
+    color: Colors.brown,
+  ),
+  OptionSelect(
+    label: 'createXDto',
+    name: 'createXDto',
+    icon: Icons.create,
+    color: Colors.green,
+  ),
+  OptionSelect(
+    label: 'updateXDto',
+    name: 'updateXDto',
+    icon: Icons.update,
+    color: Colors.orange,
+  ),
+  OptionSelect(
+    label: 'XResponseDto',
+    name: 'XResponseDto',
+    icon: Icons.reply,
+    color: Colors.blue,
+  ),
+  OptionSelect(
+    label: 'XListItemDto',
+    name: 'XListItemDto',
+    icon: Icons.list,
+    color: Colors.purple,
+  ),
+  OptionSelect(
+    label: 'XQueryDto',
+    name: 'XQueryDto',
+    icon: Icons.search,
+    color: Colors.cyan,
+  ),
+  OptionSelect(
+    label: 'eventXPayloadDto',
+    name: 'eventXPayloadDto',
+    icon: Icons.event,
+    color: Colors.teal,
+  ),
+  OptionSelect(
+    label: 'eventXEnvelopeDto',
+    name: 'eventXEnvelopeDto',
+    icon: Icons.mark_email_read,
+    color: Colors.indigo,
+  ),
+  OptionSelect(
+    label: 'flatFile',
+    name: 'flatFile',
+    icon: Icons.insert_drive_file,
+    color: Colors.indigoAccent,
+  ),
+];
+
+Icon getIconOfType(String type) {
+  var option = listOptionSelect.firstWhere(
+    (element) => element.name.toLowerCase() == type.toLowerCase(),
+    orElse: () => OptionSelect(
+      label: '',
+      name: '',
+      icon: Icons.help_outline,
+      color: Colors.grey,
+    ),
+  );
+  return Icon(option.icon);
+}
+
+List<OptionSelect> getListModelType() {
+  return listOptionSelect;
+}
+
 void validateJsonSchemas(
   JsonSchema validator,
   dynamic json,
@@ -237,7 +354,7 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
                         RouteManager.goto(Pages.modelDetail.id(key), context);
                       }
                       if (editor?.actionRowOnTapDetail ?? false) {
-                        // pour gérer l'action sur la ligne du tableau lorsque actionRowOnTapDetail est true  
+                        // pour gérer l'action sur la ligne du tableau lorsque actionRowOnTapDetail est true
                         // le cas des PanModelSelector
                         currentYamlTree?.onActionRow(node, context);
                       }
@@ -293,113 +410,13 @@ class InfoManagerListModel extends InfoManager with WidgetHelper {
     return w;
   }
 
-  Color? getColorOfType(String type) {
-    switch (type.toLowerCase()) {
-      case 'folder':
-        return null;
-      case 'model':
-        return Colors.blue;
-      case 'part':
-        return Colors.blueGrey;
-      case 'component':
-        return Colors.teal;
-      case 'createxdto':
-        return Colors.green;
-      case 'updatexdto':
-        return Colors.teal;
-      case 'xresponsedto':
-        return Colors.indigo;
-      case 'xlistitemdto':
-        return Colors.deepPurple;
-      case 'xquerydto':
-        return Colors.deepPurple;
-      case 'eventxpayloaddto':
-        return Colors.indigo;
-      case 'eventxenvelopedto':
-        return Colors.indigoAccent;
-      case 'flatfile':
-        return Colors.indigoAccent;
-      default:
-        return Colors.grey;
-    }
-  }
-
   Widget _getEditorType(NodeAttribut attr, BuildContext context, Widget child) {
     GlobalKey? k = GlobalKey();
 
     return GestureDetector(
       key: k,
       onTap: () {
-        var listOptions = [
-          OptionSelect(
-            label: 'model',
-            name: 'model',
-            icon: Icons.data_object,
-            color: Colors.blueGrey,
-          ),
-          OptionSelect(
-            label: 'part',
-            name: 'part',
-            icon: Icons.extension,
-            color: Colors.purple,
-          ),
-          OptionSelect(
-            label: 'component',
-            name: 'component',
-            icon: Icons.build,
-            color: Colors.brown,
-          ),
-          OptionSelect(
-            label: 'createXDto',
-            name: 'createXDto',
-            icon: Icons.create,
-            color: Colors.green,
-          ),
-          OptionSelect(
-            label: 'updateXDto',
-            name: 'updateXDto',
-            icon: Icons.update,
-            color: Colors.orange,
-          ),
-          OptionSelect(
-            label: 'XResponseDto',
-            name: 'XResponseDto',
-            icon: Icons.reply,
-            color: Colors.blue,
-          ),
-          OptionSelect(
-            label: 'XListItemDto',
-            name: 'XListItemDto',
-            icon: Icons.list,
-            color: Colors.purple,
-          ),
-          OptionSelect(
-            label: 'XQueryDto',
-            name: 'XQueryDto',
-            icon: Icons.search,
-            color: Colors.cyan,
-          ),
-          OptionSelect(
-            label: 'eventXPayloadDto',
-            name: 'eventXPayloadDto',
-            icon: Icons.event,
-            color: Colors.teal,
-          ),
-          OptionSelect(
-            label: 'eventXEnvelopeDto',
-            name: 'eventXEnvelopeDto',
-            icon: Icons.mark_email_read,
-            color: Colors.indigo,
-          ),
-          OptionSelect(
-            label: 'flatFile',
-            name: 'flatFile',
-            icon: Icons.insert_drive_file,
-            color: Colors.indigoAccent,
-          ),
-        ];
-
-        openTypeSelector(editor!, context, listOptions, attr, k);
+        openTypeSelector(editor!, context, getListModelType(), attr, k);
       },
       child: child,
     );
@@ -419,9 +436,9 @@ class InfoManagerChangeStyle {
   String? tooltipMessage;
 
   void initStyle(ModelSchema modelSchema, TreeNodeData<NodeAttribut> node) {
-    if (modelSchema.olderModelSchema != null && !node.isRoot) {
+    if (modelSchema.comparedModelSchema != null && !node.isRoot) {
       var masterIDPath = node.data.info.getMasterIDPath();
-      var exist = modelSchema.olderModelSchema!.getNodeByMasterIdPath(
+      var exist = modelSchema.comparedModelSchema!.getNodeByMasterIdPath(
         masterIDPath,
       );
       if (exist == null) {

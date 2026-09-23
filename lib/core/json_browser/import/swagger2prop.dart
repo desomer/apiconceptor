@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 class JsonSchemaPath {
   final String pathJson;
@@ -17,8 +16,7 @@ class JsonSchemaPath {
 }
 
 class JsonSchemaParser {
-  List<JsonSchemaPath> parse(String jsonSchemaString) {
-    final Map<String, dynamic> schema = jsonDecode(jsonSchemaString);
+  List<JsonSchemaPath> parse( Map<String, dynamic> schema) {
     final List<JsonSchemaPath> results = [];
 
     _walkSchema(
@@ -66,6 +64,8 @@ class JsonSchemaParser {
     "writeOnly",
     "deprecated",
     r"$comment",
+    // Custom property for search references
+    "search_references"
   ];
 
   dynamic _getProperty(Map<String, dynamic> node, String key) {

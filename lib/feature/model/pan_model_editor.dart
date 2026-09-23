@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:fuzzy/data/result.dart' show Result;
@@ -24,6 +26,7 @@ import 'package:jsonschema/widget/widget_breadcrumb.dart';
 import 'package:jsonschema/widget/widget_comment.dart';
 import 'package:jsonschema/widget/widget_glasspan.dart';
 import 'package:jsonschema/widget/widget_glossary_indicator.dart';
+import 'package:jsonschema/widget/widget_md_doc.dart';
 import 'package:jsonschema/widget/widget_model_helper.dart';
 import 'package:jsonschema/widget/widget_overflow.dart';
 import 'package:jsonschema/widget/widget_tab.dart';
@@ -262,8 +265,7 @@ mixin PanModelEditorHelper implements WidgetHelper {
             child: //Row(
                 //children: [
                 ThreadCommentCell(
-                  contextId:
-                      '${attr.info.getMasterID()}@${schema.id}', // unique par attribut
+                  contextId: '${attr.info.getMasterID()}@${schema.id}', // unique par attribut
                   childIfComment: const Center(
                     child: Icon(Icons.comment, color: Colors.white),
                   ),
@@ -305,7 +307,7 @@ mixin PanModelEditorHelper implements WidgetHelper {
         if (attr.info.properties?['required'] == true)
           const Icon(Icons.check_circle_outline),
         if (attr.info.properties?['search_references'] == true)
-          const Icon(Icons.search),          
+          const Icon(Icons.search),
         if (attr.info.properties?['#nullable'] == true)
           getChip(const Text('nullable', style: textStyle), color: null),
         if (attr.info.properties?['const'] != null)
@@ -532,52 +534,85 @@ class PanModelEditor extends PanYamlTree
 
   @override
   Widget getActionYaml(BuildContext context) {
-    void doIAResponse(String response) async {
+    void doIAResponseToChange(String response) async {
       print("IA Response: $response");
-      JsonSchemaParser parser = JsonSchemaParser();
-      var paths = parser.parse(response);
-      // paths.forEach((element) {
-      //   print(element);
-      // });
-      String treeYaml = parser.getTreeYaml(paths);
-      //print("Tree YAML:\n$treeYaml");
-      var aModel = getSchema();
-      aModel.modelYaml = treeYaml;
-      await getSchema().saveYaml(null, true, 'norepaint');
-      // SchedulerBinding.instance.addPostFrameCallback((_) async {
-      await bddStorage.doStoreSync();
+      final retJson = jsonDecode(response);
 
-      await jsonBrowserWidget.browseSync(aModel, true, 0);
-      for (var aPropByPath in paths) {
-        if (aPropByPath.properties.isNotEmpty) {
-          String pathJson = aPropByPath.pathJson;
-          if (pathJson == '<root>') {
-            continue;
-          }
-          var p = aModel.mapInfoByJsonPath[pathJson];
-          if (p != null) {
-            p.properties ??= {};
-            int nb = 0;
-            for (var entry in aPropByPath.properties.entries) {
-              if (p.properties![entry.key] != entry.value) {
-                p.properties![entry.key] = entry.value;
-                nb++;
-              }
+      JsonSchemaParser parser = JsonSchemaParser();
+      var retJson1 = retJson['content'][0];
+      bool isChange = retJson['responseType'] == 'change';
+
+      Future.delayed(Durations.medium4).then((_) async {
+        await showDialog(
+          // ignore: use_build_context_synchronously
+          context: context,
+          builder: (context2) {
+            print("RetJson1: $retJson1");
+            var retJson12 = retJson1['text'];
+
+            return AlertDialog(
+              title: Text("IA Response"),
+              content: Text(retJson12),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context2).pop();
+                  },
+                  child: Text("OK"),
+                ),
+              ],
+            );
+          },
+        );
+      });
+
+      if (isChange) {
+        var retJson2 = retJson['content'][1];
+        print("RetJson2: $retJson2");
+        var paths = parser.parse(retJson2['jsonschema']);
+        // paths.forEach((element) {
+        //   print(element);
+        // });
+        String treeYaml = parser.getTreeYaml(paths);
+        //print("Tree YAML:\n$treeYaml");
+        var aModel = getSchema();
+        aModel.modelYaml = treeYaml;
+        await getSchema().saveYaml(null, true, 'norepaint');
+        // SchedulerBinding.instance.addPostFrameCallback((_) async {
+        await bddStorage.doStoreSync();
+
+        await jsonBrowserWidget.browseSync(aModel, true, 0);
+        for (var aPropByPath in paths) {
+          if (aPropByPath.properties.isNotEmpty) {
+            String pathJson = aPropByPath.pathJson;
+            if (pathJson == '<root>') {
+              continue;
             }
-            if (nb > 0) {
-              var node = aModel.getNodeFromAttributInfo(p);
-              node?.info.action = 'U';
+            var p = aModel.mapInfoByJsonPath[pathJson];
+            if (p != null) {
+              p.properties ??= {};
+              int nb = 0;
+              for (var entry in aPropByPath.properties.entries) {
+                if (p.properties![entry.key] != entry.value) {
+                  p.properties![entry.key] = entry.value;
+                  nb++;
+                }
+              }
+              if (nb > 0) {
+                var node = aModel.getNodeFromAttributInfo(p);
+                node?.info.action = 'U';
+              }
             }
           }
         }
-      }
 
-      aModel.doChangeAndRepaintYaml(getYamlConfig(), true, 'import');
+        aModel.doChangeAndRepaintYaml(getYamlConfig(), true, 'import');
+      }
     }
 
     return ElevatedButton(
       onPressed: () {
-        dialogChatAIBuilder(context, (text) async {
+        dialogChatAIBuilder(TextEditingController(), context, (text) async {
           var export = Export2JsonSchema(config: BrowserConfig())
             ..browse(getSchema(), false);
 
@@ -587,9 +622,30 @@ class PanModelEditor extends PanYamlTree
                 '{{jsonschema}}',
                 "```json\n${export.prettyPrintJson(export.json)}\n```",
               )
+              .replaceAll(
+                '{{typeConstraints}}',
+                currentCompany.currentModelSel!.info.type == 'flatFile'
+                    ? typeFileContraint
+                    : typeModelContraint,
+              )
               .replaceAll('{{contraints}}', text);
 
-          await doCallIA(context, prompt, doIAResponse);
+          doCallIA(context, prompt, doIAResponseToChange);
+
+          var model = getSchema();
+          model.comparedModelSchema = await loadSchema(
+            TypeMD.model,
+            model.id,
+            model.headerName,
+            TypeModelBreadcrumb.businessmodel,
+            category: model.category,
+            namespace: model.namespace,
+            version: model.currentVersion,
+            //browser: TreeViewBrowserWidget(),
+            sync: true,
+            ref: model.refDomain,
+            config: BrowserConfig(),
+          );
         });
 
         //
@@ -632,10 +688,10 @@ class PanModelEditor extends PanYamlTree
   ) {
     var attr = node.data;
     if (attr.info.type == 'root') {
-      InfoManagerListModel mm =
-          currentCompany.listModel!.infoManager as InfoManagerListModel;
+      // InfoManagerListModel mm =
+      //     currentCompany.listModel!.infoManager as InfoManagerListModel;
 
-      var color = mm.getColorOfType(
+      var color = getColorOfType(
         currentCompany.currentModelSel!.info.type.toLowerCase(),
       );
       row.add(

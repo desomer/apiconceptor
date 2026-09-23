@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -14,10 +16,9 @@ class TooltipArrowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.fill;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
 
     final path = Path();
 
@@ -77,6 +78,7 @@ class AnimatedTooltip extends StatefulWidget {
   final Duration? delay;
   final ThemeData? theme;
   final Widget? child;
+  final bool visible;
 
   const AnimatedTooltip({
     super.key,
@@ -85,6 +87,7 @@ class AnimatedTooltip extends StatefulWidget {
     this.theme,
     this.delay,
     this.child,
+    this.visible = true,
   }) : assert(child != null || targetGlobalKey != null);
 
   @override
@@ -99,7 +102,7 @@ class AnimatedTooltipState extends State<AnimatedTooltip>
   //late Alignment _transitionAlignment;
   //late Alignment _arrowAlignment;
   bool _isInverted = false;
-  //Timer? _delayTimer;
+  Timer? _delayTimer;
 
   final _arrowSize = const Size(16.0, 16.0);
   final _tooltipMinimumHeight = 140;
@@ -116,28 +119,23 @@ class AnimatedTooltipState extends State<AnimatedTooltip>
   //   curve: Curves.easeOutBack,
   // );
 
-  void _toggle() {
-    //_delayTimer?.cancel();
-    //_animationController.stop();
-    if (_overlayController.isShowing) {
-      // _animationController.reverse().then((_) {
-      _overlayController.hide();
-      // });
-    } else {
+  void _scheduleShow() {
+    _delayTimer?.cancel();
+    final delay = widget.delay ?? Duration.zero;
+    _delayTimer = Timer(delay, () {
+      if (!mounted || _overlayController.isShowing) return;
       _updatePosition();
       _overlayController.show();
-      //_animationController.forward();
-    }
+    });
   }
 
   double x = 0;
 
   void _updatePosition() {
     final Size contextSize = MediaQuery.of(context).size;
-    final BuildContext? targetContext =
-        widget.targetGlobalKey != null
-            ? widget.targetGlobalKey!.currentContext
-            : context;
+    final BuildContext? targetContext = widget.targetGlobalKey != null
+        ? widget.targetGlobalKey!.currentContext
+        : context;
     final targetRenderBox = targetContext?.findRenderObject() as RenderBox;
     final targetOffset = targetRenderBox.localToGlobal(Offset.zero);
 
@@ -151,18 +149,16 @@ class AnimatedTooltipState extends State<AnimatedTooltip>
     final tooltipFitsBelowTarget =
         targetOffset.dy + targetSize.height + _tooltipMinimumHeight <=
         contextSize.height;
-    _tooltipTop =
-        tooltipFitsAboveTarget
-            ? null
-            : tooltipFitsBelowTarget
-            ? targetOffset.dy + targetSize.height
-            : null;
-    _tooltipBottom =
-        tooltipFitsAboveTarget
-            ? contextSize.height - targetOffset.dy
-            : tooltipFitsBelowTarget
-            ? null
-            : targetOffset.dy + targetSize.height / 2;
+    _tooltipTop = tooltipFitsAboveTarget
+        ? null
+        : tooltipFitsBelowTarget
+        ? targetOffset.dy + targetSize.height
+        : null;
+    _tooltipBottom = tooltipFitsAboveTarget
+        ? contextSize.height - targetOffset.dy
+        : tooltipFitsBelowTarget
+        ? null
+        : targetOffset.dy + targetSize.height / 2;
     // If the tooltip is below the target, invert the arrow.
     _isInverted = _tooltipTop != null;
     // Align the tooltip horizontally relative to the target.
@@ -189,58 +185,57 @@ class AnimatedTooltipState extends State<AnimatedTooltip>
   @override
   void initState() {
     super.initState();
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   // If the tooltip is delayed, start a timer to show it.
-    //   if (widget.delay != null) {
-    //     _delayTimer = Timer(widget.delay!, _toggle);
-    //   }
-    // });
   }
 
   @override
   void dispose() {
-    // _delayTimer?.cancel();
+    _delayTimer?.cancel();
     // _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.visible == false) {
+      return widget.child ?? const SizedBox.shrink();
+    }
+
     // If no theme is provided,
     // use the opposite brightness of the current theme to make the tooltip stand out.
     final theme =
         widget.theme ??
         ThemeData(
           useMaterial3: true,
-          brightness:
-              Theme.of(context).brightness == Brightness.light
-                  ? Brightness.dark
-                  : Brightness.light,
+          brightness: Theme.of(context).brightness == Brightness.light
+              ? Brightness.dark
+              : Brightness.light,
         );
 
     return OverlayPortal.targetsRootOverlay(
       controller: _overlayController,
-      child:
-          widget.child != null
-              ? MouseRegion(
-                onEnter: (event) {
-                  _cursorPosition = event.position;
-                  _toggle();
-                },
-                onExit: (event) {
-                  _toggle();
-                },
-                onHover: (PointerHoverEvent event) {
-                  _cursorPosition =
-                      event.position; // Position absolue dans l'écran
-                  setState(() {
-                    _updatePosition();
-                  });
-                },
+      child: widget.child != null
+          ? MouseRegion(
+              onEnter: (event) {
+                _cursorPosition = event.position;
+                _scheduleShow();
+              },
+              onExit: (event) {
+                _delayTimer?.cancel();
+                if (_overlayController.isShowing) {
+                  _overlayController.hide();
+                }
+              },
+              onHover: (PointerHoverEvent event) {
+                _cursorPosition =
+                    event.position; // Position absolue dans l'écran
+                setState(() {
+                  _updatePosition();
+                });
+              },
 
-                child: widget.child,
-              )
-              : null,
+              child: widget.child,
+            )
+          : null,
       overlayChildBuilder: (context) {
         return Positioned(
           top: _tooltipTop,

@@ -66,7 +66,7 @@ class BrowseAPIUIPage extends GenericPageStateful {
       ]
       ..breadcrumbs = [
         BreadNode(
-          settings: const RouteSettings(name: 'List API'),
+          settings: const RouteSettings(name: 'List Endpoints'),
           type: BreadNodeType.widget,
         ),
         BreadNode(

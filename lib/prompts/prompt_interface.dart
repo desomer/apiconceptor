@@ -66,11 +66,11 @@ interface/
 
 ## Règles obligatoires :
 
-1. **DTO (dto/)**
+1. **dto-in (mappers/dto-in)**
    - Validation technique via zod
    - Aucun décorateur métier.
 
-2. **Responses (responses/)**
+2. **dto-out (mappers/dto-out/)**
    - Types primitifs uniquement.
    - Jamais exposer le domaine.
    - Format JSON brut pour l'API.
@@ -86,8 +86,8 @@ interface/
    - ne pas mettre d'appel à un bus d'événement, tout doit passer par la couche Application.
 
 4. **Mapper (mappers/)**
-   - Transforme DTO → Command.
-   - Transforme Domain → Response DTO.
+   - Transforme DTO-in → Command.
+   - Transforme Domain → Response dto-out.
    - Ne dépend pas de NestJS.
    - Ne contient aucune logique métier.
 
@@ -112,10 +112,10 @@ interface/
 - l'arborescence complète
 - tous les fichiers
 - le code TypeScript complet
-- les DTO
-- les responses
+- les DTO-IN
+- les DTO-OUT
 - le controller
-- le mapper
+- les mapper
 - les exemples de commands utilisées
 - un flux complet : DTO → Command → Handler → Domain → Response
 

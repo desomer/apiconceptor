@@ -420,6 +420,7 @@ abstract class PanYamlTree extends StatelessWidget with WidgetHelper {
                   Size size = MediaQuery.of(ctx).size;
                   double width = size.width * 0.8;
                   double height = size.height * 0.8;
+                  
                   showDialog(
                     context: ctx,
                     barrierDismissible: true,
